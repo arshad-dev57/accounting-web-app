@@ -27,7 +27,7 @@ function WarehouseSidebar() {
 
   const menuItems = [
     { icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard', path: '/warehouse/dashboard' },
-    { icon: <Package className="w-5 h-5" />, label: 'Products', path: '/warehouse/products' },
+    { icon: <Package className="w-5 h-5" />, label: 'Products', path: '/products' },
       { icon: <FolderTree className="w-5 h-5" />, label: 'Categories', path: '/warehouse/categories' }, // ✅ Add this
     { icon: <Users className="w-5 h-5" />, label: 'Suppliers', path: '/warehouse/suppliers' },
         { icon: <Users className="w-5 h-5" />, label: 'Stock-Movement', path: '/warehouse/stock-movement' },

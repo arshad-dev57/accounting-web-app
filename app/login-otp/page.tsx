@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, ShieldCheck, RotateCcw } from 'lucide-react';
-import { apiClient } from '../lib/api-client'; // ✅ Import apiClient
+import { apiClient } from '../lib/api-client'; 
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 60;
@@ -61,7 +61,13 @@ function OtpContent() {
 
   const handleVerify = async () => {
     const otpValue = otp.join('');
+    console.log('🔄 [OTP Page] Starting OTP verification');
+    console.log('📧 [OTP Page] Email:', email);
+    console.log('🔢 [OTP Page] OTP value:', otpValue);
+    console.log('🔢 [OTP Page] OTP length:', otpValue.length);
+
     if (otpValue.length < OTP_LENGTH) {
+      console.log('❌ [OTP Page] OTP incomplete');
       setError('Please enter the complete 6-digit OTP');
       return;
     }
@@ -70,30 +76,61 @@ function OtpContent() {
     setError('');
 
     try {
+      console.log('📤 [OTP Page] Sending to API: /api/verify-otp');
       const response = await fetch('/api/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp: otpValue }),
       });
 
+      console.log('📥 [OTP Page] Response status:', response.status);
       const data = await response.json();
+      console.log('📥 [OTP Page] Response data:', data);
+      console.log('✅ [OTP Page] Verification success:', data.success);
 
       if (response.ok && data.success) {
+        console.log('🔑 [OTP Page] Token received:', data.token ? 'Yes' : 'No');
+        console.log('🔄 [OTP Page] Refresh token received:', data.refreshToken ? 'Yes' : 'No');
+        console.log('👤 [OTP Page] User data:', data.user);
+
         // ✅ Store tokens in apiClient (and localStorage)
         if (data.token) {
+          console.log('💾 [OTP Page] Storing tokens in apiClient');
           apiClient.setTokens(data.token, data.refreshToken);
         }
 
+        // ✅ Save currency from user data to localStorage
+        if (data.user && data.user.businessDetails) {
+          const currencyCode = data.user.businessDetails.currencyCode;
+          const currencySymbol = data.user.businessDetails.currencySymbol;
+          
+          if (currencyCode && currencySymbol) {
+            console.log('💰 [OTP Page] Saving currency from user data:', currencyCode, currencySymbol);
+            const currencyData = {
+              code: currencyCode,
+              name: currencyCode, // Will be updated from currency list if needed
+              symbol: currencySymbol,
+              symbolNative: currencySymbol,
+              countryCode: undefined, // Will be mapped if needed
+            };
+            localStorage.setItem('sales_selected_currency', JSON.stringify(currencyData));
+            console.log('✅ [OTP Page] Currency saved to localStorage');
+          }
+        }
+
         setSuccess('Verified! Redirecting...');
+        console.log('✅ [OTP Page] Redirecting to dashboard');
         setTimeout(() => {
           window.location.replace('/dashboard');
         }, 500);
       } else {
+        console.log('❌ [OTP Page] Verification failed:', data.message);
         setError(data.message || 'Invalid OTP. Please try again.');
         setOtp(Array(OTP_LENGTH).fill(''));
         setTimeout(() => inputRefs.current[0]?.focus(), 50);
       }
-    } catch {
+    } catch (error) {
+      console.error('❌ [OTP Page] Network error:', error);
       setError('Network error. Please check your connection.');
     } finally {
       setIsLoading(false);

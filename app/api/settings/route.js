@@ -70,7 +70,6 @@ export async function DELETE(request) {
   }
 }
 
-// ─── Export settingService for frontend ──────────────────────────
 export const settingService = {
   getSettings: async (category) => {
     const response = await apiClient.get(`/api/settings?category=${category}`);

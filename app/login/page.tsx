@@ -38,28 +38,55 @@ export default function LoginPage() {
     return valid;
   };
 
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      console.log('� [Login Page] Starting login process');
+      console.log('📧 [Login Page] Email:', email);
+      console.log('🔑 [Login Page] Password length:', password.length);
+      
+      // ✅ Backend route k
+      // e mutabiq sahi URL
+      console.log('📤 [Login Page] Sending request to backend: http://localhost:5000/api/users/login');
+      const response = await fetch('http://localhost:5000/api/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      console.log('📥 [Login Page] Response status:', response.status);
+      const data = await response.json();
+      console.log('� [Login Page] Response data:', data);
+      console.log('✅ [Login Page] Login success:', data.success);
+      console.log('🔐 [Login Page] Requires OTP:', data.requiresOtp);
+
+      if (data.success === true) {
+        console.log('✅ [Login Page] Redirecting to OTP page');
+        // OTP page par redirect
+        window.location.replace(`/login-otp?email=${encodeURIComponent(email)}`);
+        return;
+      }
+
+      console.log('❌ [Login Page] Login failed:', data.message);
+      throw new Error(data.message || 'Invalid email or password');
+      
+    } catch (error: any) {
+      console.error('❌ [Login Page] Login Error:', error);
+      console.error('❌ [Login Page] Error message:', error.message);
+      throw new Error(error.message || 'Login failed. Please try again.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsLoading(true);
+    setPasswordError('');
+    
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
-
-      const data = await res.json();
-
-      if (data.success === true) {
-        window.location.replace(`/login-otp?email=${encodeURIComponent(email.trim())}`);
-        return;
-      }
-
-      setPasswordError(data.message || 'Invalid email or password');
-    } catch {
-      setPasswordError('Network error. Please check your connection.');
+      await handleLogin(email.trim(), password);
+    } catch (error: any) {
+      setPasswordError(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -69,6 +96,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex bg-white">
+      {/* Left Side - Image Section */}
       <div className="hidden lg:flex lg:w-1/2 relative">
         <div className="absolute inset-0">
           <Image
@@ -111,9 +139,11 @@ export default function LoginPage() {
         </div>
       </div>
 
+      {/* Right Side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
 
+          {/* Mobile Logo */}
           <div className="lg:hidden flex flex-col items-center mb-8">
             <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-3">
               <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,6 +158,7 @@ export default function LoginPage() {
           <p className="text-gray-500 text-sm mb-8">Sign in to continue to your account</p>
 
           <form onSubmit={handleSubmit} noValidate>
+            {/* Email Field */}
             <div className="mb-5">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Email Address
@@ -147,6 +178,7 @@ export default function LoginPage() {
               {emailError && <p className="mt-1.5 text-xs text-red-500">{emailError}</p>}
             </div>
 
+            {/* Password Field */}
             <div className="mb-3">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Password
@@ -173,12 +205,14 @@ export default function LoginPage() {
               {passwordError && <p className="mt-1.5 text-xs text-red-500">{passwordError}</p>}
             </div>
 
+            {/* Forgot Password */}
             <div className="text-right mb-6">
               <button type="button" className="text-sm text-blue-600 hover:text-blue-700 font-semibold">
                 Forgot Password?
               </button>
             </div>
 
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
@@ -197,12 +231,14 @@ export default function LoginPage() {
             </button>
           </form>
 
+          {/* Divider */}
           <div className="flex items-center gap-4 my-6">
             <div className="flex-1 h-px bg-gray-200" />
             <span className="text-xs text-gray-400 font-medium">OR</span>
             <div className="flex-1 h-px bg-gray-200" />
           </div>
 
+          {/* Sign Up Link */}
           <p className="text-center text-sm text-gray-500">
             Don&apos;t have an account?{' '}
             <button className="text-blue-600 font-semibold hover:text-blue-700">Sign Up</button>

@@ -9,9 +9,16 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@zxing/browser": "^0.2.1",
     "axios": "^1.18.1",
+    "country-flag-icons": "^1.6.20",
     "country-list": "^2.4.1",
+    "country-to-currency": "^3.0.1",
+    "currency-codes": "^2.2.0",
+    "currency-list": "^1.0.8",
     "jsbarcode": "^3.12.3",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.21.0",
     "next": "16.2.9",
     "react": "19.2.4",

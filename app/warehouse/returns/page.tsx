@@ -21,15 +21,9 @@ import {
   Image, Paperclip, Send, DownloadCloud
 } from 'lucide-react';
 
-// ─────────────────────────────────────────────────────────────
-// IMPORTS
-// ─────────────────────────────────────────────────────────────
 import { returnService, Return, ReturnItem } from '../../api/returns/route';
 import { orderService } from '../../api/order/route';
 
-// ─────────────────────────────────────────────────────────────
-// RETURN LIST VIEW
-// ─────────────────────────────────────────────────────────────
 function ReturnList({ 
   returns, 
   loading, 
@@ -886,9 +880,6 @@ function CreateReturnModal({
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// RETURN DETAILS MODAL
-// ─────────────────────────────────────────────────────────────
 function ReturnDetailModal({ returnData, onClose, onApprove, onReject }: { 
   returnData: Return; 
   onClose: () => void;
@@ -1160,9 +1151,6 @@ function ReturnDetailModal({ returnData, onClose, onApprove, onReject }: {
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// MAIN PAGE
-// ─────────────────────────────────────────────────────────────
 export default function ReturnsPage() {
   const [returns, setReturns] = useState<Return[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1170,7 +1158,6 @@ export default function ReturnsPage() {
   const [selectedReturn, setSelectedReturn] = useState<Return | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  // ─── Pagination ────────────────────────────────────────────
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -1180,7 +1167,6 @@ export default function ReturnsPage() {
     hasPrev: false
   });
 
-  // ─── Stats ─────────────────────────────────────────────────
   const [stats, setStats] = useState({
     total: 0,
     totalRefund: 0,
@@ -1190,7 +1176,6 @@ export default function ReturnsPage() {
     completed: 0
   });
 
-  // ─── Filters ──────────────────────────────────────────────
   const [filters, setFilters] = useState({
     search: '',
     status: 'all',
@@ -1232,7 +1217,6 @@ export default function ReturnsPage() {
     }
   }, [pagination.page, pagination.limit, filters]);
 
-  // ─── Handlers ──────────────────────────────────────────────
   const handleView = (returnData: Return) => {
     setSelectedReturn(returnData);
     setShowDetailModal(true);

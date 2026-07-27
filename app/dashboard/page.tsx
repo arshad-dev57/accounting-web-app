@@ -12,7 +12,9 @@ import {
   Phone,
   Headset,
   ChevronDown,
-  User
+  User,
+  ShoppingCart,
+  Package
 } from 'lucide-react';
 
 // ============================================================
@@ -25,6 +27,8 @@ function Sidebar() {
     { icon: <Home className="w-5 h-5" />, label: 'Home', path: '/dashboard' },
     { icon: <Building2 className="w-5 h-5" />, label: 'Accounting', path: '/accounting/dashboard' },
     { icon: <Warehouse className="w-5 h-5" />, label: 'Warehouse', path: '/warehouse/dashboard' },
+    { icon: <ShoppingCart className="w-5 h-5" />, label: 'Sales', path: '/sales' },
+    { icon: <Package className="w-5 h-5" />, label: 'Purchases', path: '/purchases' },
   ];
 
   const handleNavigation = (path: string) => {
@@ -165,9 +169,10 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* Body - Only Slider */}
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="w-full max-w-6xl">
+        {/* Body - Slider and Cards */}
+        <div className="flex-1 p-6 overflow-auto">
+          <div className="w-full max-w-6xl mx-auto space-y-6">
+            {/* Banner Slider */}
             <div className="relative w-full h-[420px] rounded-2xl overflow-hidden shadow-xl">
               <Image
                 src={banner.image}
@@ -213,6 +218,64 @@ export default function DashboardPage() {
                     }`}
                   />
                 ))}
+              </div>
+            </div>
+
+            {/* Sales and Purchases Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Sales Card */}
+              <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all cursor-pointer">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-[#00E676]/10 rounded-xl flex items-center justify-center">
+                      <ShoppingCart className="w-6 h-6 text-[#00E676]" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-800">Sales</h3>
+                      <p className="text-sm text-gray-500">Manage your sales</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Total Sales Today</span>
+                    <span className="text-lg font-bold text-gray-800">$0.00</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Orders Today</span>
+                    <span className="text-lg font-bold text-gray-800">0</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Purchases Card */}
+              <div 
+                onClick={() => window.location.href = '/purchases'}
+                className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-[#00E676]/10 rounded-xl flex items-center justify-center">
+                      <Package className="w-6 h-6 text-[#00E676]" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-800">Purchases</h3>
+                      <p className="text-sm text-gray-500">Manage your purchases</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Total Purchases Today</span>
+                    <span className="text-lg font-bold text-gray-800">$0.00</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Purchase Orders Today</span>
+                    <span className="text-lg font-bold text-gray-800">0</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

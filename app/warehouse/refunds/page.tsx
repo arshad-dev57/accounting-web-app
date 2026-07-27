@@ -3,25 +3,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft, Plus, Search, Edit, Trash2, Eye, Package,
-  ChevronDown, X, Save, User, Mail, Phone, MapPin,
-  DollarSign, Tag, Truck, Calendar, Loader2,
-  CheckCircle, XCircle, Clock, Filter, Download,
-  Printer, RefreshCw, Layers, ShoppingCart,
-  CreditCard, Receipt, Building2, Hash, Type,
-  AlignLeft, Box, Minus, Plus as PlusIcon,
-  AlertCircle, Globe, CalendarDays, UserRound,
-  FileText, ListChecks, TruckIcon, PackageOpen,
-  Shield, BadgePercent, Clock3, UserCheck,
-  ClipboardList, Building, Briefcase, PackageCheck,
-  Settings, ChevronLeft, ChevronRight, Undo2,
-  RotateCcw, Ban, FileCheck, MessageSquare,
-  Star, StarHalf, ThumbsUp, ThumbsDown,
-  HelpCircle, Info, ExternalLink, Upload,
-  Image, Paperclip, Send, DownloadCloud,
-  Wallet, Banknote, ArrowLeftRight, History,
-  TrendingUp, TrendingDown, PieChart, BarChart3
+  ArrowLeft, Plus, Search, Eye, Wallet, Calendar, Loader2,
+  CheckCircle, Clock, RefreshCw, ChevronLeft, ChevronRight,
+  X, Send, AlertCircle, Banknote, User, Mail, Phone,
+  Building2, FileText, CreditCard, Landmark, Hash, Type,
+  AlignLeft, Box, Minus, Plus as PlusIcon, Trash2
 } from 'lucide-react';
+import { refundService, Refund } from '../../api/refunds/route';
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
@@ -380,7 +368,6 @@ function CreateRefundModal({
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [step, setStep] = useState(1);
 
   // ─── Refund Information ──────────────────────────────────
   const [refundData, setRefundData] = useState({
@@ -414,11 +401,10 @@ function CreateRefundModal({
     
     setOrderSearchLoading(true);
     try {
-      // Mock API call - replace with actual
-      setOrderSearchResults([
-        { _id: '1', orderNumber: 'ORD-20260624-0001', customerName: 'John Doe', grandTotal: 1500 },
-        { _id: '2', orderNumber: 'ORD-20260624-0002', customerName: 'Jane Smith', grandTotal: 2500 },
-      ]);
+      // Replace with actual API call
+      const response = await fetch(`/api/warehouse/order/search?q=${value}&limit=5`);
+      const data = await response.json();
+      setOrderSearchResults(data.data || []);
     } catch (error) {
       console.error('Search order error:', error);
       setOrderSearchResults([]);
@@ -463,16 +449,7 @@ function CreateRefundModal({
     setError('');
 
     try {
-      const payload = {
-        ...refundData,
-        refundStatus: 'Pending',
-        refundDate: new Date().toISOString(),
-        refundNumber: `REF-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      };
-
-      console.log('Refund payload:', payload);
-      // await refundService.createRefund(payload);
-      
+      await refundService.createRefund(refundData);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -996,113 +973,35 @@ export default function RefundsPage() {
     toDate: ''
   });
 
-  // ─── Mock Data ─────────────────────────────────────────────
-  useEffect(() => {
-    const mockRefunds: Refund[] = [
-      {
-        _id: '1',
-        refundNumber: 'REF-20260624-0001',
-        refundDate: new Date().toISOString(),
-        orderId: '1',
-        orderNumber: 'ORD-20260624-0001',
-        customerId: '1',
-        customerName: 'John Doe',
-        customerEmail: 'john@example.com',
-        customerPhone: '+92 300 1234567',
-        amount: 1500,
-        refundStatus: 'Pending',
-        refundMethod: 'Original Payment',
-        reason: 'Customer requested refund',
-        notes: 'Product was damaged',
-        createdBy: { _id: '1', name: 'Admin' },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        _id: '2',
-        refundNumber: 'REF-20260623-0002',
-        refundDate: new Date(Date.now() - 86400000).toISOString(),
-        orderId: '2',
-        orderNumber: 'ORD-20260623-0002',
-        customerId: '2',
-        customerName: 'Jane Smith',
-        customerEmail: 'jane@example.com',
-        customerPhone: '+92 300 7654321',
-        amount: 2500,
-        refundStatus: 'Processing',
-        refundMethod: 'Bank Transfer',
-        reason: 'Order cancellation',
-        referenceNumber: 'BT-20260623-001',
-        bankName: 'HBL',
-        accountNumber: '1234-5678-9012',
-        accountHolderName: 'Jane Smith',
-        processedBy: 'Admin',
-        processedAt: new Date(Date.now() - 43200000).toISOString(),
-        createdBy: { _id: '1', name: 'Admin' },
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        updatedAt: new Date(Date.now() - 43200000).toISOString()
-      },
-      {
-        _id: '3',
-        refundNumber: 'REF-20260622-0003',
-        refundDate: new Date(Date.now() - 172800000).toISOString(),
-        orderId: '3',
-        orderNumber: 'ORD-20260622-0003',
-        customerId: '3',
-        customerName: 'Ali Khan',
-        customerEmail: 'ali@example.com',
-        customerPhone: '+92 300 9876543',
-        amount: 750,
-        refundStatus: 'Completed',
-        refundMethod: 'Store Credit',
-        reason: 'Product exchange',
-        processedBy: 'Admin',
-        processedAt: new Date(Date.now() - 86400000).toISOString(),
-        completedAt: new Date(Date.now() - 43200000).toISOString(),
-        createdBy: { _id: '1', name: 'Admin' },
-        createdAt: new Date(Date.now() - 172800000).toISOString(),
-        updatedAt: new Date(Date.now() - 43200000).toISOString()
-      },
-      {
-        _id: '4',
-        refundNumber: 'REF-20260621-0004',
-        refundDate: new Date(Date.now() - 259200000).toISOString(),
-        orderId: '4',
-        orderNumber: 'ORD-20260621-0004',
-        customerId: '4',
-        customerName: 'Maria Khan',
-        customerEmail: 'maria@example.com',
-        customerPhone: '+92 300 5555555',
-        amount: 3200,
-        refundStatus: 'Failed',
-        refundMethod: 'Original Payment',
-        reason: 'Payment gateway error',
-        failureReason: 'Bank declined the transaction',
-        createdBy: { _id: '1', name: 'Admin' },
-        createdAt: new Date(Date.now() - 259200000).toISOString(),
-        updatedAt: new Date(Date.now() - 172800000).toISOString()
-      }
-    ];
+  // ─── Fetch Refunds ─────────────────────────────────────────
+  const fetchRefunds = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await refundService.getRefunds({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: filters.search || undefined,
+        status: filters.status !== 'all' ? filters.status : undefined,
+        method: filters.method !== 'all' ? filters.method : undefined,
+        fromDate: filters.fromDate || undefined,
+        toDate: filters.toDate || undefined,
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      });
+      
+      setRefunds(response.data);
+      setPagination(response.pagination);
+      setStats(response.stats);
+    } catch (error) {
+      console.error('Failed to fetch refunds:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [pagination.page, filters]);
 
-    setRefunds(mockRefunds);
-    setStats({
-      total: mockRefunds.length,
-      totalAmount: mockRefunds.reduce((sum, r) => sum + r.amount, 0),
-      pending: mockRefunds.filter(r => r.refundStatus === 'Pending').length,
-      processing: mockRefunds.filter(r => r.refundStatus === 'Processing').length,
-      completed: mockRefunds.filter(r => r.refundStatus === 'Completed').length,
-      failed: mockRefunds.filter(r => r.refundStatus === 'Failed').length
-    });
-    setPagination({
-      page: 1,
-      limit: 10,
-      total: mockRefunds.length,
-      pages: 1,
-      hasNext: false,
-      hasPrev: false
-    });
-    setLoading(false);
-  }, []);
+  useEffect(() => {
+    fetchRefunds();
+  }, [fetchRefunds]);
 
   // ─── Handlers ──────────────────────────────────────────────
   const handleView = (refund: Refund) => {
@@ -1110,16 +1009,27 @@ export default function RefundsPage() {
     setShowDetailModal(true);
   };
 
-  const handleProcess = (refund: Refund) => {
-    console.log('Process refund:', refund);
+  const handleProcess = async (refund: Refund) => {
+    try {
+      await refundService.processRefund(refund._id!);
+      fetchRefunds();
+    } catch (error) {
+      console.error('Failed to process refund:', error);
+    }
   };
 
-  const handleComplete = (refund: Refund) => {
-    console.log('Complete refund:', refund);
+  const handleComplete = async (refund: Refund) => {
+    try {
+      await refundService.completeRefund(refund._id!);
+      fetchRefunds();
+    } catch (error) {
+      console.error('Failed to complete refund:', error);
+    }
   };
 
   const handleCreateSuccess = () => {
     setShowCreateModal(false);
+    fetchRefunds();
   };
 
   const handlePageChange = (page: number) => {
@@ -1132,8 +1042,7 @@ export default function RefundsPage() {
   };
 
   const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 500);
+    fetchRefunds();
   };
 
   return (
