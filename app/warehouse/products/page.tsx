@@ -19,7 +19,7 @@ import { supplierService, Supplier } from '../../api/supplier/route';
 import { settingService } from '../../api/settings/route';
 
 // ============================================================
-// BARCODE GENERATOR COMPONENT
+// BARCODE DISPLAY COMPONENT
 // ============================================================
 function BarcodeDisplay({ value, productName }: { value: string; productName: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -283,7 +283,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-4 divide-x divide-gray-100 border-b border-gray-100">
+        <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-gray-100 border-b border-gray-100">
           {[
             { label: 'Cost Price', value: `Rs. ${Number(product.costPrice || 0).toLocaleString()}`, icon: DollarSign, color: 'text-blue-600' },
             { label: 'Selling Price', value: `Rs. ${Number(product.sellingPrice || 0).toLocaleString()}`, icon: ShoppingCart, color: 'text-green-600' },
@@ -576,93 +576,93 @@ function ProductList({
   const statusOptions = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Package className="w-6 h-6 text-[#7c4dff]" />
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
+          <Package className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
           Products
-          <span className="text-sm font-normal text-gray-400 ml-2">({pagination.total} items)</span>
+          <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">({pagination.total} items)</span>
         </h2>
-        <div className="flex items-center gap-3">
-          <button onClick={onScanClick} className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all">
-            <Camera className="w-4 h-4" /> Scan
+        <div className="flex flex-wrap items-center gap-2 md:gap-3">
+          <button onClick={onScanClick} className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all">
+            <Camera className="w-3.5 h-3.5 md:w-4 md:h-4" /> Scan
           </button>
-          <Link href="/warehouse/product-settings" className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all">
-            <Settings className="w-4 h-4" /> Settings
+          <Link href="/warehouse/product-settings" className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all">
+            <Settings className="w-3.5 h-3.5 md:w-4 md:h-4" /> Settings
           </Link>
-          <button onClick={onAddClick} className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25">
-            <Plus className="w-4 h-4" /> Add Product
+          <button onClick={onAddClick} className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25">
+            <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" /> Add Product
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex-1 min-w-[200px] relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 md:gap-4">
+          <div className="flex-1 min-w-[150px] md:min-w-[200px] relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
             <input type="text" placeholder="Search products..." value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none" />
+              className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none" />
           </div>
-          <div className="relative">
+          <div className="relative flex-1 sm:flex-none min-w-[120px]">
             <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}
-              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+              className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
               {catOptions.map((cat) => (
                 <option key={cat} value={cat === 'All' ? 'all' : cat}>{cat}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 pointer-events-none" />
           </div>
-          <div className="relative">
+          <div className="relative flex-1 sm:flex-none min-w-[100px]">
             <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}
-              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+              className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
               {statusOptions.map((status) => (
                 <option key={status} value={status === 'All' ? 'all' : status.toLowerCase().replace(' ', '-')}>{status}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 pointer-events-none" />
           </div>
         </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs md:text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">SKU</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Product Name</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Supplier</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Stock</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">SKU</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Product Name</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Category</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Supplier</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Stock</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="text-center py-12">
-                  <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
-                  <p className="mt-2 text-gray-500">Loading...</p>
+                <tr><td colSpan={8} className="text-center py-8 md:py-12">
+                  <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#7c4dff] animate-spin" />
+                  <p className="mt-2 text-xs md:text-sm text-gray-500">Loading...</p>
                 </td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-12 text-gray-400">
-                  <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-lg font-medium text-gray-500">No products found</p>
-                  <p className="text-sm text-gray-400">Try adjusting your search or filters</p>
+                <tr><td colSpan={8} className="text-center py-8 md:py-12 text-gray-400">
+                  <Package className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-3 text-gray-300" />
+                  <p className="text-sm md:text-lg font-medium text-gray-500">No products found</p>
+                  <p className="text-xs md:text-sm text-gray-400">Try adjusting your search or filters</p>
                 </td></tr>
               ) : (
                 products.map((product) => (
-                  <tr key={product._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-3 font-mono text-xs font-semibold text-gray-700">{product.sku}</td>
-                    <td className="px-6 py-3 font-medium text-gray-800">{product.name}</td>
-                    <td className="px-6 py-3 text-gray-600">{product.categoryName || '-'}</td>
-                    <td className="px-6 py-3 text-gray-600">{product.supplierName || '-'}</td>
-                    <td className="px-6 py-3 font-semibold text-gray-700">Rs. {Number(product.sellingPrice).toLocaleString()}</td>
-                    <td className="px-6 py-3 text-gray-600">{Number(product.currentStock).toLocaleString()}</td>
-                    <td className="px-6 py-3">
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                  <tr key={product.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td className="px-3 md:px-6 py-2 md:py-3 font-mono text-[10px] md:text-xs font-semibold text-gray-700">{product.sku}</td>
+                    <td className="px-3 md:px-6 py-2 md:py-3 font-medium text-gray-800 text-xs md:text-sm">{product.name}</td>
+                    <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden sm:table-cell">{product.categoryName || '-'}</td>
+                    <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden md:table-cell">{product.supplierName || '-'}</td>
+                    <td className="px-3 md:px-6 py-2 md:py-3 font-semibold text-gray-700 text-xs md:text-sm">Rs. {Number(product.sellingPrice).toLocaleString()}</td>
+                    <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden lg:table-cell">{Number(product.currentStock).toLocaleString()}</td>
+                    <td className="px-3 md:px-6 py-2 md:py-3">
+                      <span className={`text-[8px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full ${
                         product.currentStock === 0 ? 'bg-red-100 text-red-700' :
                         product.currentStock <= (product.minimumStock || 5) ? 'bg-orange-100 text-orange-700' :
                         'bg-green-100 text-green-700'
@@ -671,16 +671,25 @@ function ProductList({
                          product.currentStock <= (product.minimumStock || 5) ? 'Low Stock' : 'In Stock'}
                       </span>
                     </td>
-                    <td className="px-6 py-3">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => onViewClick(product)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="View Detail">
-                          <Eye className="w-4 h-4" />
+                    <td className="px-3 md:px-6 py-2 md:py-3">
+                      <div className="flex items-center gap-1 md:gap-2">
+                        <button onClick={() => onViewClick(product)} className="p-1 md:p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="View Detail">
+                          <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         </button>
-                        <button onClick={() => onEditClick(product)} className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-all" title="Edit">
-                          <Edit className="w-4 h-4" />
+                        <button onClick={() => onEditClick(product)} className="p-1 md:p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-all" title="Edit">
+                          <Edit className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         </button>
-                        <button onClick={() => onDeleteClick(product._id!)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
-                          <Trash2 className="w-4 h-4" />
+                        <button onClick={() => {
+                          console.log('🔵 [Delete button clicked] Product object:', product);
+                          console.log('🔵 [Delete button clicked] Product ID:', product.id);
+                          if (!product.id) {
+                            console.error('❌ [Delete button clicked] Product ID is missing!');
+                            alert('Product ID is missing, cannot delete');
+                            return;
+                          }
+                          onDeleteClick(product.id);
+                        }} className="p-1 md:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                          <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         </button>
                       </div>
                     </td>
@@ -693,20 +702,20 @@ function ProductList({
       </div>
 
       {pagination && pagination.pages > 1 && (
-        <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <p className="text-sm text-gray-500">
+        <div className="flex flex-col xs:flex-row items-center justify-between gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
+          <p className="text-[10px] md:text-sm text-gray-500 text-center xs:text-left">
             Showing {(pagination.page - 1) * pagination.limit + 1} –{' '}
             {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} products
           </p>
-          <div className="flex gap-2">
-            <button onClick={() => onPageChange(pagination.page - 1)} disabled={!pagination.hasPrev} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-              <ChevronLeft className="w-4 h-4" />
+          <div className="flex gap-1 md:gap-2">
+            <button onClick={() => onPageChange(pagination.page - 1)} disabled={!pagination.hasPrev} className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+              <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
             </button>
-            <span className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg">
+            <span className="px-2 md:px-4 py-1 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg text-xs md:text-sm">
               {pagination.page} / {pagination.pages}
             </span>
-            <button onClick={() => onPageChange(pagination.page + 1)} disabled={!pagination.hasNext} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-              <ChevronRight className="w-4 h-4" />
+            <button onClick={() => onPageChange(pagination.page + 1)} disabled={!pagination.hasNext} className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+              <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
             </button>
           </div>
         </div>
@@ -807,13 +816,7 @@ function ProductForm({
   const [error, setError] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [barcodeImageFile, setBarcodeImageFile] = useState<File | null>(null);
-  const [subCategories, setSubCategories] = useState<Category[]>(() => {
-    if (editingProduct?.categoryId) {
-      const cat = categories.find(c => c._id === editingProduct.categoryId);
-      return cat?.children || [];
-    }
-    return [];
-  });
+  const [subCategories, setSubCategories] = useState<Category[]>([]);
 
   const productTypes = settingsData.productType || [];
   const stockUnits = settingsData.stockUnit || [];
@@ -839,68 +842,128 @@ function ProductForm({
   ];
 
   const handleInputChange = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
-// In your ProductsPage component
 
-// Then update your handleCategoryChange function:
-const handleCategoryChange = (categoryId: string) => {
-  console.log('Category selected:', categoryId);
-  
-  handleInputChange('category', categoryId);
-  handleInputChange('subCategory', '');
-  
-  if (categoryId) {
-    // Find the selected category from the already loaded categories
-    const selectedCategory = categories.find(c => c._id === categoryId || c.id === categoryId);
-    console.log('Selected category:', selectedCategory);
+  const handleCategoryChange = (categoryId: string) => {
+    handleInputChange('category', categoryId);
+    handleInputChange('subCategory', '');
     
-    // Get subcategories - check both property names
-    const subCats = selectedCategory?.subCategories || selectedCategory?.children || [];
-    console.log('Subcategories found:', subCats);
-    
-    setSubCategories(subCats);
-  } else {
-    setSubCategories([]);
-  }
-};
-const handleSubmit = async (e: React.FormEvent) => {
+    if (categoryId) {
+      const selectedCategory = categories.find(c => c.id === categoryId);
+      const subCats = selectedCategory?.subCategories || selectedCategory?.children || [];
+      setSubCategories(subCats);
+    } else {
+      setSubCategories([]);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
       const payload = new FormData();
-      const mapping: Record<string, string> = {
-        name: 'name', sku: 'sku', barcode: 'barcodeNumber', description: 'description',
-        costPrice: 'costPrice', sellingPrice: 'sellingPrice', currentStock: 'currentStock',
-        minimumStock: 'minimumStock', maximumStock: 'maximumStock', category: 'categoryId',
-        supplier: 'supplierId', rackLocation: 'location', productType: 'productType',
-        hsCode: 'hsCode', countryOfOrigin: 'countryOfOrigin', shippingClass: 'shippingClass',
-        weight: 'weight', length: 'length', width: 'width', height: 'height',
-        color: 'color', size: 'size', material: 'material',
-        hasExpiry: 'hasExpiry', isBatchManaged: 'isBatchManaged', isSerialManaged: 'isSerialManaged',
-        expiryDate: 'expiryDate', manufacturingDate: 'manufacturingDate',
-        batchNumber: 'batchNumber', shelfLife: 'shelfLife',
-        warrantyPeriod: 'warrantyPeriod', warrantyUnit: 'warrantyUnit',
-        isReturnable: 'isReturnable', returnDays: 'returnDays',
-        isBulkManaged: 'isBulkManaged', hasIndividualTracking: 'hasIndividualTracking',
-        bulkUnit: 'bulkUnit', defaultBatchQuantity: 'defaultBatchQuantity', videoUrl: 'videoUrl',
-        stockUnit: 'stockUnit', weightUnit: 'weightUnit', dimensionUnit: 'dimensionUnit',
-        taxType: 'taxType', zone: 'zone', storageCondition: 'storageCondition',
+      
+      const fieldMapping: Record<string, string> = {
+        name: 'name',
+        sku: 'sku',
+        barcode: 'barcodeNumber',
+        description: 'description',
+        costPrice: 'costPrice',
+        sellingPrice: 'sellingPrice',
+        currentStock: 'currentStock',
+        minimumStock: 'minimumStock',
+        maximumStock: 'maximumStock',
+        category: 'categoryId',
+        supplier: 'supplierId',
+        rackLocation: 'rackLocationName',
+        productType: 'productType',
+        stockUnit: 'stockUnitName',
+        weightUnit: 'weightUnitName',
+        dimensionUnit: 'dimensionUnitName',
+        taxType: 'taxTypeName',
+        zone: 'zoneName',
+        storageCondition: 'storageConditionName',
+        brand: 'brandName',
+        modelNumber: 'modelNumber',
+        currency: 'currencyCode',
+        hsCode: 'hsCode',
+        countryOfOrigin: 'countryOfOrigin',
+        shippingClass: 'shippingClass',
+        freightClass: 'freightClass',
+        weight: 'weight',
+        length: 'length',
+        width: 'width',
+        height: 'height',
+        color: 'color',
+        size: 'size',
+        material: 'material',
+        finish: 'finish',
+        hasExpiry: 'hasExpiry',
+        isBatchManaged: 'isBatchManaged',
+        isSerialManaged: 'isSerialManaged',
+        isExpiryManaged: 'isExpiryManaged',
+        expiryDate: 'expiryDate',
+        manufacturingDate: 'manufacturingDate',
+        batchNumber: 'batchNumber',
+        shelfLife: 'shelfLife',
+        warrantyPeriod: 'warrantyPeriod',
+        warrantyUnit: 'warrantyUnit',
+        isReturnable: 'isReturnable',
+        returnDays: 'returnDays',
+        isBulkManaged: 'isBulkManaged',
+        hasIndividualTracking: 'hasIndividualTracking',
+        bulkUnit: 'bulkUnit',
+        defaultBatchQuantity: 'defaultBatchQuantity',
+        videoUrl: 'videoUrl',
+        palletNumber: 'palletNumber',
+        shelfNumber: 'shelfNumber',
+        tempMin: 'tempMin',
+        tempMax: 'tempMax',
+        dangerousGoods: 'dangerousGoods',
+        unNumber: 'unNumber',
+        handlingInstructions: 'handlingInstructions',
+        stackingLimit: 'stackingLimit',
+        leadTime: 'leadTime',
+        reorderPoint: 'reorderPoint',
+        supplierSku: 'supplierSku',
+        landingCost: 'landingCost',
+        taxRate: 'taxRate'
       };
-      Object.entries(mapping).forEach(([front, back]) => {
-        const val = formData[front as keyof typeof formData];
-        if (val !== undefined && val !== null && val !== '') payload.append(back, String(val));
-      });
-      if (formData.tags) payload.append('tags', formData.tags);
-      for (const file of imageFiles) payload.append('images', file);
-      if (barcodeImageFile) payload.append('barcodeImage', barcodeImageFile);
 
-      if (isEditing && editingProduct?._id) {
-        await productService.updateProduct(editingProduct._id, payload);
+      Object.entries(fieldMapping).forEach(([frontField, backField]) => {
+        const value = formData[frontField as keyof typeof formData];
+        if (value !== undefined && value !== null && value !== '') {
+          if (typeof value === 'boolean') {
+            payload.append(backField, String(value));
+          } else {
+            payload.append(backField, String(value));
+          }
+        }
+      });
+
+      if (formData.tags) {
+        const tags = formData.tags.split(',').map(t => t.trim());
+        payload.append('tags', JSON.stringify(tags));
+      }
+
+      for (const file of imageFiles) {
+        payload.append('images', file);
+      }
+      if (barcodeImageFile) {
+        payload.append('barcodeImage', barcodeImageFile);
+      }
+
+      if (isEditing && editingProduct?.id) {
+        console.log('🔵 [ProductForm] Updating existing product ID:', editingProduct.id);
+        await productService.updateProduct(editingProduct.id, payload);
       } else {
+        console.log('🔵 [ProductForm] Creating new product');
         await productService.createProduct(payload);
       }
+      console.log('✅ [ProductForm] Product saved successfully');
       onSuccess();
     } catch (err: any) {
+      console.error('❌ [ProductForm] Failed to save product:', err);
       setError(err.message || 'Failed to save product');
     } finally {
       setLoading(false);
@@ -909,354 +972,355 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-        <div className="flex items-center gap-3">
-          <Package className="w-5 h-5 text-[#7c4dff]" />
-          <h2 className="text-lg font-bold text-gray-800">{isEditing ? 'Edit Product' : 'Create New Product'}</h2>
+      <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
+        <div className="flex items-center gap-2 md:gap-3">
+          <Package className="w-4 h-4 md:w-5 md:h-5 text-[#7c4dff]" />
+          <h2 className="text-base md:text-lg font-bold text-gray-800">{isEditing ? 'Edit Product' : 'Create New Product'}</h2>
         </div>
-        <div className="flex items-center gap-3">
-          <Link href="/warehouse/product-settings" className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all">
-            <Settings className="w-3.5 h-3.5" /> Settings
+        <div className="flex items-center gap-2 md:gap-3">
+          <Link href="/warehouse/product-settings" className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 border border-gray-200 rounded-lg text-[10px] md:text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all">
+            <Settings className="w-3 h-3 md:w-3.5 md:h-3.5" /> Settings
           </Link>
-          <button onClick={onCancel} className="p-2 hover:bg-gray-200 rounded-lg transition-all">
-            <X className="w-5 h-5 text-gray-500" />
+          <button onClick={onCancel} className="p-1.5 md:p-2 hover:bg-gray-200 rounded-lg transition-all">
+            <X className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
           </button>
         </div>
       </div>
 
-      <div className="flex overflow-x-auto border-b border-gray-100 px-4 gap-1">
+      <div className="flex overflow-x-auto border-b border-gray-100 px-3 md:px-4 gap-0.5 md:gap-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap
+              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 md:py-3 text-[10px] md:text-sm font-medium border-b-2 transition-all whitespace-nowrap
                 ${isActive ? 'border-[#7c4dff] text-[#7c4dff]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
-              <Icon className={`w-4 h-4 ${isActive ? 'text-[#7c4dff]' : 'text-gray-400'}`} />
-              {tab.label}
+              <Icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${isActive ? 'text-[#7c4dff]' : 'text-gray-400'}`} />
+              <span className="hidden xs:inline">{tab.label}</span>
             </button>
           );
         })}
       </div>
 
-      <div className="p-6 max-h-[600px] overflow-y-auto">
+      <div className="p-3 md:p-6 max-h-[500px] md:max-h-[600px] overflow-y-auto">
         {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
 
           {/* BASIC INFO */}
           {activeTab === 'basic' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Product Name *</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Product Name *</label>
                 <div className="relative">
-                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="text" placeholder="e.g., Cotton - Grade A" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                  <input type="text" placeholder="e.g., Cotton - Grade A" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">SKU *</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">SKU *</label>
                 <div className="relative">
-                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="text" placeholder="e.g., COT-001" value={formData.sku} onChange={(e) => handleInputChange('sku', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                  <input type="text" placeholder="e.g., COT-001" value={formData.sku} onChange={(e) => handleInputChange('sku', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Barcode</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Barcode</label>
                 <div className="relative">
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="text" placeholder="Enter barcode or leave blank to use SKU" value={formData.barcode} onChange={(e) => handleInputChange('barcode', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                  <input type="text" placeholder="Enter barcode or leave blank to use SKU" value={formData.barcode} onChange={(e) => handleInputChange('barcode', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Leave blank — SKU will be used as barcode automatically</p>
+                <p className="text-[10px] md:text-xs text-gray-400 mt-1">Leave blank — SKU will be used as barcode automatically</p>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Product Type</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Product Type</label>
                 <div className="flex gap-2">
-                  <select value={formData.productType} onChange={(e) => handleInputChange('productType', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.productType} onChange={(e) => handleInputChange('productType', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select type...</option>
                     {productTypes.map((type) => <option key={type._id} value={type.name}>{type.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
                   </Link>
                 </div>
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Description</label>
                 <div className="relative">
-                  <AlignLeft className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <textarea placeholder="Enter product description..." rows={3} value={formData.description} onChange={(e) => handleInputChange('description', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none" />
+                  <AlignLeft className="absolute left-3 top-2.5 md:top-3 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                  <textarea placeholder="Enter product description..." rows={3} value={formData.description} onChange={(e) => handleInputChange('description', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none" />
                 </div>
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tags</label>
-                <input type="text" placeholder="e.g., cotton, grade-a, raw-material" value={formData.tags} onChange={(e) => handleInputChange('tags', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Tags</label>
+                <input type="text" placeholder="e.g., cotton, grade-a, raw-material" value={formData.tags} onChange={(e) => handleInputChange('tags', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           )}
 
           {/* PRICING & STOCK */}
           {activeTab === 'pricing' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Cost Price *</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Cost Price *</label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" step="0.01" placeholder="0.00" value={formData.costPrice} onChange={(e) => handleInputChange('costPrice', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                  <input type="number" step="0.01" placeholder="0.00" value={formData.costPrice} onChange={(e) => handleInputChange('costPrice', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Selling Price *</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Selling Price *</label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" step="0.01" placeholder="0.00" value={formData.sellingPrice} onChange={(e) => handleInputChange('sellingPrice', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                  <input type="number" step="0.01" placeholder="0.00" value={formData.sellingPrice} onChange={(e) => handleInputChange('sellingPrice', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Landing Cost</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Landing Cost</label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" step="0.01" placeholder="0.00" value={formData.landingCost} onChange={(e) => handleInputChange('landingCost', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                  <input type="number" step="0.01" placeholder="0.00" value={formData.landingCost} onChange={(e) => handleInputChange('landingCost', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Currency *</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Currency *</label>
                 <div className="flex gap-2">
-                  <select value={formData.currency} onChange={(e) => handleInputChange('currency', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.currency} onChange={(e) => handleInputChange('currency', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                     <option>PKR</option><option>USD</option><option>EUR</option><option>GBP</option><option>AUD</option>
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
                   </Link>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tax Rate (%)</label>
-                <input type="number" step="0.01" placeholder="0" value={formData.taxRate} onChange={(e) => handleInputChange('taxRate', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Tax Rate (%)</label>
+                <input type="number" step="0.01" placeholder="0" value={formData.taxRate} onChange={(e) => handleInputChange('taxRate', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tax Type</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Tax Type</label>
                 <div className="flex gap-2">
-                  <select value={formData.taxType} onChange={(e) => handleInputChange('taxType', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.taxType} onChange={(e) => handleInputChange('taxType', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select tax type...</option>
                     {taxTypes.map((tax) => <option key={tax._id} value={tax.name}>{tax.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
                   </Link>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Stock Unit</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Stock Unit</label>
                 <div className="flex gap-2">
-                  <select value={formData.stockUnit} onChange={(e) => handleInputChange('stockUnit', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.stockUnit} onChange={(e) => handleInputChange('stockUnit', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select unit...</option>
                     {stockUnits.map((unit) => <option key={unit._id} value={unit.name}>{unit.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
                   </Link>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Current Stock *</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Current Stock *</label>
                 <div className="relative">
-                  <Box className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" placeholder="0" value={formData.currentStock} onChange={(e) => handleInputChange('currentStock', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <Box className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                  <input type="number" placeholder="0" value={formData.currentStock} onChange={(e) => handleInputChange('currentStock', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Minimum Stock</label>
-                <input type="number" placeholder="5" value={formData.minimumStock} onChange={(e) => handleInputChange('minimumStock', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Minimum Stock</label>
+                <input type="number" placeholder="5" value={formData.minimumStock} onChange={(e) => handleInputChange('minimumStock', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Maximum Stock</label>
-                <input type="number" placeholder="100" value={formData.maximumStock} onChange={(e) => handleInputChange('maximumStock', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Maximum Stock</label>
+                <input type="number" placeholder="100" value={formData.maximumStock} onChange={(e) => handleInputChange('maximumStock', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           )}
 
-        {/* CATEGORY & SUPPLIER */}
-{activeTab === 'category' && (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Category *</label>
-      <div className="flex gap-2">
-        <select 
-          value={formData.category} 
-          onChange={(e) => handleCategoryChange(e.target.value)} 
-          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
-          required
-        >
-          <option value="">Select category...</option>
-          {categoryList.map((cat) => (
-            <option key={cat._id || cat.id} value={cat._id || cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
-        <Link href="/warehouse/categories" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-          <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-        </Link>
-      </div>
-    </div>
-    
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Sub-Category</label>
-      <div className="flex gap-2">
-        <select 
-          value={formData.subCategory} 
-          onChange={(e) => handleInputChange('subCategory', e.target.value)} 
-          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
-          disabled={subCategories.length === 0}
-        >
-          <option value="">
-            {subCategories.length === 0 ? 'No sub-categories available' : 'Select sub-category...'}
-          </option>
-          {subCategories.map((sub) => (
-            <option key={sub._id || sub.id} value={sub._id || sub.id}>
-              {sub.name}
-            </option>
-          ))}
-        </select>
-        <Link href="/warehouse/categories" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-          <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-        </Link>
-      </div>
-    </div>
-    
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Brand</label>
-      <input 
-        type="text" 
-        placeholder="Brand name" 
-        value={formData.brand} 
-        onChange={(e) => handleInputChange('brand', e.target.value)} 
-        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
-      />
-    </div>
-    
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Model Number</label>
-      <input 
-        type="text" 
-        placeholder="Model #" 
-        value={formData.modelNumber} 
-        onChange={(e) => handleInputChange('modelNumber', e.target.value)} 
-        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
-      />
-    </div>
-    
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Supplier *</label>
-      <div className="flex gap-2">
-        <select 
-          value={formData.supplier} 
-          onChange={(e) => handleInputChange('supplier', e.target.value)} 
-          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
-          required
-        >
-          <option value="">Select supplier...</option>
-          {supplierList.map((sup) => (
-            <option key={sup._id || sup.id} value={sup._id || sup.id}>
-              {sup.name}
-            </option>
-          ))}
-        </select>
-        <Link href="/warehouse/suppliers" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-          <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-        </Link>
-      </div>
-    </div>
-    
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Supplier SKU</label>
-      <input 
-        type="text" 
-        placeholder="Supplier SKU" 
-        value={formData.supplierSku} 
-        onChange={(e) => handleInputChange('supplierSku', e.target.value)} 
-        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
-      />
-    </div>
-    
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Lead Time (Days)</label>
-      <input 
-        type="number" 
-        placeholder="7" 
-        value={formData.leadTime} 
-        onChange={(e) => handleInputChange('leadTime', e.target.value)} 
-        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
-      />
-    </div>
-    
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Reorder Point</label>
-      <input 
-        type="number" 
-        placeholder="100" 
-        value={formData.reorderPoint} 
-        onChange={(e) => handleInputChange('reorderPoint', e.target.value)} 
-        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
-      />
-    </div>
-  </div>
-)}
+          {/* CATEGORY & SUPPLIER */}
+          {activeTab === 'category' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Category *</label>
+                <div className="flex gap-2">
+                  <select 
+                    value={formData.category} 
+                    onChange={(e) => handleCategoryChange(e.target.value)} 
+                    className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+                    required
+                  >
+                    <option value="">Select category...</option>
+                    {categoryList.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Link href="/warehouse/categories" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  </Link>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Sub-Category</label>
+                <div className="flex gap-2">
+                  <select 
+                    value={formData.subCategory} 
+                    onChange={(e) => handleInputChange('subCategory', e.target.value)} 
+                    className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+                    disabled={subCategories.length === 0}
+                  >
+                    <option value="">
+                      {subCategories.length === 0 ? 'No sub-categories available' : 'Select sub-category...'}
+                    </option>
+                    {subCategories.map((sub) => (
+                      <option key={sub.id} value={sub.id}>
+                        {sub.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Link href="/warehouse/categories" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  </Link>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Brand</label>
+                <input 
+                  type="text" 
+                  placeholder="Brand name" 
+                  value={formData.brand} 
+                  onChange={(e) => handleInputChange('brand', e.target.value)} 
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Model Number</label>
+                <input 
+                  type="text" 
+                  placeholder="Model #" 
+                  value={formData.modelNumber} 
+                  onChange={(e) => handleInputChange('modelNumber', e.target.value)} 
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Supplier *</label>
+                <div className="flex gap-2">
+                  <select 
+                    value={formData.supplier} 
+                    onChange={(e) => handleInputChange('supplier', e.target.value)} 
+                    className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+                    required
+                  >
+                    <option value="">Select supplier...</option>
+                    {supplierList.map((sup) => (
+                      <option key={sup.id} value={sup.id}>
+                        {sup.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Link href="/warehouse/suppliers" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  </Link>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Supplier SKU</label>
+                <input 
+                  type="text" 
+                  placeholder="Supplier SKU" 
+                  value={formData.supplierSku} 
+                  onChange={(e) => handleInputChange('supplierSku', e.target.value)} 
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Lead Time (Days)</label>
+                <input 
+                  type="number" 
+                  placeholder="7" 
+                  value={formData.leadTime} 
+                  onChange={(e) => handleInputChange('leadTime', e.target.value)} 
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Reorder Point</label>
+                <input 
+                  type="number" 
+                  placeholder="100" 
+                  value={formData.reorderPoint} 
+                  onChange={(e) => handleInputChange('reorderPoint', e.target.value)} 
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+                />
+              </div>
+            </div>
+          )}
+
           {/* WAREHOUSE */}
           {activeTab === 'warehouse' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Rack Location</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Rack Location</label>
                 <div className="flex gap-2">
-                  <select value={formData.rackLocation} onChange={(e) => handleInputChange('rackLocation', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.rackLocation} onChange={(e) => handleInputChange('rackLocation', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select rack...</option>
                     {rackLocations.map((rack) => <option key={rack._id} value={rack.name}>{rack.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
                   </Link>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Zone</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Zone</label>
                 <div className="flex gap-2">
-                  <select value={formData.zone} onChange={(e) => handleInputChange('zone', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.zone} onChange={(e) => handleInputChange('zone', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select zone...</option>
                     {zones.map((zone) => <option key={zone._id} value={zone.name}>{zone.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
                   </Link>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Pallet Number</label>
-                <input type="text" placeholder="Pallet #" value={formData.palletNumber} onChange={(e) => handleInputChange('palletNumber', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Pallet Number</label>
+                <input type="text" placeholder="Pallet #" value={formData.palletNumber} onChange={(e) => handleInputChange('palletNumber', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Shelf Number</label>
-                <input type="text" placeholder="Shelf #" value={formData.shelfNumber} onChange={(e) => handleInputChange('shelfNumber', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Shelf Number</label>
+                <input type="text" placeholder="Shelf #" value={formData.shelfNumber} onChange={(e) => handleInputChange('shelfNumber', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Storage Condition</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Storage Condition</label>
                 <div className="flex gap-2">
-                  <select value={formData.storageCondition} onChange={(e) => handleInputChange('storageCondition', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.storageCondition} onChange={(e) => handleInputChange('storageCondition', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select condition...</option>
                     {storageConditions.map((cond) => <option key={cond._id} value={cond.name}>{cond.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
                   </Link>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Temp Min (°C)</label>
-                  <input type="number" placeholder="0" value={formData.tempMin} onChange={(e) => handleInputChange('tempMin', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Temp Min (°C)</label>
+                  <input type="number" placeholder="0" value={formData.tempMin} onChange={(e) => handleInputChange('tempMin', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Temp Max (°C)</label>
-                  <input type="number" placeholder="40" value={formData.tempMax} onChange={(e) => handleInputChange('tempMax', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Temp Max (°C)</label>
+                  <input type="number" placeholder="40" value={formData.tempMax} onChange={(e) => handleInputChange('tempMax', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
             </div>
@@ -1264,78 +1328,78 @@ const handleSubmit = async (e: React.FormEvent) => {
 
           {/* PHYSICAL ATTRIBUTES */}
           {activeTab === 'physical' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Weight</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Weight</label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <Scale className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input type="number" step="0.01" placeholder="0.00" value={formData.weight} onChange={(e) => handleInputChange('weight', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    <Scale className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                    <input type="number" step="0.01" placeholder="0.00" value={formData.weight} onChange={(e) => handleInputChange('weight', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
                   </div>
-                  <select value={formData.weightUnit} onChange={(e) => handleInputChange('weightUnit', e.target.value)} className="w-24 px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.weightUnit} onChange={(e) => handleInputChange('weightUnit', e.target.value)} className="w-20 md:w-24 px-2 md:px-3 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                     {weightUnits.map((unit) => <option key={unit._id} value={unit.name}>{unit.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
                   </Link>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Dimension Unit</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Dimension Unit</label>
                 <div className="flex gap-2">
-                  <select value={formData.dimensionUnit} onChange={(e) => handleInputChange('dimensionUnit', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.dimensionUnit} onChange={(e) => handleInputChange('dimensionUnit', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                     {dimensionUnits.map((unit) => <option key={unit._id} value={unit.name}>{unit.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
                   </Link>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Length</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Length</label>
                 <div className="relative">
-                  <Ruler className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" placeholder="0" value={formData.length} onChange={(e) => handleInputChange('length', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <Ruler className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                  <input type="number" placeholder="0" value={formData.length} onChange={(e) => handleInputChange('length', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Width</label>
-                <input type="number" placeholder="0" value={formData.width} onChange={(e) => handleInputChange('width', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Width</label>
+                <input type="number" placeholder="0" value={formData.width} onChange={(e) => handleInputChange('width', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Height</label>
-                <input type="number" placeholder="0" value={formData.height} onChange={(e) => handleInputChange('height', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Height</label>
+                <input type="number" placeholder="0" value={formData.height} onChange={(e) => handleInputChange('height', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Color</label>
-                <input type="text" placeholder="e.g., White" value={formData.color} onChange={(e) => handleInputChange('color', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Color</label>
+                <input type="text" placeholder="e.g., White" value={formData.color} onChange={(e) => handleInputChange('color', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Size</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Size</label>
                 <div className="flex gap-2">
-                  <select value={formData.size} onChange={(e) => handleInputChange('size', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.size} onChange={(e) => handleInputChange('size', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select size...</option>
                     {sizes.map((size) => <option key={size._id} value={size.name}>{size.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
                   </Link>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Material</label>
-                <input type="text" placeholder="e.g., 100% Cotton" value={formData.material} onChange={(e) => handleInputChange('material', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Material</label>
+                <input type="text" placeholder="e.g., 100% Cotton" value={formData.material} onChange={(e) => handleInputChange('material', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Finish</label>
-                <input type="text" placeholder="e.g., Matte, Glossy" value={formData.finish} onChange={(e) => handleInputChange('finish', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Finish</label>
+                <input type="text" placeholder="e.g., Matte, Glossy" value={formData.finish} onChange={(e) => handleInputChange('finish', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           )}
 
           {/* EXPIRY & BATCH */}
           {activeTab === 'expiry' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               {[
                 { key: 'hasExpiry', label: 'Has Expiry' },
                 { key: 'isBatchManaged', label: 'Batch Managed' },
@@ -1344,51 +1408,51 @@ const handleSubmit = async (e: React.FormEvent) => {
               ].map(({ key, label }) => (
                 <div key={key} className="flex items-center gap-3">
                   <input type="checkbox" checked={formData[key as keyof typeof formData] as boolean} onChange={(e) => handleInputChange(key, e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
-                  <label className="text-sm font-medium text-gray-700">{label}</label>
+                  <label className="text-xs md:text-sm font-medium text-gray-700">{label}</label>
                 </div>
               ))}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Expiry Date</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Expiry Date</label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="date" value={formData.expiryDate} onChange={(e) => handleInputChange('expiryDate', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                  <input type="date" value={formData.expiryDate} onChange={(e) => handleInputChange('expiryDate', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Manufacturing Date</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Manufacturing Date</label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="date" value={formData.manufacturingDate} onChange={(e) => handleInputChange('manufacturingDate', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                  <input type="date" value={formData.manufacturingDate} onChange={(e) => handleInputChange('manufacturingDate', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Batch Number</label>
-                <input type="text" placeholder="BATCH-001" value={formData.batchNumber} onChange={(e) => handleInputChange('batchNumber', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Batch Number</label>
+                <input type="text" placeholder="BATCH-001" value={formData.batchNumber} onChange={(e) => handleInputChange('batchNumber', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Shelf Life (Days)</label>
-                <input type="number" placeholder="365" value={formData.shelfLife} onChange={(e) => handleInputChange('shelfLife', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Shelf Life (Days)</label>
+                <input type="number" placeholder="365" value={formData.shelfLife} onChange={(e) => handleInputChange('shelfLife', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
-              <div className="col-span-2 border-t border-gray-100 pt-4 mt-2">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Bulk Management (Cotton/Fabric)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="col-span-2 border-t border-gray-100 pt-3 md:pt-4 mt-2">
+                <h4 className="text-xs md:text-sm font-semibold text-gray-700 mb-2 md:mb-3">Bulk Management (Cotton/Fabric)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                   <div className="flex items-center gap-3">
                     <input type="checkbox" checked={formData.isBulkManaged} onChange={(e) => handleInputChange('isBulkManaged', e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
-                    <label className="text-sm font-medium text-gray-700">Bulk Managed</label>
+                    <label className="text-xs md:text-sm font-medium text-gray-700">Bulk Managed</label>
                   </div>
                   <div className="flex items-center gap-3">
                     <input type="checkbox" checked={formData.hasIndividualTracking} onChange={(e) => handleInputChange('hasIndividualTracking', e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
-                    <label className="text-sm font-medium text-gray-700">Individual Tracking</label>
+                    <label className="text-xs md:text-sm font-medium text-gray-700">Individual Tracking</label>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Bulk Unit</label>
-                    <select value={formData.bulkUnit} onChange={(e) => handleInputChange('bulkUnit', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Bulk Unit</label>
+                    <select value={formData.bulkUnit} onChange={(e) => handleInputChange('bulkUnit', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                       <option>Bale</option><option>Box</option><option>Roll</option><option>Pallet</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Default Batch Quantity</label>
-                    <input type="number" placeholder="50" value={formData.defaultBatchQuantity} onChange={(e) => handleInputChange('defaultBatchQuantity', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Default Batch Quantity</label>
+                    <input type="number" placeholder="50" value={formData.defaultBatchQuantity} onChange={(e) => handleInputChange('defaultBatchQuantity', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
                   </div>
                 </div>
               </div>
@@ -1397,77 +1461,77 @@ const handleSubmit = async (e: React.FormEvent) => {
 
           {/* SHIPPING */}
           {activeTab === 'shipping' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">HS Code</label>
-                <input type="text" placeholder="e.g., 5201.00.00" value={formData.hsCode} onChange={(e) => handleInputChange('hsCode', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">HS Code</label>
+                <input type="text" placeholder="e.g., 5201.00.00" value={formData.hsCode} onChange={(e) => handleInputChange('hsCode', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Country of Origin</label>
-                <select value={formData.countryOfOrigin} onChange={(e) => handleInputChange('countryOfOrigin', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Country of Origin</label>
+                <select value={formData.countryOfOrigin} onChange={(e) => handleInputChange('countryOfOrigin', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                   <option>Pakistan</option><option>China</option><option>USA</option><option>Turkey</option><option>India</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Shipping Class</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Shipping Class</label>
                 <div className="flex gap-2">
-                  <select value={formData.shippingClass} onChange={(e) => handleInputChange('shippingClass', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.shippingClass} onChange={(e) => handleInputChange('shippingClass', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select class...</option>
                     {shippingClasses.map((cls) => <option key={cls._id} value={cls.name}>{cls.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
                   </Link>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Freight Class</label>
-                <input type="text" placeholder="Freight class" value={formData.freightClass} onChange={(e) => handleInputChange('freightClass', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Freight Class</label>
+                <input type="text" placeholder="Freight class" value={formData.freightClass} onChange={(e) => handleInputChange('freightClass', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Stacking Limit</label>
-                <input type="number" placeholder="5" value={formData.stackingLimit} onChange={(e) => handleInputChange('stackingLimit', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Stacking Limit</label>
+                <input type="number" placeholder="5" value={formData.stackingLimit} onChange={(e) => handleInputChange('stackingLimit', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
-              <div className="flex items-center gap-3 mt-2">
+              <div className="flex items-center gap-3 mt-1 md:mt-2">
                 <input type="checkbox" checked={formData.dangerousGoods} onChange={(e) => handleInputChange('dangerousGoods', e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
-                <label className="text-sm font-medium text-gray-700">Dangerous Goods</label>
+                <label className="text-xs md:text-sm font-medium text-gray-700">Dangerous Goods</label>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">UN Number</label>
-                <input type="text" placeholder="UN #" value={formData.unNumber} onChange={(e) => handleInputChange('unNumber', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">UN Number</label>
+                <input type="text" placeholder="UN #" value={formData.unNumber} onChange={(e) => handleInputChange('unNumber', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Handling Instructions</label>
-                <input type="text" placeholder="Special handling instructions..." value={formData.handlingInstructions} onChange={(e) => handleInputChange('handlingInstructions', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Handling Instructions</label>
+                <input type="text" placeholder="Special handling instructions..." value={formData.handlingInstructions} onChange={(e) => handleInputChange('handlingInstructions', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           )}
 
           {/* MEDIA */}
           {activeTab === 'media' && (
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 gap-3 md:gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Main Images</label>
-                <input type="file" multiple accept="image/*" onChange={(e) => { if (e.target.files) setImageFiles(Array.from(e.target.files)); }} className="w-full p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
-                {imageFiles.length > 0 && <p className="mt-1 text-xs text-gray-500">{imageFiles.length} files selected</p>}
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Main Images</label>
+                <input type="file" multiple accept="image/*" onChange={(e) => { if (e.target.files) setImageFiles(Array.from(e.target.files)); }} className="w-full p-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                {imageFiles.length > 0 && <p className="mt-1 text-[10px] md:text-xs text-gray-500">{imageFiles.length} files selected</p>}
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Barcode Image</label>
-                <input type="file" accept="image/*" onChange={(e) => { if (e.target.files?.[0]) setBarcodeImageFile(e.target.files[0]); }} className="w-full p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
-                {barcodeImageFile && <p className="mt-1 text-xs text-gray-500">Selected: {barcodeImageFile.name}</p>}
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Barcode Image</label>
+                <input type="file" accept="image/*" onChange={(e) => { if (e.target.files?.[0]) setBarcodeImageFile(e.target.files[0]); }} className="w-full p-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                {barcodeImageFile && <p className="mt-1 text-[10px] md:text-xs text-gray-500">Selected: {barcodeImageFile.name}</p>}
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Video URL</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Video URL</label>
                 <div className="relative">
-                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="url" placeholder="https://youtube.com/..." value={formData.videoUrl} onChange={(e) => handleInputChange('videoUrl', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                  <input type="url" placeholder="https://youtube.com/..." value={formData.videoUrl} onChange={(e) => handleInputChange('videoUrl', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Specification Sheet (PDF)</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-[#7c4dff] transition-all cursor-pointer">
-                  <FileText className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-                  <p className="text-sm text-gray-500">Upload PDF</p>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Specification Sheet (PDF)</label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 md:p-4 text-center hover:border-[#7c4dff] transition-all cursor-pointer">
+                  <FileText className="w-5 h-5 md:w-6 md:h-6 text-gray-400 mx-auto mb-1" />
+                  <p className="text-xs md:text-sm text-gray-500">Upload PDF</p>
                 </div>
               </div>
             </div>
@@ -1475,54 +1539,54 @@ const handleSubmit = async (e: React.FormEvent) => {
 
           {/* CUSTOM */}
           {activeTab === 'custom' && (
-            <div className="space-y-4">
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-semibold text-gray-700">Custom Attributes</h4>
-                  <button type="button" className="text-sm text-[#7c4dff] font-semibold hover:text-[#6c3fe0]">+ Add Field</button>
+            <div className="space-y-3 md:space-y-4">
+              <div className="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-200">
+                <div className="flex items-center justify-between mb-2 md:mb-3">
+                  <h4 className="text-xs md:text-sm font-semibold text-gray-700">Custom Attributes</h4>
+                  <button type="button" className="text-xs md:text-sm text-[#7c4dff] font-semibold hover:text-[#6c3fe0]">+ Add Field</button>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <input type="text" placeholder="Attribute Name" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white" />
-                  <input type="text" placeholder="Value" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white" />
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
+                  <input type="text" placeholder="Attribute Name" className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white" />
+                  <input type="text" placeholder="Value" className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white" />
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Warranty & Return</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-200">
+                <h4 className="text-xs md:text-sm font-semibold text-gray-700 mb-2 md:mb-3">Warranty & Return</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Warranty Period</label>
-                    <input type="number" placeholder="12" value={formData.warrantyPeriod} onChange={(e) => handleInputChange('warrantyPeriod', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Warranty Period</label>
+                    <input type="number" placeholder="12" value={formData.warrantyPeriod} onChange={(e) => handleInputChange('warrantyPeriod', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Warranty Unit</label>
-                    <select value={formData.warrantyUnit} onChange={(e) => handleInputChange('warrantyUnit', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Warranty Unit</label>
+                    <select value={formData.warrantyUnit} onChange={(e) => handleInputChange('warrantyUnit', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
                       <option>Days</option><option>Months</option><option>Years</option>
                     </select>
                   </div>
                   <div className="flex items-center gap-3">
                     <input type="checkbox" checked={formData.isReturnable} onChange={(e) => handleInputChange('isReturnable', e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
-                    <label className="text-sm font-medium text-gray-700">Is Returnable</label>
+                    <label className="text-xs md:text-sm font-medium text-gray-700">Is Returnable</label>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Return Days</label>
-                    <input type="number" placeholder="7" value={formData.returnDays} onChange={(e) => handleInputChange('returnDays', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Return Days</label>
+                    <input type="number" placeholder="7" value={formData.returnDays} onChange={(e) => handleInputChange('returnDays', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
                   </div>
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Additional Notes</h4>
-                <textarea placeholder="Enter any additional notes..." rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white resize-none" />
+              <div className="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-200">
+                <h4 className="text-xs md:text-sm font-semibold text-gray-700 mb-2 md:mb-3">Additional Notes</h4>
+                <textarea placeholder="Enter any additional notes..." rows={3} className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white resize-none" />
               </div>
             </div>
           )}
 
           {/* FORM ACTIONS */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-            <button type="button" onClick={onCancel} className="px-6 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
+          <div className="flex flex-col sm:flex-row items-center justify-end gap-2 sm:gap-3 pt-3 md:pt-4 border-t border-gray-100">
+            <button type="button" onClick={onCancel} className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
               Cancel
             </button>
-            <button type="submit" disabled={loading} className="px-6 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <button type="submit" disabled={loading} className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
+              {loading ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : <Save className="w-3.5 h-3.5 md:w-4 md:h-4" />}
               {isEditing ? 'Update Product' : 'Save Product'}
             </button>
           </div>
@@ -1569,23 +1633,24 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
-const fetchDropdowns = async () => {
-  try {
-    const [cats, supps] = await Promise.all([
-      categoryService.getCategories({ tree: true }), // ✅ This fetches with subcategories
-      supplierService.getSuppliers({ limit: 100 })
-    ]);
-    setCategories(Array.isArray(cats) ? cats : []);
-    setSuppliers(supps?.data || []);
-  } catch (err) {
-    console.error('Failed to fetch dropdowns:', err);
-  }
-};
+    const fetchDropdowns = async () => {
+      try {
+        const [cats, supps] = await Promise.all([
+          categoryService.getCategories({ tree: true }),
+          supplierService.getSuppliers({ limit: 100 })
+        ]);
+        setCategories(Array.isArray(cats) ? cats : []);
+        setSuppliers(supps?.data || []);
+      } catch (err) {
+        console.error('Failed to fetch dropdowns:', err);
+      }
+    };
     fetchDropdowns();
     fetchSettings();
   }, [fetchSettings]);
 
   const fetchProducts = useCallback(async () => {
+    console.log('🔵 [fetchProducts] Starting fetch');
     setLoading(true);
     try {
       const result = await productService.getProducts({
@@ -1595,10 +1660,15 @@ const fetchDropdowns = async () => {
         categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
         stockStatus: selectedStatus !== 'all' ? selectedStatus as any : undefined,
       });
+      console.log('🔵 [fetchProducts] Received', result.data.length, 'products');
+      if (result.data.length > 0) {
+        console.log('🔵 [fetchProducts] First product:', result.data[0]);
+        console.log('🔵 [fetchProducts] First product ID:', result.data[0].id);
+      }
       setProducts(result.data);
       setPagination(result.pagination);
     } catch (error: any) {
-      console.error('Failed to fetch products:', error);
+      console.error('❌ [fetchProducts] Failed to fetch products:', error);
       alert(error.message || 'Failed to load products');
     } finally {
       setLoading(false);
@@ -1632,14 +1702,26 @@ const fetchDropdowns = async () => {
   const handleAddClick = () => { setEditingProduct(null); setShowCreateForm(true); };
   const handleEditClick = (product: Product) => { setEditingProduct(product); setViewingProduct(null); setShowCreateForm(true); };
   const handleDeleteClick = async (id: string) => {
-    if (!confirm('Delete this product?')) return;
-    try { await productService.deleteProduct(id); fetchProducts(); }
-    catch (error: any) { alert(error.message || 'Failed to delete product'); }
+    console.log('🔵 [handleDeleteClick] Starting delete for product ID:', id);
+    if (!confirm('Delete this product?')) {
+      console.log('🔵 [handleDeleteClick] Delete cancelled by user');
+      return;
+    }
+    try {
+      console.log('🔵 [handleDeleteClick] Calling productService.deleteProduct');
+      await productService.deleteProduct(id);
+      console.log('✅ [handleDeleteClick] Delete successful, refreshing products');
+      fetchProducts();
+    }
+    catch (error: any) {
+      console.error('❌ [handleDeleteClick] Delete failed:', error);
+      alert(error.message || 'Failed to delete product');
+    }
   };
   const handleFormSuccess = () => { setShowCreateForm(false); setEditingProduct(null); fetchProducts(); };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {showScanner && (
         <BarcodeScanner
           onScan={handleBarcodeScan}

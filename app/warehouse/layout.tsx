@@ -18,26 +18,26 @@ import {
   Warehouse,
   FolderTree
 } from 'lucide-react';
+import { usePermissions } from '../../lib/usePermissions';
 
 // ============================================================
 // WAREHOUSE SIDEBAR
 // ============================================================
 function WarehouseSidebar() {
   const pathname = usePathname();
+  const { hasSubPageAccess, hasModuleAccess, isAdmin } = usePermissions();
 
   const menuItems = [
-    { icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard', path: '/warehouse/dashboard' },
-    { icon: <Package className="w-5 h-5" />, label: 'Products', path: '/products' },
-      { icon: <FolderTree className="w-5 h-5" />, label: 'Categories', path: '/warehouse/categories' }, // ✅ Add this
-    { icon: <Users className="w-5 h-5" />, label: 'Suppliers', path: '/warehouse/suppliers' },
-        { icon: <Users className="w-5 h-5" />, label: 'Stock-Movement', path: '/warehouse/stock-movement' },
-                { icon: <Users className="w-5 h-5" />, label: 'customers', path: '/warehouse/customers' },
-
-                { icon: <Users className="w-5 h-5" />, label: 'Orders', path: '/warehouse/orders' },
-                { icon: <Users className="w-5 h-5" />, label: 'Returns', path: '/warehouse/returns' },
-                { icon: <Users className="w-5 h-5" />, label: 'Refunds', path: '/warehouse/refunds' },
-
-    { icon: <Settings className="w-5 h-5" />, label: 'Settings', path: '/warehouse/product-settings' },
+    { icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard', path: '/warehouse/dashboard', permission: 'dashboard' },
+    { icon: <Package className="w-5 h-5" />, label: 'Products', path: '/products', permission: 'products' },
+    { icon: <FolderTree className="w-5 h-5" />, label: 'Categories', path: '/warehouse/categories', permission: 'categories' },
+    { icon: <Users className="w-5 h-5" />, label: 'Suppliers', path: '/warehouse/suppliers', permission: 'suppliers' },
+    { icon: <Users className="w-5 h-5" />, label: 'Stock-Movement', path: '/warehouse/stock-movement', permission: 'stock-movement' },
+    { icon: <Users className="w-5 h-5" />, label: 'customers', path: '/warehouse/customers', permission: 'customers' },
+    { icon: <Users className="w-5 h-5" />, label: 'Orders', path: '/warehouse/orders', permission: 'orders' },
+    { icon: <Users className="w-5 h-5" />, label: 'Returns', path: '/warehouse/returns', permission: 'returns' },
+    { icon: <Users className="w-5 h-5" />, label: 'Refunds', path: '/warehouse/refunds', permission: 'refunds' },
+    { icon: <Settings className="w-5 h-5" />, label: 'Settings', path: '/warehouse/product-settings', permission: 'settings' },
   ];
 
   const mainMenuItems = [
@@ -46,6 +46,17 @@ function WarehouseSidebar() {
   ];
 
   const isActive = (path: string) => pathname === path;
+
+  // Filter menu items based on permissions
+  const filteredMenuItems = menuItems.filter(item => 
+    isAdmin || hasSubPageAccess('warehouse', item.permission)
+  );
+
+  const filteredMainMenuItems = mainMenuItems.filter(item => {
+    if (item.path === '/dashboard') return true;
+    if (item.path === '/accounting/dashboard') return isAdmin || hasModuleAccess('accounting');
+    return true;
+  });
 
   return (
     <div className="w-56 min-h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0">
@@ -63,7 +74,7 @@ function WarehouseSidebar() {
           WAREHOUSE MENU
         </p>
         
-        {menuItems.map((item) => (
+        {filteredMenuItems.map((item) => (
           <Link
             key={item.path}
             href={item.path}
@@ -91,7 +102,7 @@ function WarehouseSidebar() {
           MAIN MENU
         </p>
 
-        {mainMenuItems.map((item) => (
+        {filteredMainMenuItems.map((item) => (
           <Link
             key={item.path}
             href={item.path}

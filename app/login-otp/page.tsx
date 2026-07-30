@@ -99,6 +99,18 @@ function OtpContent() {
           apiClient.setTokens(data.token, data.refreshToken);
         }
 
+        // ✅ Save complete user data with permissions to localStorage
+        if (data.user) {
+          console.log('💾 [OTP Page] Saving user data with permissions to localStorage');
+          localStorage.setItem('user', JSON.stringify(data.user));
+          console.log('✅ [OTP Page] User data saved:', {
+            id: data.user.id,
+            email: data.user.email,
+            role: data.user.role,
+            permissions: data.user.permissions?.length || 0,
+          });
+        }
+
         // ✅ Save currency from user data to localStorage
         if (data.user && data.user.businessDetails) {
           const currencyCode = data.user.businessDetails.currencyCode;

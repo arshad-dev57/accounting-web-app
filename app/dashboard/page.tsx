@@ -16,20 +16,25 @@ import {
   ShoppingCart,
   Package
 } from 'lucide-react';
+import { usePermissions } from '../../lib/usePermissions';
 
 // ============================================================
 // SIDEBAR
 // ============================================================
 function Sidebar() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const { hasModuleAccess, isAdmin } = usePermissions();
 
   const menuItems = [
-    { icon: <Home className="w-5 h-5" />, label: 'Home', path: '/dashboard' },
-    { icon: <Building2 className="w-5 h-5" />, label: 'Accounting', path: '/accounting/dashboard' },
-    { icon: <Warehouse className="w-5 h-5" />, label: 'Warehouse', path: '/warehouse/dashboard' },
-    { icon: <ShoppingCart className="w-5 h-5" />, label: 'Sales', path: '/sales' },
-    { icon: <Package className="w-5 h-5" />, label: 'Purchases', path: '/purchases' },
+    { icon: <Home className="w-5 h-5" />, label: 'Home', path: '/dashboard', show: true },
+    { icon: <Building2 className="w-5 h-5" />, label: 'Accounting', path: '/accounting/dashboard', show: isAdmin || hasModuleAccess('accounting') },
+    { icon: <Warehouse className="w-5 h-5" />, label: 'Warehouse', path: '/warehouse/dashboard', show: isAdmin || hasModuleAccess('warehouse') },
+    { icon: <ShoppingCart className="w-5 h-5" />, label: 'Sales', path: '/sales', show: isAdmin || hasModuleAccess('sales') },
+    { icon: <Package className="w-5 h-5" />, label: 'Purchases', path: '/purchases', show: isAdmin || hasModuleAccess('purchases') },
+    { icon: <User className="w-5 h-5" />, label: 'Users', path: '/users', show: isAdmin },
   ];
+
+  const filteredMenuItems = menuItems.filter(item => item.show);
 
   const handleNavigation = (path: string) => {
     window.location.href = path;
@@ -49,7 +54,7 @@ function Sidebar() {
           MAIN MENU
         </p>
         
-        {menuItems.map((item, index) => (
+        {filteredMenuItems.map((item, index) => (
           <button
             key={index}
             onClick={() => handleNavigation(item.path)}

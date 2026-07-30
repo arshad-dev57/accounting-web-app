@@ -25,15 +25,18 @@ import {
   Settings,
   PackageCheck
 } from 'lucide-react';
+import { usePermissions } from '../../lib/usePermissions';
 
 // ============================================================
 // PURCHASES SIDEBAR
 // ============================================================
 function PurchasesSidebar() {
   const pathname = usePathname();
+  const { hasSubPageAccess, hasModuleAccess, isAdmin } = usePermissions();
+  
   const [expandedSections, setExpandedSections] = React.useState({
     purchasesCore: true,
-    returnsRefunds: false,
+    returnsRefunds: true,
     settings: false,
   });
 
@@ -45,6 +48,40 @@ function PurchasesSidebar() {
   };
 
   const isActive = (path: string) => pathname === path;
+
+  // Permission mapping for purchases sub-pages
+  const purchasesPages = [
+    { path: '/purchases/dashboard', label: 'Dashboard', permission: 'dashboard' },
+    { path: '/purchases/purchaseorder', label: 'Purchase Orders', permission: 'purchase-orders' },
+    { path: '/purchases/suppliers', label: 'Suppliers', permission: 'suppliers' },
+    { path: '/purchases/quotations', label: 'Quotations', permission: 'quotations' },
+    { path: '/purchases/goodsRecieving', label: 'Goods Receiving', permission: 'goods-receiving' },
+    { path: '/purchases/invoices', label: 'Purchase Invoices', permission: 'purchase-invoices' },
+    { path: '/purchases/payments', label: 'Purchase Payments', permission: 'purchase-payments' },
+  ];
+
+  const returnsRefundsPages = [
+    { path: '/purchases/returns', label: 'Purchase Returns', permission: 'purchase-returns' },
+    { path: '/purchases/refunds', label: 'Refunds', permission: 'refunds' },
+  ];
+
+  const settingsPages = [
+    { path: '/purchases/currency', label: 'Currency', permission: 'currency' },
+    { path: '/purchases/settings', label: 'Purchases Settings', permission: 'settings' },
+  ];
+
+  // Filter pages based on permissions
+  const filteredPurchasesPages = purchasesPages.filter(page => 
+    isAdmin || hasSubPageAccess('purchases', page.permission)
+  );
+  
+  const filteredReturnsRefundsPages = returnsRefundsPages.filter(page => 
+    isAdmin || hasSubPageAccess('purchases', page.permission)
+  );
+  
+  const filteredSettingsPages = settingsPages.filter(page => 
+    isAdmin || hasSubPageAccess('purchases', page.permission)
+  );
 
   return (
     <div className="w-64 min-h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0">
@@ -79,71 +116,32 @@ function PurchasesSidebar() {
             </div>
             <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${expandedSections.purchasesCore ? 'rotate-180' : ''}`} />
           </button>
-          {expandedSections.purchasesCore && (
+          {expandedSections.purchasesCore && filteredPurchasesPages.length > 0 && (
             <div className="ml-6 mt-1 space-y-1">
-              <Link
-                href="/purchases/dashboard"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/purchases/dashboard') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Home className="w-4 h-4" />
-                <span>Dashboard</span>
-              </Link>
-              <Link
-                href="/purchases/purchaseorder"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/purchases/purchaseorder') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <ShoppingCart className="w-4 h-4" />
-                <span>Purchase Orders</span>
-              </Link>
-              <Link
-                href="/purchases/suppliers"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/purchases/suppliers') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Users className="w-4 h-4" />
-                <span>Suppliers</span>
-              </Link>
-              <Link
-                href="/purchases/quotations"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/purchases/quotations') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <FileText className="w-4 h-4" />
-                <span>Purchase Quotations</span>
-              </Link>
-              <Link
-                href="/purchases/goodsRecieving"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/purchases/goodsRecieving') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <PackageCheck className="w-4 h-4" />
-                <span>Goods Receiving</span>
-              </Link>
-              <Link
-                href="/purchases/invoices"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/purchases/invoices') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Receipt className="w-4 h-4" />
-                <span>Purchase Invoices</span>
-              </Link>
-              <Link
-                href="/purchases/payments"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/purchases/payments') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <ArrowLeftRight className="w-4 h-4" />
-                <span>Purchase Payments</span>
-              </Link>
+              {filteredPurchasesPages.map((page) => {
+                const iconMap: Record<string, React.ReactNode> = {
+                  'dashboard': <Home className="w-4 h-4" />,
+                  'purchase-orders': <ShoppingCart className="w-4 h-4" />,
+                  'suppliers': <Users className="w-4 h-4" />,
+                  'quotations': <FileText className="w-4 h-4" />,
+                  'goods-receiving': <PackageCheck className="w-4 h-4" />,
+                  'purchase-invoices': <Receipt className="w-4 h-4" />,
+                  'purchase-payments': <ArrowLeftRight className="w-4 h-4" />,
+                };
+                
+                return (
+                  <Link
+                    key={page.path}
+                    href={page.path}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                      isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {iconMap[page.permission] || <FileText className="w-4 h-4" />}
+                    <span>{page.label}</span>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
@@ -162,26 +160,27 @@ function PurchasesSidebar() {
             </div>
             <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${expandedSections.returnsRefunds ? 'rotate-180' : ''}`} />
           </button>
-          {expandedSections.returnsRefunds && (
+          {expandedSections.returnsRefunds && filteredReturnsRefundsPages.length > 0 && (
             <div className="ml-6 mt-1 space-y-1">
-              <Link
-                href="/purchases/returns"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/purchases/returns') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Undo2 className="w-4 h-4" />
-                <span>Purchase Returns</span>
-              </Link>
-              <Link
-                href="/purchases/refunds"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/purchases/refunds') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <DollarSign className="w-4 h-4" />
-                <span>Refunds</span>
-              </Link>
+              {filteredReturnsRefundsPages.map((page) => {
+                const iconMap: Record<string, React.ReactNode> = {
+                  'purchase-returns': <Undo2 className="w-4 h-4" />,
+                  'refunds': <DollarSign className="w-4 h-4" />,
+                };
+                
+                return (
+                  <Link
+                    key={page.path}
+                    href={page.path}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                      isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {iconMap[page.permission] || <FileText className="w-4 h-4" />}
+                    <span>{page.label}</span>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
@@ -200,26 +199,27 @@ function PurchasesSidebar() {
             </div>
             <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${expandedSections.settings ? 'rotate-180' : ''}`} />
           </button>
-          {expandedSections.settings && (
+          {expandedSections.settings && filteredSettingsPages.length > 0 && (
             <div className="ml-6 mt-1 space-y-1">
-              <Link
-                href="/purchases/currency"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/purchases/currency') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <DollarSign className="w-4 h-4" />
-                <span>Currency</span>
-              </Link>
-              <Link
-                href="/purchases/settings"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/purchases/settings') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Settings className="w-4 h-4" />
-                <span>Purchases Settings</span>
-              </Link>
+              {filteredSettingsPages.map((page) => {
+                const iconMap: Record<string, React.ReactNode> = {
+                  'currency': <DollarSign className="w-4 h-4" />,
+                  'settings': <Settings className="w-4 h-4" />,
+                };
+                
+                return (
+                  <Link
+                    key={page.path}
+                    href={page.path}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                      isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {iconMap[page.permission] || <Settings className="w-4 h-4" />}
+                    <span>{page.label}</span>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
@@ -238,21 +238,45 @@ function PurchasesSidebar() {
           <span className="text-sm font-medium">Main Dashboard</span>
         </Link>
 
-        <Link
-          href="/warehouse/dashboard"
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
-        >
-          <Warehouse className="w-5 h-5" />
-          <span className="text-sm font-medium">Warehouse</span>
-        </Link>
+        {isAdmin || hasModuleAccess('warehouse') && (
+          <Link
+            href="/warehouse/dashboard"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
+          >
+            <Warehouse className="w-5 h-5" />
+            <span className="text-sm font-medium">Warehouse</span>
+          </Link>
+        )}
 
-        <Link
-          href="/accounting/dashboard"
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
-        >
-          <Building2 className="w-5 h-5" />
-          <span className="text-sm font-medium">Accounting</span>
-        </Link>
+        {isAdmin || hasModuleAccess('accounting') && (
+          <Link
+            href="/accounting/dashboard"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
+          >
+            <Building2 className="w-5 h-5" />
+            <span className="text-sm font-medium">Accounting</span>
+          </Link>
+        )}
+
+        {isAdmin || hasModuleAccess('sales') && (
+          <Link
+            href="/sales"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
+          >
+            <ShoppingCart className="w-5 h-5" />
+            <span className="text-sm font-medium">Sales</span>
+          </Link>
+        )}
+
+        {isAdmin && (
+          <Link
+            href="/users"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
+          >
+            <Users className="w-5 h-5" />
+            <span className="text-sm font-medium">Users</span>
+          </Link>
+        )}
       </div>
 
       {/* Bottom Section */}

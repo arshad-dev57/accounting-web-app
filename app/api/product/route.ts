@@ -1,8 +1,7 @@
-// lib/api/product.ts
-import { apiClient } from '../../lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
 export interface Product {
-  _id?: string;
+  id?: string;
   name: string;
   sku: string;
   barcode?: { number?: string; image?: string };
@@ -22,6 +21,63 @@ export interface Product {
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  // Additional fields
+  productType?: string;
+  stockUnit?: string;
+  weight?: number;
+  weightUnit?: string;
+  length?: number;
+  width?: number;
+  height?: number;
+  dimensionUnit?: string;
+  color?: string;
+  size?: string;
+  material?: string;
+  finish?: string;
+  hasExpiry?: boolean;
+  isBatchManaged?: boolean;
+  isSerialManaged?: boolean;
+  isExpiryManaged?: boolean;
+  expiryDate?: string;
+  manufacturingDate?: string;
+  batchNumber?: string;
+  shelfLife?: number;
+  taxRate?: number;
+  taxType?: string;
+  currency?: string;
+  brand?: string;
+  modelNumber?: string;
+  tags?: string[];
+  colors?: string[];
+  sizes?: string[];
+  rackLocation?: string;
+  zone?: string;
+  palletNumber?: string;
+  shelfNumber?: string;
+  storageCondition?: string;
+  tempMin?: number;
+  tempMax?: number;
+  hsCode?: string;
+  countryOfOrigin?: string;
+  shippingClass?: string;
+  freightClass?: string;
+  stackingLimit?: number;
+  dangerousGoods?: boolean;
+  unNumber?: string;
+  handlingInstructions?: string;
+  warrantyPeriod?: number;
+  warrantyUnit?: string;
+  isReturnable?: boolean;
+  returnDays?: number;
+  isBulkManaged?: boolean;
+  hasIndividualTracking?: boolean;
+  bulkUnit?: string;
+  defaultBatchQuantity?: number;
+  videoUrl?: string;
+  leadTime?: number;
+  reorderPoint?: number;
+  supplierSku?: string;
+  landingCost?: number;
 }
 
 export interface ProductListResponse {
@@ -76,17 +132,40 @@ export const productService = {
   },
 
   updateProduct: async (id: string, formData: FormData): Promise<Product> => {
+    console.log('🔵 [productService.updateProduct] Starting update for product ID:', id);
+    console.log('🔵 [productService.updateProduct] FormData entries:');
+    for (const [key, value] of formData.entries()) {
+      console.log('  -', key, ':', value);
+    }
+
     const response = await apiClient.put(`/api/warehouse/products/${id}`, formData);
-    if (!response.success) throw new Error(response.message || 'Failed to update product');
+
+    console.log('🔵 [productService.updateProduct] API response:', JSON.stringify(response, null, 2));
+
+    if (!response.success) {
+      console.log('❌ [productService.updateProduct] Update failed:', response.message);
+      throw new Error(response.message || 'Failed to update product');
+    }
+
+    console.log('✅ [productService.updateProduct] Update successful');
     return response.data.data;
   },
 
   deleteProduct: async (id: string): Promise<void> => {
+    console.log('🔵 [productService.deleteProduct] Starting delete for product ID:', id);
+
     const response = await apiClient.delete(`/api/warehouse/products/${id}`);
-    if (!response.success) throw new Error(response.message || 'Failed to delete product');
+
+    console.log('🔵 [productService.deleteProduct] API response:', JSON.stringify(response, null, 2));
+
+    if (!response.success) {
+      console.log('❌ [productService.deleteProduct] Delete failed:', response.message);
+      throw new Error(response.message || 'Failed to delete product');
+    }
+
+    console.log('✅ [productService.deleteProduct] Delete successful');
   },
 
-  // ✅ Fixed: use .append() to avoid type errors
   searchProducts: async (q: string, params?: { page?: number; limit?: number }): Promise<ProductListResponse> => {
     const query = new URLSearchParams();
     query.append('q', q);

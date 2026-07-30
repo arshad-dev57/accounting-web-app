@@ -24,12 +24,15 @@ import {
   Headset,
   Settings
 } from 'lucide-react';
+import { usePermissions } from '../../lib/usePermissions';
 
 // ============================================================
 // SALES SIDEBAR
 // ============================================================
 function SalesSidebar() {
   const pathname = usePathname();
+  const { hasSubPageAccess, hasModuleAccess, isAdmin } = usePermissions();
+  
   const [expandedSections, setExpandedSections] = React.useState({
     salesCore: true,
     returnsRefunds: false,
@@ -44,6 +47,41 @@ function SalesSidebar() {
   };
 
   const isActive = (path: string) => pathname === path;
+
+  // Permission mapping for sales sub-pages
+  const salesPages = [
+    { path: '/sales/dashboard', label: 'Dashboard', permission: 'dashboard' },
+    { path: '/products', label: 'Products', permission: 'products' },
+    { path: '/sales/orders', label: 'Orders', permission: 'orders' },
+    { path: '/sales/quotations', label: 'Quotations', permission: 'quotations' },
+    { path: '/sales/customers', label: 'Customers', permission: 'customers' },
+    { path: '/sales/deliveries', label: 'Deliveries', permission: 'deliveries' },
+    { path: '/sales/invoices', label: 'Invoices', permission: 'invoices' },
+    { path: '/sales/sales-payment', label: 'Sales Payments', permission: 'sales-payments' },
+  ];
+
+  const returnsRefundsPages = [
+    { path: '/sales/returns', label: 'Sales Returns', permission: 'sales-returns' },
+    { path: '/sales/refunds', label: 'Refunds', permission: 'refunds' },
+  ];
+
+  const settingsPages = [
+    { path: '/sales/currency', label: 'Currency', permission: 'currency' },
+    { path: '/sales/settings', label: 'Sales Settings', permission: 'settings' },
+  ];
+
+  // Filter pages based on permissions
+  const filteredSalesPages = salesPages.filter(page => 
+    isAdmin || hasSubPageAccess('sales', page.permission)
+  );
+  
+  const filteredReturnsRefundsPages = returnsRefundsPages.filter(page => 
+    isAdmin || hasSubPageAccess('sales', page.permission)
+  );
+  
+  const filteredSettingsPages = settingsPages.filter(page => 
+    isAdmin || hasSubPageAccess('sales', page.permission)
+  );
 
   return (
     <div className="w-64 min-h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0">
@@ -78,80 +116,33 @@ function SalesSidebar() {
             </div>
             <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${expandedSections.salesCore ? 'rotate-180' : ''}`} />
           </button>
-          {expandedSections.salesCore && (
+          {expandedSections.salesCore && filteredSalesPages.length > 0 && (
             <div className="ml-6 mt-1 space-y-1">
-              <Link
-                href="/sales/dashboard"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/sales/dashboard') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Home className="w-4 h-4" />
-                <span>Dashboard</span>
-              </Link>
-              <Link
-                href="/products"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/products') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Package className="w-4 h-4" />
-                <span>Products</span>
-              </Link>
-              <Link
-                href="/sales/orders"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/sales/orders') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <ShoppingCart className="w-4 h-4" />
-                <span>Orders</span>
-              </Link>
-              <Link
-                href="/sales/quotations"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/sales/quotations') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <FileText className="w-4 h-4" />
-                <span>Quotations</span>
-              </Link>
-              <Link
-                href="/sales/customers"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/sales/customers') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Users className="w-4 h-4" />
-                <span>Customers</span>
-              </Link>
-              <Link
-                href="/sales/deliveries"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/sales/deliveries') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Truck className="w-4 h-4" />
-                <span>Deliveries</span>
-              </Link>
-              <Link
-                href="/sales/invoices"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/sales/invoices') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Receipt className="w-4 h-4" />
-                <span>Invoices</span>
-              </Link>
-              <Link
-                href="/sales/sales-payment"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/sales/sales-payment') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <ArrowLeftRight className="w-4 h-4" />
-                <span>Sales Payments</span>
-              </Link>
+              {filteredSalesPages.map((page) => {
+                const iconMap: Record<string, React.ReactNode> = {
+                  'dashboard': <Home className="w-4 h-4" />,
+                  'products': <Package className="w-4 h-4" />,
+                  'orders': <ShoppingCart className="w-4 h-4" />,
+                  'quotations': <FileText className="w-4 h-4" />,
+                  'customers': <Users className="w-4 h-4" />,
+                  'deliveries': <Truck className="w-4 h-4" />,
+                  'invoices': <Receipt className="w-4 h-4" />,
+                  'sales-payments': <ArrowLeftRight className="w-4 h-4" />,
+                };
+                
+                return (
+                  <Link
+                    key={page.path}
+                    href={page.path}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                      isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {iconMap[page.permission] || <FileText className="w-4 h-4" />}
+                    <span>{page.label}</span>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
@@ -170,26 +161,27 @@ function SalesSidebar() {
             </div>
             <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${expandedSections.returnsRefunds ? 'rotate-180' : ''}`} />
           </button>
-          {expandedSections.returnsRefunds && (
+          {expandedSections.returnsRefunds && filteredReturnsRefundsPages.length > 0 && (
             <div className="ml-6 mt-1 space-y-1">
-              <Link
-                href="/sales/returns"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/sales/returns') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Undo2 className="w-4 h-4" />
-                <span>Sales Returns</span>
-              </Link>
-              <Link
-                href="/sales/refunds"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/sales/refunds') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <DollarSign className="w-4 h-4" />
-                <span>Refunds</span>
-              </Link>
+              {filteredReturnsRefundsPages.map((page) => {
+                const iconMap: Record<string, React.ReactNode> = {
+                  'sales-returns': <Undo2 className="w-4 h-4" />,
+                  'refunds': <DollarSign className="w-4 h-4" />,
+                };
+                
+                return (
+                  <Link
+                    key={page.path}
+                    href={page.path}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                      isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {iconMap[page.permission] || <FileText className="w-4 h-4" />}
+                    <span>{page.label}</span>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
@@ -208,26 +200,27 @@ function SalesSidebar() {
             </div>
             <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${expandedSections.settings ? 'rotate-180' : ''}`} />
           </button>
-          {expandedSections.settings && (
+          {expandedSections.settings && filteredSettingsPages.length > 0 && (
             <div className="ml-6 mt-1 space-y-1">
-              <Link
-                href="/sales/currency"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/sales/currency') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <DollarSign className="w-4 h-4" />
-                <span>Currency</span>
-              </Link>
-              <Link
-                href="/sales/settings"
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                  isActive('/sales/settings') ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Settings className="w-4 h-4" />
-                <span>Sales Settings</span>
-              </Link>
+              {filteredSettingsPages.map((page) => {
+                const iconMap: Record<string, React.ReactNode> = {
+                  'currency': <DollarSign className="w-4 h-4" />,
+                  'settings': <Settings className="w-4 h-4" />,
+                };
+                
+                return (
+                  <Link
+                    key={page.path}
+                    href={page.path}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                      isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {iconMap[page.permission] || <Settings className="w-4 h-4" />}
+                    <span>{page.label}</span>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
@@ -246,21 +239,45 @@ function SalesSidebar() {
           <span className="text-sm font-medium">Main Dashboard</span>
         </Link>
 
-        <Link
-          href="/warehouse/dashboard"
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
-        >
-          <Warehouse className="w-5 h-5" />
-          <span className="text-sm font-medium">Warehouse</span>
-        </Link>
+        {isAdmin || hasModuleAccess('warehouse') && (
+          <Link
+            href="/warehouse/dashboard"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
+          >
+            <Warehouse className="w-5 h-5" />
+            <span className="text-sm font-medium">Warehouse</span>
+          </Link>
+        )}
 
-        <Link
-          href="/accounting/dashboard"
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
-        >
-          <Building2 className="w-5 h-5" />
-          <span className="text-sm font-medium">Accounting</span>
-        </Link>
+        {isAdmin || hasModuleAccess('accounting') && (
+          <Link
+            href="/accounting/dashboard"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
+          >
+            <Building2 className="w-5 h-5" />
+            <span className="text-sm font-medium">Accounting</span>
+          </Link>
+        )}
+
+        {isAdmin || hasModuleAccess('purchases') && (
+          <Link
+            href="/purchases"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
+          >
+            <ShoppingCart className="w-5 h-5" />
+            <span className="text-sm font-medium">Purchases</span>
+          </Link>
+        )}
+
+        {isAdmin && (
+          <Link
+            href="/users"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
+          >
+            <Users className="w-5 h-5" />
+            <span className="text-sm font-medium">Users</span>
+          </Link>
+        )}
       </div>
 
       {/* Bottom Section */}
