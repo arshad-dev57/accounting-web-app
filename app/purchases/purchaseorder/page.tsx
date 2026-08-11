@@ -522,7 +522,7 @@ export default function PurchaseOrdersPage() {
         phone: userProfile?.contactNo || userProfile?.phone || '',
         email: userProfile?.email || ''
       };
-      const pdfBlob = PDFService.generatePurchaseOrderPDFBlob(order, companyInfo);
+      const pdfBlob = await PDFService.generatePurchaseOrderPDFBlob(order, companyInfo);
 
       // Send email with PDF attachment using the new reusable email service
       await EmailService.sendPurchaseOrderEmail(order, pdfBlob, companyInfo);
@@ -606,7 +606,7 @@ export default function PurchaseOrdersPage() {
     setViewingOrder(order);
   };
 
-  const handleGenerateInvoice = (order: PurchaseOrderModel) => {
+  const handleGenerateInvoice = async (order: PurchaseOrderModel) => {
     const businessDetails = userProfile?.businessDetails || {};
     const companyName = userProfile?.organizationName || 'Your Company Name';
     const companyLogo = businessDetails.logo || '';
@@ -622,7 +622,7 @@ export default function PurchaseOrdersPage() {
       logo: companyLogo
     };
 
-    PDFService.downloadPurchaseOrderPDF(order, companyInfo);
+    await PDFService.downloadPurchaseOrderPDF(order, companyInfo);
   };
 
   // ─── Helper Functions ──────────────────────────────────────
@@ -693,7 +693,7 @@ export default function PurchaseOrdersPage() {
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <Receipt className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+                <Receipt className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
                 Purchase Orders
                 <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
                   ({pagination.total} orders)
@@ -703,7 +703,7 @@ export default function PurchaseOrdersPage() {
             <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={handleRefresh}
-                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
                 title="Refresh"
                 disabled={loading}
               >
@@ -711,7 +711,7 @@ export default function PurchaseOrdersPage() {
               </button>
               <button
                 onClick={openCreateWizard}
-                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
               >
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Create Order</span>
@@ -756,7 +756,7 @@ export default function PurchaseOrdersPage() {
                   placeholder="Search orders..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
                 {searchTerm && (
                   <button onClick={clearSearch} className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2">
@@ -770,7 +770,7 @@ export default function PurchaseOrdersPage() {
                   <select
                     value={statusFilter}
                     onChange={(e) => handleStatusFilterChange(e.target.value)}
-                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   >
                     {statusOptions.map((status) => (
                       <option key={status} value={status}>
@@ -786,18 +786,18 @@ export default function PurchaseOrdersPage() {
                     type="date"
                     value={fromDate}
                     onChange={(e) => setFromDate(e.target.value)}
-                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
+                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
                   />
                   <span className="text-gray-400 text-xs md:text-sm hidden xs:inline">to</span>
                   <input
                     type="date"
                     value={toDate}
                     onChange={(e) => setToDate(e.target.value)}
-                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
+                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
                   />
                   <button
                     onClick={handleDateFilter}
-                    className="px-3 md:px-4 py-1.5 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] rounded-lg text-xs md:text-sm font-semibold hover:bg-[#7c4dff]/20 transition-all"
+                    className="px-3 md:px-4 py-1.5 md:py-2 bg-[#014582]/10 text-[#014582] rounded-lg text-xs md:text-sm font-semibold hover:bg-[#014582]/20 transition-all"
                   >
                     Apply
                   </button>
@@ -814,7 +814,7 @@ export default function PurchaseOrdersPage() {
                 onClick={() => handleFilterChange(filter)}
                 className={`px-2.5 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-all ${
                   selectedFilter === filter
-                    ? 'bg-[#7c4dff] text-white'
+                    ? 'bg-[#014582] text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -842,7 +842,7 @@ export default function PurchaseOrdersPage() {
                   {loading && orders.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="text-center py-8 md:py-12">
-                        <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#7c4dff] animate-spin" />
+                        <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                         <p className="mt-2 text-xs md:text-sm text-gray-500">Loading purchase orders...</p>
                       </td>
                     </tr>
@@ -859,7 +859,7 @@ export default function PurchaseOrdersPage() {
                       <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                         <td className="px-3 md:px-6 py-2 md:py-3">
                           <div>
-                            <p className="font-medium text-[#7c4dff] text-xs md:text-sm">{order.orderNumber}</p>
+                            <p className="font-medium text-[#014582] text-xs md:text-sm">{order.orderNumber}</p>
                             <p className="text-[10px] md:text-xs text-gray-400 sm:hidden">{order.supplierName}</p>
                           </div>
                         </td>
@@ -956,7 +956,7 @@ export default function PurchaseOrdersPage() {
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50"
+                  className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all disabled:opacity-50"
                 >
                   {loadingMore ? (
                     <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -983,7 +983,7 @@ export default function PurchaseOrdersPage() {
                 >
                   <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
-                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg text-xs md:text-sm">
+                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg text-xs md:text-sm">
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
@@ -1046,7 +1046,7 @@ export default function PurchaseOrdersPage() {
                 placeholder="Enter reason for cancellation"
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
               />
             </div>
           }
@@ -1110,7 +1110,7 @@ function CreateOrderWizard({
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </button>
           <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Receipt className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+            <Receipt className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
             Create Purchase Order
           </h2>
         </div>
@@ -1123,9 +1123,9 @@ function CreateOrderWizard({
       <div className="flex items-center gap-2 md:gap-4">
         {[0, 1, 2].map((step) => (
           <div key={step} className="flex items-center flex-1">
-            <div className={`flex items-center gap-1 md:gap-2 ${wizardState.step >= step ? 'text-[#7c4dff]' : 'text-gray-300'}`}>
+            <div className={`flex items-center gap-1 md:gap-2 ${wizardState.step >= step ? 'text-[#014582]' : 'text-gray-300'}`}>
               <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs md:text-sm font-bold border-2 ${
-                wizardState.step >= step ? 'border-[#7c4dff] bg-[#7c4dff]/10' : 'border-gray-300'
+                wizardState.step >= step ? 'border-[#014582] bg-[#014582]/10' : 'border-gray-300'
               }`}>
                 {step + 1}
               </div>
@@ -1134,7 +1134,7 @@ function CreateOrderWizard({
               </span>
             </div>
             {step < 2 && (
-              <div className={`flex-1 h-0.5 mx-1 md:mx-2 ${wizardState.step > step ? 'bg-[#7c4dff]' : 'bg-gray-300'}`} />
+              <div className={`flex-1 h-0.5 mx-1 md:mx-2 ${wizardState.step > step ? 'bg-[#014582]' : 'bg-gray-300'}`} />
             )}
           </div>
         ))}
@@ -1156,17 +1156,17 @@ function CreateOrderWizard({
                     setSupplierSearchQuery(e.target.value);
                     searchSuppliers(e.target.value);
                   }}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
-              <button className="px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all whitespace-nowrap">
+              <button className="px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all whitespace-nowrap">
                 + Add Supplier
               </button>
             </div>
 
             {wizardState.isSearchingSuppliers && (
               <div className="mt-3 p-4 bg-gray-50 rounded-lg">
-                <Loader2 className="w-6 h-6 mx-auto text-[#7c4dff] animate-spin" />
+                <Loader2 className="w-6 h-6 mx-auto text-[#014582] animate-spin" />
               </div>
             )}
 
@@ -1186,10 +1186,10 @@ function CreateOrderWizard({
             )}
 
             {wizardState.selectedSupplier && (
-              <div className="mt-3 p-3 bg-[#7c4dff]/5 border border-[#7c4dff]/20 rounded-lg">
+              <div className="mt-3 p-3 bg-[#014582]/5 border border-[#014582]/20 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-[#7c4dff] text-sm">{wizardState.selectedSupplier.name}</p>
+                    <p className="font-semibold text-[#014582] text-sm">{wizardState.selectedSupplier.name}</p>
                     <p className="text-xs text-gray-500">{wizardState.selectedSupplier.email}</p>
                     <p className="text-xs text-gray-500">{wizardState.selectedSupplier.phone}</p>
                   </div>
@@ -1219,14 +1219,14 @@ function CreateOrderWizard({
                     setProductSearchQuery(e.target.value);
                     searchProducts(e.target.value);
                   }}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
             </div>
 
             {wizardState.isSearchingProducts && (
               <div className="mt-3 p-4 bg-gray-50 rounded-lg">
-                <Loader2 className="w-6 h-6 mx-auto text-[#7c4dff] animate-spin" />
+                <Loader2 className="w-6 h-6 mx-auto text-[#014582] animate-spin" />
               </div>
             )}
 
@@ -1244,7 +1244,7 @@ function CreateOrderWizard({
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-gray-700">{formatCurrency(product.costPrice || 0)}</p>
-                      <Plus className="w-4 h-4 text-[#7c4dff] ml-auto" />
+                      <Plus className="w-4 h-4 text-[#014582] ml-auto" />
                     </div>
                   </button>
                 ))}
@@ -1276,7 +1276,7 @@ function CreateOrderWizard({
                           min="1"
                           value={line.quantity}
                           onChange={(e) => updateProductField(index, 'quantity', parseInt(e.target.value) || 1)}
-                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                         />
                       </div>
                       <div>
@@ -1287,7 +1287,7 @@ function CreateOrderWizard({
                           min="0"
                           value={line.unitPrice}
                           onChange={(e) => updateProductField(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                         />
                       </div>
                       <div>
@@ -1299,7 +1299,7 @@ function CreateOrderWizard({
                           max="100"
                           value={line.discount}
                           onChange={(e) => updateProductField(index, 'discount', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                         />
                       </div>
                       <div>
@@ -1310,18 +1310,18 @@ function CreateOrderWizard({
                           min="0"
                           value={line.taxRate}
                           onChange={(e) => updateProductField(index, 'taxRate', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                          className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                         />
                       </div>
                     </div>
                     <div className="text-right mt-2">
-                      <p className="text-sm font-semibold text-[#7c4dff]">Line Total: {formatCurrency(line.lineTotal)}</p>
+                      <p className="text-sm font-semibold text-[#014582]">Line Total: {formatCurrency(line.lineTotal)}</p>
                     </div>
                   </div>
                 ))}
 
                 {/* Summary */}
-                <div className="p-3 bg-[#7c4dff]/5 border border-[#7c4dff]/20 rounded-lg">
+                <div className="p-3 bg-[#014582]/5 border border-[#014582]/20 rounded-lg">
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Subtotal</span>
@@ -1338,7 +1338,7 @@ function CreateOrderWizard({
                     <hr className="border-gray-200" />
                     <div className="flex justify-between font-bold">
                       <span>Grand Total</span>
-                      <span className="text-[#7c4dff]">{formatCurrency(selectedGrandTotal)}</span>
+                      <span className="text-[#014582]">{formatCurrency(selectedGrandTotal)}</span>
                     </div>
                     <div className="text-xs text-gray-400 text-center">
                       {totalItems} items
@@ -1366,7 +1366,7 @@ function CreateOrderWizard({
                   type="date"
                   value={wizardState.orderDate}
                   onChange={(e) => setWizardState((prev: WizardState) => ({ ...prev, orderDate: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
               <div>
@@ -1375,7 +1375,7 @@ function CreateOrderWizard({
                   type="date"
                   value={wizardState.expectedDeliveryDate}
                   onChange={(e) => setWizardState((prev: WizardState) => ({ ...prev, expectedDeliveryDate: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
             </div>
@@ -1387,7 +1387,7 @@ function CreateOrderWizard({
                 placeholder="Additional notes..."
                 value={wizardState.notes}
                 onChange={(e) => setWizardState((prev: WizardState) => ({ ...prev, notes: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none resize-none"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none resize-none"
               />
             </div>
 
@@ -1398,12 +1398,12 @@ function CreateOrderWizard({
                 placeholder="Terms and conditions..."
                 value={wizardState.termsConditions}
                 onChange={(e) => setWizardState((prev: WizardState) => ({ ...prev, termsConditions: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none resize-none"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none resize-none"
               />
             </div>
 
             {/* Summary */}
-            <div className="mt-4 p-4 bg-[#7c4dff]/5 border border-[#7c4dff]/20 rounded-lg">
+            <div className="mt-4 p-4 bg-[#014582]/5 border border-[#014582]/20 rounded-lg">
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Supplier</span>
@@ -1416,7 +1416,7 @@ function CreateOrderWizard({
                 <hr className="border-gray-200" />
                 <div className="flex justify-between font-bold">
                   <span>Grand Total</span>
-                  <span className="text-[#7c4dff]">{formatCurrency(selectedGrandTotal)}</span>
+                  <span className="text-[#014582]">{formatCurrency(selectedGrandTotal)}</span>
                 </div>
               </div>
             </div>
@@ -1444,7 +1444,7 @@ function CreateOrderWizard({
             <button
               onClick={nextStep}
               disabled={(wizardState.step === 0 && !canGoToStep2) || (wizardState.step === 1 && !canGoToStep3)}
-              className="px-5 md:px-7 py-2 md:py-2.5 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/25"
+              className="px-5 md:px-7 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#014582]/25"
             >
               Next →
             </button>
@@ -1452,7 +1452,7 @@ function CreateOrderWizard({
             <button
               onClick={handleCreateOrder}
               disabled={submitting}
-              className="px-5 md:px-7 py-2 md:py-2.5 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/25 flex items-center gap-2"
+              className="px-5 md:px-7 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#014582]/25 flex items-center gap-2"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Create Order
@@ -1485,10 +1485,10 @@ function OrderDetailModal({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-3 md:gap-4">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-[#7c4dff]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Receipt className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Receipt className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
             </div>
             <div>
               <h2 className="text-lg md:text-xl font-bold text-gray-900">{order.orderNumber}</h2>
@@ -1579,7 +1579,7 @@ function OrderDetailModal({
                       {item.taxRate > 0 && ` • Tax: ${item.taxRate}%`}
                     </p>
                   </div>
-                  <p className="text-xs md:text-sm font-semibold text-[#7c4dff] ml-2">{formatCurrency(item.lineTotal)}</p>
+                  <p className="text-xs md:text-sm font-semibold text-[#014582] ml-2">{formatCurrency(item.lineTotal)}</p>
                 </div>
               ))}
             </div>
@@ -1607,7 +1607,7 @@ function OrderDetailModal({
               <hr className="border-gray-200" />
               <div className="flex justify-between font-bold text-base md:text-lg">
                 <span>Grand Total</span>
-                <span className="text-[#7c4dff]">{formatCurrency(order.grandTotal)}</span>
+                <span className="text-[#014582]">{formatCurrency(order.grandTotal)}</span>
               </div>
             </div>
           </div>

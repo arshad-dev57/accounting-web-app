@@ -32,9 +32,14 @@ import {
   TrendingUp, PiggyBank,
   PlusCircle as PlusCircleIcon, MinusCircle as MinusCircleIcon
 } from 'lucide-react';
-import { equityService, EquityAccount, EquitySummary, OwnerTransaction } from '../../api/capital-equity/route';
+import {
+  equityService,
+  EquityAccount,
+  EquitySummary,
+  OwnerTransaction,
+  buildEquitySummary,
+} from '../../api/capital-equity/route';
 import { toast } from 'react-hot-toast';
-import { apiClient } from '@/lib/api-client';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -59,7 +64,7 @@ export default function CapitalEquityPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 10,
+    limit: 20,
     total: 0,
     pages: 0,
     hasNext: false,
@@ -106,67 +111,39 @@ export default function CapitalEquityPage() {
     setCurrencySymbol(getCurrencySymbol());
   }, []);
 
-  // ─── Fetch Equity Accounts ──────────────────────────────────
+  // ─── Fetch Equity Accounts (same source as Flutter: COA type=Equity) ──
 
-  const fetchEquityAccounts = useCallback(async (resetPage = true) => {
-    setLoading(true);
+  const fetchEquityAccounts = useCallback(async (
+    resetPage = true,
+    overrides?: { search?: string; type?: string; page?: number }
+  ) => {
+    const page = overrides?.page ?? (resetPage ? 1 : pagination.page);
+    const search = overrides?.search ?? searchTerm;
+    const type = overrides?.type ?? filter.type;
+
+    if (resetPage) setLoading(true);
+    else setLoadingMore(true);
+
     try {
-      // Fetch from Chart of Accounts instead of EquityAccount table
-      const chartOfAccounts = await apiClient.get('/api/chart-of-accounts');
-      const allAccounts = chartOfAccounts.data?.data || [];
-
-      // Filter for Equity type accounts
-      const equityAccounts = allAccounts
-        .filter((account: any) => account.type === 'Equity')
-        .map((account: any) => ({
-          id: account.id,
-          accountName: account.name,
-          accountCode: account.code,
-          accountType: getAccountTypeFromName(account.name),
-          currentBalance: account.currentBalance || account.openingBalance || 0,
-          openingBalance: account.openingBalance || 0,
-          lastUpdated: account.updatedAt || new Date().toISOString(),
-          description: account.description
-        }));
-
-      // Apply filters
-      let filteredAccounts = equityAccounts;
-      if (filter.type !== 'All') {
-        filteredAccounts = filteredAccounts.filter((acc: any) => acc.accountType === filter.type);
-      }
-      if (searchTerm) {
-        filteredAccounts = filteredAccounts.filter((acc: any) =>
-          acc.accountName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          acc.accountCode.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      }
-
-      setEquityAccounts(filteredAccounts);
-      setPagination({
-        page: 1,
-        limit: 10,
-        total: filteredAccounts.length,
-        pages: 1,
-        hasNext: false,
-        hasPrev: false
+      const response = await equityService.getEquityAccounts({
+        page,
+        limit: pagination.limit || 20,
+        search: search || undefined,
+        accountType: type !== 'All' ? type : undefined,
       });
+
+      setEquityAccounts(response.data || []);
+      setPagination(response.pagination);
+      // Match Flutter: derive summary from loaded equity COA balances
+      setSummary(response.summary || buildEquitySummary(response.data || []));
     } catch (error: any) {
       console.error('Failed to fetch equity accounts:', error);
       toast.error(error.message || 'Failed to load equity accounts');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [filter, searchTerm]);
-
-  // Helper to determine account type from name
-  const getAccountTypeFromName = (name: string): 'Capital' | 'Retained Earnings' | 'Drawings' | 'Reserves' => {
-    const lowerName = name.toLowerCase();
-    if (lowerName.includes('capital') || lowerName.includes('share')) return 'Capital';
-    if (lowerName.includes('retained')) return 'Retained Earnings';
-    if (lowerName.includes('drawing')) return 'Drawings';
-    if (lowerName.includes('reserve')) return 'Reserves';
-    return 'Capital'; // Default
-  };
+  }, [filter.type, searchTerm, pagination.page, pagination.limit]);
 
   // ─── Fetch Transactions ─────────────────────────────────────
 
@@ -201,10 +178,10 @@ export default function CapitalEquityPage() {
         page: nextPage,
         limit: pagination.limit,
         search: searchTerm || undefined,
-        type: filter.type !== 'All' ? filter.type : undefined
+        accountType: filter.type !== 'All' ? filter.type : undefined,
       });
 
-      setEquityAccounts(prev => [...prev, ...(response.data || [])]);
+      setEquityAccounts((prev) => [...prev, ...(response.data || [])]);
       setPagination(response.pagination);
     } catch (error) {
       console.error('Failed to load more equity accounts:', error);
@@ -212,7 +189,7 @@ export default function CapitalEquityPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, filter.type, searchTerm, loadingMore]);
 
   // ─── Initial Fetch ──────────────────────────────────────────
 
@@ -220,27 +197,28 @@ export default function CapitalEquityPage() {
     fetchTransactions();
     fetchSummary();
     fetchEquityAccounts(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ─── Search ──────────────────────────────────────────────────
 
   const handleSearch = (query: string) => {
     setSearchTerm(query);
-    setFilter(prev => ({ ...prev, search: query }));
-    fetchEquityAccounts(true);
+    setFilter((prev) => ({ ...prev, search: query }));
+    fetchEquityAccounts(true, { search: query, type: filter.type, page: 1 });
   };
 
   const clearSearch = () => {
     setSearchTerm('');
-    setFilter(prev => ({ ...prev, search: '' }));
-    fetchEquityAccounts(true);
+    setFilter((prev) => ({ ...prev, search: '' }));
+    fetchEquityAccounts(true, { search: '', type: filter.type, page: 1 });
   };
 
   // ─── Filter Changes ──────────────────────────────────────────
 
   const handleTypeChange = (type: string) => {
-    setFilter(prev => ({ ...prev, type }));
-    fetchEquityAccounts(true);
+    setFilter((prev) => ({ ...prev, type }));
+    fetchEquityAccounts(true, { search: searchTerm, type, page: 1 });
   };
 
   const handleRefresh = () => {
@@ -250,8 +228,7 @@ export default function CapitalEquityPage() {
   };
 
   const handlePageChange = (page: number) => {
-    setPagination(prev => ({ ...prev, page }));
-    fetchEquityAccounts(false);
+    fetchEquityAccounts(false, { page, search: searchTerm, type: filter.type });
   };
 
   // ─── Add Capital ─────────────────────────────────────────────
@@ -259,16 +236,8 @@ export default function CapitalEquityPage() {
   const handleAddCapital = async (data: any) => {
     setSubmitting(true);
     try {
-      // Get the chart of account ID using the account code
-      const chartOfAccounts = await apiClient.get('/api/chart-of-accounts');
-      const equityAccount = equityAccounts.find(a => a.id === data.accountId);
-      const chartAccount = chartOfAccounts.data?.data?.find((coa: any) => coa.code === equityAccount?.accountCode && coa.type === 'Equity');
-
-      if (!chartAccount) {
-        throw new Error('Corresponding chart of account not found');
-      }
-
-      await equityService.addCapital({ ...data, accountId: chartAccount.id });
+      // accountId is already the Chart of Accounts id (same as Flutter)
+      await equityService.addCapital(data);
       toast.success('Capital added successfully!');
       setShowAddCapitalForm(false);
       setSelectedAccount(null);
@@ -288,16 +257,7 @@ export default function CapitalEquityPage() {
   const handleRecordDrawings = async (data: any) => {
     setSubmitting(true);
     try {
-      // Get the chart of account ID using the account code
-      const chartOfAccounts = await apiClient.get('/api/chart-of-accounts');
-      const equityAccount = equityAccounts.find(a => a.id === data.accountId);
-      const chartAccount = chartOfAccounts.data?.data?.find((coa: any) => coa.code === equityAccount?.accountCode && coa.type === 'Equity');
-
-      if (!chartAccount) {
-        throw new Error('Corresponding chart of account not found');
-      }
-
-      await equityService.recordDrawings({ ...data, accountId: chartAccount.id });
+      await equityService.recordDrawings(data);
       toast.success('Drawings recorded successfully!');
       setShowDrawingsForm(false);
       setSelectedAccount(null);
@@ -438,7 +398,7 @@ export default function CapitalEquityPage() {
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <Landmark className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+                <Landmark className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
                 Capital & Equity
                 <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
                   ({pagination.total} accounts)
@@ -448,7 +408,7 @@ export default function CapitalEquityPage() {
             <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={handleRefresh}
-                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
                 title="Refresh"
                 disabled={loading}
               >
@@ -456,7 +416,7 @@ export default function CapitalEquityPage() {
               </button>
               <button
                 onClick={() => setShowTransactionForm(true)}
-                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
               >
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Add Transaction</span>
@@ -496,7 +456,7 @@ export default function CapitalEquityPage() {
                   placeholder="Search accounts..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
                 {searchTerm && (
                   <button onClick={clearSearch} className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2">
@@ -510,7 +470,7 @@ export default function CapitalEquityPage() {
                   <select
                     value={filter.type}
                     onChange={(e) => handleTypeChange(e.target.value)}
-                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   >
                     {typeOptions.map((type) => (
                       <option key={type} value={type}>{type}</option>
@@ -526,7 +486,7 @@ export default function CapitalEquityPage() {
           <div className="space-y-3 md:space-y-4">
             {loading && equityAccounts.length === 0 ? (
               <div className="text-center py-8 md:py-12">
-                <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#7c4dff] animate-spin" />
+                <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                 <p className="mt-2 text-xs md:text-sm text-gray-500">Loading equity accounts...</p>
               </div>
             ) : equityAccounts.length === 0 ? (
@@ -584,7 +544,7 @@ export default function CapitalEquityPage() {
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50"
+                className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all disabled:opacity-50"
               >
                 {loadingMore ? (
                   <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -610,7 +570,7 @@ export default function CapitalEquityPage() {
                 >
                   <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
-                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg text-xs md:text-sm">
+                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg text-xs md:text-sm">
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
@@ -689,7 +649,7 @@ function AddCapitalForm({
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2 md:gap-3">
-          <PlusCircleIcon className="w-4 h-4 md:w-5 md:h-5 text-[#7c4dff]" />
+          <PlusCircleIcon className="w-4 h-4 md:w-5 md:h-5 text-[#014582]" />
           <h2 className="text-base md:text-lg font-bold text-gray-800">Add Capital</h2>
         </div>
         <button onClick={onCancel} className="p-1.5 md:p-2 hover:bg-gray-200 rounded-lg transition-all">
@@ -724,7 +684,7 @@ function AddCapitalForm({
                 placeholder="0.00"
                 value={formData.amount}
                 onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               />
             </div>
@@ -737,7 +697,7 @@ function AddCapitalForm({
               placeholder="Enter description"
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
               required
             />
           </div>
@@ -749,7 +709,7 @@ function AddCapitalForm({
               placeholder="e.g., CAP-001"
               value={formData.reference}
               onChange={(e) => setFormData(prev => ({ ...prev, reference: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
 
@@ -820,7 +780,7 @@ function RecordDrawingsForm({
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2 md:gap-3">
-          <MinusCircleIcon className="w-4 h-4 md:w-5 md:h-5 text-[#7c4dff]" />
+          <MinusCircleIcon className="w-4 h-4 md:w-5 md:h-5 text-[#014582]" />
           <h2 className="text-base md:text-lg font-bold text-gray-800">Record Drawings</h2>
         </div>
         <button onClick={onCancel} className="p-1.5 md:p-2 hover:bg-gray-200 rounded-lg transition-all">
@@ -855,7 +815,7 @@ function RecordDrawingsForm({
                 placeholder="0.00"
                 value={formData.amount}
                 onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               />
             </div>
@@ -868,7 +828,7 @@ function RecordDrawingsForm({
               placeholder="Enter description"
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
               required
             />
           </div>
@@ -880,7 +840,7 @@ function RecordDrawingsForm({
               placeholder="e.g., DRW-001"
               value={formData.reference}
               onChange={(e) => setFormData(prev => ({ ...prev, reference: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
 
@@ -966,7 +926,7 @@ function AddTransactionForm({
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2 md:gap-3">
-          <Plus className="w-4 h-4 md:w-5 md:h-5 text-[#7c4dff]" />
+          <Plus className="w-4 h-4 md:w-5 md:h-5 text-[#014582]" />
           <h2 className="text-base md:text-lg font-bold text-gray-800">Add Equity Transaction</h2>
         </div>
         <button onClick={onCancel} className="p-1.5 md:p-2 hover:bg-gray-200 rounded-lg transition-all">
@@ -988,7 +948,7 @@ function AddTransactionForm({
             <select
               value={formData.transactionType}
               onChange={(e) => setFormData(prev => ({ ...prev, transactionType: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             >
               {transactionTypes.map((type) => (
                 <option key={type} value={type}>{type}</option>
@@ -1007,7 +967,7 @@ function AddTransactionForm({
                 placeholder="0.00"
                 value={formData.amount}
                 onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               />
             </div>
@@ -1020,7 +980,7 @@ function AddTransactionForm({
               placeholder="Enter description"
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
               required
             />
           </div>
@@ -1032,7 +992,7 @@ function AddTransactionForm({
               placeholder="e.g., REF-001"
               value={formData.reference}
               onChange={(e) => setFormData(prev => ({ ...prev, reference: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
 
@@ -1047,7 +1007,7 @@ function AddTransactionForm({
             <button
               type="submit"
               disabled={submitting}
-              className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : <Save className="w-3.5 h-3.5 md:w-4 md:h-4" />}
               Save Transaction

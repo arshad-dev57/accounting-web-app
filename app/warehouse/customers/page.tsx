@@ -79,7 +79,7 @@ function CustomerListView({
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </Link>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Users className="w-6 h-6 text-[#7c4dff]" />
+            <Users className="w-6 h-6 text-[#014582]" />
             Customers
             <span className="text-sm font-normal text-gray-400 ml-2">
               ({pagination?.total || 0} customers)
@@ -89,21 +89,21 @@ function CustomerListView({
         <div className="flex items-center gap-3">
           <Link
             href="/warehouse/customer-settings"
-            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all"
           >
             <Settings className="w-4 h-4" />
             Settings
           </Link>
           <button
             onClick={onRefresh}
-            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
             title="Refresh"
           >
             <RefreshCw className="w-4 h-4 text-gray-500" />
           </button>
           <button
             onClick={onAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
           >
             <Plus className="w-4 h-4" />
             Add Customer
@@ -121,14 +121,14 @@ function CustomerListView({
               placeholder="Search customers..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
             />
           </div>
           <div className="relative">
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             >
               {typeOptions.map((type) => (
                 <option key={type} value={type}>{type}</option>
@@ -140,7 +140,7 @@ function CustomerListView({
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             >
               {statusOptions.map((status) => (
                 <option key={status} value={status}>{status}</option>
@@ -170,7 +170,7 @@ function CustomerListView({
               {loading ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12">
-                    <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+                    <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
                     <p className="mt-2 text-gray-500">Loading customers...</p>
                   </td>
                 </tr>
@@ -275,7 +275,7 @@ function CustomerListView({
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg">
+            <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg">
               {pagination.page} / {pagination.pages}
             </span>
             <button
@@ -343,8 +343,8 @@ function CustomerFormModal({
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-[#7c4dff]/10 rounded-lg">
-              <User className="w-5 h-5 text-[#7c4dff]" />
+            <div className="p-2 bg-[#014582]/10 rounded-lg">
+              <User className="w-5 h-5 text-[#014582]" />
             </div>
             <h3 className="text-lg font-bold text-gray-800">{title}</h3>
           </div>
@@ -373,7 +373,7 @@ function CustomerFormModal({
                     placeholder="John Doe"
                     value={formData.name || ''}
                     onChange={(e) => handleChange('name', e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                     required
                   />
                 </div>
@@ -387,7 +387,7 @@ function CustomerFormModal({
                     placeholder="john@example.com"
                     value={formData.email || ''}
                     onChange={(e) => handleChange('email', e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                 </div>
               </div>
@@ -400,7 +400,7 @@ function CustomerFormModal({
                     placeholder="+92-300-1234567"
                     value={formData.phone || ''}
                     onChange={(e) => handleChange('phone', e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                 </div>
               </div>
@@ -413,7 +413,7 @@ function CustomerFormModal({
                     placeholder="Company name"
                     value={formData.company || ''}
                     onChange={(e) => handleChange('company', e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                 </div>
               </div>
@@ -422,7 +422,7 @@ function CustomerFormModal({
                 <select
                   value={formData.customerType || 'Individual'}
                   onChange={(e) => handleChange('customerType', e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   <option value="Individual">Individual</option>
                   <option value="Business">Business</option>
@@ -439,7 +439,7 @@ function CustomerFormModal({
                   placeholder="Tax ID / GST Number"
                   value={formData.taxId || ''}
                   onChange={(e) => handleChange('taxId', e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
               </div>
             </div>
@@ -458,7 +458,7 @@ function CustomerFormModal({
                       ...prev,
                       address: { ...(prev.address || {}), street: e.target.value }
                     }))}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                 </div>
                 <div>
@@ -471,7 +471,7 @@ function CustomerFormModal({
                       ...prev,
                       address: { ...(prev.address || {}), city: e.target.value }
                     }))}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                 </div>
                 <div>
@@ -484,7 +484,7 @@ function CustomerFormModal({
                       ...prev,
                       address: { ...(prev.address || {}), state: e.target.value }
                     }))}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                 </div>
                 <div>
@@ -497,7 +497,7 @@ function CustomerFormModal({
                       ...prev,
                       address: { ...(prev.address || {}), postalCode: e.target.value }
                     }))}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                 </div>
                 <div>
@@ -510,7 +510,7 @@ function CustomerFormModal({
                       ...prev,
                       address: { ...(prev.address || {}), country: e.target.value }
                     }))}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                 </div>
               </div>
@@ -522,7 +522,7 @@ function CustomerFormModal({
               <select
                 value={formData.status || 'Active'}
                 onChange={(e) => handleChange('status', e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
@@ -539,7 +539,7 @@ function CustomerFormModal({
                 placeholder="Additional notes..."
                 value={formData.notes || ''}
                 onChange={(e) => handleChange('notes', e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
               />
             </div>
 
@@ -551,7 +551,7 @@ function CustomerFormModal({
                 placeholder="e.g., VIP, Wholesale, International"
                 value={formData.tags?.join(', ') || ''}
                 onChange={(e) => handleChange('tags', e.target.value.split(',').map(t => t.trim()).filter(Boolean))}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               />
               <p className="text-xs text-gray-400 mt-1">Comma separated values</p>
             </div>
@@ -568,7 +568,7 @@ function CustomerFormModal({
               <button
                 type="submit"
                 disabled={saving}
-                className="px-6 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center gap-2 shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {initialData?._id || initialData?.id ? 'Update Customer' : 'Save Customer'}
@@ -627,15 +627,15 @@ function CustomerDetailView({
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-start justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl w-full max-w-4xl my-4 shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-[#7c4dff]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <User className="w-6 h-6 text-[#7c4dff]" />
+            <div className="w-12 h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <User className="w-6 h-6 text-[#014582]" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">{customer.name}</h2>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="font-mono text-xs font-bold text-[#7c4dff] bg-[#7c4dff]/10 px-2 py-0.5 rounded">
+                <span className="font-mono text-xs font-bold text-[#014582] bg-[#014582]/10 px-2 py-0.5 rounded">
                   {customer.customerNumber}
                 </span>
                 <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${getStatusColor(customer.status)}`}>
@@ -649,7 +649,7 @@ function CustomerDetailView({
           <div className="flex items-center gap-2">
             <button
               onClick={onEdit}
-              className="flex items-center gap-1.5 px-4 py-2 bg-[#7c4dff] text-white text-sm font-semibold rounded-lg hover:bg-[#6c3fe0] transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#014582] text-white text-sm font-semibold rounded-lg hover:bg-[#01366a] transition-all"
             >
               <Edit className="w-3.5 h-3.5" /> Edit
             </button>
@@ -754,7 +754,7 @@ function CustomerDetailView({
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Recent Orders</h4>
               {loadingOrders ? (
                 <div className="text-center py-4">
-                  <Loader2 className="w-6 h-6 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-6 h-6 mx-auto text-[#014582] animate-spin" />
                 </div>
               ) : orders.length === 0 ? (
                 <p className="text-sm text-gray-400">No orders found</p>

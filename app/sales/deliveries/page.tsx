@@ -179,7 +179,7 @@ export default function DeliveriesPage() {
           </div>
           <button
             onClick={() => setShowCreateWizard(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#7c4dff]/90 transition-all font-semibold"
+            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#014582]/90 transition-all font-semibold"
           >
             <Plus size={18} />
             Create Delivery
@@ -226,7 +226,7 @@ export default function DeliveriesPage() {
               placeholder="Search deliveries..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] focus:border-transparent"
             />
             {searchTerm && (
               <button
@@ -240,7 +240,7 @@ export default function DeliveriesPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] focus:border-transparent"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option} value={option}>
@@ -292,7 +292,7 @@ export default function DeliveriesPage() {
             {loading ? (
               <tr>
                 <td colSpan={7} className="px-6 py-12 text-center">
-                  <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#7c4dff]" />
+                  <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#014582]" />
                 </td>
               </tr>
             ) : deliveries.length === 0 ? (
@@ -311,7 +311,7 @@ export default function DeliveriesPage() {
                 return (
                   <tr key={delivery.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="font-semibold text-[#7c4dff]">{delivery.deliveryNumber}</span>
+                      <span className="font-semibold text-[#014582]">{delivery.deliveryNumber}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {delivery.salesOrderNumber}
@@ -340,7 +340,7 @@ export default function DeliveriesPage() {
                       <div className="flex items-center gap-2">
                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-[#7c4dff] transition-all"
+                            className="h-full bg-[#014582] transition-all"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
@@ -351,7 +351,7 @@ export default function DeliveriesPage() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleDeliveryClick(delivery)}
-                          className="p-1.5 text-gray-600 hover:text-[#7c4dff] hover:bg-gray-100 rounded transition-colors"
+                          className="p-1.5 text-gray-600 hover:text-[#014582] hover:bg-gray-100 rounded transition-colors"
                           title="View Details"
                         >
                           <Eye size={16} />
@@ -440,7 +440,7 @@ export default function DeliveriesPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Delivery Number</p>
-                    <p className="font-semibold text-[#7c4dff]">{selectedDelivery.deliveryNumber}</p>
+                    <p className="font-semibold text-[#014582]">{selectedDelivery.deliveryNumber}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Order Number</p>

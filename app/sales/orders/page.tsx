@@ -275,7 +275,7 @@ function CustomerPickerModal({
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <User className="w-5 h-5 text-[#7c4dff]" />
+            <User className="w-5 h-5 text-[#014582]" />
             <h3 className="font-bold text-gray-800">Select Customer</h3>
             {pagination.total > 0 && (
               <span className="text-xs text-gray-400 font-normal">({pagination.total} total)</span>
@@ -295,7 +295,7 @@ function CustomerPickerModal({
               placeholder="Search by name, email or phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
             {searchTerm && (
               <button
@@ -306,7 +306,7 @@ function CustomerPickerModal({
               </button>
             )}
             {loading && !searchTerm && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7c4dff] animate-spin" />
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#014582] animate-spin" />
             )}
           </div>
           {error && (
@@ -319,7 +319,7 @@ function CustomerPickerModal({
         <div ref={listRef} className="overflow-y-auto flex-1 px-2 pb-4">
           {loading && customers.length === 0 ? (
             <div className="py-10 text-center text-gray-400">
-              <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+              <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
               <p className="text-sm mt-2">Loading customers...</p>
             </div>
           ) : customers.length === 0 ? (
@@ -340,7 +340,7 @@ function CustomerPickerModal({
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200 transition-colors">
-                        <span className="text-sm font-bold text-[#7c4dff]">
+                        <span className="text-sm font-bold text-[#014582]">
                           {customer.name?.charAt(0)?.toUpperCase() || 'C'}
                         </span>
                       </div>
@@ -378,7 +378,7 @@ function CustomerPickerModal({
 
               {loadingMore && (
                 <div className="py-3 text-center">
-                  <Loader2 className="w-5 h-5 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-5 h-5 mx-auto text-[#014582] animate-spin" />
                   <p className="text-xs text-gray-400 mt-1">Loading more...</p>
                 </div>
               )}
@@ -522,20 +522,20 @@ export default function SalesOrdersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <ShoppingCart className="w-6 h-6 text-[#7c4dff]" />
+          <ShoppingCart className="w-6 h-6 text-[#014582]" />
           Sales Orders
           <span className="text-sm font-normal text-gray-400">({totalRecords} orders)</span>
         </h1>
         <div className="flex items-center gap-3">
           <button
             onClick={() => { setCurrentPage(1); fetchOrders(); }}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all"
           >
             <RefreshCw className="w-4 h-4" /> Refresh
           </button>
           <button
             onClick={() => setShowCreateForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
           >
             <Plus className="w-4 h-4" /> Create Order
           </button>
@@ -571,7 +571,7 @@ export default function SalesOrdersPage() {
               placeholder="Search orders..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+              className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -588,7 +588,7 @@ export default function SalesOrdersPage() {
               <select
                 value={value}
                 onChange={(e) => set(e.target.value)}
-                className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
                 {opts.map((o) => (
                   <option key={o} value={o}>{o === 'all' ? placeholder : o}</option>
@@ -603,7 +603,7 @@ export default function SalesOrdersPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="text-center py-12">
-            <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+            <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
             <p className="mt-2 text-gray-500">Loading orders...</p>
           </div>
         ) : orders.length === 0 ? (
@@ -625,7 +625,7 @@ export default function SalesOrdersPage() {
               <tbody>
                 {orders.map((order) => (
                   <tr key={order._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-3 font-mono text-xs font-semibold text-[#7c4dff]">{order.orderNumber}</td>
+                    <td className="px-6 py-3 font-mono text-xs font-semibold text-[#014582]">{order.orderNumber}</td>
                     <td className="px-6 py-3">
                       <p className="font-medium text-gray-800">{order.customerName}</p>
                       {order.customerEmail && <p className="text-xs text-gray-500">{order.customerEmail}</p>}
@@ -648,7 +648,7 @@ export default function SalesOrdersPage() {
                           value={order.orderStatus}
                           onChange={(e) => handleUpdateStatus(order._id || order.id, e.target.value)}
                           disabled={actionLoading?.startsWith('status-') || getValidTransitions(order.orderStatus).length === 0}
-                          className="text-xs px-2 py-1 border border-gray-200 rounded hover:border-[#7c4dff] focus:ring-2 focus:ring-[#7c4dff] outline-none disabled:opacity-50"
+                          className="text-xs px-2 py-1 border border-gray-200 rounded hover:border-[#014582] focus:ring-2 focus:ring-[#014582] outline-none disabled:opacity-50"
                         >
                           <option value={order.orderStatus}>{order.orderStatus}</option>
                           {getValidTransitions(order.orderStatus).map((status) => (
@@ -695,7 +695,7 @@ export default function SalesOrdersPage() {
               className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
               <ChevronDown className="w-4 h-4 rotate-90" />
             </button>
-            <span className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg">{currentPage} / {totalPages}</span>
+            <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg">{currentPage} / {totalPages}</span>
             <button onClick={() => setCurrentPage((p) => p + 1)} disabled={!hasNext}
               className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
               <ChevronDown className="w-4 h-4 -rotate-90" />
@@ -1138,7 +1138,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   };
 
   // ── reusable input classes ───────────────────────────────────────────────
-  const inp = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none';
+  const inp = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none';
   const sel = inp;
 
   return (
@@ -1146,7 +1146,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Plus className="w-6 h-6 text-[#7c4dff]" /> Create Sales Order
+          <Plus className="w-6 h-6 text-[#014582]" /> Create Sales Order
         </h1>
         <button type="button" onClick={onCancel}
           className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
@@ -1164,7 +1164,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Customer Information ──────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <User className="w-5 h-5 text-[#7c4dff]" /> Customer Information
+          <User className="w-5 h-5 text-[#014582]" /> Customer Information
         </h2>
 
         <div>
@@ -1173,7 +1173,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
             <button
               type="button"
               onClick={() => setShowCustomerModal(true)}
-              className="flex-1 flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 hover:border-[#7c4dff] hover:bg-purple-50 transition-all text-left focus:ring-2 focus:ring-[#7c4dff] focus:outline-none"
+              className="flex-1 flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 hover:border-[#014582] hover:bg-purple-50 transition-all text-left focus:ring-2 focus:ring-[#014582] focus:outline-none"
             >
               <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
               {selectedCustomer ? (
@@ -1200,7 +1200,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
           
           {selectedCustomer && (
             <div className="mt-2 px-3 py-2 bg-purple-50 border border-purple-100 rounded-lg flex items-center gap-3">
-              <div className="w-6 h-6 rounded-full bg-[#7c4dff] flex items-center justify-center flex-shrink-0">
+              <div className="w-6 h-6 rounded-full bg-[#014582] flex items-center justify-center flex-shrink-0">
                 <span className="text-white text-xs font-bold">
                   {selectedCustomer.name?.charAt(0)?.toUpperCase()}
                 </span>
@@ -1250,7 +1250,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Shipping Address ──────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Truck className="w-5 h-5 text-[#7c4dff]" /> Shipping Address
+          <Truck className="w-5 h-5 text-[#014582]" /> Shipping Address
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
@@ -1281,11 +1281,11 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Billing Address ───────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Receipt className="w-5 h-5 text-[#7c4dff]" /> Billing Address
+          <Receipt className="w-5 h-5 text-[#014582]" /> Billing Address
         </h2>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={sameAsShipping} onChange={(e) => setSameAsShipping(e.target.checked)}
-            className="w-4 h-4 text-[#7c4dff] rounded focus:ring-[#7c4dff]" />
+            className="w-4 h-4 text-[#014582] rounded focus:ring-[#014582]" />
           <span className="text-sm text-gray-700">Same as shipping address</span>
         </label>
         {!sameAsShipping && (
@@ -1319,7 +1319,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Order Items ───────────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Package className="w-5 h-5 text-[#7c4dff]" /> Order Items
+          <Package className="w-5 h-5 text-[#014582]" /> Order Items
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1392,12 +1392,12 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
 
         {/* Live preview */}
         {selectedProduct && (
-          <div className="flex flex-wrap items-center gap-4 bg-[#7c4dff]/5 border border-[#7c4dff]/20 rounded-lg px-4 py-3 text-sm">
+          <div className="flex flex-wrap items-center gap-4 bg-[#014582]/5 border border-[#014582]/20 rounded-lg px-4 py-3 text-sm">
             <span className="text-gray-500">
               Unit price: <strong className="text-gray-800">Rs. {selectedProduct.sellingPrice.toLocaleString()}</strong>
             </span>
             <span className="text-gray-500">
-              × {quantity} = <strong className="text-[#7c4dff]">Rs. {previewTotal.toLocaleString()}</strong>
+              × {quantity} = <strong className="text-[#014582]">Rs. {previewTotal.toLocaleString()}</strong>
             </span>
             <span className="ml-auto text-xs">
               Stock:{' '}
@@ -1410,7 +1410,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
 
         <button
           type="button" onClick={handleAddItem} disabled={!selectedProduct}
-          className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" /> Add to Order
         </button>
@@ -1436,7 +1436,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
                       <input
                         type="number" min="1" value={item.quantity}
                         onChange={(e) => handleUpdateQty(i, parseInt(e.target.value) || 1)}
-                        className="w-16 text-center px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#7c4dff] outline-none"
+                        className="w-16 text-center px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] outline-none"
                       />
                     </td>
                     <td className="px-4 py-2 text-right font-semibold text-gray-800">Rs. {item.totalPrice.toLocaleString()}</td>
@@ -1469,7 +1469,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Order Details ─────────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-[#7c4dff]" /> Order Details
+          <FileText className="w-5 h-5 text-[#014582]" /> Order Details
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -1504,7 +1504,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Shipping & Payment ────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <CreditCard className="w-5 h-5 text-[#7c4dff]" /> Shipping & Payment
+          <CreditCard className="w-5 h-5 text-[#014582]" /> Shipping & Payment
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -1542,7 +1542,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Discounts ─────────────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Tag className="w-5 h-5 text-[#7c4dff]" /> Discounts
+          <Tag className="w-5 h-5 text-[#014582]" /> Discounts
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -1576,7 +1576,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Notes ─────────────────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-[#7c4dff]" /> Notes
+          <FileText className="w-5 h-5 text-[#014582]" /> Notes
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -1602,7 +1602,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Order Summary ─────────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-4">
-          <DollarSign className="w-5 h-5 text-[#7c4dff]" /> Order Summary
+          <DollarSign className="w-5 h-5 text-[#014582]" /> Order Summary
         </h2>
         <div className="max-w-sm ml-auto space-y-3">
           <div className="flex justify-between text-sm">
@@ -1623,7 +1623,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
           )}
           <div className="border-t-2 border-gray-200 pt-3 flex justify-between items-center">
             <span className="font-bold text-gray-800">Grand Total</span>
-            <span className="font-bold text-2xl text-[#7c4dff]">Rs. {grandTotal.toLocaleString()}</span>
+            <span className="font-bold text-2xl text-[#014582]">Rs. {grandTotal.toLocaleString()}</span>
           </div>
         </div>
       </section>
@@ -1635,7 +1635,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
           Cancel
         </button>
         <button type="submit" disabled={isSubmitting}
-          className="flex items-center gap-2 px-6 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
+          className="flex items-center gap-2 px-6 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed">
           {isSubmitting
             ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
             : <><CheckCircle className="w-4 h-4" /> Create Order</>}

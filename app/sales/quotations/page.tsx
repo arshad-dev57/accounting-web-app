@@ -149,20 +149,20 @@ export default function QuotationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <FileText className="w-6 h-6 text-[#7c4dff]" />
+          <FileText className="w-6 h-6 text-[#014582]" />
           Quotations
           <span className="text-sm font-normal text-gray-400">({totalRecords} quotations)</span>
         </h1>
         <div className="flex items-center gap-3">
           <button
             onClick={() => { setCurrentPage(1); fetchQuotations(); }}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all"
           >
             <RefreshCw className="w-4 h-4" /> Refresh
           </button>
           <button
             onClick={() => setShowCreateWizard(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
           >
             <Plus className="w-4 h-4" /> Create Quotation
           </button>
@@ -198,7 +198,7 @@ export default function QuotationsPage() {
               placeholder="Search quotations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+              className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -210,7 +210,7 @@ export default function QuotationsPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             >
               {STATUS_OPTIONS.map((o) => (
                 <option key={o} value={o}>{o === 'all' ? 'All Status' : o}</option>
@@ -224,7 +224,7 @@ export default function QuotationsPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="text-center py-12">
-            <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+            <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
             <p className="mt-2 text-gray-500">Loading quotations...</p>
           </div>
         ) : quotations.length === 0 ? (
@@ -246,7 +246,7 @@ export default function QuotationsPage() {
               <tbody>
                 {quotations.map((quotation) => (
                   <tr key={quotation.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => handleQuotationClick(quotation)}>
-                    <td className="px-6 py-3 font-mono text-xs font-semibold text-[#7c4dff]">{quotation.quotationNumber}</td>
+                    <td className="px-6 py-3 font-mono text-xs font-semibold text-[#014582]">{quotation.quotationNumber}</td>
                     <td className="px-6 py-3">
                       <p className="font-medium text-gray-800">{quotation.customerName}</p>
                       {quotation.customerEmail && <p className="text-xs text-gray-500">{quotation.customerEmail}</p>}
@@ -295,7 +295,7 @@ export default function QuotationsPage() {
               className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
               <ChevronDown className="w-4 h-4 rotate-90" />
             </button>
-            <span className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg">{currentPage} / {totalPages}</span>
+            <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg">{currentPage} / {totalPages}</span>
             <button onClick={() => setCurrentPage((p) => p + 1)} disabled={!hasNext}
               className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
               <ChevronDown className="w-4 h-4 -rotate-90" />
@@ -411,7 +411,7 @@ function QuotationDetailModal({ quotation, onClose }: { quotation: Quotation; on
             </div>
             <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2">
               <span className="text-gray-800">Grand Total</span>
-              <span className="text-[#7c4dff]">{formatCurrency(quotation.grandTotal)}</span>
+              <span className="text-[#014582]">{formatCurrency(quotation.grandTotal)}</span>
             </div>
           </div>
 

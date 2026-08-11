@@ -259,7 +259,7 @@ export default function AgedReceivablesPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 md:w-12 md:h-12 text-[#7c4dff] animate-spin mx-auto" />
+          <Loader2 className="w-8 h-8 md:w-12 md:h-12 text-[#014582] animate-spin mx-auto" />
           <p className="mt-3 text-sm text-gray-500">Loading Aged Receivables...</p>
         </div>
       </div>
@@ -276,7 +276,7 @@ export default function AgedReceivablesPage() {
           </Link>
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <Users className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+              <Users className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
               Aged Receivables
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">{filteredCustomers.length} customers</p>
@@ -285,7 +285,7 @@ export default function AgedReceivablesPage() {
         <div className="flex items-center gap-2 md:gap-3">
           <button
             onClick={fetchData}
-            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
             title="Refresh"
             disabled={loading}
           >
@@ -315,7 +315,7 @@ export default function AgedReceivablesPage() {
                 handleDateChange(date);
               }
             }}
-            className="px-3 py-1 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+            className="px-3 py-1 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
           />
           <span className="text-sm text-gray-500 ml-auto">
             {formatDate(asAtDate.toISOString())}
@@ -336,7 +336,7 @@ export default function AgedReceivablesPage() {
               placeholder="Search customers..."
               value={filter.search}
               onChange={(e) => setFilter(prev => ({ ...prev, search: e.target.value }))}
-              className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+              className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
             />
             {filter.search && (
               <button
@@ -352,7 +352,7 @@ export default function AgedReceivablesPage() {
             <select
               value={filter.bucket}
               onChange={(e) => setFilter(prev => ({ ...prev, bucket: e.target.value }))}
-              className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             >
               {bucketOptions.map((bucket) => (
                 <option key={bucket} value={bucket}>{bucket}</option>

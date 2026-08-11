@@ -1,21 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const response = NextResponse.json({
       success: true,
-      message: 'Logged out successfully'
+      message: 'Logged out successfully',
     });
 
-    // Sab cookies delete karo
-    response.cookies.delete('auth_token');
-    response.cookies.delete('refresh_token');
-    response.cookies.delete('user_data');
+    const cookieOpts = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      path: '/',
+      maxAge: 0,
+    };
+
+    response.cookies.set('auth_token', '', cookieOpts);
+    response.cookies.set('refresh_token', '', cookieOpts);
+    response.cookies.set('user_data', '', cookieOpts);
 
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Logout failed';
     return NextResponse.json(
-      { success: false, message: error.message || 'Logout failed' },
+      { success: false, message },
       { status: 500 }
     );
   }

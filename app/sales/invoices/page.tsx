@@ -190,7 +190,7 @@ export default function SalesInvoicesPage() {
               placeholder="Search invoices..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] focus:border-transparent"
             />
             {searchTerm && (
               <button
@@ -204,7 +204,7 @@ export default function SalesInvoicesPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] focus:border-transparent"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option} value={option}>
@@ -220,7 +220,7 @@ export default function SalesInvoicesPage() {
           </button>
           <button
             onClick={() => setShowCreateWizard(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#6b4dff] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6b4dff] transition-colors"
           >
             <Plus size={18} />
             Create Invoice
@@ -276,7 +276,7 @@ export default function SalesInvoicesPage() {
               invoices.map((invoice) => (
                 <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="font-semibold text-[#7c4dff]">{invoice.invoiceNumber}</span>
+                    <span className="font-semibold text-[#014582]">{invoice.invoiceNumber}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                     {invoice.orderNumber || '-'}
@@ -304,7 +304,7 @@ export default function SalesInvoicesPage() {
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => handleInvoiceClick(invoice)}
-                        className="p-1.5 text-gray-600 hover:text-[#7c4dff] hover:bg-gray-100 rounded transition-colors"
+                        className="p-1.5 text-gray-600 hover:text-[#014582] hover:bg-gray-100 rounded transition-colors"
                         title="View Details"
                       >
                         <Eye size={16} />
@@ -440,7 +440,7 @@ export default function SalesInvoicesPage() {
                 </div>
                 <div className="border-t pt-2 flex justify-between font-bold">
                   <span>Grand Total</span>
-                  <span className="text-[#7c4dff]">{formatCurrency(selectedInvoice.grandTotal)}</span>
+                  <span className="text-[#014582]">{formatCurrency(selectedInvoice.grandTotal)}</span>
                 </div>
                 <div className="border-t pt-2 flex justify-between">
                   <span className="text-gray-600">Paid Amount</span>

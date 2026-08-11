@@ -22,9 +22,13 @@ import {
   LogOut,
   Phone,
   Headset,
-  Settings
+  Settings,
+  CreditCard,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
+import ProfileDropdown from '../../components/ProfileDropdown';
+import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
+import { performLogout } from '../../lib/auth-logout';
 
 // ============================================================
 // SALES SIDEBAR
@@ -50,23 +54,25 @@ function SalesSidebar() {
 
   // Permission mapping for sales sub-pages
   const salesPages = [
-    { path: '/sales/dashboard', label: 'Dashboard', permission: 'dashboard' },
+    { path: '/sales/dashboard', label: 'Sales Dashboard', permission: 'dashboard' },
+    { path: '/sales/reports', label: 'Sales Reports', permission: 'dashboard' },
     { path: '/products', label: 'Products', permission: 'products' },
-    { path: '/sales/orders', label: 'Orders', permission: 'orders' },
-    { path: '/sales/quotations', label: 'Quotations', permission: 'quotations' },
+    { path: '/sales/orders', label: 'Sales Orders', permission: 'orders' },
     { path: '/sales/customers', label: 'Customers', permission: 'customers' },
-    { path: '/sales/deliveries', label: 'Deliveries', permission: 'deliveries' },
-    { path: '/sales/invoices', label: 'Invoices', permission: 'invoices' },
+    { path: '/sales/deliveries', label: 'Sales Deliveries', permission: 'deliveries' },
+    { path: '/sales/invoices', label: 'Sales Invoices', permission: 'invoices' },
     { path: '/sales/sales-payment', label: 'Sales Payments', permission: 'sales-payments' },
   ];
 
   const returnsRefundsPages = [
     { path: '/sales/returns', label: 'Sales Returns', permission: 'sales-returns' },
-    { path: '/sales/refunds', label: 'Refunds', permission: 'refunds' },
+    { path: '/sales/refunds', label: 'Sales Refunds', permission: 'refunds' },
   ];
 
   const settingsPages = [
+    { path: '/plans', label: 'Subscription Plans', permission: '*' },
     { path: '/sales/currency', label: 'Currency', permission: 'currency' },
+    { path: '/accounting/pdf-reports', label: 'PDF Reports', permission: 'settings' },
     { path: '/sales/settings', label: 'Sales Settings', permission: 'settings' },
   ];
 
@@ -79,25 +85,17 @@ function SalesSidebar() {
     isAdmin || hasSubPageAccess('sales', page.permission)
   );
   
-  const filteredSettingsPages = settingsPages.filter(page => 
-    isAdmin || hasSubPageAccess('sales', page.permission)
-  );
+  const filteredSettingsPages = settingsPages.filter(page => {
+    if (page.path === '/plans') return isAdmin;
+    return page.permission === '*' || isAdmin || hasSubPageAccess('sales', page.permission);
+  });
 
   return (
-    <div className="w-64 min-h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-6 border-b border-white/10">
-        <div className="w-10 h-10 bg-[#7c4dff] rounded-xl flex items-center justify-center">
-          <ShoppingCart className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <p className="text-sm font-bold text-white">Sales Module</p>
-          <p className="text-xs text-white/50">Manage sales operations</p>
-        </div>
-      </div>
+    <div className="w-64 h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0 fixed left-0 top-0">
+      <BrandHeader subtitle="Sales Module" />
 
       {/* Navigation */}
-      <div className="flex-1 overflow-auto px-3 py-4 space-y-1">
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar">
         <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3">
           SALES NAVIGATION
         </p>
@@ -123,12 +121,14 @@ function SalesSidebar() {
                   'dashboard': <Home className="w-4 h-4" />,
                   'products': <Package className="w-4 h-4" />,
                   'orders': <ShoppingCart className="w-4 h-4" />,
-                  'quotations': <FileText className="w-4 h-4" />,
                   'customers': <Users className="w-4 h-4" />,
                   'deliveries': <Truck className="w-4 h-4" />,
                   'invoices': <Receipt className="w-4 h-4" />,
                   'sales-payments': <ArrowLeftRight className="w-4 h-4" />,
                 };
+                const icon = page.path.includes('/reports')
+                  ? <FileText className="w-4 h-4" />
+                  : (iconMap[page.permission] || <FileText className="w-4 h-4" />);
                 
                 return (
                   <Link
@@ -138,7 +138,7 @@ function SalesSidebar() {
                       isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    {iconMap[page.permission] || <FileText className="w-4 h-4" />}
+                    {icon}
                     <span>{page.label}</span>
                   </Link>
                 );
@@ -206,7 +206,9 @@ function SalesSidebar() {
                 const iconMap: Record<string, React.ReactNode> = {
                   'currency': <DollarSign className="w-4 h-4" />,
                   'settings': <Settings className="w-4 h-4" />,
+                  '*': <CreditCard className="w-4 h-4" />,
                 };
+                const isPdf = page.path.includes('pdf-reports');
                 
                 return (
                   <Link
@@ -216,7 +218,7 @@ function SalesSidebar() {
                       isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    {iconMap[page.permission] || <Settings className="w-4 h-4" />}
+                    {isPdf ? <FileText className="w-4 h-4" /> : (iconMap[page.permission] || <Settings className="w-4 h-4" />)}
                     <span>{page.label}</span>
                   </Link>
                 );
@@ -281,14 +283,28 @@ function SalesSidebar() {
       </div>
 
       {/* Bottom Section */}
-      <div className="px-3 pb-6">
-        <div className="p-4 bg-[#7c4dff]/10 rounded-xl border border-[#7c4dff]/20">
-          <HelpCircle className="w-5 h-5 text-[#7c4dff] mb-2" />
+      <div className="px-3 pb-6 flex-shrink-0">
+        {isAdmin && (
+          <Link
+            href="/plans"
+            className="w-full flex items-center gap-3 px-3 py-2.5 mb-2 rounded-lg transition-all text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <CreditCard className="w-5 h-5" />
+            <span className="text-sm font-medium">Subscription Plans</span>
+          </Link>
+        )}
+
+        <div className="p-4 bg-[#014582]/10 rounded-xl border border-[#014582]/20">
+          <HelpCircle className="w-5 h-5 text-[#014582] mb-2" />
           <p className="text-sm font-semibold text-white">Need Help?</p>
           <p className="text-xs text-white/40">Contact our support team</p>
         </div>
-        
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 mt-3 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all">
+
+        <button
+          type="button"
+          onClick={() => void performLogout()}
+          className="w-full flex items-center gap-3 px-3 py-2.5 mt-3 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all"
+        >
           <LogOut className="w-5 h-5" />
           <span className="text-sm font-medium">Logout</span>
         </button>
@@ -306,21 +322,23 @@ export default function SalesLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <>
       <SalesSidebar />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
         {/* Top Bar */}
-        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <ShoppingCart className="w-6 h-6 text-[#7c4dff]" />
-              Sales Management
-            </h1>
-          </div>
+        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
+          <TopBarBrand
+            title="Sales Management"
+            icon={<ShoppingCart className="w-5 h-5 text-[#014582]" />}
+          />
 
           <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all">
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/support'; }}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all"
+            >
               <Headset className="w-4 h-4" />
               <span>Support</span>
             </button>
@@ -328,26 +346,21 @@ export default function SalesLayout({
             <div className="w-px h-6 bg-gray-200" />
 
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Phone className="w-4 h-4 text-[#7c4dff]" />
+              <Phone className="w-4 h-4 text-[#014582]" />
               <span>Call Us: 03 111 006 555</span>
             </div>
 
             <div className="w-px h-6 bg-gray-200" />
 
-            <div className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-all">
-              <div className="w-8 h-8 bg-[#7c4dff] rounded-full flex items-center justify-center text-white text-sm font-bold">
-                A
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-            </div>
+            <ProfileDropdown accentClassName="bg-[#014582]" />
           </div>
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 p-6">
           {children}
         </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -1,7 +1,13 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import {
+  applyBrandingToCompanyInfo,
+  applyBrandedFooters,
+  drawBrandedSignature,
+  getBrandingAccentRgb,
+  type PdfBranding,
+} from './pdf-branding';
 
-// ─── TYPES ─────────────────────────────────────────────────────
 
 export interface DocumentItem {
   name: string;
@@ -53,9 +59,9 @@ export interface PDFGeneratorData {
   notes?: string;
   termsConditions?: string;
   currency?: string;
+  branding?: PdfBranding;
 }
 
-// ─── PDF GENERATOR CLASS ─────────────────────────────────────
 
 class PDFGenerator {
   private doc: jsPDF;
@@ -65,8 +71,10 @@ class PDFGenerator {
   private contentWidth: number;
   private yPosition: number;
   private currency: string;
+  private accentRgb: [number, number, number];
+  private branding?: PdfBranding;
 
-  constructor() {
+  constructor(branding?: PdfBranding) {
     this.doc = new jsPDF();
     this.pageWidth = this.doc.internal.pageSize.getWidth();
     this.pageHeight = this.doc.internal.pageSize.getHeight();
@@ -74,6 +82,10 @@ class PDFGenerator {
     this.contentWidth = this.pageWidth - (this.margin * 2);
     this.yPosition = this.margin;
     this.currency = 'PKR';
+    this.branding = branding;
+    this.accentRgb = branding
+      ? getBrandingAccentRgb(branding)
+      : [1, 69, 130];
   }
 
   private formatCurrency(amount: number | undefined | null): string {
@@ -87,19 +99,23 @@ class PDFGenerator {
   }
 
   private addHeader(data: PDFGeneratorData): void {
+    const [ar, ag, ab] = this.accentRgb;
+    const logoSrc = data.company.logo;
+
     // Company Logo
-    if (data.company.logo) {
+    if (logoSrc) {
       try {
-        this.doc.addImage(data.company.logo, 'PNG', this.margin, this.yPosition, 30, 30);
-        this.yPosition += 35;
+        this.doc.addImage(logoSrc, 'PNG', this.margin, this.yPosition, 28, 28);
+        this.yPosition += 32;
       } catch (error) {
         console.error('Failed to add company logo:', error);
       }
     }
 
     // Company Name
-    this.doc.setFontSize(24);
+    this.doc.setFontSize(20);
     this.doc.setFont('helvetica', 'bold');
+    this.doc.setTextColor(ar, ag, ab);
     this.doc.text(data.company.name, this.margin, this.yPosition);
 
     // Company Details
@@ -108,8 +124,9 @@ class PDFGenerator {
     this.doc.setFont('helvetica', 'normal');
     this.doc.setTextColor(80);
     if (data.company.address) {
-      this.doc.text(data.company.address, this.margin, this.yPosition);
-      this.yPosition += 5;
+      const lines = this.doc.splitTextToSize(data.company.address, this.contentWidth * 0.55);
+      this.doc.text(lines, this.margin, this.yPosition);
+      this.yPosition += lines.length * 4 + 1;
     }
     if (data.company.phone) {
       this.doc.text(`Phone: ${data.company.phone}`, this.margin, this.yPosition);
@@ -120,16 +137,16 @@ class PDFGenerator {
       this.yPosition += 5;
     }
 
-    // Document Title
-    this.doc.setFontSize(28);
+    this.doc.setFontSize(24);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.setTextColor(0);
+    this.doc.setTextColor(ar, ag, ab);
     this.doc.text(data.metadata.documentType.toUpperCase(), this.pageWidth - this.margin, this.yPosition - 15, { align: 'right' });
 
     // Document Number and Date
     this.yPosition += 10;
     this.doc.setFontSize(10);
     this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(0);
     this.doc.text(`${data.metadata.documentType} No: ${data.metadata.documentNumber}`, this.pageWidth - this.margin, this.yPosition, { align: 'right' });
     this.yPosition += 6;
     this.doc.text(`${data.metadata.documentType} Date: ${this.formatDate(data.metadata.documentDate)}`, this.pageWidth - this.margin, this.yPosition, { align: 'right' });
@@ -143,10 +160,9 @@ class PDFGenerator {
       this.doc.text(`Expected: ${this.formatDate(data.metadata.expectedDate)}`, this.pageWidth - this.margin, this.yPosition, { align: 'right' });
     }
 
-    // Horizontal Line
     this.yPosition += 15;
-    this.doc.setDrawColor(0);
-    this.doc.setLineWidth(0.5);
+    this.doc.setDrawColor(ar, ag, ab);
+    this.doc.setLineWidth(0.8);
     this.doc.line(this.margin, this.yPosition, this.pageWidth - this.margin, this.yPosition);
     this.yPosition += 10;
   }
@@ -205,8 +221,8 @@ class PDFGenerator {
         lineWidth: 0.1
       },
       headStyles: {
-        fillColor: [240, 240, 240],
-        textColor: [0, 0, 0],
+        fillColor: this.accentRgb,
+        textColor: [255, 255, 255],
         fontStyle: 'bold',
         halign: 'center'
       },
@@ -296,6 +312,17 @@ class PDFGenerator {
   }
 
   private addFooter(data: PDFGeneratorData): void {
+    if (this.branding) {
+      this.yPosition = drawBrandedSignature(
+        this.doc,
+        this.branding,
+        this.yPosition,
+        this.margin
+      );
+      applyBrandedFooters(this.doc, this.branding, this.margin);
+      return;
+    }
+
     this.yPosition = this.pageHeight - 20;
     this.doc.setFontSize(8);
     this.doc.setFont('helvetica', 'normal');
@@ -310,6 +337,10 @@ class PDFGenerator {
 
   public generate(data: PDFGeneratorData): jsPDF {
     this.currency = data.currency || 'PKR';
+    if (data.branding) {
+      this.branding = data.branding;
+      this.accentRgb = getBrandingAccentRgb(data.branding);
+    }
     
     this.addHeader(data);
     this.addRecipient(data);
@@ -333,24 +364,51 @@ class PDFGenerator {
   }
 }
 
-// ─── EXPORT FUNCTIONS ─────────────────────────────────────────
+async function withBranding(data: PDFGeneratorData): Promise<PDFGeneratorData> {
+  const { branding, company } = await applyBrandingToCompanyInfo(data.company);
+  return {
+    ...data,
+    company: {
+      ...data.company,
+      name: company.name || data.company.name,
+      address: company.address || data.company.address,
+      logo: company.logo || data.company.logo,
+    },
+    branding,
+  };
+}
+
 
 export const generatePDF = (data: PDFGeneratorData): jsPDF => {
-  const generator = new PDFGenerator();
+  const generator = new PDFGenerator(data.branding);
   return generator.generate(data);
 };
 
 export const generatePDFBlob = (data: PDFGeneratorData): Blob => {
-  const generator = new PDFGenerator();
+  const generator = new PDFGenerator(data.branding);
   return generator.generateBlob(data);
 };
 
 export const savePDF = (data: PDFGeneratorData, filename?: string): void => {
-  const generator = new PDFGenerator();
+  const generator = new PDFGenerator(data.branding);
   generator.save(data, filename);
 };
 
-// ─── HELPER FUNCTIONS ───────────────────────────────────────────
+export const generatePDFAsync = async (data: PDFGeneratorData): Promise<jsPDF> => {
+  const branded = await withBranding(data);
+  return generatePDF(branded);
+};
+
+export const generatePDFBlobAsync = async (data: PDFGeneratorData): Promise<Blob> => {
+  const branded = await withBranding(data);
+  return generatePDFBlob(branded);
+};
+
+export const savePDFAsync = async (data: PDFGeneratorData, filename?: string): Promise<void> => {
+  const branded = await withBranding(data);
+  savePDF(branded, filename);
+};
+
 
 export const createPurchaseOrderPDFData = (
   orderData: any,

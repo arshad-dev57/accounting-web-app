@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft, Search, Plus,
@@ -31,19 +31,23 @@ interface JournalLineInput {
 export default function JournalEntriesPage() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [dateRange, setDateRange] = useState<{ start: string; end: string } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [refreshTick, setRefreshTick] = useState(0);
-
-  // Flat pagination state — no nested object
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [hasNext, setHasNext] = useState(false);
-  const [hasPrev, setHasPrev] = useState(false);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: PAGE_LIMIT,
+    total: 0,
+    pages: 0,
+    hasNext: false,
+    hasPrev: false,
+  });
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestRequestRef = useRef(0);
 
   const [stats, setStats] = useState<JournalEntryStats>({
     totalDebit: 0, totalCredit: 0, difference: 0, postedCount: 0, draftCount: 0
@@ -70,70 +74,71 @@ export default function JournalEntriesPage() {
     }).catch(console.error);
   }, []);
 
-  // Single fetch effect — flat deps, no pagination object dependency
   useEffect(() => {
-    let cancelled = false;
+    const requestId = ++latestRequestRef.current;
     setLoading(true);
-
-    console.log('Fetching entries with page:', currentPage, 'limit:', PAGE_LIMIT);
 
     journalEntryService.getEntries({
       page: currentPage,
       limit: PAGE_LIMIT,
-      search: searchTerm || undefined,
+      search: debouncedSearch.trim() || undefined,
       status: selectedFilter !== 'All' ? selectedFilter : undefined,
       startDate: dateRange?.start || undefined,
       endDate: dateRange?.end || undefined,
     }).then(response => {
-      if (cancelled) return;
-      console.log('Response received:', response);
+      if (requestId !== latestRequestRef.current) return;
+      const pages = Math.max(1, response.pagination?.pages ?? 1);
+      const page = response.pagination?.page ?? currentPage;
       setEntries(response.data || []);
-      setTotalCount(response.pagination.total);
-      setTotalPages(response.pagination.pages);
-      setHasNext(response.pagination.hasNext);
-      setHasPrev(response.pagination.hasPrev);
+      setPagination({
+        page,
+        limit: PAGE_LIMIT,
+        total: response.pagination?.total ?? 0,
+        pages,
+        hasNext: response.pagination?.hasNext ?? page < pages,
+        hasPrev: response.pagination?.hasPrev ?? page > 1,
+      });
       if (response.stats) setStats(response.stats);
     }).catch(error => {
+      if (requestId !== latestRequestRef.current) return;
       console.error('Error fetching entries:', error);
-      if (!cancelled) alert(error.message || 'Failed to load journal entries');
+      alert(error.message || 'Failed to load journal entries');
     }).finally(() => {
-      if (!cancelled) setLoading(false);
+      if (requestId === latestRequestRef.current) setLoading(false);
     });
+  }, [debouncedSearch, selectedFilter, dateRange, currentPage, refreshTick]);
 
-    return () => { cancelled = true; };
-  }, [searchTerm, selectedFilter, dateRange, currentPage, refreshTick]);
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
 
-  const loadMore = useCallback(async () => {
-    if (!hasNext || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const nextPage = currentPage + 1;
-      const response = await journalEntryService.getEntries({
-        page: nextPage, limit: PAGE_LIMIT,
-        search: searchTerm || undefined,
-        status: selectedFilter !== 'All' ? selectedFilter : undefined,
-        startDate: dateRange?.start || undefined,
-        endDate: dateRange?.end || undefined,
-      });
-      setEntries(prev => [...prev, ...(response.data || [])]);
-      setCurrentPage(nextPage);
-      setTotalCount(response.pagination.total);
-      setTotalPages(response.pagination.pages);
-      setHasNext(response.pagination.hasNext);
-      setHasPrev(response.pagination.hasPrev);
-    } catch (error) {
-      console.error('Failed to load more:', error);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [hasNext, loadingMore, currentPage, searchTerm, selectedFilter, dateRange]);
-
-  const handleSearch = (query: string) => { setSearchTerm(query); setCurrentPage(1); };
-  const clearSearch = () => { setSearchTerm(''); setCurrentPage(1); };
+  const handleSearch = (query: string) => {
+    setSearchTerm(query);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setDebouncedSearch(query);
+      setCurrentPage(1);
+    }, 300);
+  };
+  const clearSearch = () => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    setSearchTerm('');
+    setDebouncedSearch('');
+    setCurrentPage(1);
+  };
   const handleFilterChange = (filter: string) => { setSelectedFilter(filter); setCurrentPage(1); };
   const handleRefresh = () => { setCurrentPage(1); setRefreshTick(t => t + 1); };
   const handlePageChange = (newPage: number) => {
-    console.log('handlePageChange called with:', newPage, 'current page:', currentPage);
+    if (
+      loading ||
+      newPage < 1 ||
+      newPage > pagination.pages ||
+      newPage === currentPage
+    ) {
+      return;
+    }
     setCurrentPage(newPage);
   };
   const handleDateRangeChange = (start: string, end: string) => { setDateRange({ start, end }); setCurrentPage(1); };
@@ -196,18 +201,18 @@ export default function JournalEntriesPage() {
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+                <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
                 Journal Entries
-                <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">({totalCount} entries)</span>
+                <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">({pagination.total} entries)</span>
               </h2>
             </div>
             <div className="flex items-center gap-2 md:gap-3">
               <button onClick={handleRefresh} disabled={loading}
-                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all" title="Refresh">
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all" title="Refresh">
                 <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
               </button>
               <button onClick={() => setShowCreateForm(true)}
-                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25">
+                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25">
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">New Entry</span>
                 <span className="sm:hidden">Add</span>
@@ -247,7 +252,7 @@ export default function JournalEntriesPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
                 <input type="text" placeholder="Search entries..." value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none" />
+                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none" />
                 {searchTerm && (
                   <button onClick={clearSearch} className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2">
                     <X className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 hover:text-gray-600" />
@@ -257,17 +262,17 @@ export default function JournalEntriesPage() {
               <div className="flex flex-wrap items-center gap-2 md:gap-3">
                 <div className="relative flex-1 sm:flex-none min-w-[100px]">
                   <select value={selectedFilter} onChange={(e) => handleFilterChange(e.target.value)}
-                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                     {filters.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                   <ChevronDown className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 pointer-events-none" />
                 </div>
                 <div className="flex flex-wrap items-center gap-1 md:gap-2">
                   <input type="date" onChange={(e) => { if (e.target.value) handleDateRangeChange(e.target.value, dateRange?.end || ''); }}
-                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto" />
+                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto" />
                   <span className="text-gray-400 text-xs md:text-sm hidden xs:inline">to</span>
                   <input type="date" onChange={(e) => { if (e.target.value) handleDateRangeChange(dateRange?.start || '', e.target.value); }}
-                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto" />
+                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto" />
                   {dateRange && (
                     <button onClick={clearDateRange} className="p-1.5 hover:bg-gray-100 rounded-lg">
                       <X className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
@@ -282,7 +287,7 @@ export default function JournalEntriesPage() {
           <div className="space-y-3 md:space-y-4">
             {loading && entries.length === 0 ? (
               <div className="text-center py-8 md:py-12">
-                <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#7c4dff] animate-spin" />
+                <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                 <p className="mt-2 text-xs md:text-sm text-gray-500">Loading journal entries...</p>
               </div>
             ) : entries.length === 0 ? (
@@ -333,38 +338,142 @@ export default function JournalEntriesPage() {
             )}
           </div>
 
-          {/* Load More */}
-          {hasNext && entries.length > 0 && (
-            <div className="flex justify-center py-3 md:py-4">
-              <button onClick={loadMore} disabled={loadingMore}
-                className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50">
-                {loadingMore ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Load More'}
-              </button>
-            </div>
-          )}
+          {pagination.total > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-xs md:text-sm text-gray-500">
+                  Showing{' '}
+                  <span className="font-semibold text-gray-700">
+                    {pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1}
+                  </span>{' '}
+                  –{' '}
+                  <span className="font-semibold text-gray-700">
+                    {Math.min(pagination.page * pagination.limit, pagination.total)}
+                  </span>{' '}
+                  of{' '}
+                  <span className="font-semibold text-gray-700">{pagination.total}</span> entries
+                </p>
 
-          {/* Pagination */}
-          {totalCount > 0 && (
-            <div className="flex flex-col xs:flex-row items-center justify-between gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
-              <p className="text-[10px] md:text-sm text-gray-500 text-center xs:text-left">
-                Showing {(currentPage - 1) * PAGE_LIMIT + 1} – {Math.min(currentPage * PAGE_LIMIT, totalCount)} of {totalCount}
-              </p>
-              <div className="flex gap-1 md:gap-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={!hasPrev || loading}
-                  className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                  <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                </button>
-                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg text-xs md:text-sm">
-                  {currentPage} / {Math.max(totalPages, 1)}
-                </span>
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={!hasNext || loading}
-                  className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                  <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                </button>
+                <div className="flex items-center gap-1 md:gap-2">
+                  <button
+                    onClick={() => handlePageChange(1)}
+                    disabled={pagination.page === 1 || loading}
+                    className="hidden sm:flex p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    title="First page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-4 h-4 -ml-3" />
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    disabled={!pagination.hasPrev || loading}
+                    className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    title="Previous page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pages = [];
+                      const maxVisible = 5;
+                      let startPage = Math.max(1, pagination.page - Math.floor(maxVisible / 2));
+                      let endPage = Math.min(pagination.pages, startPage + maxVisible - 1);
+
+                      if (endPage - startPage + 1 < maxVisible) {
+                        startPage = Math.max(1, endPage - maxVisible + 1);
+                      }
+
+                      if (startPage > 1) {
+                        pages.push(
+                          <button
+                            key={1}
+                            onClick={() => handlePageChange(1)}
+                            className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-xs md:text-sm font-medium transition-all"
+                          >
+                            1
+                          </button>
+                        );
+                        if (startPage > 2) {
+                          pages.push(
+                            <span key="start-ellipsis" className="px-2 text-gray-400">...</span>
+                          );
+                        }
+                      }
+
+                      for (let i = startPage; i <= endPage; i++) {
+                        pages.push(
+                          <button
+                            key={i}
+                            onClick={() => handlePageChange(i)}
+                            className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg text-xs md:text-sm font-medium transition-all ${
+                              i === pagination.page
+                                ? 'bg-[#014582] text-white border-[#014582] shadow-md shadow-[#014582]/25'
+                                : 'border border-gray-200 hover:bg-gray-50'
+                            }`}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+
+                      if (endPage < pagination.pages) {
+                        if (endPage < pagination.pages - 1) {
+                          pages.push(
+                            <span key="end-ellipsis" className="px-2 text-gray-400">...</span>
+                          );
+                        }
+                        pages.push(
+                          <button
+                            key={pagination.pages}
+                            onClick={() => handlePageChange(pagination.pages)}
+                            className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-xs md:text-sm font-medium transition-all"
+                          >
+                            {pagination.pages}
+                          </button>
+                        );
+                      }
+
+                      return pages;
+                    })()}
+                  </div>
+
+                  <button
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    disabled={!pagination.hasNext || loading}
+                    className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    title="Next page"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(pagination.pages)}
+                    disabled={pagination.page === pagination.pages || loading}
+                    className="hidden sm:flex p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    title="Last page"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-4 h-4 -ml-3" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs md:text-sm text-gray-500">Go to</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={pagination.pages}
+                    value={pagination.page}
+                    onChange={(e) => {
+                      const page = parseInt(e.target.value, 10);
+                      if (page >= 1 && page <= pagination.pages) {
+                        handlePageChange(page);
+                      }
+                    }}
+                    className="w-12 md:w-16 px-2 py-1.5 border border-gray-200 rounded-lg text-xs md:text-sm text-center focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
+                  />
+                  <span className="text-xs md:text-sm text-gray-500">of {pagination.pages}</span>
+                </div>
               </div>
             </div>
           )}
@@ -457,7 +566,7 @@ function CreateEntryForm({ accounts, onCancel, onSave, submitting, formatCurrenc
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2 md:gap-3">
-          <BookOpen className="w-4 h-4 md:w-5 md:h-5 text-[#7c4dff]" />
+          <BookOpen className="w-4 h-4 md:w-5 md:h-5 text-[#014582]" />
           <h2 className="text-base md:text-lg font-bold text-gray-800">New Journal Entry</h2>
         </div>
         <button onClick={onCancel} className="p-1.5 md:p-2 hover:bg-gray-200 rounded-lg transition-all">
@@ -475,24 +584,24 @@ function CreateEntryForm({ accounts, onCancel, onSave, submitting, formatCurrenc
             <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Journal Date *</label>
             <input type="date" value={formData.date}
               onChange={e => setFormData(p => ({ ...p, date: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" required />
           </div>
           <div>
             <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Description *</label>
             <textarea rows={2} placeholder="Enter journal description" value={formData.description}
               onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none" required />
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none" required />
           </div>
           <div>
             <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Reference (Optional)</label>
             <input type="text" placeholder="e.g., INV-001" value={formData.reference}
               onChange={e => setFormData(p => ({ ...p, reference: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
           </div>
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs md:text-sm font-semibold text-gray-700">Journal Lines *</label>
-              <button type="button" onClick={addLine} className="flex items-center gap-1 text-xs md:text-sm text-[#7c4dff] font-semibold hover:text-[#6c3fe0]">
+              <button type="button" onClick={addLine} className="flex items-center gap-1 text-xs md:text-sm text-[#014582] font-semibold hover:text-[#01366a]">
                 <PlusCircle className="w-3.5 h-3.5 md:w-4 md:h-4" />Add Line
               </button>
             </div>
@@ -510,7 +619,7 @@ function CreateEntryForm({ accounts, onCancel, onSave, submitting, formatCurrenc
                   <div className="space-y-2">
                     <div>
                       <select value={line.accountId} onChange={e => updateLine(index, 'accountId', e.target.value)}
-                        className={`w-full px-3 md:px-4 py-1.5 md:py-2 border rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white ${lineErrors[index] ? 'border-red-500' : 'border-gray-200'}`}>
+                        className={`w-full px-3 md:px-4 py-1.5 md:py-2 border rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white ${lineErrors[index] ? 'border-red-500' : 'border-gray-200'}`}>
                         <option value="">Select account</option>
                         {accounts.map((a: any) => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
                       </select>
@@ -523,7 +632,7 @@ function CreateEntryForm({ accounts, onCancel, onSave, submitting, formatCurrenc
                           <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs md:text-sm">{currencySymbol}</span>
                           <input type="number" step="0.01" min="0" value={line.debit || ''}
                             onChange={e => updateLine(index, 'debit', parseFloat(e.target.value) || 0)}
-                            className="w-full pl-8 md:pl-10 pr-2 py-1 md:py-1.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white" />
+                            className="w-full pl-8 md:pl-10 pr-2 py-1 md:py-1.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white" />
                         </div>
                       </div>
                       <div>
@@ -532,7 +641,7 @@ function CreateEntryForm({ accounts, onCancel, onSave, submitting, formatCurrenc
                           <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs md:text-sm">{currencySymbol}</span>
                           <input type="number" step="0.01" min="0" value={line.credit || ''}
                             onChange={e => updateLine(index, 'credit', parseFloat(e.target.value) || 0)}
-                            className="w-full pl-8 md:pl-10 pr-2 py-1 md:py-1.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white" />
+                            className="w-full pl-8 md:pl-10 pr-2 py-1 md:py-1.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white" />
                         </div>
                       </div>
                     </div>
@@ -565,7 +674,7 @@ function CreateEntryForm({ accounts, onCancel, onSave, submitting, formatCurrenc
               Cancel
             </button>
             <button type="submit" disabled={submitting}
-              className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
+              className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed">
               {submitting ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : <Save className="w-3.5 h-3.5 md:w-4 md:h-4" />}
               Save Entry
             </button>
@@ -580,7 +689,7 @@ function EntryDetailModal({ entry, onClose, onDelete, formatCurrency, formatDate
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-3 md:gap-4">
             <div className={`p-2 md:p-2.5 rounded-xl ${entry.status === 'Posted' ? 'bg-green-50' : 'bg-yellow-50'}`}>
               {getStatusIcon(entry.status)}

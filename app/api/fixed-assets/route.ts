@@ -64,6 +64,18 @@ export interface CreateAssetRequest {
   supplierId?: string;
   warrantyExpiry?: Date;
   notes?: string;
+  acquisitionType?: 'purchase' | 'opening_balance';
+  paymentMethod?: 'Cash' | 'Bank' | 'Credit' | 'Opening Balance';
+  bankAccountId?: string;
+  openingAccumulatedDepreciation?: number;
+}
+
+export interface BankAccountOption {
+  id: string;
+  accountName: string;
+  accountNumber?: string;
+  bankName?: string;
+  status?: string;
 }
 
 export interface UpdateAssetRequest extends CreateAssetRequest {
@@ -164,10 +176,33 @@ export const fixedAssetsService = {
     }
   },
 
+  // ─── Get bank accounts ────────────────────────────────────────
+  getBankAccounts: async (): Promise<BankAccountOption[]> => {
+    try {
+      const response = await apiClient.get('/api/bank-accounts');
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to fetch bank accounts');
+      }
+      const list = (response.data?.data as any[]) || [];
+      return list
+        .filter((a) => (a.status || 'Active') === 'Active')
+        .map((a) => ({
+          id: String(a.id || a._id),
+          accountName: String(a.accountName || a.name || 'Account'),
+          accountNumber: a.accountNumber ? String(a.accountNumber) : undefined,
+          bankName: a.bankName ? String(a.bankName) : undefined,
+          status: a.status ? String(a.status) : undefined,
+        }));
+    } catch (error: any) {
+      console.error('Get bank accounts error:', error);
+      return [];
+    }
+  },
+
   // ─── Create asset ─────────────────────────────────────────────
   createAsset: async (data: CreateAssetRequest): Promise<FixedAsset> => {
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         name: data.name,
         category: data.category,
         purchaseDate: data.purchaseDate.toISOString().split('T')[0],
@@ -176,10 +211,25 @@ export const fixedAssetsService = {
         salvageValue: data.salvageValue,
         location: data.location,
         supplierId: data.supplierId,
-        warrantyExpiry: data.warrantyExpiry ? data.warrantyExpiry.toISOString().split('T')[0] : undefined,
-        notes: data.notes || ''
+        warrantyExpiry: data.warrantyExpiry
+          ? data.warrantyExpiry.toISOString().split('T')[0]
+          : undefined,
+        notes: data.notes || '',
+        acquisitionType: data.acquisitionType || 'purchase',
+        paymentMethod:
+          data.acquisitionType === 'opening_balance'
+            ? 'Opening Balance'
+            : data.paymentMethod || 'Cash',
+        openingAccumulatedDepreciation:
+          data.acquisitionType === 'opening_balance'
+            ? data.openingAccumulatedDepreciation || 0
+            : 0,
       };
-      
+
+      if (data.paymentMethod === 'Bank' && data.bankAccountId) {
+        payload.bankAccountId = data.bankAccountId;
+      }
+
       const response = await apiClient.post('/api/fixed-assets', payload);
       if (!response.success) {
         throw new Error(response.message || 'Failed to create asset');

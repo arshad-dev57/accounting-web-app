@@ -25,12 +25,17 @@ import {
   Settings,
   LogOut,
   Loader2,
-  Eye
+  Eye,
+  CreditCard,
 } from 'lucide-react';
 import { usersService } from './service';
 import { User, Role } from './types';
+import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
+import { performLogout } from '../../lib/auth-logout';
+import { useRouter } from 'next/navigation';
 
 export default function UsersDashboard() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'users' | 'permissions'>('users');
   
   const [users, setUsers] = useState<User[]>([]);
@@ -111,6 +116,12 @@ export default function UsersDashboard() {
       permissions: ['View', 'Create', 'Edit', 'Delete'],
       roles: ['Admin']
     },
+    {
+      id: 6,
+      module: 'POS',
+      permissions: ['View', 'Create', 'Edit', 'Delete'],
+      roles: ['Admin', 'Manager', 'Cashier']
+    },
   ]);
 
   // Module permissions state
@@ -120,6 +131,7 @@ export default function UsersDashboard() {
     sales: { hasAccess: false, canView: false },
     purchases: { hasAccess: false, canView: false },
     users: { hasAccess: false, canView: false },
+    pos: { hasAccess: false, canView: false },
   });
 
   // Sub-page permissions state
@@ -127,6 +139,10 @@ export default function UsersDashboard() {
 
   // Module sub-pages data
   const moduleSubPages: Record<string, string[]> = {
+    pos: [
+      'Register',
+      'Management'
+    ],
     sales: [
       'Dashboard',
       'Products',
@@ -200,6 +216,7 @@ export default function UsersDashboard() {
       sales: { hasAccess: false, canView: false },
       purchases: { hasAccess: false, canView: false },
       users: { hasAccess: false, canView: false },
+      pos: { hasAccess: false, canView: false },
     });
     
     // Initialize sub-page permissions for all modules
@@ -367,20 +384,12 @@ export default function UsersDashboard() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <>
       {/* Sidebar */}
-      <div className="w-64 min-h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0">
-        <div className="flex items-center gap-3 px-5 py-6 border-b border-white/10">
-          <div className="w-10 h-10 bg-[#7c4dff] rounded-xl flex items-center justify-center">
-            <Users className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-white">Users Management</p>
-            <p className="text-xs text-white/50">Admin panel</p>
-          </div>
-        </div>
+      <div className="w-64 h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0 fixed left-0 top-0">
+        <BrandHeader subtitle="Users Module" />
 
-        <div className="flex-1 px-3 py-4 space-y-1">
+        <div className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
           <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3">
             MENU
           </p>
@@ -389,7 +398,7 @@ export default function UsersDashboard() {
             onClick={() => setActiveTab('users')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
               activeTab === 'users'
-                ? 'bg-[#7c4dff]/20 text-[#b388ff]'
+                ? 'bg-[#ff6b6b]/20 text-[#ff9999]'
                 : 'text-white/60 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -401,38 +410,57 @@ export default function UsersDashboard() {
             onClick={() => setActiveTab('permissions')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
               activeTab === 'permissions'
-                ? 'bg-[#7c4dff]/20 text-[#b388ff]'
+                ? 'bg-[#ff6b6b]/20 text-[#ff9999]'
                 : 'text-white/60 hover:text-white hover:bg-white/5'
             }`}
           >
             <Key className="w-4 h-4" />
             <span className="text-sm font-medium">Permissions</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => router.push('/plans')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <CreditCard className="w-4 h-4" />
+            <span className="text-sm font-medium">Subscription Plans</span>
+          </button>
         </div>
 
-        <div className="px-3 pb-6">
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all">
-            <LogOut className="w-5 h-5" />
+        <div className="px-3 pb-6 flex-shrink-0 space-y-1">
+          <button
+            type="button"
+            onClick={() => router.push('/dashboard')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all"
+          >
+            <LogOut className="w-5 h-5 rotate-180" />
             <span className="text-sm font-medium">Back to Dashboard</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => void performLogout()}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-white/40 hover:text-red-300 hover:bg-white/5 rounded-lg transition-all"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-sm font-medium">Logout</span>
           </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+        <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0 sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">
-                {activeTab === 'users' ? 'Users' : 'Permissions'}
-              </h1>
-              <p className="text-sm text-gray-500">
+              <TopBarBrand title={activeTab === 'users' ? 'Users' : 'Permissions'} />
+              <p className="text-sm text-gray-500 mt-1">
                 {activeTab === 'users' ? 'Manage user accounts and access' : 'Configure module permissions and roles'}
               </p>
             </div>
             {activeTab === 'users' && (
-              <button className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#6c3ae8] transition-all">
+              <button className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6c3ae8] transition-all">
                 <UserPlus className="w-4 h-4" />
                 <span>Add User</span>
               </button>
@@ -445,7 +473,7 @@ export default function UsersDashboard() {
           {loading ? (
             <div className="flex items-center justify-center min-h-[400px]">
               <div className="text-center">
-                <Loader2 className="w-8 h-8 text-[#7c4dff] animate-spin mx-auto" />
+                <Loader2 className="w-8 h-8 text-[#014582] animate-spin mx-auto" />
                 <p className="mt-3 text-sm text-gray-500">Loading users...</p>
               </div>
             </div>
@@ -456,7 +484,7 @@ export default function UsersDashboard() {
                 <p className="text-sm text-gray-600">{error}</p>
                 <button
                   onClick={loadData}
-                  className="mt-4 px-4 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#6c3ae8] transition-all"
+                  className="mt-4 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6c3ae8] transition-all"
                 >
                   Retry
                 </button>
@@ -522,13 +550,13 @@ export default function UsersDashboard() {
                     placeholder="Search users..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                   />
                 </div>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 >
                   <option value="all">All Status</option>
                   <option value="active">Active</option>
@@ -537,7 +565,7 @@ export default function UsersDashboard() {
                 <select
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value)}
-                  className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 >
                   <option value="all">All Roles</option>
                   <option value="admin">Admin</option>
@@ -565,7 +593,7 @@ export default function UsersDashboard() {
                       <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[#7c4dff] rounded-full flex items-center justify-center text-white font-bold">
+                            <div className="w-10 h-10 bg-[#014582] rounded-full flex items-center justify-center text-white font-bold">
                               {user.firstName.charAt(0)}
                             </div>
                             <div>
@@ -635,7 +663,7 @@ export default function UsersDashboard() {
                       const user = users.find(u => u.id === e.target.value);
                       if (user) handleSelectUser(user);
                     }}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                   >
                     <option value="">Choose a user...</option>
                     {users.map((user) => (
@@ -648,7 +676,7 @@ export default function UsersDashboard() {
                 {selectedUser && (
                   <button
                     onClick={handleSavePermissions}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#6c3ae8] transition-all mt-6"
+                    className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6c3ae8] transition-all mt-6"
                   >
                     <Shield className="w-4 h-4" />
                     <span>Save Permissions</span>
@@ -668,7 +696,7 @@ export default function UsersDashboard() {
                 {/* Selected User Info */}
                 <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-[#7c4dff] rounded-full flex items-center justify-center text-white font-bold text-lg">
+                    <div className="w-12 h-12 bg-[#014582] rounded-full flex items-center justify-center text-white font-bold text-lg">
                       {selectedUser.firstName.charAt(0)}
                     </div>
                     <div>
@@ -697,7 +725,7 @@ export default function UsersDashboard() {
                                 e.stopPropagation();
                                 handleModuleAccessChange(module, e.target.checked);
                               }}
-                              className="w-5 h-5 rounded border-gray-300 text-[#7c4dff] focus:ring-[#7c4dff]"
+                              className="w-5 h-5 rounded border-gray-300 text-[#014582] focus:ring-[#014582]"
                             />
                             <label htmlFor={`access-${module}`} className="font-semibold text-gray-800 capitalize">
                               {module}
@@ -741,7 +769,7 @@ export default function UsersDashboard() {
                                 id={`subpage-${selectedModule}-${subPage}`}
                                 checked={subPagePermissions[selectedModule]?.[subPage] || false}
                                 onChange={(e) => handleSubPagePermissionChange(selectedModule, subPage, e.target.checked)}
-                                className="w-5 h-5 rounded border-gray-300 text-[#7c4dff] focus:ring-[#7c4dff]"
+                                className="w-5 h-5 rounded border-gray-300 text-[#014582] focus:ring-[#014582]"
                               />
                               <label htmlFor={`subpage-${selectedModule}-${subPage}`} className="font-medium text-gray-800">
                                 {subPage}
@@ -762,6 +790,6 @@ export default function UsersDashboard() {
         )}
         </div>
       </div>
-    </div>
+    </>
   );
 }

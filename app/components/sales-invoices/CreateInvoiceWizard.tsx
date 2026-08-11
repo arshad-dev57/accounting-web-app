@@ -186,7 +186,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className={`flex-1 h-1 rounded ${step >= i ? 'bg-[#7c4dff]' : 'bg-gray-300'}`}
+                className={`flex-1 h-1 rounded ${step >= i ? 'bg-[#014582]' : 'bg-gray-300'}`}
               />
             ))}
           </div>
@@ -201,7 +201,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                 placeholder="Search order # or customer..."
                 value={orderSearchQuery}
                 onChange={(e) => setOrderSearchQuery(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
               />
               {isSearchingOrders && (
                 <div className="text-center text-gray-500">Searching...</div>
@@ -224,8 +224,8 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                 ))}
               </div>
               {selectedOrder && (
-                <div className="p-4 bg-[#7c4dff] bg-opacity-10 border border-[#7c4dff] border-opacity-30 rounded-lg">
-                  <p className="font-semibold text-[#7c4dff]">{selectedOrder.orderNumber}</p>
+                <div className="p-4 bg-[#014582] bg-opacity-10 border border-[#014582] border-opacity-30 rounded-lg">
+                  <p className="font-semibold text-[#014582]">{selectedOrder.orderNumber}</p>
                   <p className="text-gray-700">{selectedOrder.customerName}</p>
                   <p className="text-sm text-gray-600">{selectedOrder.items.length} items ready for invoicing</p>
                 </div>
@@ -255,7 +255,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                           max="9999"
                           value={line.quantity}
                           onChange={(e) => updateLineDraft(index, 'quantity', parseInt(e.target.value) || 1)}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#014582]"
                         />
                       </div>
                       <div>
@@ -266,7 +266,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                           step="0.01"
                           value={line.unitPrice}
                           onChange={(e) => updateLineDraft(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#014582]"
                         />
                       </div>
                       <div>
@@ -277,7 +277,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                           max="100"
                           value={line.discount}
                           onChange={(e) => updateLineDraft(index, 'discount', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#014582]"
                         />
                       </div>
                       <div>
@@ -288,7 +288,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                           max="100"
                           value={line.taxRate}
                           onChange={(e) => updateLineDraft(index, 'taxRate', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                          className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#014582]"
                         />
                       </div>
                     </div>
@@ -319,7 +319,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                   </div>
                   <div className="border-t pt-2 flex justify-between font-bold">
                     <span>Grand Total</span>
-                    <span className="text-[#7c4dff]">{formatCurrency(selectedGrandTotal)}</span>
+                    <span className="text-[#014582]">{formatCurrency(selectedGrandTotal)}</span>
                   </div>
                 </div>
               )}
@@ -337,7 +337,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                       type="date"
                       value={invoiceDate.toISOString().split('T')[0]}
                       onChange={(e) => setInvoiceDate(new Date(e.target.value))}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                     />
                   </div>
                 </div>
@@ -348,7 +348,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                       type="date"
                       value={dueDate.toISOString().split('T')[0]}
                       onChange={(e) => setDueDate(new Date(e.target.value))}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                     />
                   </div>
                 </div>
@@ -359,7 +359,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                   type="text"
                   value={paymentTerms}
                   onChange={(e) => setPaymentTerms(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                 />
               </div>
               <div>
@@ -368,10 +368,10 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                 />
               </div>
-              <div className="p-4 bg-[#7c4dff] bg-opacity-10 rounded-lg space-y-2">
+              <div className="p-4 bg-[#014582] bg-opacity-10 rounded-lg space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Customer</span>
                   <span className="font-semibold">{selectedOrder?.customerName || ''}</span>
@@ -386,7 +386,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                 </div>
                 <div className="flex justify-between font-bold">
                   <span>Grand Total</span>
-                  <span className="text-[#7c4dff]">{formatCurrency(selectedGrandTotal)}</span>
+                  <span className="text-[#014582]">{formatCurrency(selectedGrandTotal)}</span>
                 </div>
               </div>
             </div>
@@ -406,7 +406,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
           {step < 2 ? (
             <button
               onClick={nextStep}
-              className="px-6 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#6b4dff] transition-colors"
+              className="px-6 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6b4dff] transition-colors"
             >
               Next
             </button>
@@ -414,7 +414,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
             <button
               onClick={createInvoice}
               disabled={isSubmitting}
-              className="px-6 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#6b4dff] transition-colors disabled:opacity-50"
+              className="px-6 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6b4dff] transition-colors disabled:opacity-50"
             >
               {isSubmitting ? 'Creating...' : 'Create Invoice'}
             </button>

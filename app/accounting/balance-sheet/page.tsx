@@ -202,7 +202,7 @@ export default function BalanceSheetPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 md:w-12 md:h-12 text-[#7c4dff] animate-spin mx-auto" />
+          <Loader2 className="w-8 h-8 md:w-12 md:h-12 text-[#014582] animate-spin mx-auto" />
           <p className="mt-3 text-sm text-gray-500">Loading Balance Sheet...</p>
         </div>
       </div>
@@ -219,7 +219,7 @@ export default function BalanceSheetPage() {
           </Link>
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <Landmark className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+              <Landmark className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
               Balance Sheet
             </h2>
             {reportData && (
@@ -232,7 +232,7 @@ export default function BalanceSheetPage() {
         <div className="flex items-center gap-2 md:gap-3">
           <button
             onClick={fetchReport}
-            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
             title="Refresh"
             disabled={loading}
           >
@@ -264,7 +264,7 @@ export default function BalanceSheetPage() {
               onClick={() => setSelectedPeriod(option.value)}
               className={`px-3 md:px-4 py-1.5 text-xs md:text-sm font-medium rounded-lg transition-all ${
                 selectedPeriod === option.value
-                  ? 'bg-[#7c4dff] text-white shadow-lg shadow-purple-500/25'
+                  ? 'bg-[#014582] text-white shadow-lg shadow-[#014582]/25'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >

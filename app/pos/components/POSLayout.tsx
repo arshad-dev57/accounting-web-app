@@ -1,0 +1,836 @@
+'use client';
+import { useState, useEffect } from 'react';
+import { posShiftService, posSaleService, posReceiptService } from '../../../lib/pos-service';
+import { usePermissions } from '../../../lib/usePermissions';
+import {
+  loadPosSettings,
+  savePosSettings,
+  saveReceiptTemplate,
+  DEFAULT_POS_SETTINGS,
+  type PosSettings,
+  openCashDrawer,
+} from '../../../lib/pos-settings';
+import { posOfflineQueue } from '../../../lib/pos-offline-queue';
+import {
+  getPaymentTerminalStatus,
+  reconnectPaymentTerminal,
+  subscribePaymentTerminalStatus,
+  type TerminalLinkStatus,
+} from '../../../lib/pos-payment-terminal';
+import {
+  Store,
+  DollarSign,
+  Lock,
+  Clock,
+  BarChart3,
+  PauseCircle,
+  Settings,
+  Loader2,
+  X,
+  Pause,
+  WifiOff,
+  RefreshCw,
+  CreditCard,
+} from 'lucide-react';
+import { TopBarBrand } from '../../../components/BrandHeader';
+
+interface Props {
+  shift: any;
+  onShiftClose: () => void;
+  children: React.ReactNode;
+}
+
+export default function POSLayout({ shift, onShiftClose, children }: Props) {
+  const { isAdmin } = usePermissions();
+  const [activeTab, setActiveTab] = useState<'sell'|'held'|'shifts'|'reports'|'settings'>('sell');
+  const [showCloseShift, setShowCloseShift] = useState(false);
+  const [actualCash, setActualCash] = useState('');
+  const [closeNotes, setCloseNotes] = useState('');
+  const [closeLoading, setCloseLoading] = useState(false);
+  const [closeError, setCloseError] = useState('');
+  const [showCashFlow, setShowCashFlow] = useState(false);
+  const [time, setTime] = useState(new Date());
+  const [offlineCount, setOfflineCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [online, setOnline] = useState(true);
+  const [payDeviceOn, setPayDeviceOn] = useState(() => loadPosSettings().enablePaymentTerminal);
+  const [payDeviceStatus, setPayDeviceStatus] = useState<TerminalLinkStatus>('disconnected');
+
+  useEffect(() => {
+    const t = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    posReceiptService.get().then((res: any) => {
+      if (res?.data) saveReceiptTemplate(res.data);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => {
+      setOfflineCount(posOfflineQueue.count());
+      setOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
+    };
+    refresh();
+    window.addEventListener('online', refresh);
+    window.addEventListener('offline', refresh);
+    window.addEventListener('pos:offline-queue-changed', refresh);
+    return () => {
+      window.removeEventListener('online', refresh);
+      window.removeEventListener('offline', refresh);
+      window.removeEventListener('pos:offline-queue-changed', refresh);
+    };
+  }, []);
+
+  useEffect(() => {
+    const sync = () => setPayDeviceOn(loadPosSettings().enablePaymentTerminal);
+    sync();
+    setPayDeviceStatus(getPaymentTerminalStatus().status);
+    const off = subscribePaymentTerminalStatus((next) => setPayDeviceStatus(next));
+    if (loadPosSettings().enablePaymentTerminal) {
+      void reconnectPaymentTerminal().catch(() => {});
+    }
+    window.addEventListener('pos:settings-changed', sync);
+    return () => {
+      off();
+      window.removeEventListener('pos:settings-changed', sync);
+    };
+  }, []);
+
+  const syncOffline = async () => {
+    const txs = posOfflineQueue.list();
+    if (!txs.length) return;
+    setSyncing(true);
+    try {
+      const res: any = await posSaleService.sync({ transactions: txs });
+      const results = res.data || [];
+      for (const r of results) {
+        if (r.status === 'success' || r.status === 'skipped') {
+          posOfflineQueue.remove(r.id);
+        }
+      }
+      setOfflineCount(posOfflineQueue.count());
+      window.dispatchEvent(new Event('pos:offline-queue-changed'));
+      alert(res.message || 'Offline sync complete');
+    } catch (e: any) {
+      alert(e.message || 'Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleSuspend = async () => {
+    if (!confirm('Suspend this shift? You can resume later from the same account.')) return;
+    try {
+      await posShiftService.suspend(shift.id);
+      onShiftClose();
+    } catch (e: any) {
+      alert(e.message || 'Failed to suspend shift');
+    }
+  };
+
+  const handleCloseShift = async () => {
+    if (!actualCash) { setCloseError('Enter the actual cash count'); return; }
+    setCloseLoading(true);
+    setCloseError('');
+    try {
+      // Print Z-report snapshot before close
+      try {
+        const z: any = await posSaleService.shiftReport(shift.id);
+        console.info('Z-Report', z.data);
+      } catch { /* non-fatal */ }
+      await posShiftService.close(shift.id, { actualCash: parseFloat(actualCash), notes: closeNotes });
+      onShiftClose();
+    } catch (e: any) {
+      setCloseError(e.message);
+    } finally {
+      setCloseLoading(false);
+    }
+  };
+
+  const tabs = [
+    { id:'sell' as const,     icon: Store,      label:'Sell' },
+    { id:'held' as const,     icon: PauseCircle,label:'Held' },
+    { id:'shifts' as const,   icon: Clock,      label:'Shifts' },
+    { id:'reports' as const,  icon: BarChart3,  label:'Reports' },
+    { id:'settings' as const, icon: Settings,   label:'Settings' },
+  ];
+
+  return (
+    <div className="flex flex-col h-screen bg-[#0f0f1a] text-white overflow-hidden font-sans">
+      {/* Top Bar */}
+      <div className="flex items-center justify-between px-6 h-[60px] bg-white/4 border-b border-white/7 flex-shrink-0">
+        <div className="flex items-center gap-2.5 font-bold text-lg">
+          <TopBarBrand
+            title="Point of Sale"
+            dark
+            icon={<Store className="w-4 h-4 text-[#f59e0b]" />}
+          />
+          {!online && (
+            <span className="ml-2 text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <WifiOff className="w-3 h-3" /> Offline
+            </span>
+          )}
+          {offlineCount > 0 && (
+            <button
+              onClick={syncOffline}
+              disabled={syncing || !online}
+              className="ml-2 text-xs bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 disabled:opacity-50"
+            >
+              {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+              Sync {offlineCount}
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4 text-gray-400 text-xs">
+            <span className="flex items-center gap-1.5">
+              <Store className="w-3.5 h-3.5" />
+              {shift.terminal?.name || 'Terminal'}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span>👤</span>
+              {shift.cashier?.firstName} {shift.cashier?.lastName}
+            </span>
+            <span className="bg-green-500/10 border border-green-500/20 text-green-400 px-2.5 py-1 rounded-full text-xs font-semibold">
+              ● SHIFT OPEN
+            </span>
+            {payDeviceOn && (
+              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                payDeviceStatus === 'ready' || payDeviceStatus === 'busy'
+                  ? 'bg-sky-500/10 border-sky-500/20 text-sky-300'
+                  : 'bg-red-500/10 border-red-500/20 text-red-300'
+              }`}>
+                {loadPosSettings().paymentTerminalModel} {payDeviceStatus === 'ready' ? 'Ready' : payDeviceStatus === 'busy' ? 'Charging' : 'Offline'}
+              </span>
+            )}
+          </div>
+          <span className="text-[#f59e0b] font-bold text-sm tabular-nums">{time.toLocaleTimeString()}</span>
+          <button
+            className="px-3 py-2 rounded-lg bg-white/8 text-white text-xs font-semibold hover:bg-white/10 transition-colors flex items-center gap-2"
+            onClick={() => openCashDrawer()}
+            title="Open cash drawer"
+          >
+            Drawer
+          </button>
+          <button
+            className="px-3 py-2 rounded-lg bg-white/8 text-white text-xs font-semibold hover:bg-white/10 transition-colors flex items-center gap-2"
+            onClick={()=>setShowCashFlow(true)}
+          >
+            <DollarSign className="w-4 h-4" />
+            Cash
+          </button>
+          <button
+            className="px-3 py-2 rounded-lg bg-yellow-500/15 text-yellow-300 border border-yellow-500/25 text-xs font-semibold hover:bg-yellow-500/25 transition-colors flex items-center gap-2"
+            onClick={handleSuspend}
+          >
+            <Pause className="w-4 h-4" />
+            Suspend
+          </button>
+          {isAdmin && (
+            <button
+              className="px-3 py-2 rounded-lg bg-[#f59e0b]/20 text-[#fbbf24] border border-[#f59e0b]/30 text-xs font-semibold hover:bg-[#f59e0b]/30 transition-colors flex items-center gap-2"
+              onClick={() => window.location.href = '/pos/management'}
+            >
+              <Settings className="w-4 h-4" />
+              Admin
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              className="px-3 py-2 rounded-lg bg-white/8 text-white text-xs font-semibold hover:bg-white/10 transition-colors flex items-center gap-2"
+              onClick={() => { window.location.href = '/plans'; }}
+            >
+              <CreditCard className="w-4 h-4" />
+              Plans
+            </button>
+          )}
+          <button
+            className="px-3 py-2 rounded-lg bg-red-500/80 text-white text-xs font-semibold hover:bg-red-500/90 transition-colors flex items-center gap-2"
+            onClick={()=>setShowCloseShift(true)}
+          >
+            <Lock className="w-4 h-4" />
+            Close
+          </button>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex flex-1 overflow-hidden">
+        <div className="w-[72px] bg-white/3 border-r border-white/7 flex flex-col items-center py-4 gap-1 flex-shrink-0">
+          {tabs.map(t=>(
+            <button
+              key={t.id}
+              className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center gap-0.5 cursor-pointer border-none transition-all outline-none ${
+                activeTab===t.id ? 'bg-[#f59e0b]/20' : 'hover:bg-white/5'
+              }`}
+              onClick={()=>setActiveTab(t.id)}
+            >
+              <t.icon className={`w-5 h-5 ${activeTab===t.id ? 'text-[#f59e0b]' : 'text-gray-400'}`} />
+              <span className={`text-[9px] font-semibold ${activeTab===t.id ? 'text-[#f59e0b]' : 'text-gray-400'}`}>{t.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-hidden">
+          {activeTab === 'sell'     && children}
+          {activeTab === 'held'     && <HeldSales onRecalled={() => setActiveTab('sell')} />}
+          {activeTab === 'shifts'   && <ShiftHistory currentShift={shift} onRefresh={() => {}} />}
+          {activeTab === 'reports'  && <ReportsPanel shiftId={shift.id} />}
+          {activeTab === 'settings' && <POSSettings />}
+        </div>
+      </div>
+
+      {/* Close Shift Modal */}
+      {showCloseShift && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-8 w-[460px] max-w-[90vw]">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-white text-xl font-semibold m-0 flex items-center gap-2">
+                <Lock className="w-5 h-5" />
+                Close Shift
+              </h2>
+              <button
+                onClick={()=>setShowCloseShift(false)}
+                className="bg-transparent border-none text-gray-400 cursor-pointer hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {closeError && (
+              <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-3 text-red-400 text-xs mb-4">
+                {closeError}
+              </div>
+            )}
+            <div className="mb-4 mt-4">
+              <label className="block text-gray-400 text-xs mb-2">Count the cash in your drawer</label>
+              <input
+                type="number"
+                className="w-full bg-white/6 border border-white/12 rounded-lg px-4 py-3 text-white text-2xl font-bold text-center outline-none focus:border-[#f59e0b] transition-colors"
+                value={actualCash}
+                onChange={e=>setActualCash(e.target.value)}
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <div className="mb-5">
+              <label className="block text-gray-400 text-xs mb-2">Closing Notes (optional)</label>
+              <input
+                className="w-full bg-white/6 border border-white/12 rounded-lg px-4 py-3 text-white text-sm outline-none focus:border-[#f59e0b] transition-colors"
+                value={closeNotes}
+                onChange={e=>setCloseNotes(e.target.value)}
+                placeholder="Any notes for closing..."
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                className="flex-1 py-3 rounded-lg bg-transparent border border-white/12 text-gray-400 text-sm cursor-pointer hover:bg-white/5 transition-colors"
+                onClick={()=>setShowCloseShift(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="flex-[2] py-3 rounded-lg bg-gradient-to-r from-red-500 to-red-600 border-none text-white text-sm font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                onClick={handleCloseShift}
+                disabled={closeLoading}
+              >
+                {closeLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Closing...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    Close & Generate Report
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cash In/Out Modal */}
+      {showCashFlow && <CashFlowModal shiftId={shift.id} onClose={()=>setShowCashFlow(false)} />}
+    </div>
+  );
+}
+
+// ─── Cash Flow Modal ─────────────────────────────────────────────────────────
+function CashFlowModal({ shiftId, onClose }: { shiftId: string; onClose: () => void }) {
+  const [type, setType] = useState<'CASH_IN'|'CASH_OUT'>('CASH_IN');
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const submit = async () => {
+    if (!amount || !reason) { setError('Amount and reason are required'); return; }
+    setLoading(true);
+    try {
+      await posShiftService.recordCash({ shiftId, type, amount: parseFloat(amount), reason });
+      setSuccess(true);
+      setTimeout(onClose, 1200);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+      <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-8 w-[420px] max-w-[90vw] font-sans">
+        <h2 className="text-white text-xl font-semibold m-0 mb-5 flex items-center gap-2">
+          <DollarSign className="w-5 h-5" />
+          Cash In / Out
+        </h2>
+        {success ? (
+          <div className="text-center py-6 text-green-400 text-lg">✅ Recorded successfully!</div>
+        ) : (
+          <>
+            {error && (
+              <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-3 text-red-400 text-xs mb-4">
+                {error}
+              </div>
+            )}
+            <div className="flex gap-2 mb-5 bg-white/4 rounded-lg p-1">
+              <button
+                className={`flex-1 py-2.5 rounded-lg border-none cursor-pointer font-semibold text-sm transition-colors ${
+                  type==='CASH_IN' ? 'bg-green-500/20 text-green-400' : 'bg-transparent text-gray-400'
+                }`}
+                onClick={()=>setType('CASH_IN')}
+              >
+                💚 Cash In
+              </button>
+              <button
+                className={`flex-1 py-2.5 rounded-lg border-none cursor-pointer font-semibold text-sm transition-colors ${
+                  type==='CASH_OUT' ? 'bg-red-500/20 text-red-400' : 'bg-transparent text-gray-400'
+                }`}
+                onClick={()=>setType('CASH_OUT')}
+              >
+                🔴 Cash Out
+              </button>
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-400 text-xs mb-2">Amount</label>
+              <input
+                type="number"
+                className="w-full bg-white/6 border border-white/12 rounded-lg px-4 py-3 text-white text-2xl font-bold text-center outline-none focus:border-[#f59e0b] transition-colors mt-2"
+                value={amount}
+                onChange={e=>setAmount(e.target.value)}
+                placeholder="0.00"
+                min="0"
+              />
+            </div>
+            <div className="mb-5">
+              <label className="block text-gray-400 text-xs mb-2">Reason</label>
+              <input
+                className="w-full bg-white/6 border border-white/12 rounded-lg px-4 py-3 text-white text-sm outline-none focus:border-[#f59e0b] transition-colors mt-2"
+                value={reason}
+                onChange={e=>setReason(e.target.value)}
+                placeholder="e.g. Petty cash withdrawal, Owner deposit..."
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="flex-1 py-3 rounded-lg bg-transparent border border-white/12 text-gray-400 text-sm cursor-pointer hover:bg-white/5 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submit}
+                disabled={loading}
+                className="flex-[2] py-3 rounded-lg bg-gradient-to-r from-[#f59e0b] to-[#d97706] border-none text-white text-sm font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Recording...
+                  </>
+                ) : (
+                  'Record'
+                )}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Held sales with recall + delete ─────────────────────────────────────────
+function HeldSales({ onRecalled }: { onRecalled: () => void }) {
+  const [held, setHeld] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { isAdmin } = usePermissions();
+
+  const load = () => {
+    setLoading(true);
+    posSaleService
+      .getHeld()
+      .then((r: any) => {
+        setHeld(r.data || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const recall = async (sale: any) => {
+    window.dispatchEvent(new CustomEvent('pos:recall-held', { detail: sale }));
+    onRecalled();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm('Delete this held sale?')) return;
+    try {
+      await posSaleService.deleteHeld(id);
+      load();
+    } catch (e: any) {
+      alert(e.message || 'Failed to delete held sale (manager/admin only)');
+    }
+  };
+
+  return (
+    <div className="p-6 font-sans h-full overflow-y-auto">
+      <h2 className="text-white text-xl font-semibold mb-5 flex items-center gap-2">
+        <PauseCircle className="w-5 h-5" />
+        Held Sales ({held.length})
+      </h2>
+      {loading ? (
+        <p className="text-gray-400">Loading...</p>
+      ) : held.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <PauseCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p>No held sales</p>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {held.map((s: any) => (
+            <div
+              key={s.id}
+              className="bg-white/4 border border-white/8 rounded-xl p-4 flex justify-between items-center gap-4"
+            >
+              <div>
+                <div className="text-white font-semibold">{s.invoiceNumber}</div>
+                <div className="text-gray-400 text-xs mt-1">
+                  {s.customerName} · {s.items?.length || 0} items
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-[#f59e0b] font-bold text-lg">${Number(s.grandTotal || 0).toFixed(2)}</div>
+                  <div className="text-gray-400 text-xs">{new Date(s.createdAt).toLocaleTimeString()}</div>
+                </div>
+                <button
+                  onClick={() => recall(s)}
+                  className="px-3 py-2 rounded-lg bg-[#f59e0b] text-black text-xs font-bold"
+                >
+                  Recall
+                </button>
+                {(isAdmin) && (
+                  <button
+                    onClick={() => remove(s.id)}
+                    className="px-3 py-2 rounded-lg bg-red-500/20 text-red-300 text-xs font-semibold border border-red-500/30"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ShiftHistory({ currentShift, onRefresh }: { currentShift: any; onRefresh: ()=>void }) {
+  const [shifts, setShifts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    posShiftService.getHistory().then((r:any) => { setShifts(r.shifts||[]); setLoading(false); }).catch(()=>setLoading(false));
+  }, []);
+
+  const getStatusColor = (s:string) => {
+    switch(s) {
+      case 'Open': return 'bg-green-500/10 text-green-400 border-green-500/20';
+      case 'Closed': return 'bg-red-500/10 text-red-400 border-red-500/20';
+      case 'Suspended': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+      default: return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+    }
+  };
+
+  const resume = async (id: string) => {
+    try {
+      await posShiftService.resume(id);
+      onRefresh();
+      window.location.reload();
+    } catch (e: any) {
+      alert(e.message || 'Failed to resume');
+    }
+  };
+
+  return (
+    <div className="p-6 font-sans h-full overflow-y-auto">
+      <h2 className="text-white text-xl font-semibold mb-5 flex items-center gap-2">
+        <Clock className="w-5 h-5" />
+        Shift History
+      </h2>
+      {loading ? (
+        <p className="text-gray-400">Loading...</p>
+      ) : (
+        <div className="grid gap-2.5">
+          {shifts.map((sh:any) => (
+            <div key={sh.id} className="bg-white/4 border border-white/8 rounded-xl p-4 flex justify-between items-center">
+              <div>
+                <div className="text-white font-semibold text-sm mb-1">{sh.terminal?.name} — {sh.cashier?.firstName} {sh.cashier?.lastName}</div>
+                <div className="text-gray-400 text-xs">Opened: {new Date(sh.openedAt).toLocaleString()}</div>
+                {sh.closedAt && <div className="text-gray-400 text-xs">Closed: {new Date(sh.closedAt).toLocaleString()}</div>}
+              </div>
+              <div className="text-right flex flex-col items-end gap-2">
+                <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(sh.status)}`}>
+                  {sh.status}
+                </span>
+                <div className="text-[#f59e0b] font-bold text-base">Opening: ${sh.openingCash?.toFixed(2)}</div>
+                {sh.status === 'Suspended' && (
+                  <button onClick={() => resume(sh.id)} className="text-xs px-3 py-1 rounded bg-green-500/20 text-green-300 border border-green-500/30">
+                    Resume
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReportsPanel({ shiftId }: { shiftId: string }) {
+  const [daily, setDaily] = useState<any>(null);
+  const [shiftReport, setShiftReport] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      posSaleService.dailyReport().catch(() => null),
+      posSaleService.shiftReport(shiftId).catch(() => null),
+    ]).then(([d, s]) => {
+      setDaily(d?.data || null);
+      setShiftReport(s?.data || null);
+      setLoading(false);
+    });
+  }, [shiftId]);
+
+  const printZ = () => {
+    if (!shiftReport) return;
+    const w = window.open('', '_blank', 'width=420,height=700');
+    if (!w) return;
+    const s = shiftReport.summary || {};
+    w.document.write(`<html><head><title>${shiftReport.type}-Report</title>
+      <style>body{font-family:monospace;padding:16px} h1{font-size:16px} table{width:100%;border-collapse:collapse} td{padding:4px 0;border-bottom:1px dashed #ccc}</style>
+      </head><body>
+      <h1>${shiftReport.type}-REPORT</h1>
+      <div>Terminal: ${shiftReport.shift?.terminal?.name || ''}</div>
+      <div>Cashier: ${shiftReport.shift?.cashier?.firstName || ''} ${shiftReport.shift?.cashier?.lastName || ''}</div>
+      <div>Printed: ${new Date().toLocaleString()}</div>
+      <hr/>
+      <table>
+        <tr><td>Opening Cash</td><td align="right">${Number(s.openingCash||0).toFixed(2)}</td></tr>
+        <tr><td>Sales Count</td><td align="right">${s.salesCount||0}</td></tr>
+        <tr><td>Gross Sales</td><td align="right">${Number(s.grandTotal||0).toFixed(2)}</td></tr>
+        <tr><td>Discounts</td><td align="right">${Number(s.discountTotal||0).toFixed(2)}</td></tr>
+        <tr><td>Tax</td><td align="right">${Number(s.taxTotal||0).toFixed(2)}</td></tr>
+        <tr><td>Returns</td><td align="right">${Number(s.returnsTotal||0).toFixed(2)}</td></tr>
+        <tr><td>Cash In</td><td align="right">${Number(s.cashIn||0).toFixed(2)}</td></tr>
+        <tr><td>Cash Out</td><td align="right">${Number(s.cashOut||0).toFixed(2)}</td></tr>
+        <tr><td><b>Expected Cash</b></td><td align="right"><b>${Number(s.expectedCash||0).toFixed(2)}</b></td></tr>
+      </table>
+      <h3>Tenders</h3>
+      <table>
+        ${(shiftReport.paymentBreakdown||[]).map((p:any)=>`<tr><td>${p.paymentMethod}</td><td align="right">${Number(p._sum?.amount||0).toFixed(2)}</td></tr>`).join('')}
+      </table>
+      <script>window.print()</script>
+      </body></html>`);
+    w.document.close();
+  };
+
+  if (loading) return <div className="p-6 text-gray-400 font-sans">Loading report...</div>;
+
+  return (
+    <div className="p-6 font-sans h-full overflow-y-auto">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-white text-xl font-semibold flex items-center gap-2">
+          <BarChart3 className="w-5 h-5" />
+          Reports
+        </h2>
+        <button onClick={printZ} className="px-4 py-2 rounded-lg bg-[#f59e0b] text-black text-xs font-bold">
+          Print {shiftReport?.type || 'X'}-Report
+        </button>
+      </div>
+
+      <h3 className="text-white font-semibold mb-3">Current Shift ({shiftReport?.type || 'X'}-Report)</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+        {[
+          { label: 'Sales', value: `$${Number(shiftReport?.summary?.grandTotal||0).toFixed(2)}` },
+          { label: 'Txns', value: shiftReport?.summary?.salesCount || 0 },
+          { label: 'Expected Cash', value: `$${Number(shiftReport?.summary?.expectedCash||0).toFixed(2)}` },
+          { label: 'Returns', value: `$${Number(shiftReport?.summary?.returnsTotal||0).toFixed(2)}` },
+        ].map((c) => (
+          <div key={c.label} className="bg-white/4 border border-white/8 rounded-xl p-4">
+            <div className="text-[#f59e0b] text-xl font-bold">{c.value}</div>
+            <div className="text-gray-400 text-xs mt-1">{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="text-white font-semibold mb-3">Today (store-wide)</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        {[
+          { label:'Total Sales', value:`$${(daily?.sales?._sum?.grandTotal||0).toFixed(2)}` },
+          { label:'Transactions', value: daily?.sales?._count?.id || 0 },
+          { label:'Returns', value:`$${(daily?.returns?._sum?.refundedAmount||0).toFixed(2)}` },
+          { label:'Discounts', value:`$${(daily?.sales?._sum?.discountTotal||0).toFixed(2)}` },
+        ].map(c=>(
+          <div key={c.label} className="bg-white/4 border border-white/8 rounded-xl p-4">
+            <div className="text-green-400 text-xl font-bold">{c.value}</div>
+            <div className="text-gray-400 text-xs mt-1">{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {(shiftReport?.paymentBreakdown || daily?.paymentBreakdown)?.length > 0 && (
+        <>
+          <h3 className="text-white text-lg font-semibold mb-4">Payment Breakdown</h3>
+          <div className="grid gap-2.5">
+            {(shiftReport?.paymentBreakdown || daily?.paymentBreakdown || []).map((p:any) => (
+              <div key={p.paymentMethod} className="bg-white/4 border border-white/8 rounded-xl p-3.5 flex justify-between items-center">
+                <span className="text-gray-300 font-medium text-sm">{p.paymentMethod}</span>
+                <span className="text-[#f59e0b] font-bold text-base">${(p._sum?.amount||0).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function POSSettings() {
+  const { isAdmin } = usePermissions();
+  const [settings, setSettings] = useState<PosSettings>(DEFAULT_POS_SETTINGS);
+
+  useEffect(() => {
+    setSettings(loadPosSettings());
+  }, []);
+
+  const update = (patch: Partial<PosSettings>) => {
+    setSettings(savePosSettings(patch));
+  };
+
+  const Toggle = ({
+    label,
+    checked,
+    onChange,
+  }: {
+    label: string;
+    checked: boolean;
+    onChange: (v: boolean) => void;
+  }) => (
+    <label className="flex items-center justify-between bg-white/4 border border-white/8 rounded-xl px-4 py-3 cursor-pointer">
+      <span className="text-sm text-gray-200">{label}</span>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="w-4 h-4" />
+    </label>
+  );
+
+  return (
+    <div className="p-6 font-sans h-full overflow-y-auto max-w-2xl">
+      <h2 className="text-white text-xl font-semibold mb-5 flex items-center gap-2">
+        <Settings className="w-5 h-5" />
+        POS Settings
+      </h2>
+      <div className="space-y-3">
+        <Toggle
+          label="Require manager for large discounts"
+          checked={settings.requireManagerForDiscount}
+          onChange={(v) => update({ requireManagerForDiscount: v })}
+        />
+        <div className="bg-white/4 border border-white/8 rounded-xl px-4 py-3">
+          <label className="text-sm text-gray-200 block mb-2">Discount threshold % (manager required above)</label>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={settings.discountThresholdPct}
+            onChange={(e) => update({ discountThresholdPct: Number(e.target.value) || 0 })}
+            className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white"
+          />
+        </div>
+        <Toggle label="Require manager for voids" checked={settings.requireManagerForVoid} onChange={(v) => update({ requireManagerForVoid: v })} />
+        <Toggle label="Require manager for returns" checked={settings.requireManagerForReturn} onChange={(v) => update({ requireManagerForReturn: v })} />
+        <Toggle label="Loyalty points enabled" checked={settings.loyaltyEnabled} onChange={(v) => update({ loyaltyEnabled: v })} />
+        <Toggle label="Open cash drawer on cash sale" checked={settings.openDrawerOnCashSale} onChange={(v) => update({ openDrawerOnCashSale: v })} />
+        <Toggle label="Offline mode (queue sales when offline)" checked={settings.enableOfflineMode} onChange={(v) => update({ enableOfflineMode: v })} />
+        <div className="bg-white/4 border border-white/8 rounded-xl px-4 py-3">
+          <p className="text-sm text-gray-200 font-medium">Barcode scanner</p>
+          <p className="text-xs text-gray-400 mt-1">
+            USB / serial scanner device is configured by an admin in POS Management → Scanner.
+          </p>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/pos/management'; }}
+              className="mt-3 px-3 py-2 rounded-lg bg-[#014582] text-white text-xs font-semibold"
+            >
+              Open scanner settings
+            </button>
+          )}
+        </div>
+        <div className="bg-white/4 border border-white/8 rounded-xl px-4 py-3">
+          <p className="text-sm text-gray-200 font-medium">Payment terminal</p>
+          <p className="text-xs text-gray-400 mt-1">
+            CS30G / card device is enabled or disabled by an admin in POS Management → Payments.
+            Off keeps the current manual payment flow.
+          </p>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/pos/management'; }}
+              className="mt-3 px-3 py-2 rounded-lg bg-[#014582] text-white text-xs font-semibold"
+            >
+              Open payment settings
+            </button>
+          )}
+        </div>
+        <div className="bg-white/4 border border-white/8 rounded-xl px-4 py-3">
+          <p className="text-sm text-gray-200 font-medium">Receipt layout</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Header, footer, barcode, store details and return policy are edited in POS Management → Receipt.
+          </p>
+          <button
+            type="button"
+            onClick={() => { window.location.href = '/pos/management'; }}
+            className="mt-3 px-3 py-2 rounded-lg bg-[#014582] text-white text-xs font-semibold"
+          >
+            Open receipt editor
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 pt-2">
+          Terminal CRUD, sales history, returns, receipt template and audit logs are in POS Management (admin).
+        </p>
+      </div>
+    </div>
+  );
+}

@@ -117,7 +117,7 @@ export default function SalesPage() {
                       onClick={() => setSelectedPeriod(period)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                         selectedPeriod === period
-                          ? 'bg-[#7c4dff] text-white'
+                          ? 'bg-[#014582] text-white'
                           : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
                       }`}
                     >
@@ -197,7 +197,7 @@ export default function SalesPage() {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="font-bold text-gray-800 flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-[#7c4dff]" />
+                      <FileText className="w-5 h-5 text-[#014582]" />
                       Recent Activity
                     </h2>
                     <span className="text-xs text-gray-400">Last 30 days</span>
@@ -264,8 +264,8 @@ export default function SalesPage() {
                     onClick={() => router.push('/sales/quotations')}
                     className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all flex items-center gap-3"
                   >
-                    <div className="p-2.5 bg-[#7c4dff]/10 rounded-lg">
-                      <QuotationIcon className="w-4 h-4 text-[#7c4dff]" />
+                    <div className="p-2.5 bg-[#014582]/10 rounded-lg">
+                      <QuotationIcon className="w-4 h-4 text-[#014582]" />
                     </div>
                     <div className="text-left">
                       <p className="font-semibold text-gray-800 text-sm">Quotations</p>
@@ -300,7 +300,7 @@ export default function SalesPage() {
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="font-bold text-gray-800 flex items-center gap-2">
-                        <Package className="w-5 h-5 text-[#7c4dff]" />
+                        <Package className="w-5 h-5 text-[#014582]" />
                         Top Selling Products
                       </h2>
                     </div>
@@ -311,8 +311,8 @@ export default function SalesPage() {
                         {topProducts.slice(0, 5).map((product, index) => (
                           <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-[#7c4dff]/10 rounded-lg flex items-center justify-center">
-                                <Package className="w-5 h-5 text-[#7c4dff]" />
+                              <div className="w-10 h-10 bg-[#014582]/10 rounded-lg flex items-center justify-center">
+                                <Package className="w-5 h-5 text-[#014582]" />
                               </div>
                               <div>
                                 <p className="text-sm font-medium text-gray-800">{product.name}</p>
@@ -330,7 +330,7 @@ export default function SalesPage() {
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="font-bold text-gray-800 flex items-center gap-2">
-                        <Users className="w-5 h-5 text-[#7c4dff]" />
+                        <Users className="w-5 h-5 text-[#014582]" />
                         Top Customers
                       </h2>
                     </div>

@@ -467,7 +467,7 @@ export default function SalesPaymentsPage() {
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <CreditCard className="w-6 h-6 text-[#7c4dff]" />
+                <CreditCard className="w-6 h-6 text-[#014582]" />
                 Sales Payments
                 <span className="text-sm font-normal text-gray-400 ml-2">
                   ({pagination.total} payments)
@@ -477,7 +477,7 @@ export default function SalesPaymentsPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleRefresh}
-                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
                 title="Refresh"
                 disabled={loading}
               >
@@ -485,7 +485,7 @@ export default function SalesPaymentsPage() {
               </button>
               <button
                 onClick={openCreateForm}
-                className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+                className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
               >
                 <Plus className="w-4 h-4" />
                 Receive Payment
@@ -530,7 +530,7 @@ export default function SalesPaymentsPage() {
                   placeholder="Search payments..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
                 {searchTerm && (
                   <button
@@ -545,7 +545,7 @@ export default function SalesPaymentsPage() {
                 <select
                   value={selectedFilter}
                   onChange={(e) => handleFilterChange(e.target.value)}
-                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {filters.map((filter) => (
                     <option key={filter} value={filter}>
@@ -560,7 +560,7 @@ export default function SalesPaymentsPage() {
                   type="date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   placeholder="From"
                 />
                 <span className="text-gray-400 text-sm">to</span>
@@ -568,12 +568,12 @@ export default function SalesPaymentsPage() {
                   type="date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   placeholder="To"
                 />
                 <button
                   onClick={handleDateFilter}
-                  className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] rounded-lg text-sm font-semibold hover:bg-[#7c4dff]/20 transition-all"
+                  className="px-4 py-2 bg-[#014582]/10 text-[#014582] rounded-lg text-sm font-semibold hover:bg-[#014582]/20 transition-all"
                 >
                   Apply
                 </button>
@@ -601,7 +601,7 @@ export default function SalesPaymentsPage() {
                   {loading && payments.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-center py-12">
-                        <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+                        <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
                         <p className="mt-2 text-gray-500">Loading payments...</p>
                       </td>
                     </tr>
@@ -618,7 +618,7 @@ export default function SalesPaymentsPage() {
                       <tr key={payment.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-3">
                           <div>
-                            <p className="font-medium text-[#7c4dff]">{payment.paymentNumber}</p>
+                            <p className="font-medium text-[#014582]">{payment.paymentNumber}</p>
                             <p className="text-xs text-gray-400">
                               {formatDate(payment.paymentDate)}
                             </p>
@@ -697,7 +697,7 @@ export default function SalesPaymentsPage() {
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="px-6 py-2 text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50"
+                  className="px-6 py-2 text-sm font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all disabled:opacity-50"
                 >
                   {loadingMore ? (
                     <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -724,7 +724,7 @@ export default function SalesPaymentsPage() {
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg">
+                <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg">
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
@@ -786,7 +786,7 @@ export default function SalesPaymentsPage() {
                 placeholder="Enter reason for cancellation"
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
               />
             </div>
           }
@@ -863,7 +863,7 @@ function CreatePaymentForm({
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </button>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <CreditCard className="w-6 h-6 text-[#7c4dff]" />
+            <CreditCard className="w-6 h-6 text-[#014582]" />
             Receive Payment
           </h2>
         </div>
@@ -889,13 +889,13 @@ function CreatePaymentForm({
                   placeholder="Search customer by name, email, phone..."
                   value={customerSearchQuery}
                   onChange={(e) => searchCustomers(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
 
               {isSearchingCustomers && (
                 <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 p-4">
-                  <Loader2 className="w-6 h-6 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-6 h-6 mx-auto text-[#014582] animate-spin" />
                 </div>
               )}
 
@@ -918,7 +918,7 @@ function CreatePaymentForm({
             </div>
 
             {selectedCustomer && (
-              <div className="mt-3 p-3 bg-[#7c4dff]/5 border border-[#7c4dff]/20 rounded-lg">
+              <div className="mt-3 p-3 bg-[#014582]/5 border border-[#014582]/20 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-gray-800">{selectedCustomer.name}</p>
@@ -955,7 +955,7 @@ function CreatePaymentForm({
 
               {isLoadingInvoices ? (
                 <div className="text-center py-8">
-                  <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
                   <p className="mt-2 text-sm text-gray-400">Loading invoices...</p>
                 </div>
               ) : availableInvoices.length === 0 ? (
@@ -973,7 +973,7 @@ function CreatePaymentForm({
                         key={invoice.id}
                         className={`p-3 border rounded-lg transition-all ${
                           isSelected
-                            ? 'border-[#7c4dff] bg-[#7c4dff]/5'
+                            ? 'border-[#014582] bg-[#014582]/5'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
@@ -982,12 +982,12 @@ function CreatePaymentForm({
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleInvoiceSelection(invoice)}
-                            className="mt-1 w-4 h-4 text-[#7c4dff] rounded border-gray-300 focus:ring-[#7c4dff]"
+                            className="mt-1 w-4 h-4 text-[#014582] rounded border-gray-300 focus:ring-[#014582]"
                           />
                           <div className="flex-1">
                             <div className="flex items-start justify-between">
                               <div>
-                                <p className="font-medium text-[#7c4dff]">{invoice.invoiceNumber}</p>
+                                <p className="font-medium text-[#014582]">{invoice.invoiceNumber}</p>
                                 <p className="text-xs text-gray-400">
                                   Due: {formatDate(invoice.dueDate)}
                                   {isOverdue && (
@@ -1013,12 +1013,12 @@ function CreatePaymentForm({
                                     max={invoice.outstanding}
                                     value={invoice.amountToPay}
                                     onChange={(e) => updateInvoiceAmount(invoice.id, parseFloat(e.target.value) || 0)}
-                                    className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                                    className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                                   />
                                 </div>
                                 <button
                                   onClick={() => updateInvoiceAmount(invoice.id, invoice.outstanding)}
-                                  className="px-3 py-1.5 text-xs font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all"
+                                  className="px-3 py-1.5 text-xs font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all"
                                 >
                                   Full
                                 </button>
@@ -1048,7 +1048,7 @@ function CreatePaymentForm({
                   type="date"
                   value={paymentDate}
                   onChange={(e) => setPaymentDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
 
@@ -1058,7 +1058,7 @@ function CreatePaymentForm({
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {paymentMethods.map((method: string) => (
                     <option key={method} value={method}>{method}</option>
@@ -1076,7 +1076,7 @@ function CreatePaymentForm({
                       const account = bankAccounts.find((acc: any) => acc.id === e.target.value);
                       setSelectedBankAccount(account || null);
                     }}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   >
                     <option value="">Select Bank Account</option>
                     {bankAccounts.map((account: any) => (
@@ -1099,7 +1099,7 @@ function CreatePaymentForm({
                     min="0"
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                     placeholder="0.00"
                   />
                 </div>
@@ -1113,7 +1113,7 @@ function CreatePaymentForm({
                   placeholder="Enter reference"
                   value={paymentReference}
                   onChange={(e) => setPaymentReference(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
 
@@ -1125,7 +1125,7 @@ function CreatePaymentForm({
                   placeholder="Enter notes"
                   value={paymentNotes}
                   onChange={(e) => setPaymentNotes(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none resize-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none resize-none"
                 />
               </div>
             </div>
@@ -1133,7 +1133,7 @@ function CreatePaymentForm({
 
           {/* Summary */}
           {selectedInvoices.length > 0 && (
-            <div className="bg-[#7c4dff]/5 border border-[#7c4dff]/20 rounded-xl p-4">
+            <div className="bg-[#014582]/5 border border-[#014582]/20 rounded-xl p-4">
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Customer</span>
@@ -1150,7 +1150,7 @@ function CreatePaymentForm({
                 <hr className="border-gray-200" />
                 <div className="flex justify-between text-base">
                   <span className="font-bold text-gray-800">Total Amount</span>
-                  <span className="font-bold text-[#7c4dff]">{formatCurrency(selectedTotal)}</span>
+                  <span className="font-bold text-[#014582]">{formatCurrency(selectedTotal)}</span>
                 </div>
               </div>
             </div>
@@ -1167,7 +1167,7 @@ function CreatePaymentForm({
             <button
               onClick={handleReceivePayment}
               disabled={!selectedCustomer || selectedInvoices.length === 0 || submitting}
-              className="flex-1 px-4 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1202,10 +1202,10 @@ function PaymentDetailModal({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-[#7c4dff]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <CreditCard className="w-6 h-6 text-[#7c4dff]" />
+            <div className="w-12 h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <CreditCard className="w-6 h-6 text-[#014582]" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">{payment.paymentNumber}</h2>
@@ -1232,7 +1232,7 @@ function PaymentDetailModal({
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Amount</p>
-              <p className="text-lg font-bold text-[#7c4dff] mt-1">{formatCurrency(payment.amount)}</p>
+              <p className="text-lg font-bold text-[#014582] mt-1">{formatCurrency(payment.amount)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Payment Method</p>
@@ -1274,7 +1274,7 @@ function PaymentDetailModal({
               {payment.invoicePayments?.map((inv: any) => (
                 <div key={inv.id} className="flex items-center justify-between py-2 border-b border-gray-50">
                   <div>
-                    <p className="text-sm font-medium text-[#7c4dff]">{inv.invoiceNumber}</p>
+                    <p className="text-sm font-medium text-[#014582]">{inv.invoiceNumber}</p>
                     {inv.invoice && (
                       <p className="text-xs text-gray-400">Total: {formatCurrency(inv.invoice.grandTotal)}</p>
                     )}

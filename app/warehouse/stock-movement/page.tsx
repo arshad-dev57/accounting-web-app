@@ -77,7 +77,7 @@ function ProductSearch({
           value={searchTerm}
           onChange={(e) => handleSearch(e.target.value)}
           onFocus={() => searchTerm.length >= 2 && setIsOpen(true)}
-          className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+          className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
         />
         {loading && (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
@@ -270,12 +270,12 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
           onClick={() => setStockType('bulk')}
           className={`p-4 rounded-xl border-2 text-left transition-all ${
             stockType === 'bulk'
-              ? 'border-[#7c4dff] bg-[#7c4dff]/5'
+              ? 'border-[#014582] bg-[#014582]/5'
               : 'border-gray-200 hover:border-gray-300'
           }`}
         >
           <div className="flex items-center gap-2 mb-1">
-            <BarChart3 className={`w-4 h-4 ${stockType === 'bulk' ? 'text-[#7c4dff]' : 'text-gray-400'}`} />
+            <BarChart3 className={`w-4 h-4 ${stockType === 'bulk' ? 'text-[#014582]' : 'text-gray-400'}`} />
             <span className="text-sm font-semibold text-gray-800">Bulk Quantity</span>
           </div>
           <p className="text-xs text-gray-500">Add stock as simple quantity</p>
@@ -285,12 +285,12 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
           onClick={() => setStockType('box')}
           className={`p-4 rounded-xl border-2 text-left transition-all ${
             stockType === 'box'
-              ? 'border-[#7c4dff] bg-[#7c4dff]/5'
+              ? 'border-[#014582] bg-[#014582]/5'
               : 'border-gray-200 hover:border-gray-300'
           }`}
         >
           <div className="flex items-center gap-2 mb-1">
-            <Box className={`w-4 h-4 ${stockType === 'box' ? 'text-[#7c4dff]' : 'text-gray-400'}`} />
+            <Box className={`w-4 h-4 ${stockType === 'box' ? 'text-[#014582]' : 'text-gray-400'}`} />
             <span className="text-sm font-semibold text-gray-800">Box / Case</span>
           </div>
           <p className="text-xs text-gray-500">Add stock with box & piece tracking</p>
@@ -309,7 +309,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
               placeholder="Enter quantity..."
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
         </div>
@@ -324,7 +324,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
               placeholder="e.g., 50"
               value={boxCount}
               onChange={(e) => setBoxCount(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
           <div>
@@ -336,7 +336,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
               placeholder="e.g., 12"
               value={piecesPerBox}
               onChange={(e) => setPiecesPerBox(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
         </div>
@@ -366,7 +366,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
           <select
             value={selectedSupplier}
             onChange={(e) => setSelectedSupplier(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 appearance-none"
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 appearance-none"
             disabled={loadingSuppliers}
           >
             <option value="">Select supplier...</option>
@@ -395,7 +395,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
               placeholder="PO # or Invoice #"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
         </div>
@@ -408,7 +408,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
             placeholder="Additional notes..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
           />
         </div>
       </div>
@@ -520,7 +520,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
             placeholder="Enter quantity..."
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
           />
         </div>
       </div>
@@ -551,7 +551,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
               placeholder="Customer name..."
               value={customer}
               onChange={(e) => setCustomer(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
         </div>
@@ -566,7 +566,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
               placeholder="e.g., Sales Order, Damaged"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
         </div>
@@ -582,7 +582,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
             placeholder="SO # or Invoice #"
             value={reference}
             onChange={(e) => setReference(e.target.value)}
-            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
           />
         </div>
         <div>
@@ -594,7 +594,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
             placeholder="Additional notes..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
           />
         </div>
       </div>
@@ -657,7 +657,7 @@ function StockHistory({ movements, loading, onRefresh }: {
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
         <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Layers className="w-5 h-5 text-[#7c4dff]" />
+          <Layers className="w-5 h-5 text-[#014582]" />
           Stock Movement History
           <span className="text-xs font-normal text-gray-400 ml-2">
             ({movements.length} records)
@@ -671,7 +671,7 @@ function StockHistory({ movements, loading, onRefresh }: {
               placeholder="Search..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none w-36"
+              className="pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none w-36"
             />
           </div>
           <div className="flex gap-1 border border-gray-200 rounded-lg p-0.5">
@@ -683,7 +683,7 @@ function StockHistory({ movements, loading, onRefresh }: {
                   filterType === type
                     ? type === 'in' ? 'bg-green-100 text-green-700' :
                       type === 'out' ? 'bg-red-100 text-red-700' :
-                      'bg-[#7c4dff] text-white'
+                      'bg-[#014582] text-white'
                     : 'text-gray-500 hover:bg-gray-50'
                 }`}
               >
@@ -703,7 +703,7 @@ function StockHistory({ movements, loading, onRefresh }: {
 
       {loading ? (
         <div className="p-12 text-center">
-          <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+          <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
           <p className="mt-2 text-gray-500">Loading movements...</p>
         </div>
       ) : filteredMovements.length === 0 ? (
@@ -815,13 +815,13 @@ export default function StockMovementPage() {
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </Link>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Layers className="w-6 h-6 text-[#7c4dff]" />
+            <Layers className="w-6 h-6 text-[#014582]" />
             Stock Movement
           </h2>
         </div>
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+          className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all"
         >
           <Printer className="w-4 h-4" /> Print
         </button>

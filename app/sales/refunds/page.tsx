@@ -433,7 +433,7 @@ export default function SalesRefundsPage() {
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <DollarSign className="w-6 h-6 text-[#7c4dff]" />
+                <DollarSign className="w-6 h-6 text-[#014582]" />
                 Sales Refunds
                 <span className="text-sm font-normal text-gray-400 ml-2">
                   ({pagination.total} refunds)
@@ -443,7 +443,7 @@ export default function SalesRefundsPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleRefresh}
-                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
                 title="Refresh"
                 disabled={loading}
               >
@@ -451,7 +451,7 @@ export default function SalesRefundsPage() {
               </button>
               <button
                 onClick={openCreateForm}
-                className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+                className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
               >
                 <Plus className="w-4 h-4" />
                 Create Refund
@@ -495,7 +495,7 @@ export default function SalesRefundsPage() {
                   placeholder="Search refunds..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
                 {searchTerm && (
                   <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -508,7 +508,7 @@ export default function SalesRefundsPage() {
                 <select
                   value={statusFilter}
                   onChange={(e) => handleStatusFilterChange(e.target.value)}
-                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {statusOptions.map((status) => (
                     <option key={status} value={status}>
@@ -523,7 +523,7 @@ export default function SalesRefundsPage() {
                 <select
                   value={methodFilter}
                   onChange={(e) => handleMethodFilterChange(e.target.value)}
-                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {methodOptions.map((method) => (
                     <option key={method} value={method}>
@@ -539,18 +539,18 @@ export default function SalesRefundsPage() {
                   type="date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
                 <span className="text-gray-400 text-sm">to</span>
                 <input
                   type="date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
                 <button
                   onClick={handleDateFilter}
-                  className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] rounded-lg text-sm font-semibold hover:bg-[#7c4dff]/20 transition-all"
+                  className="px-4 py-2 bg-[#014582]/10 text-[#014582] rounded-lg text-sm font-semibold hover:bg-[#014582]/20 transition-all"
                 >
                   Apply
                 </button>
@@ -566,7 +566,7 @@ export default function SalesRefundsPage() {
                 onClick={() => handleFilterChange(filter)}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
                   selectedFilter === filter
-                    ? 'bg-[#7c4dff] text-white'
+                    ? 'bg-[#014582] text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -594,7 +594,7 @@ export default function SalesRefundsPage() {
                   {loading && refunds.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="text-center py-12">
-                        <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+                        <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
                         <p className="mt-2 text-gray-500">Loading refunds...</p>
                       </td>
                     </tr>
@@ -611,7 +611,7 @@ export default function SalesRefundsPage() {
                       <tr key={refund.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-3">
                           <div>
-                            <p className="font-medium text-[#7c4dff]">{refund.refundNumber}</p>
+                            <p className="font-medium text-[#014582]">{refund.refundNumber}</p>
                             <p className="text-xs text-gray-400">{formatDate(refund.refundDate)}</p>
                           </div>
                         </td>
@@ -689,7 +689,7 @@ export default function SalesRefundsPage() {
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="px-6 py-2 text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50"
+                  className="px-6 py-2 text-sm font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all disabled:opacity-50"
                 >
                   {loadingMore ? (
                     <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -716,7 +716,7 @@ export default function SalesRefundsPage() {
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg">
+                <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg">
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
@@ -802,7 +802,7 @@ function CreateRefundForm({
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </button>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <DollarSign className="w-6 h-6 text-[#7c4dff]" />
+            <DollarSign className="w-6 h-6 text-[#014582]" />
             Create Refund
           </h2>
         </div>
@@ -824,13 +824,13 @@ function CreateRefundForm({
                   placeholder="Search order number or customer name..."
                   value={orderSearchQuery}
                   onChange={(e) => handleSearchOrders(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
 
               {formState.isSearchingOrders && (
                 <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 p-4">
-                  <Loader2 className="w-6 h-6 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-6 h-6 mx-auto text-[#014582] animate-spin" />
                 </div>
               )}
 
@@ -842,7 +842,7 @@ function CreateRefundForm({
                       onClick={() => selectOrder(order)}
                       className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-none transition-colors"
                     >
-                      <p className="font-medium text-[#7c4dff]">{order.orderNumber}</p>
+                      <p className="font-medium text-[#014582]">{order.orderNumber}</p>
                       <p className="text-sm text-gray-600">{order.customerName}</p>
                       <p className="text-xs text-gray-400">Total: {formatCurrency(order.grandTotal)}</p>
                     </button>
@@ -852,10 +852,10 @@ function CreateRefundForm({
             </div>
 
             {formState.selectedOrder && (
-              <div className="mt-3 p-3 bg-[#7c4dff]/5 border border-[#7c4dff]/20 rounded-lg">
+              <div className="mt-3 p-3 bg-[#014582]/5 border border-[#014582]/20 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-[#7c4dff]">{formState.selectedOrder.orderNumber}</p>
+                    <p className="font-semibold text-[#014582]">{formState.selectedOrder.orderNumber}</p>
                     <p className="text-sm text-gray-600">{formState.selectedOrder.customerName}</p>
                     <p className="text-xs text-gray-400">Total: {formatCurrency(formState.selectedOrder.grandTotal)}</p>
                   </div>
@@ -888,7 +888,7 @@ function CreateRefundForm({
                     min="0"
                     value={formState.amount}
                     onChange={(e) => setFormState(prev => ({ ...prev, amount: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                     placeholder="0.00"
                   />
                 </div>
@@ -900,7 +900,7 @@ function CreateRefundForm({
                 <select
                   value={formState.refundMethod}
                   onChange={(e) => setFormState(prev => ({ ...prev, refundMethod: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {methodOptions.map((method: string) => (
                     <option key={method} value={method}>{method}</option>
@@ -919,7 +919,7 @@ function CreateRefundForm({
                       placeholder="Enter bank name"
                       value={formState.bankName}
                       onChange={(e) => setFormState(prev => ({ ...prev, bankName: e.target.value }))}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                     />
                   </div>
                   <div>
@@ -929,7 +929,7 @@ function CreateRefundForm({
                       placeholder="Enter account number"
                       value={formState.accountNumber}
                       onChange={(e) => setFormState(prev => ({ ...prev, accountNumber: e.target.value }))}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                     />
                   </div>
                   <div>
@@ -939,7 +939,7 @@ function CreateRefundForm({
                       placeholder="Enter account holder name"
                       value={formState.accountHolderName}
                       onChange={(e) => setFormState(prev => ({ ...prev, accountHolderName: e.target.value }))}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                     />
                   </div>
                 </div>
@@ -953,7 +953,7 @@ function CreateRefundForm({
                   placeholder="Enter reason for refund..."
                   value={formState.reason}
                   onChange={(e) => setFormState(prev => ({ ...prev, reason: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none resize-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none resize-none"
                 />
               </div>
 
@@ -965,7 +965,7 @@ function CreateRefundForm({
                   placeholder="Additional notes..."
                   value={formState.notes}
                   onChange={(e) => setFormState(prev => ({ ...prev, notes: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none resize-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none resize-none"
                 />
               </div>
 
@@ -977,7 +977,7 @@ function CreateRefundForm({
                   placeholder="Enter reference number"
                   value={formState.referenceNumber}
                   onChange={(e) => setFormState(prev => ({ ...prev, referenceNumber: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
             </div>
@@ -994,7 +994,7 @@ function CreateRefundForm({
             <button
               onClick={handleCreateRefund}
               disabled={!formState.selectedOrder || submitting}
-              className="flex-1 px-4 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1029,10 +1029,10 @@ function RefundDetailModal({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-[#7c4dff]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <DollarSign className="w-6 h-6 text-[#7c4dff]" />
+            <div className="w-12 h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <DollarSign className="w-6 h-6 text-[#014582]" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">{refund.refundNumber}</h2>
@@ -1055,7 +1055,7 @@ function RefundDetailModal({
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <p className="text-xs text-gray-400 font-medium">Order</p>
-              <p className="text-sm font-semibold text-[#7c4dff] mt-1">{refund.orderNumber}</p>
+              <p className="text-sm font-semibold text-[#014582] mt-1">{refund.orderNumber}</p>
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Customer</p>
@@ -1063,7 +1063,7 @@ function RefundDetailModal({
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Amount</p>
-              <p className="text-lg font-bold text-[#7c4dff] mt-1">{formatCurrency(refund.amount)}</p>
+              <p className="text-lg font-bold text-[#014582] mt-1">{formatCurrency(refund.amount)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Method</p>

@@ -56,12 +56,12 @@ function CategoryListView({
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <FolderTree className="w-5 h-5 text-[#7c4dff]" />
+          <FolderTree className="w-5 h-5 text-[#014582]" />
           Categories ({categories.length})
         </h3>
         <button
           onClick={onAdd}
-          className="flex items-center gap-2 px-3 py-1.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-md"
+          className="flex items-center gap-2 px-3 py-1.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-md"
         >
           <Plus className="w-4 h-4" />
           Add Category
@@ -76,7 +76,7 @@ function CategoryListView({
           placeholder="Search categories..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
         />
       </div>
 
@@ -97,7 +97,7 @@ function CategoryListView({
               {loading ? (
                 <tr>
                   <td colSpan={5} className="text-center py-12">
-                    <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+                    <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
                     <p className="mt-2 text-gray-500">Loading...</p>
                   </td>
                 </tr>
@@ -189,12 +189,12 @@ function SubcategoryListView({
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Layers className="w-5 h-5 text-[#7c4dff]" />
+          <Layers className="w-5 h-5 text-[#014582]" />
           Subcategories ({allSubs.length})
         </h3>
         <button
           onClick={onAdd}
-          className="flex items-center gap-2 px-3 py-1.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-md"
+          className="flex items-center gap-2 px-3 py-1.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-md"
         >
           <Plus className="w-4 h-4" />
           Add Subcategory
@@ -209,7 +209,7 @@ function SubcategoryListView({
           placeholder="Search subcategories..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
         />
       </div>
 
@@ -230,7 +230,7 @@ function SubcategoryListView({
               {loading ? (
                 <tr>
                   <td colSpan={5} className="text-center py-12">
-                    <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+                    <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
                     <p className="mt-2 text-gray-500">Loading...</p>
                   </td>
                 </tr>
@@ -317,8 +317,8 @@ function CategoryFormModal({
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-[#7c4dff]/10 rounded-lg">
-              <FolderTree className="w-5 h-5 text-[#7c4dff]" />
+            <div className="p-2 bg-[#014582]/10 rounded-lg">
+              <FolderTree className="w-5 h-5 text-[#014582]" />
             </div>
             <h3 className="text-lg font-bold text-gray-800">{title}</h3>
           </div>
@@ -341,7 +341,7 @@ function CategoryFormModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter name..."
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               required
             />
           </div>
@@ -352,7 +352,7 @@ function CategoryFormModal({
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="Auto-generated or custom"
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
           <div>
@@ -362,7 +362,7 @@ function CategoryFormModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description..."
               rows={2}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
             />
           </div>
 
@@ -377,7 +377,7 @@ function CategoryFormModal({
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {initialData?._id || initialData?.id ? 'Update' : 'Save'}
@@ -439,8 +439,8 @@ function SubcategoryFormModal({
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-[#7c4dff]/10 rounded-lg">
-              <Layers className="w-5 h-5 text-[#7c4dff]" />
+            <div className="p-2 bg-[#014582]/10 rounded-lg">
+              <Layers className="w-5 h-5 text-[#014582]" />
             </div>
             <h3 className="text-lg font-bold text-gray-800">{title}</h3>
           </div>
@@ -461,7 +461,7 @@ function SubcategoryFormModal({
             <select
               value={selectedParent}
               onChange={(e) => setSelectedParent(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               required
             >
               <option value="">Select parent...</option>
@@ -479,7 +479,7 @@ function SubcategoryFormModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter subcategory name..."
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               required
             />
           </div>
@@ -490,7 +490,7 @@ function SubcategoryFormModal({
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="Auto-generated or custom"
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
           <div>
@@ -500,7 +500,7 @@ function SubcategoryFormModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description..."
               rows={2}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
             />
           </div>
 
@@ -515,7 +515,7 @@ function SubcategoryFormModal({
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {initialData?._id || initialData?.id ? 'Update' : 'Save'}
@@ -539,7 +539,7 @@ function Tabs({ tabs, activeTab, onChange }: { tabs: string[]; activeTab: string
           onClick={() => onChange(tab)}
           className={`px-6 py-3 text-sm font-medium transition-all border-b-2 ${
             activeTab === tab
-              ? 'border-[#7c4dff] text-[#7c4dff] bg-[#7c4dff]/5'
+              ? 'border-[#014582] text-[#014582] bg-[#014582]/5'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
         >
@@ -690,12 +690,12 @@ export default function CategoriesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <FolderTree className="w-6 h-6 text-[#7c4dff]" />
+          <FolderTree className="w-6 h-6 text-[#014582]" />
           Categories & Subcategories
         </h2>
         <Link
           href="/warehouse/product-settings"
-          className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+          className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all"
         >
           <Settings className="w-4 h-4" />
           Settings

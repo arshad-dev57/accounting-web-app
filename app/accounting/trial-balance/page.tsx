@@ -242,7 +242,7 @@ export default function TrialBalancePage() {
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </Link>
           <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Scale className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+            <Scale className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
             Trial Balance
             <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
               ({pagination.total} accounts)
@@ -252,7 +252,7 @@ export default function TrialBalancePage() {
         <div className="flex items-center gap-2 md:gap-3">
           <button
             onClick={handleRefresh}
-            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
             title="Refresh"
             disabled={loading}
           >
@@ -262,7 +262,7 @@ export default function TrialBalancePage() {
             onClick={toggleZeroBalance}
             className={`flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
               showZeroBalance
-                ? 'bg-[#7c4dff] text-white'
+                ? 'bg-[#014582] text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
@@ -307,7 +307,7 @@ export default function TrialBalancePage() {
               placeholder="Search accounts..."
               value={searchTerm}
               onChange={(e) => handleSearch(e.target.value)}
-              className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+              className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
             />
             {searchTerm && (
               <button onClick={clearSearch} className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2">
@@ -321,7 +321,7 @@ export default function TrialBalancePage() {
               <select
                 value={filter.accountType}
                 onChange={(e) => handleAccountTypeChange(e.target.value)}
-                className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
                 {accountTypes.map((type) => (
                   <option key={type} value={type}>{type}</option>
@@ -335,7 +335,7 @@ export default function TrialBalancePage() {
                 type="date"
                 value={filter.startDate}
                 onChange={(e) => handleDateRangeChange(e.target.value, filter.endDate)}
-                className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
+                className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
                 placeholder="From"
               />
               <span className="text-gray-400 text-xs md:text-sm hidden xs:inline">to</span>
@@ -343,7 +343,7 @@ export default function TrialBalancePage() {
                 type="date"
                 value={filter.endDate}
                 onChange={(e) => handleDateRangeChange(filter.startDate, e.target.value)}
-                className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
+                className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
                 placeholder="To"
               />
               {(filter.startDate || filter.endDate) && (
@@ -360,7 +360,7 @@ export default function TrialBalancePage() {
       <div className="space-y-3 md:space-y-4">
         {loading && accounts.length === 0 ? (
           <div className="text-center py-8 md:py-12">
-            <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#7c4dff] animate-spin" />
+            <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
             <p className="mt-2 text-xs md:text-sm text-gray-500">Loading trial balance...</p>
           </div>
         ) : accounts.length === 0 ? (
@@ -399,7 +399,7 @@ export default function TrialBalancePage() {
                         )}
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mt-0.5">
-                        <span className="text-[10px] md:text-xs font-mono font-semibold text-[#7c4dff] bg-[#7c4dff]/10 px-1.5 md:px-2 py-0.5 rounded">
+                        <span className="text-[10px] md:text-xs font-mono font-semibold text-[#014582] bg-[#014582]/10 px-1.5 md:px-2 py-0.5 rounded">
                           {account.accountCode}
                         </span>
                         <span className="text-[10px] md:text-xs text-gray-400">•</span>
@@ -428,7 +428,7 @@ export default function TrialBalancePage() {
           <button
             onClick={loadMore}
             disabled={loadingMore}
-            className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50"
+            className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all disabled:opacity-50"
           >
             {loadingMore ? (
               <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -454,7 +454,7 @@ export default function TrialBalancePage() {
             >
               <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
             </button>
-            <span className="px-2 md:px-4 py-1 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg text-xs md:text-sm">
+            <span className="px-2 md:px-4 py-1 md:py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg text-xs md:text-sm">
               {pagination.page} / {pagination.pages}
             </span>
             <button
@@ -500,7 +500,7 @@ function AccountDetailModal({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
       <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-3 md:gap-4">
             <div className={`p-2 md:p-2.5 rounded-xl ${colorClass}`}>
               <Icon className="w-5 h-5 md:w-6 md:h-6" />
@@ -508,7 +508,7 @@ function AccountDetailModal({
             <div>
               <h2 className="text-lg md:text-xl font-bold text-gray-900">{account.accountName}</h2>
               <div className="flex flex-wrap items-center gap-1 md:gap-2 mt-1">
-                <span className="text-[10px] md:text-xs font-mono font-semibold text-[#7c4dff] bg-[#7c4dff]/10 px-1.5 md:px-2 py-0.5 rounded">
+                <span className="text-[10px] md:text-xs font-mono font-semibold text-[#014582] bg-[#014582]/10 px-1.5 md:px-2 py-0.5 rounded">
                   {account.accountCode}
                 </span>
                 <span className="text-[10px] md:text-xs text-gray-400">•</span>

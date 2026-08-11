@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
         user: data.user,
         token: token,                 // ← Include token for client-side storage
         refreshToken: refreshToken,   // ← Include refreshToken
+        pdfReportSettings:
+          data.pdfReportSettings || data.user?.pdfReportSettings || null,
       });
 
       console.log('🍪 [OTP API] Setting cookies');
@@ -75,6 +77,17 @@ export async function POST(request: NextRequest) {
         });
         console.log('✅ [OTP API] User data cookie set');
       }
+
+      // Hint for proxy — client will refresh accurately via /api/subscription/status
+      const sub = data.user?.subscription;
+      const hintActive = sub?.status === 'active';
+      nextResponse.cookies.set('subscription_access', hintActive ? '1' : '0', {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60,
+        path: '/',
+      });
 
       console.log('✅ [OTP API] Returning successful response');
       return nextResponse;

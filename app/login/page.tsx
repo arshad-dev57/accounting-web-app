@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 
 export default function LoginPage() {
@@ -113,13 +114,19 @@ export default function LoginPage() {
 
         <div className="relative z-10 flex flex-col justify-end p-12 text-white">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-11 h-11 bg-blue-600 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-              </svg>
+            <div className="w-32 h-16 bg-white rounded-xl flex items-center justify-center p-2">
+              <Image
+                src="/bisontechs.png"
+                alt="Bisonstechs"
+                width={120}
+                height={40}
+                className="object-contain"
+              />
             </div>
-            <span className="text-xl font-extrabold tracking-widest">LedgerPro</span>
+            <div>
+              <p className="text-2xl font-extrabold tracking-wide">Bisonstechs</p>
+              <p className="text-xs text-white/70">Business Suite</p>
+            </div>
           </div>
 
           <h1 className="text-4xl font-bold leading-tight mb-3">
@@ -145,17 +152,21 @@ export default function LoginPage() {
 
           {/* Mobile Logo */}
           <div className="lg:hidden flex flex-col items-center mb-8">
-            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-3">
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-              </svg>
+            <div className="w-40 h-20 bg-white rounded-xl flex items-center justify-center mb-3 p-2 shadow-lg">
+              <Image
+                src="/bisontechs.png"
+                alt="Bisonstechs"
+                width={150}
+                height={50}
+                className="object-contain"
+              />
             </div>
-            <span className="text-lg font-extrabold text-blue-600 tracking-widest">LedgerPro</span>
+            <p className="text-xl font-extrabold text-gray-800">Bisonstechs</p>
+            <p className="text-xs text-gray-500">Business Suite</p>
           </div>
 
           <h2 className="text-3xl font-bold text-gray-800 mb-1">Welcome Back!</h2>
-          <p className="text-gray-500 text-sm mb-8">Sign in to continue to your account</p>
+          <p className="text-gray-500 text-sm mb-8">Sign in to continue to Bisonstechs</p>
 
           <form onSubmit={handleSubmit} noValidate>
             {/* Email Field */}
@@ -241,7 +252,9 @@ export default function LoginPage() {
           {/* Sign Up Link */}
           <p className="text-center text-sm text-gray-500">
             Don&apos;t have an account?{' '}
-            <button className="text-blue-600 font-semibold hover:text-blue-700">Sign Up</button>
+            <Link href="/register" className="text-blue-600 font-semibold hover:text-blue-700">
+              Sign Up
+            </Link>
           </p>
         </div>
       </div>

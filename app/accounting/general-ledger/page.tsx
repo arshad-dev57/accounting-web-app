@@ -20,7 +20,7 @@ import {
   Filter as FilterIcon, Calendar as CalendarIcon,
   Download as DownloadIcon, Printer as PrinterIcon
 } from 'lucide-react';
-import { generalLedgerService, AccountSummary, LedgerEntry, LedgerStats } from '../../api/general-ledger/route';
+import { generalLedgerService, AccountSummary, LedgerEntry, LedgerStats } from '../../../lib/general-ledger-service';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -35,16 +35,17 @@ interface FilterState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
+const PAGE_SIZE = 10;
+
 export default function GeneralLedgerPage() {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [accountSummaries, setAccountSummaries] = useState<AccountSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 10,
+    limit: PAGE_SIZE,
     total: 0,
     pages: 0,
     hasNext: false,
@@ -66,10 +67,11 @@ export default function GeneralLedgerPage() {
     showCreditOnly: false
   });
   const [viewingEntry, setViewingEntry] = useState<LedgerEntry | null>(null);
-  const [accounts, setAccounts] = useState<any[]>([]);
 
   const [currencySymbol, setCurrencySymbol] = useState('Rs.');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestRequestRef = useRef(0);
 
   // ─── Get Currency Symbol from Local Storage ──────────────────
 
@@ -105,100 +107,80 @@ export default function GeneralLedgerPage() {
     }
   }, [filter.startDate, filter.endDate]);
 
-  // ─── Fetch Ledger Entries ────────────────────────────────────
-
-  const fetchEntries = useCallback(async (resetPage = true) => {
+  const fetchEntries = useCallback(async (page: number) => {
+    const requestId = ++latestRequestRef.current;
     setLoading(true);
     try {
-      const page = resetPage ? 1 : pagination.page;
-      const accountId = filter.account !== 'All Accounts' 
-        ? accountSummaries.find(a => a.accountName === filter.account)?.accountId 
-        : undefined;
+      const accountId =
+        filter.account !== 'All Accounts' ? filter.account : undefined;
 
       const response = await generalLedgerService.getEntries({
         page,
-        limit: pagination.limit,
-        accountId: accountId,
-        search: searchTerm || undefined,
+        limit: PAGE_SIZE,
+        accountId,
+        search: debouncedSearch.trim() || undefined,
         startDate: filter.startDate || undefined,
         endDate: filter.endDate || undefined,
         showDebitOnly: filter.showDebitOnly || undefined,
         showCreditOnly: filter.showCreditOnly || undefined
       });
 
-      console.log('Fetch entries response:', response);
-      console.log('Response data type:', typeof response.data);
-      console.log('Response data is array:', Array.isArray(response.data));
-      console.log('Response data:', response.data);
+      if (requestId !== latestRequestRef.current) return;
 
-      const entriesData = response.data;
-      const safeEntries = Array.isArray(entriesData) ? entriesData : [];
-      
-      console.log('Setting entries to:', safeEntries);
+      const safeEntries = Array.isArray(response.data) ? response.data : [];
+      const pages = Math.max(0, response.pagination?.pages ?? 0);
+      const currentPage = response.pagination?.page ?? page;
+
       setEntries(safeEntries);
-      setPagination(response.pagination);
+      setPagination({
+        page: currentPage,
+        limit: PAGE_SIZE,
+        total: response.pagination?.total ?? safeEntries.length,
+        pages,
+        hasNext: response.pagination?.hasNext ?? currentPage < pages,
+        hasPrev: response.pagination?.hasPrev ?? currentPage > 1
+      });
       if (response.stats) {
         setStats(response.stats);
       }
     } catch (error: any) {
+      if (requestId !== latestRequestRef.current) return;
       console.error('Failed to fetch entries:', error);
       setEntries([]);
       alert(error.message || 'Failed to load ledger entries');
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) {
+        setLoading(false);
+      }
     }
-  }, [filter, searchTerm, pagination.page, pagination.limit, accountSummaries]);
-
-  // ─── Load More ──────────────────────────────────────────────
-
-  const loadMore = useCallback(async () => {
-    if (!pagination.hasNext || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const nextPage = pagination.page + 1;
-      const accountId = filter.account !== 'All Accounts' 
-        ? accountSummaries.find(a => a.accountName === filter.account)?.accountId 
-        : undefined;
-
-      const response = await generalLedgerService.getEntries({
-        page: nextPage,
-        limit: pagination.limit,
-        accountId: accountId,
-        search: searchTerm || undefined,
-        startDate: filter.startDate || undefined,
-        endDate: filter.endDate || undefined,
-        showDebitOnly: filter.showDebitOnly || undefined,
-        showCreditOnly: filter.showCreditOnly || undefined
-      });
-
-      const newEntries = Array.isArray(response.data) ? response.data : [];
-      setEntries(prev => [...prev, ...newEntries]);
-      setPagination(response.pagination);
-    } catch (error) {
-      console.error('Failed to load more entries:', error);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm, accountSummaries]);
-
-  // ─── Initial Fetch ──────────────────────────────────────────
+  }, [filter, debouncedSearch]);
 
   useEffect(() => {
     fetchAccountSummaries();
-  }, []);
+  }, [fetchAccountSummaries]);
 
   useEffect(() => {
-    fetchEntries(true);
-  }, [filter, searchTerm]);
+    fetchEntries(1);
+  }, [filter, debouncedSearch, fetchEntries]);
 
-  // ─── Search ──────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
 
   const handleSearch = (query: string) => {
     setSearchTerm(query);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setDebouncedSearch(query);
+    }, 300);
   };
 
   const clearSearch = () => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     setSearchTerm('');
+    setDebouncedSearch('');
   };
 
   // ─── Filter Changes ──────────────────────────────────────────
@@ -247,12 +229,19 @@ export default function GeneralLedgerPage() {
   };
 
   const handleRefresh = () => {
-    fetchEntries(true);
+    fetchEntries(pagination.page);
   };
 
   const handlePageChange = (page: number) => {
-    setPagination(prev => ({ ...prev, page }));
-    fetchEntries(false);
+    if (
+      loading ||
+      page < 1 ||
+      page > pagination.pages ||
+      page === pagination.page
+    ) {
+      return;
+    }
+    fetchEntries(page);
   };
 
   // ─── View Entry Detail ─────────────────────────────────────
@@ -322,7 +311,7 @@ export default function GeneralLedgerPage() {
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </Link>
           <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+            <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
             General Ledger
             <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
               ({pagination.total} entries)
@@ -332,7 +321,7 @@ export default function GeneralLedgerPage() {
         <div className="flex items-center gap-2 md:gap-3">
           <button
             onClick={handleRefresh}
-            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
             title="Refresh"
             disabled={loading}
           >
@@ -381,7 +370,7 @@ export default function GeneralLedgerPage() {
               placeholder="Search entries..."
               value={searchTerm}
               onChange={(e) => handleSearch(e.target.value)}
-              className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+              className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
             />
             {searchTerm && (
               <button onClick={clearSearch} className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2">
@@ -395,11 +384,11 @@ export default function GeneralLedgerPage() {
               <select
                 value={filter.account}
                 onChange={(e) => handleAccountChange(e.target.value)}
-                className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
                 <option value="All Accounts">All Accounts</option>
                 {accountSummaries.map((acc) => (
-                  <option key={acc.accountId} value={acc.accountName}>
+                  <option key={acc.accountId} value={acc.accountId}>
                     {acc.accountCode} - {acc.accountName}
                   </option>
                 ))}
@@ -412,7 +401,7 @@ export default function GeneralLedgerPage() {
                 type="date"
                 value={filter.startDate}
                 onChange={(e) => handleDateRangeChange(e.target.value, filter.endDate)}
-                className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
+                className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
                 placeholder="From"
               />
               <span className="text-gray-400 text-xs md:text-sm hidden xs:inline">to</span>
@@ -420,7 +409,7 @@ export default function GeneralLedgerPage() {
                 type="date"
                 value={filter.endDate}
                 onChange={(e) => handleDateRangeChange(filter.startDate, e.target.value)}
-                className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
+                className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
                 placeholder="To"
               />
               {(filter.startDate || filter.endDate) && (
@@ -489,7 +478,7 @@ export default function GeneralLedgerPage() {
               {loading && (Array.isArray(entries) ? entries : []).length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center py-8 md:py-12">
-                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#7c4dff] animate-spin" />
+                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                     <p className="mt-2 text-xs md:text-sm text-gray-500">Loading ledger entries...</p>
                   </td>
                 </tr>
@@ -502,20 +491,20 @@ export default function GeneralLedgerPage() {
                   </td>
                 </tr>
               ) : (
-                (Array.isArray(entries) ? entries : []).map((entry) => {
+                (Array.isArray(entries) ? entries : []).map((entry, index) => {
                   const Icon = getAccountIcon(entry.accountName);
                   const colorClass = getAccountTypeColor(entry.accountName);
                   const isDebit = entry.debit > 0;
                   const balancePositive = entry.balance >= 0;
 
                   return (
-                    <tr key={entry.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <tr key={`${entry.id}-${entry.accountId}-${index}`} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                       <td className="px-3 md:px-6 py-2 md:py-3">
                         <p className="text-xs md:text-sm text-gray-600">{formatDate(entry.date)}</p>
                       </td>
                       <td className="px-3 md:px-6 py-2 md:py-3 hidden sm:table-cell">
-                        <span className="text-[10px] md:text-xs font-mono font-semibold text-[#7c4dff] bg-[#7c4dff]/10 px-1.5 md:px-2 py-0.5 rounded">
-                          {entry.journalId ? `JE-${entry.journalId.substring(0, 6)}` : '-'}
+                        <span className="text-[10px] md:text-xs font-mono font-semibold text-[#014582] bg-[#014582]/10 px-1.5 md:px-2 py-0.5 rounded">
+                          {entry.entryNumber || (entry.journalId ? `JE-${entry.journalId.substring(0, 6)}` : '-')}
                         </span>
                       </td>
                       <td className="px-3 md:px-6 py-2 md:py-3">
@@ -569,49 +558,144 @@ export default function GeneralLedgerPage() {
           </table>
         </div>
 
-        {/* Load More */}
-        {pagination.hasNext && entries.length > 0 && (
-          <div className="flex justify-center py-3 md:py-4 border-t border-gray-100">
-            <button
-              onClick={loadMore}
-              disabled={loadingMore}
-              className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50"
-            >
-              {loadingMore ? (
-                <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-              ) : (
-                'Load More'
-              )}
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* Pagination */}
-      {pagination.pages > 1 && (
-        <div className="flex flex-col xs:flex-row items-center justify-between gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
-          <p className="text-[10px] md:text-sm text-gray-500 text-center xs:text-left">
-            Showing {(pagination.page - 1) * pagination.limit + 1} –{' '}
-            {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
-          </p>
-          <div className="flex gap-1 md:gap-2">
-            <button
-              onClick={() => handlePageChange(pagination.page - 1)}
-              disabled={!pagination.hasPrev}
-              className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            </button>
-            <span className="px-2 md:px-4 py-1 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg text-xs md:text-sm">
-              {pagination.page} / {pagination.pages}
-            </span>
-            <button
-              onClick={() => handlePageChange(pagination.page + 1)}
-              disabled={!pagination.hasNext}
-              className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            </button>
+      {pagination.total > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-xs md:text-sm text-gray-500">
+              Showing{' '}
+              <span className="font-semibold text-gray-700">
+                {pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1}
+              </span>{' '}
+              –{' '}
+              <span className="font-semibold text-gray-700">
+                {Math.min(pagination.page * pagination.limit, pagination.total)}
+              </span>{' '}
+              of{' '}
+              <span className="font-semibold text-gray-700">{pagination.total}</span> entries
+            </p>
+
+            <div className="flex items-center gap-1 md:gap-2">
+              <button
+                onClick={() => handlePageChange(1)}
+                disabled={pagination.page === 1 || loading}
+                className="hidden sm:flex p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                title="First page"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-4 h-4 -ml-3" />
+              </button>
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={!pagination.hasPrev || loading}
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                title="Previous page"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-1">
+                {(() => {
+                  const pages = [];
+                  const maxVisible = 5;
+                  let startPage = Math.max(1, pagination.page - Math.floor(maxVisible / 2));
+                  let endPage = Math.min(Math.max(pagination.pages, 1), startPage + maxVisible - 1);
+
+                  if (endPage - startPage + 1 < maxVisible) {
+                    startPage = Math.max(1, endPage - maxVisible + 1);
+                  }
+
+                  if (startPage > 1) {
+                    pages.push(
+                      <button
+                        key={1}
+                        onClick={() => handlePageChange(1)}
+                        className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-xs md:text-sm font-medium transition-all"
+                      >
+                        1
+                      </button>
+                    );
+                    if (startPage > 2) {
+                      pages.push(
+                        <span key="start-ellipsis" className="px-2 text-gray-400">...</span>
+                      );
+                    }
+                  }
+
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <button
+                        key={i}
+                        onClick={() => handlePageChange(i)}
+                        className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg text-xs md:text-sm font-medium transition-all ${
+                          i === pagination.page
+                            ? 'bg-[#014582] text-white border-[#014582] shadow-md shadow-[#014582]/25'
+                            : 'border border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        {i}
+                      </button>
+                    );
+                  }
+
+                  if (endPage < pagination.pages) {
+                    if (endPage < pagination.pages - 1) {
+                      pages.push(
+                        <span key="end-ellipsis" className="px-2 text-gray-400">...</span>
+                      );
+                    }
+                    pages.push(
+                      <button
+                        key={pagination.pages}
+                        onClick={() => handlePageChange(pagination.pages)}
+                        className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-xs md:text-sm font-medium transition-all"
+                      >
+                        {pagination.pages}
+                      </button>
+                    );
+                  }
+
+                  return pages;
+                })()}
+              </div>
+
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={!pagination.hasNext || loading}
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                title="Next page"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handlePageChange(pagination.pages)}
+                disabled={pagination.page === pagination.pages || loading || pagination.pages < 1}
+                className="hidden sm:flex p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                title="Last page"
+              >
+                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4 -ml-3" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs md:text-sm text-gray-500">Go to</span>
+              <input
+                type="number"
+                min={1}
+                max={pagination.pages}
+                value={pagination.page}
+                onChange={(e) => {
+                  const page = parseInt(e.target.value, 10);
+                  if (page >= 1 && page <= pagination.pages) {
+                    handlePageChange(page);
+                  }
+                }}
+                className="w-12 md:w-16 px-2 py-1.5 border border-gray-200 rounded-lg text-xs md:text-sm text-center focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
+              />
+              <span className="text-xs md:text-sm text-gray-500">of {pagination.pages}</span>
+            </div>
           </div>
         </div>
       )}
@@ -651,7 +735,7 @@ function EntryDetailModal({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-3 md:gap-4">
             <div className={`p-2 md:p-2.5 rounded-xl ${colorClass}`}>
               <Icon className="w-5 h-5 md:w-6 md:h-6" />

@@ -4,7 +4,8 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, ShieldCheck, RotateCcw } from 'lucide-react';
-import { apiClient } from '../lib/api-client'; 
+import { apiClient } from '../lib/api-client';
+import { saveUserToLocal } from '../../lib/permission-service'; 
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 60;
@@ -99,42 +100,30 @@ function OtpContent() {
           apiClient.setTokens(data.token, data.refreshToken);
         }
 
-        // ✅ Save complete user data with permissions to localStorage
+        // ✅ Save complete user data with permissions to localStorage (Flutter PermissionService parity)
         if (data.user) {
-          console.log('💾 [OTP Page] Saving user data with permissions to localStorage');
-          localStorage.setItem('user', JSON.stringify(data.user));
+          const saved = saveUserToLocal(data.user);
           console.log('✅ [OTP Page] User data saved:', {
-            id: data.user.id,
-            email: data.user.email,
-            role: data.user.role,
-            permissions: data.user.permissions?.length || 0,
+            id: saved?.id,
+            email: saved?.email,
+            role: saved?.role,
+            permissions: saved?.permissions?.length || 0,
           });
         }
 
-        // ✅ Save currency from user data to localStorage
-        if (data.user && data.user.businessDetails) {
-          const currencyCode = data.user.businessDetails.currencyCode;
-          const currencySymbol = data.user.businessDetails.currencySymbol;
-          
-          if (currencyCode && currencySymbol) {
-            console.log('💰 [OTP Page] Saving currency from user data:', currencyCode, currencySymbol);
-            const currencyData = {
-              code: currencyCode,
-              name: currencyCode, // Will be updated from currency list if needed
-              symbol: currencySymbol,
-              symbolNative: currencySymbol,
-              countryCode: undefined, // Will be mapped if needed
-            };
-            localStorage.setItem('sales_selected_currency', JSON.stringify(currencyData));
-            console.log('✅ [OTP Page] Currency saved to localStorage');
-          }
-        }
+        // ✅ Cache PDF report branding (same as Flutter persistFromLogin)
+        const { persistPdfReportSettingsFromLogin } = await import('../../lib/pdf-report-settings');
+        persistPdfReportSettingsFromLogin(
+          data.pdfReportSettings || data.user?.pdfReportSettings
+        );
 
-        setSuccess('Verified! Redirecting...');
-        console.log('✅ [OTP Page] Redirecting to dashboard');
+        setSuccess('Verified! Checking subscription...');
+        const { resolvePostAuthDestination } = await import('../../lib/subscription-service');
+        const destination = await resolvePostAuthDestination(data.token);
+        console.log('✅ [OTP Page] Redirecting to', destination);
         setTimeout(() => {
-          window.location.replace('/dashboard');
-        }, 500);
+          window.location.replace(destination);
+        }, 400);
       } else {
         console.log('❌ [OTP Page] Verification failed:', data.message);
         setError(data.message || 'Invalid OTP. Please try again.');
@@ -175,158 +164,126 @@ function OtpContent() {
     }
   };
 
-  const pills = ['End-to-End Encrypted', 'Expires in 10 min', 'Bank-grade Security', 'Zero Data Sharing'];
   const otpFilled = otp.join('').length === OTP_LENGTH;
 
   return (
-    <div className="min-h-screen flex bg-white">
-      {/* LEFT PANEL */}
-      <div className="hidden lg:flex lg:w-1/2 relative">
-        <div className="absolute inset-0">
-          <Image
-            src="https://images.unsplash.com/photo-1553413077-190dd305871c?w=900&q=80&fit=crop"
-            alt="Security"
-            fill
-            sizes="50vw"
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
-          <div className="absolute inset-0 bg-blue-600/20" />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
+        {/* Logo */}
+        <div className="flex flex-col items-center justify-center mb-6">
+          <div className="w-32 h-16 bg-white rounded-xl flex items-center justify-center p-2 border border-gray-200">
+            <Image
+              src="/bisontechs.png"
+              alt="Bisonstechs"
+              width={120}
+              height={40}
+              className="object-contain"
+            />
+          </div>
+          <p className="mt-2 text-lg font-extrabold text-gray-800">Bisonstechs</p>
         </div>
 
-        <div className="relative z-10 flex flex-col justify-end p-12 text-white">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-11 h-11 bg-blue-600 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-              </svg>
-            </div>
-            <span className="text-xl font-extrabold tracking-widest">LedgerPro</span>
+        {/* Back */}
+        <button
+          onClick={() => router.push('/login')}
+          className="flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600 font-medium mb-6 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Login
+        </button>
+
+        {/* Shield icon */}
+        <div className="flex items-center justify-center w-16 h-16 bg-blue-50 rounded-2xl border border-blue-100 mb-5 mx-auto">
+          <ShieldCheck className="w-8 h-8 text-blue-600" />
+        </div>
+
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-1">Verify Your Identity</h2>
+        <p className="text-gray-500 text-sm text-center mb-1">A 6-digit security code was sent to</p>
+        <p className="text-blue-600 font-semibold text-sm text-center mb-7 break-all">{email}</p>
+
+        {/* Success message */}
+        {success && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm font-medium text-center">
+            {success}
           </div>
-          <h1 className="text-4xl font-bold leading-tight mb-3">
-            Your Security<br />Comes First
-          </h1>
-          <p className="text-white/70 text-sm leading-relaxed mb-8 max-w-sm">
-            We verify every login with a one-time code to keep your financial data protected.
+        )}
+
+        {/* OTP inputs */}
+        <div className="flex justify-center gap-3 mb-2" onPaste={handlePaste}>
+          {otp.map((digit, index) => (
+            <input
+              key={index}
+              ref={(el) => { inputRefs.current[index] = el; }}
+              type="text"
+              inputMode="numeric"
+              maxLength={1}
+              value={digit}
+              onChange={(e) => handleChange(index, e.target.value)}
+              onKeyDown={(e) => handleKeyDown(index, e)}
+              className={`w-14 h-16 text-center text-2xl font-bold rounded-xl border-2 transition-all duration-200
+                ${digit ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 bg-gray-50 text-gray-800'}
+                ${error ? '!border-red-400 !bg-red-50' : ''}
+                focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white`}
+            />
+          ))}
+        </div>
+
+        {/* Error */}
+        {error && (
+          <p className="text-sm text-red-500 text-center mb-4 flex items-center justify-center gap-1">
+            <span>⚠️</span> {error}
           </p>
-          <div className="flex flex-wrap gap-2">
-            {pills.map((p) => (
-              <span key={p} className="px-4 py-2 bg-white/10 border border-white/25 rounded-full text-xs font-semibold backdrop-blur-sm">
-                {p}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
+        )}
 
-      {/* RIGHT PANEL */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-8">
-        <div className="w-full max-w-sm">
+        <div className="h-4" />
 
-          {/* Back */}
-          <button
-            onClick={() => router.push('/login')}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600 font-medium mb-8 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Login
-          </button>
-
-          {/* Shield icon */}
-          <div className="flex items-center justify-center w-16 h-16 bg-blue-50 rounded-2xl border border-blue-100 mb-5 mx-auto">
-            <ShieldCheck className="w-8 h-8 text-blue-600" />
-          </div>
-
-          <h2 className="text-2xl font-bold text-center text-gray-800 mb-1">Verify Your Identity</h2>
-          <p className="text-gray-500 text-sm text-center mb-1">A 6-digit security code was sent to</p>
-          <p className="text-blue-600 font-semibold text-sm text-center mb-7 break-all">{email}</p>
-
-          {/* Success message */}
-          {success && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm font-medium text-center">
-              {success}
-            </div>
+        {/* VERIFY BUTTON */}
+        <button
+          onClick={handleVerify}
+          disabled={isLoading || !otpFilled}
+          className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base
+            transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+            flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 mb-4"
+        >
+          {isLoading ? (
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <>
+              <ShieldCheck className="w-5 h-5" />
+              Verify & Sign In
+            </>
           )}
+        </button>
 
-          {/* OTP inputs */}
-          <div className="flex justify-center gap-3 mb-2" onPaste={handlePaste}>
-            {otp.map((digit, index) => (
-              <input
-                key={index}
-                ref={(el) => { inputRefs.current[index] = el; }}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleChange(index, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(index, e)}
-                className={`w-14 h-16 text-center text-2xl font-bold rounded-xl border-2 transition-all duration-200
-                  ${digit ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 bg-gray-50 text-gray-800'}
-                  ${error ? '!border-red-400 !bg-red-50' : ''}
-                  focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white`}
-              />
-            ))}
-          </div>
-
-          {/* Error */}
-          {error && (
-            <p className="text-sm text-red-500 text-center mb-4 flex items-center justify-center gap-1">
-              <span>⚠️</span> {error}
-            </p>
-          )}
-
-          <div className="h-4" />
-
-          {/* VERIFY BUTTON */}
-          <button
-            onClick={handleVerify}
-            disabled={isLoading || !otpFilled}
-            className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base
-              transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
-              flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 mb-4"
-          >
-            {isLoading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <>
-                <ShieldCheck className="w-5 h-5" />
-                Verify & Sign In
-              </>
-            )}
-          </button>
-
-          {/* Security note */}
-          <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 mb-5">
-            <p className="text-xs text-gray-400 leading-relaxed text-center">
-              🔒 LedgerPro will never ask for your OTP via phone or chat. If you didn&apos;t attempt to login, please secure your account immediately.
-            </p>
-          </div>
-
-          {/* Resend */}
-          <div className="text-center">
-            <p className="text-sm text-gray-500 mb-1">Didn&apos;t receive the code?</p>
-            {timer > 0 ? (
-              <p className="text-sm text-gray-400">
-                Resend in <span className="font-semibold text-blue-600">{timer}s</span>
-              </p>
-            ) : (
-              <button
-                onClick={handleResend}
-                disabled={isResending}
-                className="flex items-center gap-1.5 mx-auto text-sm text-blue-600 font-semibold hover:text-blue-700 disabled:opacity-50 transition-colors"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                {isResending ? 'Sending...' : 'Resend OTP'}
-              </button>
-            )}
-          </div>
-
-          <p className="text-center text-xs text-gray-400 mt-4">
-            Can&apos;t find the email? Check your spam folder.
+        {/* Security note */}
+        <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 mb-5">
+          <p className="text-xs text-gray-400 leading-relaxed text-center">
+            🔒 BisonTechs will never ask for your OTP via phone or chat. If you didn&apos;t attempt to login, please secure your account immediately.
           </p>
         </div>
+
+        {/* Resend */}
+        <div className="text-center">
+          <p className="text-sm text-gray-500 mb-1">Didn&apos;t receive the code?</p>
+          {timer > 0 ? (
+            <p className="text-sm text-gray-400">
+              Resend in <span className="font-semibold text-blue-600">{timer}s</span>
+            </p>
+          ) : (
+            <button
+              onClick={handleResend}
+              disabled={isResending}
+              className="flex items-center gap-1.5 mx-auto text-sm text-blue-600 font-semibold hover:text-blue-700 disabled:opacity-50 transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              {isResending ? 'Sending...' : 'Resend OTP'}
+            </button>
+          )}
+        </div>
+
+        <p className="text-center text-xs text-gray-400 mt-4">
+          Can&apos;t find the email? Check your spam folder.
+        </p>
       </div>
     </div>
   );

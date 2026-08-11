@@ -68,7 +68,7 @@ export default function GoodsReceiptsPage() {
               <h1 className="text-2xl font-bold text-gray-900">Goods Receipts</h1>
               <p className="mt-1 text-sm text-gray-500">Manage incoming goods from suppliers</p>
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#6c3fe0] transition-all">
+            <button className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#01366a] transition-all">
               <Plus className="w-4 h-4" />
               <span>New Receipt</span>
             </button>
@@ -88,13 +88,13 @@ export default function GoodsReceiptsPage() {
                 placeholder="Search receipts..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#014582] focus:border-transparent"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#014582] focus:border-transparent"
             >
               <option value="all">All Status</option>
               <option value="Pending">Pending</option>
@@ -109,7 +109,7 @@ export default function GoodsReceiptsPage() {
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 text-[#7c4dff] animate-spin" />
+              <Loader2 className="w-8 h-8 text-[#014582] animate-spin" />
             </div>
           ) : receipts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
@@ -211,7 +211,7 @@ export default function GoodsReceiptsPage() {
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
-                    <span className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg text-sm">
+                    <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg text-sm">
                       {pagination.page} / {pagination.pages}
                     </span>
                     <button

@@ -14,9 +14,15 @@ import {
   ChevronDown,
   User,
   ShoppingCart,
-  Package
+  Package,
+  Store,
+  CreditCard,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
+import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
+import ProfileDropdown from '../../components/ProfileDropdown';
+import { performLogout } from '../../lib/auth-logout';
+import SubscriptionStatusBanner from '../../components/SubscriptionStatusBanner';
 
 // ============================================================
 // SIDEBAR
@@ -31,7 +37,9 @@ function Sidebar() {
     { icon: <Warehouse className="w-5 h-5" />, label: 'Warehouse', path: '/warehouse/dashboard', show: isAdmin || hasModuleAccess('warehouse') },
     { icon: <ShoppingCart className="w-5 h-5" />, label: 'Sales', path: '/sales', show: isAdmin || hasModuleAccess('sales') },
     { icon: <Package className="w-5 h-5" />, label: 'Purchases', path: '/purchases', show: isAdmin || hasModuleAccess('purchases') },
+    { icon: <Store className="w-5 h-5" />, label: 'Point of Sale', path: '/pos', show: isAdmin || hasModuleAccess('pos') },
     { icon: <User className="w-5 h-5" />, label: 'Users', path: '/users', show: isAdmin },
+    { icon: <CreditCard className="w-5 h-5" />, label: 'Subscription Plans', path: '/plans', show: isAdmin },
   ];
 
   const filteredMenuItems = menuItems.filter(item => item.show);
@@ -42,12 +50,7 @@ function Sidebar() {
 
   return (
     <div className="w-56 min-h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0">
-      <div className="flex items-center gap-3 px-5 py-6 border-b border-white/10">
-        <div className="w-10 h-10 bg-[#7c4dff] rounded-xl flex items-center justify-center">
-          <span className="text-xl font-bold">W</span>
-        </div>
-        <span className="text-lg font-extrabold tracking-wider">WarehousePro</span>
-      </div>
+      <BrandHeader subtitle="Main Dashboard" compact />
 
       <div className="flex-1 px-3 py-4 space-y-1">
         <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3">
@@ -60,7 +63,7 @@ function Sidebar() {
             onClick={() => handleNavigation(item.path)}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group
               ${activeIndex === index 
-                ? 'bg-[#7c4dff]/20 text-[#b388ff]' 
+                ? 'bg-[#014582]/20 text-[#b388ff]' 
                 : 'text-white/60 hover:text-white hover:bg-white/5'
               }`}
           >
@@ -78,13 +81,17 @@ function Sidebar() {
       </div>
 
       <div className="px-3 pb-6">
-        <div className="p-4 bg-[#7c4dff]/10 rounded-xl border border-[#7c4dff]/20">
+        <div className="p-4 bg-[#014582]/10 rounded-xl border border-[#014582]/20">
           <HelpCircle className="w-5 h-5 text-[#b388ff] mb-2" />
           <p className="text-sm font-semibold text-white">Need Help?</p>
           <p className="text-xs text-white/40">Contact our support team</p>
         </div>
         
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 mt-3 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all">
+        <button
+          type="button"
+          onClick={() => void performLogout()}
+          className="w-full flex items-center gap-3 px-3 py-2.5 mt-3 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all"
+        >
           <LogOut className="w-5 h-5" />
           <span className="text-sm font-medium">Logout</span>
         </button>
@@ -111,7 +118,7 @@ const banners = [
     badge: 'NOW LIVE',
     btnText: 'Open Warehouse',
     image: 'https://images.unsplash.com/photo-1553413077-190dd305871c?w=1200&q=80',
-    accentColor: '#7C4DFF',
+    accentColor: '#014582',
   },
   {
     title: 'Bank-Grade\nSecurity',
@@ -145,12 +152,14 @@ export default function DashboardPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold text-gray-800">Dashboard</h1>
-          </div>
+          <TopBarBrand title="Main Dashboard" />
 
           <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all">
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/support'; }}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all"
+            >
               <Headset className="w-4 h-4" />
               <span>Support Ticket</span>
               <ChevronDown className="w-3 h-3" />
@@ -159,20 +168,17 @@ export default function DashboardPage() {
             <div className="w-px h-6 bg-gray-200" />
 
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Phone className="w-4 h-4 text-[#7c4dff]" />
+              <Phone className="w-4 h-4 text-[#014582]" />
               <span>Call Us: 03 111 006 555</span>
             </div>
 
             <div className="w-px h-6 bg-gray-200" />
 
-            <div className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-all">
-              <div className="w-8 h-8 bg-[#7c4dff] rounded-full flex items-center justify-center text-white text-sm font-bold">
-                A
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-            </div>
+            <ProfileDropdown accentClassName="bg-[#014582]" />
           </div>
         </header>
+
+        <SubscriptionStatusBanner />
 
         {/* Body - Slider and Cards */}
         <div className="flex-1 p-6 overflow-auto">

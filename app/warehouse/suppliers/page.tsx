@@ -54,7 +54,7 @@ function SupplierList({
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Users className="w-6 h-6 text-[#7c4dff]" />
+          <Users className="w-6 h-6 text-[#014582]" />
           Suppliers
           <span className="text-sm font-normal text-gray-400 ml-2">
             ({kpi?.total || 0} suppliers)
@@ -63,14 +63,14 @@ function SupplierList({
         <div className="flex items-center gap-3">
           <Link 
             href="/warehouse/product-settings"
-            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all"
           >
             <Settings className="w-4 h-4" />
             Settings
           </Link>
           <button 
             onClick={onAddClick}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
           >
             <Plus className="w-4 h-4" />
             Add Supplier
@@ -106,7 +106,7 @@ function SupplierList({
               placeholder="Search suppliers..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
             />
           </div>
           
@@ -114,7 +114,7 @@ function SupplierList({
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             >
               {statuses.map((status) => (
                 <option key={status} value={status}>
@@ -147,7 +147,7 @@ function SupplierList({
               {loading ? (
                 <tr>
                   <td colSpan={8} className="text-center py-12">
-                    <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+                    <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
                     <p className="mt-2 text-gray-500">Loading suppliers...</p>
                   </td>
                 </tr>
@@ -223,7 +223,7 @@ function SupplierList({
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg">
+            <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg">
               {pagination.page} / {pagination.pages}
             </span>
             <button
@@ -277,7 +277,7 @@ function SupplierDetailsModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50 rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <Building2 className="w-5 h-5 text-[#7c4dff]" />
+            <Building2 className="w-5 h-5 text-[#014582]" />
             <h2 className="text-lg font-bold text-gray-800">Supplier Details</h2>
           </div>
           <button 
@@ -304,7 +304,7 @@ function SupplierDetailsModal({
         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all"
+            className="px-6 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all"
           >
             Close
           </button>
@@ -383,7 +383,7 @@ function SupplierForm({
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-3">
-          <Users className="w-5 h-5 text-[#7c4dff]" />
+          <Users className="w-5 h-5 text-[#014582]" />
           <h2 className="text-lg font-bold text-gray-800">
             {isEditing ? 'Edit Supplier' : 'Add New Supplier'}
           </h2>
@@ -418,7 +418,7 @@ function SupplierForm({
                   placeholder="e.g., ABC Textiles"
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   required
                 />
               </div>
@@ -436,7 +436,7 @@ function SupplierForm({
                   placeholder="e.g., ABC Textiles Pvt Ltd"
                   value={formData.companyName}
                   onChange={(e) => handleInputChange('companyName', e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
               </div>
             </div>
@@ -453,7 +453,7 @@ function SupplierForm({
                   placeholder="Auto-generated"
                   value={formData.code}
                   onChange={(e) => handleInputChange('code', e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
               </div>
             </div>
@@ -466,7 +466,7 @@ function SupplierForm({
               <select 
                 value={formData.status}
                 onChange={(e) => handleInputChange('status', e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -485,7 +485,7 @@ function SupplierForm({
                   placeholder="Full name"
                   value={formData.contactPerson}
                   onChange={(e) => handleInputChange('contactPerson', e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
               </div>
             </div>
@@ -500,7 +500,7 @@ function SupplierForm({
                 placeholder="e.g., Sales, Procurement"
                 value={formData.department}
                 onChange={(e) => handleInputChange('department', e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               />
             </div>
 
@@ -516,7 +516,7 @@ function SupplierForm({
                   placeholder="+92 300 1234567"
                   value={formData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
               </div>
             </div>
@@ -533,7 +533,7 @@ function SupplierForm({
                   placeholder="info@company.com"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   required
                 />
               </div>
@@ -551,7 +551,7 @@ function SupplierForm({
                   rows={2}
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
                 />
               </div>
             </div>
@@ -566,7 +566,7 @@ function SupplierForm({
                 placeholder="City"
                 value={formData.city}
                 onChange={(e) => handleInputChange('city', e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               />
             </div>
 
@@ -578,7 +578,7 @@ function SupplierForm({
               <select 
                 value={formData.country}
                 onChange={(e) => handleInputChange('country', e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
                 {countries.map((country) => (
                   <option key={country} value={country}>
@@ -600,7 +600,7 @@ function SupplierForm({
                   placeholder="e.g., Textile, Electronics"
                   value={formData.industry}
                   onChange={(e) => handleInputChange('industry', e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
               </div>
             </div>
@@ -613,7 +613,7 @@ function SupplierForm({
               <select 
                 value={formData.businessType}
                 onChange={(e) => handleInputChange('businessType', e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
                 <option value="">Select...</option>
                 <option>Sole Proprietorship</option>
@@ -636,7 +636,7 @@ function SupplierForm({
                   placeholder="e.g., Net 30, Cash on Delivery"
                   value={formData.paymentTerms}
                   onChange={(e) => handleInputChange('paymentTerms', e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
               </div>
             </div>
@@ -654,7 +654,7 @@ function SupplierForm({
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center gap-2 shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

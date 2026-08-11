@@ -165,7 +165,7 @@ function CustomerPickerModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <User className="w-5 h-5 text-[#7c4dff]" />
+            <User className="w-5 h-5 text-[#014582]" />
             <h3 className="font-bold text-gray-800">Select Customer</h3>
             {pagination.total > 0 && (
               <span className="text-xs text-gray-400 font-normal">({pagination.total} total)</span>
@@ -186,7 +186,7 @@ function CustomerPickerModal({
               placeholder="Search by name, email or phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
             {searchTerm && (
               <button
@@ -197,7 +197,7 @@ function CustomerPickerModal({
               </button>
             )}
             {loading && !searchTerm && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7c4dff] animate-spin" />
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#014582] animate-spin" />
             )}
           </div>
           {error && (
@@ -211,7 +211,7 @@ function CustomerPickerModal({
         <div ref={listRef} className="overflow-y-auto flex-1 px-2 pb-4">
           {loading && customers.length === 0 ? (
             <div className="py-10 text-center text-gray-400">
-              <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+              <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
               <p className="text-sm mt-2">Loading customers...</p>
             </div>
           ) : customers.length === 0 ? (
@@ -232,7 +232,7 @@ function CustomerPickerModal({
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200 transition-colors">
-                        <span className="text-sm font-bold text-[#7c4dff]">
+                        <span className="text-sm font-bold text-[#014582]">
                           {customer.name?.charAt(0)?.toUpperCase() || 'C'}
                         </span>
                       </div>
@@ -271,7 +271,7 @@ function CustomerPickerModal({
               {/* Load more spinner */}
               {loadingMore && (
                 <div className="py-3 text-center">
-                  <Loader2 className="w-5 h-5 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-5 h-5 mx-auto text-[#014582] animate-spin" />
                   <p className="text-xs text-gray-400 mt-1">Loading more...</p>
                 </div>
               )}
@@ -492,7 +492,7 @@ function ProductSearchDropdown({
           value={searchTerm}
           onChange={(e) => { e.stopPropagation(); setSearchTerm(e.target.value); if (!isOpen) setIsOpen(true); }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 cursor-pointer"
+          className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 cursor-pointer"
         />
         {selectedProduct && searchTerm && (
           <button onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -556,7 +556,7 @@ function ProductSearchDropdown({
               })}
               {loadingMore && (
                 <div className="px-4 py-3 text-center">
-                  <Loader2 className="w-5 h-5 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-5 h-5 mx-auto text-[#014582] animate-spin" />
                   <p className="text-xs text-gray-400 mt-1">Loading more...</p>
                 </div>
               )}
@@ -652,13 +652,13 @@ function SettingsModal({
               placeholder={placeholder}
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
-              className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             />
             <button
               onClick={handleAdd}
               disabled={loading || !newValue.trim()}
-              className="px-4 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              className="px-4 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Add
@@ -712,7 +712,7 @@ function SettingDropdownWithModal({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
         >
           <option value="">{`Select ${label}`}</option>
           {options.map((option) => (
@@ -722,7 +722,7 @@ function SettingDropdownWithModal({
         <button
           type="button"
           onClick={() => onOpenModal(category, title, placeholder)}
-          className="px-3 py-2.5 border border-dashed border-gray-300 rounded-lg hover:border-[#7c4dff] hover:bg-purple-50 transition-all flex items-center justify-center text-gray-400 hover:text-[#7c4dff]"
+          className="px-3 py-2.5 border border-dashed border-gray-300 rounded-lg hover:border-[#014582] hover:bg-purple-50 transition-all flex items-center justify-center text-gray-400 hover:text-[#014582]"
           title={`Add new ${label}`}
         >
           <Plus className="w-4 h-4" />
@@ -938,7 +938,7 @@ function CreateOrderForm({
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-3">
-          <ShoppingCart className="w-5 h-5 text-[#7c4dff]" />
+          <ShoppingCart className="w-5 h-5 text-[#014582]" />
           <h2 className="text-lg font-bold text-gray-800">Create New Order</h2>
         </div>
         <button onClick={onCancel} className="p-2 hover:bg-gray-200 rounded-lg transition-all">
@@ -960,7 +960,7 @@ function CreateOrderForm({
           {/* ============================================================ */}
           <div className="border-b border-gray-100 pb-4">
             <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-              <User className="w-4 h-4 text-[#7c4dff]" />
+              <User className="w-4 h-4 text-[#014582]" />
               Customer Information
             </h3>
 
@@ -974,7 +974,7 @@ function CreateOrderForm({
                   <button
                     type="button"
                     onClick={() => setShowCustomerModal(true)}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 hover:border-[#7c4dff] hover:bg-purple-50 transition-all text-left focus:ring-2 focus:ring-[#7c4dff] focus:outline-none"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 hover:border-[#014582] hover:bg-purple-50 transition-all text-left focus:ring-2 focus:ring-[#014582] focus:outline-none"
                   >
                     <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     {selectedCustomer ? (
@@ -1003,7 +1003,7 @@ function CreateOrderForm({
                 {/* Selected customer mini-badge */}
                 {selectedCustomer && (
                   <div className="mt-1.5 px-3 py-1.5 bg-purple-50 border border-purple-100 rounded-lg flex items-center gap-2">
-                    <div className="w-5 h-5 rounded-full bg-[#7c4dff] flex items-center justify-center flex-shrink-0">
+                    <div className="w-5 h-5 rounded-full bg-[#014582] flex items-center justify-center flex-shrink-0">
                       <span className="text-white text-xs font-bold">
                         {selectedCustomer.name?.charAt(0)?.toUpperCase()}
                       </span>
@@ -1030,7 +1030,7 @@ function CreateOrderForm({
                     placeholder="customer@example.com"
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                 </div>
               </div>
@@ -1047,7 +1047,7 @@ function CreateOrderForm({
                     placeholder="+92 300 1234567"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                 </div>
               </div>
@@ -1074,7 +1074,7 @@ function CreateOrderForm({
                     placeholder="Company name"
                     value={customerCompany}
                     onChange={(e) => setCustomerCompany(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                 </div>
               </div>
@@ -1088,7 +1088,7 @@ function CreateOrderForm({
                   placeholder="Tax ID"
                   value={customerTaxId}
                   onChange={(e) => setCustomerTaxId(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
               </div>
             </div>
@@ -1099,7 +1099,7 @@ function CreateOrderForm({
           {/* ============================================================ */}
           <div className="border-b border-gray-100 pb-4">
             <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-[#7c4dff]" />
+              <MapPin className="w-4 h-4 text-[#014582]" />
               Address Information
             </h3>
 
@@ -1108,7 +1108,7 @@ function CreateOrderForm({
                 type="checkbox"
                 checked={sameAsShipping}
                 onChange={(e) => setSameAsShipping(e.target.checked)}
-                className="w-4 h-4 text-[#7c4dff] rounded border-gray-300"
+                className="w-4 h-4 text-[#014582] rounded border-gray-300"
               />
               <label className="text-sm text-gray-700">Billing address same as shipping</label>
             </div>
@@ -1121,23 +1121,23 @@ function CreateOrderForm({
                     type="text" placeholder="Street address"
                     value={shippingAddress.street}
                     onChange={(e) => setShippingAddress({ ...shippingAddress, street: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <input type="text" placeholder="City" value={shippingAddress.city}
                       onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                     <input type="text" placeholder="State" value={shippingAddress.state}
                       onChange={(e) => setShippingAddress({ ...shippingAddress, state: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <input type="text" placeholder="Postal Code" value={shippingAddress.postalCode}
                       onChange={(e) => setShippingAddress({ ...shippingAddress, postalCode: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                     <select value={shippingAddress.country}
                       onChange={(e) => setShippingAddress({ ...shippingAddress, country: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                       <option>Pakistan</option><option>China</option><option>USA</option>
                       <option>UK</option><option>UAE</option><option>Turkey</option>
                     </select>
@@ -1152,30 +1152,30 @@ function CreateOrderForm({
                     value={sameAsShipping ? shippingAddress.street : billingAddress.street}
                     onChange={(e) => setBillingAddress({ ...billingAddress, street: e.target.value })}
                     disabled={sameAsShipping}
-                    className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 ${sameAsShipping ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                    className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 ${sameAsShipping ? 'opacity-50 cursor-not-allowed' : ''}`} />
                   <div className="grid grid-cols-2 gap-3">
                     <input type="text" placeholder="City"
                       value={sameAsShipping ? shippingAddress.city : billingAddress.city}
                       onChange={(e) => setBillingAddress({ ...billingAddress, city: e.target.value })}
                       disabled={sameAsShipping}
-                      className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 ${sameAsShipping ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                      className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 ${sameAsShipping ? 'opacity-50 cursor-not-allowed' : ''}`} />
                     <input type="text" placeholder="State"
                       value={sameAsShipping ? shippingAddress.state : billingAddress.state}
                       onChange={(e) => setBillingAddress({ ...billingAddress, state: e.target.value })}
                       disabled={sameAsShipping}
-                      className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 ${sameAsShipping ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                      className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 ${sameAsShipping ? 'opacity-50 cursor-not-allowed' : ''}`} />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <input type="text" placeholder="Postal Code"
                       value={sameAsShipping ? shippingAddress.postalCode : billingAddress.postalCode}
                       onChange={(e) => setBillingAddress({ ...billingAddress, postalCode: e.target.value })}
                       disabled={sameAsShipping}
-                      className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 ${sameAsShipping ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                      className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 ${sameAsShipping ? 'opacity-50 cursor-not-allowed' : ''}`} />
                     <select
                       value={sameAsShipping ? shippingAddress.country : billingAddress.country}
                       onChange={(e) => setBillingAddress({ ...billingAddress, country: e.target.value })}
                       disabled={sameAsShipping}
-                      className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 ${sameAsShipping ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 ${sameAsShipping ? 'opacity-50 cursor-not-allowed' : ''}`}>
                       <option>Pakistan</option><option>China</option><option>USA</option>
                       <option>UK</option><option>UAE</option><option>Turkey</option>
                     </select>
@@ -1190,7 +1190,7 @@ function CreateOrderForm({
           {/* ============================================================ */}
           <div className="border-b border-gray-100 pb-4">
             <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-              <Package className="w-4 h-4 text-[#7c4dff]" />
+              <Package className="w-4 h-4 text-[#014582]" />
               Order Items
             </h3>
 
@@ -1239,11 +1239,11 @@ function CreateOrderForm({
                 <input
                   type="number" min="1" value={quantity}
                   onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 text-center"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 text-center"
                 />
               </div>
               <button type="button" onClick={addItem}
-                className="px-4 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center gap-2">
+                className="px-4 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center gap-2">
                 <PlusIcon className="w-4 h-4" /> Add
               </button>
             </div>
@@ -1281,7 +1281,7 @@ function CreateOrderForm({
           {/* ============================================================ */}
           <div className="border-b border-gray-100 pb-4">
             <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-[#7c4dff]" />
+              <ClipboardList className="w-4 h-4 text-[#014582]" />
               Order Details
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1297,7 +1297,7 @@ function CreateOrderForm({
                   <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input type="text" placeholder="Sales person name" value={salesPerson}
                     onChange={(e) => setSalesPerson(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
@@ -1306,14 +1306,14 @@ function CreateOrderForm({
                   <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input type="date" value={expectedDeliveryDate}
                     onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tags</label>
                 <input type="text" placeholder="e.g., urgent, bulk, express" value={tags}
                   onChange={(e) => setTags(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           </div>
@@ -1325,7 +1325,7 @@ function CreateOrderForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-[#7c4dff]" /> Shipping Information
+                  <Truck className="w-4 h-4 text-[#014582]" /> Shipping Information
                 </h3>
                 <div className="space-y-3">
                   <SettingDropdownWithModal value={shippingMethod} onChange={setShippingMethod} options={settings.shippingMethods}
@@ -1334,20 +1334,20 @@ function CreateOrderForm({
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Shipping Carrier</label>
                     <input type="text" placeholder="e.g., DHL, FedEx, TCS" value={shippingCarrier}
                       onChange={(e) => setShippingCarrier(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Shipping Cost (Rs.)</label>
                     <input type="number" placeholder="0.00" value={shippingCost}
                       onChange={(e) => setShippingCost(parseFloat(e.target.value) || 0)}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                   </div>
                 </div>
               </div>
 
               <div>
                 <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-[#7c4dff]" /> Payment Information
+                  <CreditCard className="w-4 h-4 text-[#014582]" /> Payment Information
                 </h3>
                 <div className="space-y-3">
                   <SettingDropdownWithModal value={paymentMethod} onChange={setPaymentMethod} options={settings.paymentMethods}
@@ -1355,7 +1355,7 @@ function CreateOrderForm({
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Payment Status</label>
                     <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                       <option>Pending</option><option>Paid</option><option>Partial</option>
                       <option>Refunded</option><option>Cancelled</option>
                     </select>
@@ -1370,19 +1370,19 @@ function CreateOrderForm({
           {/* ============================================================ */}
           <div className="border-b border-gray-100 pb-4">
             <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-              <BadgePercent className="w-4 h-4 text-[#7c4dff]" /> Discounts & Promotions
+              <BadgePercent className="w-4 h-4 text-[#014582]" /> Discounts & Promotions
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Coupon Code</label>
                 <input type="text" placeholder="Enter coupon code" value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Discount Type</label>
                 <select value={discountType} onChange={(e) => setDiscountType(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                   <option>Percentage</option><option>Fixed Amount</option>
                 </select>
               </div>
@@ -1398,7 +1398,7 @@ function CreateOrderForm({
                     if (discountType === 'Percentage') setDiscountPercentage(Math.min(100, Math.max(0, val)));
                     else setDiscountAmount(Math.max(0, val));
                   }}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           </div>
@@ -1408,20 +1408,20 @@ function CreateOrderForm({
           {/* ============================================================ */}
           <div className="border-b border-gray-100 pb-4">
             <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-[#7c4dff]" /> Notes & Instructions
+              <FileText className="w-4 h-4 text-[#014582]" /> Notes & Instructions
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Customer Notes</label>
                 <textarea placeholder="Special instructions from customer" value={customerNotes}
                   onChange={(e) => setCustomerNotes(e.target.value)} rows={2}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Internal Notes</label>
                 <textarea placeholder="Internal team notes" value={internalNotes}
                   onChange={(e) => setInternalNotes(e.target.value)} rows={2}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none" />
               </div>
             </div>
           </div>
@@ -1431,7 +1431,7 @@ function CreateOrderForm({
           {/* ============================================================ */}
           <div className="bg-gray-50 rounded-xl p-4">
             <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-[#7c4dff]" /> Order Summary
+              <Receipt className="w-4 h-4 text-[#014582]" /> Order Summary
             </h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
@@ -1452,7 +1452,7 @@ function CreateOrderForm({
               </div>
               <div className="flex justify-between border-t border-gray-200 pt-2 font-bold text-lg">
                 <span>Grand Total</span>
-                <span className="text-[#7c4dff]">Rs. {grandTotal.toFixed(2)}</span>
+                <span className="text-[#014582]">Rs. {grandTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-xs text-gray-400">
                 <span>Total Items: {totalItems}</span>
@@ -1470,7 +1470,7 @@ function CreateOrderForm({
               Cancel
             </button>
             <button type="submit" disabled={loading || orderItems.length === 0}
-              className="px-6 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
+              className="px-6 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center gap-2 shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Create Order
             </button>
@@ -1542,8 +1542,8 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
       <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50 sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#7c4dff]/10 rounded-lg flex items-center justify-center">
-              <Receipt className="w-5 h-5 text-[#7c4dff]" />
+            <div className="w-10 h-10 bg-[#014582]/10 rounded-lg flex items-center justify-center">
+              <Receipt className="w-5 h-5 text-[#014582]" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-800">{order.orderNumber || 'N/A'}</h2>
@@ -1618,7 +1618,7 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
 
           <div>
             <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-              <Package className="w-4 h-4 text-[#7c4dff]" /> Order Items ({order.items?.length || 0})
+              <Package className="w-4 h-4 text-[#014582]" /> Order Items ({order.items?.length || 0})
             </h3>
             <div className="overflow-x-auto border border-gray-100 rounded-xl">
               <table className="w-full text-sm">
@@ -1668,7 +1668,7 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
                 <div className="flex justify-between"><span className="text-gray-600">Discount</span><span className="text-red-600">- Rs. {order.discountTotal?.toFixed(2) || '0.00'}</span></div>
                 <div className="border-t-2 border-gray-200 pt-2 flex justify-between font-bold text-lg">
                   <span>Grand Total</span>
-                  <span className="text-[#7c4dff]">Rs. {order.grandTotal?.toFixed(2) || '0.00'}</span>
+                  <span className="text-[#014582]">Rs. {order.grandTotal?.toFixed(2) || '0.00'}</span>
                 </div>
                 <div className="flex justify-between text-xs text-gray-400 pt-1">
                   <span>Items: {(order.items || []).reduce((s, i) => s + i.quantity, 0)}</span>
@@ -1752,7 +1752,7 @@ function OrderList({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <ShoppingCart className="w-6 h-6 text-[#7c4dff]" />
+          <ShoppingCart className="w-6 h-6 text-[#014582]" />
           Orders
           <span className="text-sm font-normal text-gray-400 ml-2">({pagination.total} orders)</span>
         </h2>
@@ -1761,7 +1761,7 @@ function OrderList({
             <RefreshCw className="w-5 h-5" />
           </button>
           <button onClick={onAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25">
+            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25">
             <Plus className="w-4 h-4" /> Create Order
           </button>
         </div>
@@ -1773,22 +1773,22 @@ function OrderList({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input type="text" placeholder="Search orders..." value={filters.search}
               onChange={(e) => onFilterChange('search', e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none" />
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none" />
           </div>
           <select value={filters.status} onChange={(e) => onFilterChange('status', e.target.value)}
-            className="px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 appearance-none">
+            className="px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 appearance-none">
             {statusOptions.map(s => <option key={s} value={s}>{s === 'all' ? 'All Status' : s}</option>)}
           </select>
           <select value={filters.paymentStatus} onChange={(e) => onFilterChange('paymentStatus', e.target.value)}
-            className="px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 appearance-none">
+            className="px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 appearance-none">
             {paymentOptions.map(s => <option key={s} value={s}>{s === 'all' ? 'All Payment' : s}</option>)}
           </select>
           <select value={filters.orderType} onChange={(e) => onFilterChange('orderType', e.target.value)}
-            className="px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 appearance-none">
+            className="px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 appearance-none">
             {typeOptions.map(t => <option key={t} value={t}>{t === 'all' ? 'All Types' : t}</option>)}
           </select>
           <select value={filters.priority} onChange={(e) => onFilterChange('priority', e.target.value)}
-            className="px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 appearance-none">
+            className="px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 appearance-none">
             {priorityOptions.map(p => <option key={p} value={p}>{p === 'all' ? 'All Priority' : p}</option>)}
           </select>
         </div>
@@ -1797,7 +1797,7 @@ function OrderList({
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="p-12 text-center">
-            <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+            <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
             <p className="mt-2 text-gray-500">Loading orders...</p>
           </div>
         ) : orders.length === 0 ? (
@@ -1826,7 +1826,7 @@ function OrderList({
               <tbody>
                 {orders.map((order) => (
                   <tr key={order._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-3 font-mono text-xs font-semibold text-[#7c4dff]">{order.orderNumber}</td>
+                    <td className="px-6 py-3 font-mono text-xs font-semibold text-[#014582]">{order.orderNumber}</td>
                     <td className="px-6 py-3">
                       <p className="font-medium text-gray-800">{order.customerName}</p>
                       <p className="text-xs text-gray-400">{order.customerEmail || ''}</p>
@@ -1880,7 +1880,7 @@ function OrderList({
               className="px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1">
               <ChevronLeft className="w-4 h-4" /> Previous
             </button>
-            <span className="px-3 py-1 bg-[#7c4dff] text-white rounded-lg">{pagination.page}</span>
+            <span className="px-3 py-1 bg-[#014582] text-white rounded-lg">{pagination.page}</span>
             <button onClick={() => onPageChange(pagination.page + 1)} disabled={!pagination.hasNext}
               className="px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1">
               Next <ChevronRight className="w-4 h-4" />
