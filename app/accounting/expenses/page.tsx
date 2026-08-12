@@ -28,6 +28,7 @@ import {
   Shield as Security, Wrench as Build, Monitor as Computer, Receipt as ReceiptIcon2
 } from 'lucide-react';
 import { expenseService, Expense, ExpenseStats, ExpenseAccount, Vendor, BankAccount } from '../../api/expenses/route';
+import TaxRateSelect from '../../../components/TaxRateSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -901,14 +902,10 @@ function CreateExpenseForm({
           {/* Tax Rate (for items) */}
           {requiresItems && (
             <div>
-              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Tax Rate (%)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0"
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Tax Rate</label>
+              <TaxRateSelect
                 value={formData.taxRate}
-                onChange={(e) => setFormData(prev => ({ ...prev, taxRate: parseFloat(e.target.value) || 0 }))}
+                onChange={(rate) => setFormData(prev => ({ ...prev, taxRate: rate }))}
                 className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               />
             </div>

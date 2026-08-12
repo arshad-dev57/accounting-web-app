@@ -24,11 +24,14 @@ import {
   Headset,
   Settings,
   CreditCard,
+  Scale,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
 import ProfileDropdown from '../../components/ProfileDropdown';
+import FiscalYearSelect from '../../components/FiscalYearSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { performLogout } from '../../lib/auth-logout';
+import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 
 // ============================================================
 // SALES SIDEBAR
@@ -71,6 +74,7 @@ function SalesSidebar() {
 
   const settingsPages = [
     { path: '/plans', label: 'Subscription Plans', permission: '*' },
+    { path: '/tax', label: 'Tax Compliance', permission: 'settings' },
     { path: '/sales/currency', label: 'Currency', permission: 'currency' },
     { path: '/accounting/pdf-reports', label: 'PDF Reports', permission: 'settings' },
     { path: '/sales/settings', label: 'Sales Settings', permission: 'settings' },
@@ -209,6 +213,7 @@ function SalesSidebar() {
                   '*': <CreditCard className="w-4 h-4" />,
                 };
                 const isPdf = page.path.includes('pdf-reports');
+                const isTax = page.path === '/tax';
                 
                 return (
                   <Link
@@ -218,7 +223,7 @@ function SalesSidebar() {
                       isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    {isPdf ? <FileText className="w-4 h-4" /> : (iconMap[page.permission] || <Settings className="w-4 h-4" />)}
+                    {isTax ? <Scale className="w-4 h-4" /> : isPdf ? <FileText className="w-4 h-4" /> : (iconMap[page.permission] || <Settings className="w-4 h-4" />)}
                     <span>{page.label}</span>
                   </Link>
                 );
@@ -322,7 +327,7 @@ export default function SalesLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <FiscalYearProvider>
       <SalesSidebar />
 
       <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
@@ -334,6 +339,10 @@ export default function SalesLayout({
           />
 
           <div className="flex items-center gap-4">
+            <FiscalYearSelect />
+
+            <div className="w-px h-6 bg-gray-200" />
+
             <button
               type="button"
               onClick={() => { window.location.href = '/support'; }}
@@ -361,6 +370,6 @@ export default function SalesLayout({
           {children}
         </div>
       </div>
-    </>
+    </FiscalYearProvider>
   );
 }

@@ -31,6 +31,8 @@ import {
   Cell,
 } from 'recharts';
 import { usePermissions } from '../../../lib/usePermissions';
+import { useFiscalYear } from '../../../lib/fiscal-year-context';
+import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
 
 type TrendPoint = {
   date: string;
@@ -179,8 +181,9 @@ export default function SalesDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
-  const [periodLabel, setPeriodLabel] = useState('This Month');
-  const [period, setPeriod] = useState('month');
+  const [periodLabel, setPeriodLabel] = useState('This Year');
+  const [period, setPeriod] = useState('year');
+  const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
 
   const canSeeCredits = isAdmin || hasSubPageAccess('sales', 'credits');
 
@@ -189,7 +192,11 @@ export default function SalesDashboardPage() {
       if (options?.refresh) setRefreshing(true);
       else setLoading(true);
 
-      const response = await fetch(`/api/sales/dashboard?period=${p}`, {
+      const fyId = selectedFiscalYearId || getStoredFiscalYearId() || '';
+      const qs = new URLSearchParams({ period: p });
+      if (fyId) qs.set('fiscalYearId', fyId);
+
+      const response = await fetch(`/api/sales/dashboard?${qs.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
         },
@@ -209,7 +216,7 @@ export default function SalesDashboardPage() {
   useEffect(() => {
     fetchDashboard(period);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedFiscalYearId]);
 
   const selectPeriod = (label: string, value: string) => {
     if (loading || refreshing) return;
@@ -345,6 +352,7 @@ export default function SalesDashboardPage() {
           <h1 className="text-2xl font-bold text-gray-900">Sales Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
             POS, orders, invoices and collections for {periodLabel.toLowerCase()}
+            {selectedFiscalYear?.name ? ` · ${selectedFiscalYear.name}` : ''}
           </p>
         </div>
 

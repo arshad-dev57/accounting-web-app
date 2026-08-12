@@ -27,6 +27,13 @@ import {
   receiptBarcodeValue,
   resolveReceiptCompany,
 } from '../../../lib/pos-receipt';
+import {
+  computeTaxLine,
+  resolveProductTaxRate,
+  taxService,
+  type TaxContext,
+  type TaxPricingModel,
+} from '../../../lib/tax-service';
 
 function getAuthToken() {
   if (typeof window === 'undefined') return '';
@@ -129,12 +136,9 @@ function flattenCategories(categories: Category[]): { id: string; name: string; 
 
 const PAYMENT_METHODS = ['Cash','Card','Bank Transfer','Mobile Wallet','Cheque'];
 
-function computeLineTotal(qty:number, price:number, discPct:number, taxRate:number) {
-  const base     = qty * price;
-  const discAmt  = base * discPct / 100;
-  const taxable  = base - discAmt;
-  const taxAmt   = taxable * (taxRate||0) / 100;
-  return { lineTotal: parseFloat((taxable + taxAmt).toFixed(2)), taxAmount: parseFloat(taxAmt.toFixed(2)) };
+function computeLineTotal(qty:number, price:number, discPct:number, taxRate:number, pricingModel: TaxPricingModel = 'exclusive') {
+  const { lineTotal, taxAmount } = computeTaxLine(qty, price, discPct, taxRate, pricingModel);
+  return { lineTotal, taxAmount };
 }
 
 function Keypad({ onKey }: { onKey:(k:string)=>void }) {
@@ -327,6 +331,27 @@ export default function SellScreen({ shift }: { shift: any }) {
   const [scanValue, setScanValue] = useState('');
   const [scanStatus, setScanStatus] = useState('');
   const [scanError, setScanError] = useState('');
+  const [taxContext, setTaxContext] = useState<TaxContext | null>(null);
+  const taxContextRef = useRef<TaxContext | null>(null);
+  const pricingModel: TaxPricingModel = taxContext?.pricingModel || 'exclusive';
+
+  useEffect(() => {
+    taxService.context()
+      .then((r) => {
+        taxContextRef.current = r.data;
+        setTaxContext(r.data);
+        if (!r.data?.enabled) {
+          setCart((prev) =>
+            prev.map((i) => ({
+              ...i,
+              taxRate: 0,
+              ...computeLineTotal(i.quantity, i.unitPrice, i.discount, 0, 'exclusive'),
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Customer search
   const loadCustomers = useCallback(async (q: string) => {
@@ -490,7 +515,12 @@ export default function SellScreen({ shift }: { shift: any }) {
     ? Math.min(cartDiscountAmount, subtotal)
     : pctDiscount;
   const taxTotal     = parseFloat(cart.reduce((s,i)=>s+i.taxAmount,0).toFixed(2));
-  const grandTotal   = parseFloat((subtotal - discountTotal + taxTotal).toFixed(2));
+  const grandTotal   = parseFloat(
+    (pricingModel === 'inclusive'
+      ? subtotal - discountTotal
+      : subtotal - discountTotal + taxTotal
+    ).toFixed(2)
+  );
   const paidTotal    = payments.reduce((s,p)=>s+p.amount,0);
   const changeDue    = parseFloat((paidTotal - grandTotal).toFixed(2));
   const loyaltyPreview = selectedCustomer && loadPosSettings().loyaltyEnabled
@@ -543,14 +573,16 @@ export default function SellScreen({ shift }: { shift: any }) {
   };
 
   const addToCart = (p: Product) => {
-    const { lineTotal, taxAmount } = computeLineTotal(1, p.sellingPrice, 0, p.taxRate||0);
+    const model = taxContextRef.current?.pricingModel || 'exclusive';
+    const rate = resolveProductTaxRate(p.taxRate, taxContextRef.current);
+    const { lineTotal, taxAmount } = computeLineTotal(1, p.sellingPrice, 0, rate, model);
     setCart(prev => {
       const existing = prev.find(i=>i.productId===p.id);
       if (existing) {
         if (existing.quantity >= p.currentStock) return prev;
-        return prev.map(i=>i.productId===p.id ? { ...i, quantity:i.quantity+1, ...computeLineTotal(i.quantity+1,i.unitPrice,i.discount,i.taxRate) } : i);
+        return prev.map(i=>i.productId===p.id ? { ...i, quantity:i.quantity+1, ...computeLineTotal(i.quantity+1,i.unitPrice,i.discount,i.taxRate, model) } : i);
       }
-      return [...prev, { productId:p.id, productName:p.name, sku:p.sku||'', barcodeNumber:p.barcodeNumber||'', quantity:1, unitPrice:p.sellingPrice, discount:0, taxRate:p.taxRate||0, taxAmount, lineTotal, mainImage:p.mainImage, currentStock:p.currentStock }];
+      return [...prev, { productId:p.id, productName:p.name, sku:p.sku||'', barcodeNumber:p.barcodeNumber||'', quantity:1, unitPrice:p.sellingPrice, discount:0, taxRate:rate, taxAmount, lineTotal, mainImage:p.mainImage, currentStock:p.currentStock }];
     });
   };
   addToCartRef.current = addToCart;
@@ -609,12 +641,12 @@ export default function SellScreen({ shift }: { shift: any }) {
     setCart(prev=>prev.map(i=>{
       if(i.productId!==productId) return i;
       if(qty>i.currentStock) return i;
-      return { ...i, quantity:qty, ...computeLineTotal(qty,i.unitPrice,i.discount,i.taxRate) };
+      return { ...i, quantity:qty, ...computeLineTotal(qty,i.unitPrice,i.discount,i.taxRate, pricingModel) };
     }));
   };
 
   const updateDiscount = (productId: string, disc: number) => {
-    setCart(prev=>prev.map(i=>i.productId!==productId?i:{ ...i, discount:disc, ...computeLineTotal(i.quantity,i.unitPrice,disc,i.taxRate) }));
+    setCart(prev=>prev.map(i=>i.productId!==productId?i:{ ...i, discount:disc, ...computeLineTotal(i.quantity,i.unitPrice,disc,i.taxRate, pricingModel) }));
   };
 
   const clearCart = () => {
@@ -641,7 +673,8 @@ export default function SellScreen({ shift }: { shift: any }) {
             item.quantity,
             item.unitPrice,
             item.discount || 0,
-            item.taxRate || 0
+            item.taxRate || 0,
+            taxContextRef.current?.pricingModel || 'exclusive'
           );
           return {
             productId: item.productId,
@@ -808,6 +841,8 @@ export default function SellScreen({ shift }: { shift: any }) {
           unitPrice: i.unitPrice,
           discount: i.discount,
           taxRate: i.taxRate,
+          pricingModel,
+          taxType: pricingModel === 'inclusive' ? 'Inclusive' : 'Exclusive',
         })),
         payments: payments.map((p) => ({
           paymentMethod: p.paymentMethod,
@@ -1312,7 +1347,7 @@ export default function SellScreen({ shift }: { shift: any }) {
             )}
             {taxTotal > 0 && (
               <div className="flex justify-between text-gray-400 text-xs">
-                <span>Tax</span><span>${taxTotal.toFixed(2)}</span>
+                <span>{taxContext?.regime || 'Tax'}{pricingModel === 'inclusive' ? ' (incl.)' : ''}</span><span>${taxTotal.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between text-white text-xl font-bold border-t border-white/10 pt-2 mt-1">
@@ -1369,7 +1404,7 @@ export default function SellScreen({ shift }: { shift: any }) {
               )}
               {taxTotal > 0 && (
                 <div className="flex justify-between text-gray-400 text-xs mb-1">
-                  <span>Tax</span><span>${taxTotal.toFixed(2)}</span>
+                  <span>{taxContext?.regime || 'Tax'}{pricingModel === 'inclusive' ? ' (incl.)' : ''}</span><span>${taxTotal.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-white text-xl font-bold">

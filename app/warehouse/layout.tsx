@@ -21,8 +21,10 @@ import {
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
 import ProfileDropdown from '../../components/ProfileDropdown';
+import FiscalYearSelect from '../../components/FiscalYearSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { performLogout } from '../../lib/auth-logout';
+import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 
 // ============================================================
 // WAREHOUSE SIDEBAR
@@ -41,6 +43,7 @@ function WarehouseSidebar() {
     { icon: <Users className="w-5 h-5" />, label: 'Orders', path: '/warehouse/orders', permission: 'orders' },
     { icon: <Users className="w-5 h-5" />, label: 'Returns', path: '/warehouse/returns', permission: 'returns' },
     { icon: <Users className="w-5 h-5" />, label: 'Refunds', path: '/warehouse/refunds', permission: 'refunds' },
+    { icon: <Settings className="w-5 h-5" />, label: 'Tax Compliance', path: '/tax', permission: 'settings' },
     { icon: <Settings className="w-5 h-5" />, label: 'Settings', path: '/warehouse/product-settings', permission: 'settings' },
     { icon: <CreditCard className="w-5 h-5" />, label: 'Subscription Plans', path: '/plans', permission: '*' },
   ];
@@ -154,7 +157,7 @@ export default function WarehouseLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <FiscalYearProvider>
       <WarehouseSidebar />
 
       <div className="ml-56 min-h-screen bg-gray-50 flex flex-col">
@@ -166,6 +169,10 @@ export default function WarehouseLayout({
           />
 
           <div className="flex items-center gap-4">
+            <FiscalYearSelect />
+
+            <div className="w-px h-6 bg-gray-200" />
+
             <button
               type="button"
               onClick={() => { window.location.href = '/support'; }}
@@ -193,6 +200,6 @@ export default function WarehouseLayout({
           {children}
         </div>
       </div>
-    </>
+    </FiscalYearProvider>
   );
 }

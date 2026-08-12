@@ -21,6 +21,8 @@ import {
   Download as DownloadIcon, Printer as PrinterIcon
 } from 'lucide-react';
 import { generalLedgerService, AccountSummary, LedgerEntry, LedgerStats } from '../../../lib/general-ledger-service';
+import { useFiscalYear } from '../../../lib/fiscal-year-context';
+import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -69,6 +71,7 @@ export default function GeneralLedgerPage() {
   const [viewingEntry, setViewingEntry] = useState<LedgerEntry | null>(null);
 
   const [currencySymbol, setCurrencySymbol] = useState('Rs.');
+  const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestRequestRef = useRef(0);
@@ -98,14 +101,15 @@ export default function GeneralLedgerPage() {
     try {
       const response = await generalLedgerService.getAccountSummaries({
         startDate: filter.startDate || undefined,
-        endDate: filter.endDate || undefined
+        endDate: filter.endDate || undefined,
+        fiscalYearId: selectedFiscalYearId || undefined,
       });
       setAccountSummaries(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Failed to fetch account summaries:', error);
       setAccountSummaries([]);
     }
-  }, [filter.startDate, filter.endDate]);
+  }, [filter.startDate, filter.endDate, selectedFiscalYearId]);
 
   const fetchEntries = useCallback(async (page: number) => {
     const requestId = ++latestRequestRef.current;
@@ -122,7 +126,8 @@ export default function GeneralLedgerPage() {
         startDate: filter.startDate || undefined,
         endDate: filter.endDate || undefined,
         showDebitOnly: filter.showDebitOnly || undefined,
-        showCreditOnly: filter.showCreditOnly || undefined
+        showCreditOnly: filter.showCreditOnly || undefined,
+        fiscalYearId: selectedFiscalYearId || undefined,
       });
 
       if (requestId !== latestRequestRef.current) return;
@@ -153,7 +158,7 @@ export default function GeneralLedgerPage() {
         setLoading(false);
       }
     }
-  }, [filter, debouncedSearch]);
+  }, [filter, debouncedSearch, selectedFiscalYearId]);
 
   useEffect(() => {
     fetchAccountSummaries();
@@ -315,10 +320,12 @@ export default function GeneralLedgerPage() {
             General Ledger
             <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
               ({pagination.total} entries)
+              {selectedFiscalYear ? ` · ${selectedFiscalYear.name}` : ''}
             </span>
           </h2>
         </div>
         <div className="flex items-center gap-2 md:gap-3">
+          <FiscalYearSelect compact showManageLink={false} />
           <button
             onClick={handleRefresh}
             className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"

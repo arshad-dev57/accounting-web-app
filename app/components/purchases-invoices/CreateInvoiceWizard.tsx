@@ -2,6 +2,7 @@
 
 import { X, ChevronRight, Search, Loader2 } from 'lucide-react';
 import { GRNSource, POSource, PurchaseInvoiceLineDraft } from '../../api/purchaseinvoice/route';
+import TaxRateSelect from '../../../components/TaxRateSelect';
 
 interface CreateInvoiceWizardProps {
   wizardState: {
@@ -248,14 +249,10 @@ export default function CreateInvoiceWizard({
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-600">Tax%</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
+                        <label className="text-xs text-gray-600">Tax</label>
+                        <TaxRateSelect
                           value={line.taxRate}
-                          onChange={(e) => updateLineDraft(index, 'taxRate', parseFloat(e.target.value) || 0)}
+                          onChange={(rate) => updateLineDraft(index, 'taxRate', rate)}
                           className="w-full px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#014582] text-sm"
                         />
                       </div>

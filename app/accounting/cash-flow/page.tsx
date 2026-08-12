@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { cashFlowService, CashFlowData, CashFlowItem } from '../../api/cash-flow/route';
 import { toast } from 'react-hot-toast';
+import { useFiscalYear } from '../../../lib/fiscal-year-context';
+import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -28,11 +30,12 @@ export default function CashFlowPage() {
   const [reportData, setReportData] = useState<CashFlowData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currencySymbol, setCurrencySymbol] = useState('Rs.');
-  const [selectedPeriod, setSelectedPeriod] = useState('This Month');
+  const [selectedPeriod, setSelectedPeriod] = useState('This Year');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [isCustomRange, setIsCustomRange] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
 
   const periodOptions: PeriodOption[] = [
     { label: 'Today', value: 'Today' },
@@ -74,6 +77,9 @@ export default function CashFlowPage() {
       } else {
         params.period = selectedPeriod;
       }
+      if (selectedFiscalYearId) {
+        params.fiscalYearId = selectedFiscalYearId;
+      }
 
       const data = await cashFlowService.getReport(params);
       setReportData(data);
@@ -83,7 +89,7 @@ export default function CashFlowPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedPeriod, startDate, endDate, isCustomRange]);
+  }, [selectedPeriod, startDate, endDate, isCustomRange, selectedFiscalYearId]);
 
   useEffect(() => {
     fetchReport();
@@ -285,10 +291,13 @@ export default function CashFlowPage() {
               <Activity className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
               Cash Flow
             </h2>
-            <p className="text-xs text-gray-500 mt-0.5">Statement</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Statement{selectedFiscalYear ? ` · ${selectedFiscalYear.name}` : ''}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2 md:gap-3">
+          <FiscalYearSelect compact showManageLink={false} />
           <button
             onClick={fetchReport}
             className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"

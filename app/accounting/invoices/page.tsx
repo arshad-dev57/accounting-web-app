@@ -34,6 +34,7 @@ import {
   PlusCircle as PlusCircleIcon, MinusCircle as MinusCircleIcon
 } from 'lucide-react';
 import { invoicesService, Invoice, InvoiceItem, Customer, BankAccount } from '../../api/invoices/route';
+import TaxRateSelect from '../../../components/TaxRateSelect';
 import { toast } from 'react-hot-toast';
 
 const PAGE_LIMIT = 10;
@@ -844,15 +845,10 @@ function CreateInvoiceForm({
                         />
                       </div>
                       <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="Tax"
+                        <TaxRateSelect
                           value={item.taxRate}
-                          onChange={(e) => updateItem(index, 'taxRate', parseFloat(e.target.value) || 0)}
-                          className="w-full pl-8 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white"
+                          onChange={(rate) => updateItem(index, 'taxRate', rate)}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white"
                         />
                       </div>
                     </div>

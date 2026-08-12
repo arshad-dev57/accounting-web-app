@@ -25,7 +25,6 @@ const productSettingCategories = [
   { id: 'size', label: 'Sizes', icon: Tag, description: 'Manage product sizes (S, M, L, XL)' },
   { id: 'shippingClass', label: 'Shipping Classes', icon: Truck, description: 'Manage shipping classes' },
   { id: 'stockUnit', label: 'Stock Units', icon: Box, description: 'Manage stock units (Pcs, KG, Meter)' },
-  { id: 'taxType', label: 'Tax Types', icon: FileText, description: 'Manage tax types (Inclusive, Exclusive, Zero Rated, Exempt)' },
 ];
 
 const orderSettingCategories = [
@@ -415,6 +414,14 @@ export default function ProductSettingsPage() {
         </div>
         <span className="text-sm text-gray-400">Manage dropdown values</span>
       </div>
+
+      <Link href="/tax" className="flex items-start gap-3 p-4 rounded-xl border border-[#014582]/20 bg-[#014582]/5 hover:bg-[#014582]/10 transition-all">
+        <FileText className="w-5 h-5 text-[#014582] mt-0.5" />
+        <div>
+          <p className="font-semibold text-gray-800">Tax types & rates</p>
+          <p className="text-sm text-gray-500">VAT, GST, sales tax, inclusive/exclusive and exemptions are managed in Tax Compliance — not here.</p>
+        </div>
+      </Link>
 
       {/* Messages */}
       {successMessage && (

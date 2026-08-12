@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get('limit') || '10';
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const fiscalYearId = searchParams.get('fiscalYearId');
 
     const token =
       request.cookies.get('auth_token')?.value ||
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     const qs = new URLSearchParams({ timePeriod, limit });
     if (startDate) qs.set('startDate', startDate);
     if (endDate) qs.set('endDate', endDate);
+    if (fiscalYearId) qs.set('fiscalYearId', fiscalYearId);
 
     const response = await fetch(
       `${API_BASE_URL}/api/dashboard/overview?${qs.toString()}`,

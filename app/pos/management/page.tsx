@@ -18,6 +18,8 @@ import {
 import ReceiptEditorTab from '../components/ReceiptEditorTab';
 import ScannerSettingsTab from '../components/ScannerSettingsTab';
 import PaymentTerminalTab from '../components/PaymentTerminalTab';
+import { taxService } from '../../../lib/tax-service';
+import TaxUseToggle from '../../../components/TaxUseToggle';
 
 // ─── Utility styles ───────────────────────────────────────────────────────────
 const card   = { background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.09)', borderRadius:'16px', padding:'20px' };
@@ -49,7 +51,7 @@ function ConfirmModal({ message, onConfirm, onCancel }: { message:string; onConf
 }
 
 // ─── TABS ────────────────────────────────────────────────────────────────────
-const TABS = ['Terminals','Shifts','Sales','Returns','Receipt','Scanner','Payments','Audit Log'] as const;
+const TABS = ['Terminals','Shifts','Sales','Returns','Receipt','Scanner','Payments','Tax','Audit Log'] as const;
 type Tab = typeof TABS[number];
 
 // ─── Terminals Tab ───────────────────────────────────────────────────────────
@@ -1002,6 +1004,38 @@ function AuditLogTab() {
 }
 
 
+function TaxTab() {
+  const [ctx, setCtx] = useState<any>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    taxService.context().then((r) => setCtx(r.data)).catch((e) => setError(e.message));
+  }, []);
+  return (
+    <div style={card}>
+      <h2 style={{ margin:'0 0 8px', fontSize:'18px' }}>POS tax compliance</h2>
+      <p style={{ color:'#8b8fa8', fontSize:'13px', marginBottom:'16px' }}>
+        Rates, inclusive/exclusive pricing and exemptions are managed in Tax Compliance. If taxation is OFF, POS will not add tax.
+      </p>
+      <div style={{ marginBottom:'16px' }}>
+        <TaxUseToggle onChanged={() => taxService.context().then((r) => setCtx(r.data)).catch(() => {})} />
+      </div>
+      {error && <p style={{ color:'#f87171', fontSize:'13px' }}>{error}</p>}
+      {ctx && (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:'12px', marginBottom:'16px' }}>
+          <div><div style={{ color:'#8b8fa8', fontSize:'11px' }}>TAX IN FLOW</div><div>{ctx.enabled ? 'ON' : 'OFF'}</div></div>
+          <div><div style={{ color:'#8b8fa8', fontSize:'11px' }}>CONFIGURED</div><div>{ctx.configured ? 'Yes' : 'Not yet'}</div></div>
+          <div><div style={{ color:'#8b8fa8', fontSize:'11px' }}>REGIME</div><div>{ctx.regime || '—'}</div></div>
+          <div><div style={{ color:'#8b8fa8', fontSize:'11px' }}>PRICING</div><div>{ctx.pricingModel}</div></div>
+          <div><div style={{ color:'#8b8fa8', fontSize:'11px' }}>DEFAULT RATE</div><div>{ctx.defaultRate?.rate ?? 0}%</div></div>
+        </div>
+      )}
+      <Link href="/tax" style={{ ...btn('linear-gradient(135deg,#014582,#448aff)'), textDecoration:'none', display:'inline-block' }}>
+        Open Tax Compliance
+      </Link>
+    </div>
+  );
+}
+
 // ─── Main POS Management Page ─────────────────────────────────────────────────
 export default function POSManagementPage() {
   const [activeTab, setActiveTab] = useState<Tab>('Terminals');
@@ -1024,7 +1058,7 @@ export default function POSManagementPage() {
             <span style={{ color:'#014582', fontSize:'13px', fontWeight:600 }}>POS Management</span>
           </div>
           <h1 style={{ margin:0, fontSize:'26px', fontWeight:800 }}>🏪 Point of Sale Management</h1>
-          <p style={{ color:'#8b8fa8', margin:'6px 0 0', fontSize:'14px' }}>Terminals · Shifts · Sales · Returns · Receipt · Scanner · Payments · Audit</p>
+          <p style={{ color:'#8b8fa8', margin:'6px 0 0', fontSize:'14px' }}>Terminals · Shifts · Sales · Returns · Receipt · Scanner · Payments · Tax · Audit</p>
         </div>
         <Link href="/pos" style={{ ...btn('linear-gradient(135deg,#014582,#448aff)'), textDecoration:'none', display:'inline-block' }}>
           🛒 Open POS
@@ -1049,6 +1083,7 @@ export default function POSManagementPage() {
         {activeTab==='Receipt'    && <ReceiptEditorTab isAdmin={isAdmin} />}
         {activeTab==='Scanner'    && <ScannerSettingsTab isAdmin={isAdmin} />}
         {activeTab==='Payments'   && <PaymentTerminalTab isAdmin={isAdmin} />}
+        {activeTab==='Tax'        && <TaxTab />}
         {activeTab==='Audit Log'  && <AuditLogTab />}
       </div>
     </div>

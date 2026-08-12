@@ -15,8 +15,9 @@ import {
   User,
   ShoppingCart,
   Package,
-  Store,
-  CreditCard,
+    Store,
+    CreditCard,
+    Scale,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
@@ -38,6 +39,7 @@ function Sidebar() {
     { icon: <ShoppingCart className="w-5 h-5" />, label: 'Sales', path: '/sales', show: isAdmin || hasModuleAccess('sales') },
     { icon: <Package className="w-5 h-5" />, label: 'Purchases', path: '/purchases', show: isAdmin || hasModuleAccess('purchases') },
     { icon: <Store className="w-5 h-5" />, label: 'Point of Sale', path: '/pos', show: isAdmin || hasModuleAccess('pos') },
+    { icon: <Scale className="w-5 h-5" />, label: 'Tax Compliance', path: '/tax', show: isAdmin || hasModuleAccess('accounting') || hasModuleAccess('sales') || hasModuleAccess('purchases') || hasModuleAccess('pos') },
     { icon: <User className="w-5 h-5" />, label: 'Users', path: '/users', show: isAdmin },
     { icon: <CreditCard className="w-5 h-5" />, label: 'Subscription Plans', path: '/plans', show: isAdmin },
   ];
@@ -233,7 +235,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Sales and Purchases Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Sales Card */}
               <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all cursor-pointer">
                 <div className="flex items-center justify-between mb-4">
@@ -285,6 +287,34 @@ export default function DashboardPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Purchase Orders Today</span>
                     <span className="text-lg font-bold text-gray-800">0</span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                onClick={() => window.location.href = '/tax'}
+                className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center">
+                      <Scale className="w-6 h-6 text-[#014582]" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-800">Tax Compliance</h3>
+                      <p className="text-sm text-gray-500">VAT, GST & sales tax</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Country packs</span>
+                    <span className="text-lg font-bold text-gray-800">16</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Manage globally</span>
+                    <span className="text-sm font-semibold text-[#014582]">Open</span>
                   </div>
                 </div>
               </div>

@@ -1,5 +1,9 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { API_BASE_URL } from './constants';
+import {
+  getStoredFiscalYearId,
+  shouldAttachFiscalYear,
+} from '../../lib/fiscal-year-service';
 
 interface ApiResponse {
   statusCode: number;
@@ -45,6 +49,21 @@ class ApiClient {
           } else if (headers) {
             delete headers['Content-Type'];
             delete headers['content-type'];
+          }
+        }
+
+        // Attach selected fiscal year to accounting/report list GETs
+        const method = (config.method || 'get').toLowerCase();
+        if (method === 'get' && shouldAttachFiscalYear(config.url)) {
+          const fyId = getStoredFiscalYearId();
+          if (fyId) {
+            const url = config.url || '';
+            if (!/[?&]fiscalYearId=/.test(url)) {
+              config.params = {
+                ...(config.params || {}),
+                fiscalYearId: config.params?.fiscalYearId || fyId,
+              };
+            }
           }
         }
         return config;

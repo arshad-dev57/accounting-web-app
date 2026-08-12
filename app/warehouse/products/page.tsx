@@ -17,6 +17,7 @@ import { productService, Product, getProductId } from '../../api/product/route';
 import { categoryService, Category } from '../../api/category/route';
 import { supplierService, Supplier } from '../../api/supplier/route';
 import { settingService } from '../../api/settings/route';
+import { ProductTaxFields } from '../../../components/TaxRateSelect';
 
 // ============================================================
 // BARCODE DISPLAY COMPONENT
@@ -1121,21 +1122,15 @@ function ProductForm({
                   </Link>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Tax Rate (%)</label>
-                <input type="number" step="0.01" placeholder="0" value={formData.taxRate} onChange={(e) => handleInputChange('taxRate', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Tax Type</label>
-                <div className="flex gap-2">
-                  <select value={formData.taxType} onChange={(e) => handleInputChange('taxType', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select tax type...</option>
-                    {taxTypes.map((tax) => <option key={tax._id} value={tax.name}>{tax.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
-                </div>
+              <div className="md:col-span-2">
+                <ProductTaxFields
+                  taxRate={formData.taxRate}
+                  taxType={formData.taxType}
+                  onChange={({ taxRate, taxType }) => {
+                    handleInputChange('taxRate', taxRate);
+                    handleInputChange('taxType', taxType);
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Stock Unit</label>

@@ -22,6 +22,8 @@ import {
   Eye as EyeIcon, EyeOff, ChevronUp, ChevronDown as ChevronDownIcon
 } from 'lucide-react';
 import { trialBalanceService, TrialBalanceAccount, TrialBalanceStats } from '../../api/trail-balance/route';
+import { useFiscalYear } from '../../../lib/fiscal-year-context';
+import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -65,6 +67,7 @@ export default function TrialBalancePage() {
   });
   const [viewingAccount, setViewingAccount] = useState<TrialBalanceAccount | null>(null);
   const [showZeroBalance, setShowZeroBalance] = useState(true);
+  const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
 
   const [currencySymbol, setCurrencySymbol] = useState('Rs.');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -103,7 +106,7 @@ export default function TrialBalancePage() {
         showZeroBalance: filter.showZeroBalance,
         startDate: filter.startDate || undefined,
         endDate: filter.endDate || undefined,
-        fiscalYearId: filter.fiscalYearId || undefined,
+        fiscalYearId: selectedFiscalYearId || filter.fiscalYearId || undefined,
         search: searchTerm || undefined
       });
 
@@ -118,7 +121,7 @@ export default function TrialBalancePage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, searchTerm, pagination.page, pagination.limit]);
+  }, [filter, searchTerm, pagination.page, pagination.limit, selectedFiscalYearId]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -134,7 +137,7 @@ export default function TrialBalancePage() {
         showZeroBalance: filter.showZeroBalance,
         startDate: filter.startDate || undefined,
         endDate: filter.endDate || undefined,
-        fiscalYearId: filter.fiscalYearId || undefined,
+        fiscalYearId: selectedFiscalYearId || filter.fiscalYearId || undefined,
         search: searchTerm || undefined
       });
 
@@ -145,13 +148,13 @@ export default function TrialBalancePage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm, selectedFiscalYearId]);
 
   // ─── Initial Fetch ──────────────────────────────────────────
 
   useEffect(() => {
     fetchTrialBalance(true);
-  }, []);
+  }, [selectedFiscalYearId]);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -246,10 +249,12 @@ export default function TrialBalancePage() {
             Trial Balance
             <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
               ({pagination.total} accounts)
+              {selectedFiscalYear ? ` · ${selectedFiscalYear.name}` : ''}
             </span>
           </h2>
         </div>
         <div className="flex items-center gap-2 md:gap-3">
+          <FiscalYearSelect compact showManageLink={false} />
           <button
             onClick={handleRefresh}
             className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"

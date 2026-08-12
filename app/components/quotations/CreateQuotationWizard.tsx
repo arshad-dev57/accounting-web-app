@@ -14,6 +14,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { QuotationLineDraft, Customer, Product } from '@/lib/types/quotation';
+import TaxRateSelect from '../../../components/TaxRateSelect';
 
 interface CreateQuotationWizardProps {
   onClose: () => void;
@@ -469,13 +470,10 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500 mb-1 block">Tax%</label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
+                          <label className="text-xs text-gray-500 mb-1 block">Tax</label>
+                          <TaxRateSelect
                             value={line.taxRate}
-                            onChange={(e) => handleUpdateLine(index, 'taxRate', parseFloat(e.target.value) || 0)}
+                            onChange={(rate) => handleUpdateLine(index, 'taxRate', rate)}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                           />
                         </div>

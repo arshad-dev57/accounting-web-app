@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useFiscalYear } from '../../../lib/fiscal-year-context';
+import FiscalYearSelect from '../../../components/FiscalYearSelect';
+import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
 import {
   TrendingUp,
   TrendingDown,
@@ -132,8 +135,9 @@ export default function AccountingDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
-  const [period, setPeriod] = useState<string>('This Month');
+  const [period, setPeriod] = useState<string>('This Year');
   const [error, setError] = useState<string | null>(null);
+  const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
 
   const fetchDashboard = async (timePeriod = period, options?: { refresh?: boolean }) => {
     try {
@@ -141,9 +145,14 @@ export default function AccountingDashboard() {
       else setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `/api/dashboard/overview?timePeriod=${encodeURIComponent(timePeriod)}&limit=10`
-      );
+      const fyId = selectedFiscalYearId || getStoredFiscalYearId() || '';
+      const qs = new URLSearchParams({
+        timePeriod,
+        limit: '10',
+      });
+      if (fyId) qs.set('fiscalYearId', fyId);
+
+      const response = await fetch(`/api/dashboard/overview?${qs.toString()}`);
       const result = await response.json();
 
       if (result.success && result.data) {
@@ -163,7 +172,7 @@ export default function AccountingDashboard() {
   useEffect(() => {
     fetchDashboard(period);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedFiscalYearId]);
 
   const selectPeriod = (label: string) => {
     if (loading || refreshing) return;
@@ -276,10 +285,12 @@ export default function AccountingDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Accounting Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
             Revenue, expenses, cash and receivables for {period.toLowerCase()}
+            {selectedFiscalYear ? ` · ${selectedFiscalYear.name}` : ''}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <FiscalYearSelect compact showManageLink={false} />
           {TIME_PERIODS.map((p) => (
             <button
               key={p}

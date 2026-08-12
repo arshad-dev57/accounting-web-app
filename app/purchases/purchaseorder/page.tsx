@@ -20,6 +20,7 @@ import {
 import { purchaseOrderService, PurchaseOrderModel, PurchaseOrderStats, PurchaseOrderStatusCounts, Supplier, Product } from '../../api/purchaseorder/route';
 import PDFService from '../../../lib/pdf-service';
 import EmailService from '../../../lib/email-service';
+import TaxRateSelect from '../../../components/TaxRateSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -1303,13 +1304,10 @@ function CreateOrderWizard({
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-gray-500">Tax %</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0"
+                        <label className="text-[10px] text-gray-500">Tax</label>
+                        <TaxRateSelect
                           value={line.taxRate}
-                          onChange={(e) => updateProductField(index, 'taxRate', parseFloat(e.target.value) || 0)}
+                          onChange={(rate) => updateProductField(index, 'taxRate', rate)}
                           className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                         />
                       </div>

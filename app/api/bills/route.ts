@@ -224,12 +224,14 @@ export const billsService = {
     search?: string;
     status?: string;
     supplierId?: string;
+    fiscalYearId?: string;
   } = {}): Promise<BillListResponse> => {
     const query = new URLSearchParams();
 
     // Backend supports: supplierId, status, startDate, endDate, fiscalYearId
     if (params.status) query.append('status', params.status);
     if (params.supplierId) query.append('supplierId', params.supplierId);
+    if (params.fiscalYearId) query.append('fiscalYearId', params.fiscalYearId);
 
     const url = `/api/accounts-payable/bills${
       query.toString() ? `?${query.toString()}` : ''

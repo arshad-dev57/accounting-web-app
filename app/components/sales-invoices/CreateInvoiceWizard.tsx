@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronRight, Calendar } from 'lucide-react';
 import { OrderForInvoicing, InvoiceLineDraft } from '@/types/sales-invoice';
+import TaxRateSelect from '../../../components/TaxRateSelect';
+import { computeTaxLine, taxService, type TaxPricingModel } from '../../../lib/tax-service';
 
 interface CreateInvoiceWizardProps {
   onClose: () => void;
@@ -22,6 +24,13 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
   const [dueDate, setDueDate] = useState(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
   const [paymentTerms, setPaymentTerms] = useState('Net 30');
   const [notes, setNotes] = useState('');
+  const [pricingModel, setPricingModel] = useState<TaxPricingModel>('exclusive');
+
+  useEffect(() => {
+    taxService.context().then((r) => {
+      if (r.data?.pricingModel) setPricingModel(r.data.pricingModel);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -87,11 +96,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
   };
 
   const calculateLineTotal = (line: InvoiceLineDraft) => {
-    const subtotal = line.quantity * line.unitPrice;
-    const discountAmount = subtotal * (line.discount / 100);
-    const taxableAmount = subtotal - discountAmount;
-    const taxAmount = taxableAmount * (line.taxRate / 100);
-    return subtotal - discountAmount + taxAmount;
+    return computeTaxLine(line.quantity, line.unitPrice, line.discount, line.taxRate, pricingModel).lineTotal;
   };
 
   const selectedSubtotal = lineDrafts.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
@@ -100,12 +105,11 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
     return sum + subtotal * (line.discount / 100);
   }, 0);
   const selectedTotalTax = lineDrafts.reduce((sum, line) => {
-    const subtotal = line.quantity * line.unitPrice;
-    const discountAmount = subtotal * (line.discount / 100);
-    const taxableAmount = subtotal - discountAmount;
-    return sum + taxableAmount * (line.taxRate / 100);
+    return sum + computeTaxLine(line.quantity, line.unitPrice, line.discount, line.taxRate, pricingModel).taxAmount;
   }, 0);
-  const selectedGrandTotal = selectedSubtotal - selectedTotalDiscount + selectedTotalTax;
+  const selectedGrandTotal = pricingModel === 'inclusive'
+    ? selectedSubtotal - selectedTotalDiscount
+    : selectedSubtotal - selectedTotalDiscount + selectedTotalTax;
   const totalItems = lineDrafts.reduce((sum, line) => sum + line.quantity, 0);
 
   const nextStep = () => {
@@ -281,13 +285,10 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-600">Tax%</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
+                        <label className="text-xs text-gray-600">Tax</label>
+                        <TaxRateSelect
                           value={line.taxRate}
-                          onChange={(e) => updateLineDraft(index, 'taxRate', parseFloat(e.target.value) || 0)}
+                          onChange={(rate) => updateLineDraft(index, 'taxRate', rate)}
                           className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#014582]"
                         />
                       </div>

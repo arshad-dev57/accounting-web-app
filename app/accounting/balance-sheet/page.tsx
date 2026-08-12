@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { balanceSheetService, BalanceSheetData, BalanceSheetCategory } from '../../api/balance-sheet/route';
 import { toast } from 'react-hot-toast';
+import { useFiscalYear } from '../../../lib/fiscal-year-context';
+import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -28,7 +30,7 @@ export default function BalanceSheetPage() {
   const [loading, setLoading] = useState(true);
   const [currencySymbol, setCurrencySymbol] = useState('Rs.');
   const [selectedPeriod, setSelectedPeriod] = useState('All Time');
-  const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>('');
+  const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
 
   const periodOptions: PeriodOption[] = [
     { label: 'All Time', value: 'All Time' },
@@ -65,8 +67,8 @@ export default function BalanceSheetPage() {
       if (selectedPeriod !== 'All Time') {
         params.period = selectedPeriod;
       }
-      if (selectedFiscalYear) {
-        params.fiscalYearId = selectedFiscalYear;
+      if (selectedFiscalYearId) {
+        params.fiscalYearId = selectedFiscalYearId;
       }
 
       const data = await balanceSheetService.getReport(params);
@@ -77,7 +79,7 @@ export default function BalanceSheetPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedPeriod, selectedFiscalYear]);
+  }, [selectedPeriod, selectedFiscalYearId]);
 
   useEffect(() => {
     fetchReport();
@@ -225,11 +227,13 @@ export default function BalanceSheetPage() {
             {reportData && (
               <p className="text-xs text-gray-500 mt-0.5">
                 As of {formatDate(reportData.asOfDate)}
+                {selectedFiscalYear ? ` · ${selectedFiscalYear.name}` : ''}
               </p>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2 md:gap-3">
+          <FiscalYearSelect compact showManageLink={false} />
           <button
             onClick={fetchReport}
             className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"

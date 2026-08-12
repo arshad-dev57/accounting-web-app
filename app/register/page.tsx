@@ -35,6 +35,7 @@ import {
   BUSINESS_TYPE_OPTIONS,
   FISCAL_YEAR_OPTIONS,
   INDUSTRY_OPTIONS,
+  calculateFiscalYearDates,
 } from '../../lib/business-options';
 
 const STEPS = ['Personal', 'Contact', 'Business', 'Password', 'Done'] as const;
@@ -193,7 +194,17 @@ export default function RegisterPage() {
       return true;
     }
 
-    if (step === 2) return true;
+    if (step === 2) {
+      if (!form.organizationName.trim()) {
+        setError('Please enter your organization / company name');
+        return false;
+      }
+      if (!form.fiscalYear) {
+        setError('Please select a fiscal year period');
+        return false;
+      }
+      return true;
+    }
 
     if (step === 3) {
       if (form.password.length < 6) {
@@ -226,6 +237,13 @@ export default function RegisterPage() {
       fd.append('address', form.address.trim());
       fd.append('organizationName', form.organizationName.trim());
       fd.append('fiscalYear', form.fiscalYear);
+      if (form.fiscalYear) {
+        const fy = calculateFiscalYearDates(form.fiscalYear);
+        fd.append('fiscalYearStartDate', fy.startDate);
+        fd.append('fiscalYearEndDate', fy.endDate);
+        fd.append('fiscalYearName', fy.name);
+        fd.append('fiscalYearPeriodType', form.fiscalYear);
+      }
       fd.append('taxRegistrationNumber', form.taxRegistrationNumber.trim());
       fd.append('industry', form.industry.trim());
       fd.append('businessType', form.businessType);
@@ -553,13 +571,26 @@ export default function RegisterPage() {
                   onChange={(v) => update('businessType', v)}
                   placeholder="Select business type…"
                 />
-                <label className="mb-1.5 mt-4 block text-xs font-semibold text-gray-600">Fiscal Year</label>
+                <label className="mb-1.5 mt-4 block text-xs font-semibold text-gray-600">
+                  Fiscal Year <span className="text-red-500">*</span>
+                </label>
                 <SearchableSelect
                   options={[...FISCAL_YEAR_OPTIONS]}
                   value={form.fiscalYear}
                   onChange={(v) => update('fiscalYear', v)}
-                  placeholder="Select fiscal year…"
+                  placeholder="Select fiscal year period…"
                 />
+                {form.fiscalYear && (() => {
+                  const fy = calculateFiscalYearDates(form.fiscalYear);
+                  return (
+                    <p className="mt-1.5 text-[11px] text-gray-500">
+                      Books will open as{' '}
+                      <span className="font-semibold text-gray-700">{fy.name}</span>{' '}
+                      ({fy.startDate} → {fy.endDate}). This is the year used across
+                      accounting, sales and purchases.
+                    </p>
+                  );
+                })()}
               </div>
 
               <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">

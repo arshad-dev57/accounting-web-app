@@ -30,6 +30,8 @@ import {
   Tooltip,
   Cell,
 } from 'recharts';
+import { useFiscalYear } from '../../../lib/fiscal-year-context';
+import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
 
 type SpendPoint = {
   date: string;
@@ -130,15 +132,20 @@ export default function PurchasesDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
-  const [periodLabel, setPeriodLabel] = useState('This Month');
-  const [period, setPeriod] = useState('month');
+  const [periodLabel, setPeriodLabel] = useState('This Year');
+  const [period, setPeriod] = useState('year');
+  const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
 
   const fetchDashboard = async (p = period, options?: { refresh?: boolean }) => {
     try {
       if (options?.refresh) setRefreshing(true);
       else setLoading(true);
 
-      const response = await fetch(`/api/purchases/dashboard?period=${p}`);
+      const fyId = selectedFiscalYearId || getStoredFiscalYearId() || '';
+      const qs = new URLSearchParams({ period: p });
+      if (fyId) qs.set('fiscalYearId', fyId);
+
+      const response = await fetch(`/api/purchases/dashboard?${qs.toString()}`);
       const result = await response.json();
       if (result.success && result.data) {
         setData(result.data);
@@ -154,7 +161,7 @@ export default function PurchasesDashboardPage() {
   useEffect(() => {
     fetchDashboard(period);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedFiscalYearId]);
 
   const selectPeriod = (label: string, value: string) => {
     if (loading || refreshing) return;
@@ -265,6 +272,7 @@ export default function PurchasesDashboardPage() {
           <h1 className="text-2xl font-bold text-gray-900">Purchases Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
             Orders, spend, payables and supplier activity for {periodLabel.toLowerCase()}
+            {selectedFiscalYear?.name ? ` · ${selectedFiscalYear.name}` : ''}
           </p>
         </div>
 

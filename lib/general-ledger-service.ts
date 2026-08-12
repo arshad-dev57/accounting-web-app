@@ -54,10 +54,12 @@ export const generalLedgerService = {
   getAccountSummaries: async (params?: {
     startDate?: string;
     endDate?: string;
+    fiscalYearId?: string;
   }): Promise<AccountSummary[]> => {
     const query = new URLSearchParams();
     if (params?.startDate) query.append('startDate', params.startDate);
     if (params?.endDate) query.append('endDate', params.endDate);
+    if (params?.fiscalYearId) query.append('fiscalYearId', params.fiscalYearId);
 
     const url = `/api/general-ledger/accounts${query.toString() ? `?${query.toString()}` : ''}`;
 
@@ -85,6 +87,7 @@ export const generalLedgerService = {
     showCreditOnly?: boolean;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    fiscalYearId?: string;
   } = {}): Promise<LedgerListResponse> => {
     const query = new URLSearchParams();
     const page = params.page && params.page > 0 ? params.page : 1;

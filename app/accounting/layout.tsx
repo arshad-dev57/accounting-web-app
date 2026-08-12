@@ -38,8 +38,10 @@ import {
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
 import ProfileDropdown from '../../components/ProfileDropdown';
+import FiscalYearSelect from '../../components/FiscalYearSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { performLogout } from '../../lib/auth-logout';
+import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 
 // ============================================================
 // ACCOUNTING SIDEBAR
@@ -94,6 +96,8 @@ function AccountingSidebar() {
   ];
 
   const settingsPages = [
+    { path: '/accounting/fiscal-years', label: 'Fiscal Years', permission: 'settings' },
+    { path: '/tax', label: 'Tax Compliance', permission: 'settings' },
     { path: '/accounting/currency', label: 'Currency', permission: 'currency' },
     { path: '/accounting/pdf-reports', label: 'PDF Reports', permission: 'settings' },
     { path: '/accounting/settings', label: 'Accounting Settings', permission: 'settings' },
@@ -243,6 +247,7 @@ function AccountingSidebar() {
                 };
 
                 const isPdf = page.path.includes('pdf-reports');
+                const isTax = page.path === '/tax';
                 
                 return (
                   <Link
@@ -252,7 +257,7 @@ function AccountingSidebar() {
                       isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    {isPdf ? <FileText className="w-4 h-4" /> : (iconMap[page.permission] || <Settings className="w-4 h-4" />)}
+                    {isTax ? <Scale className="w-4 h-4" /> : isPdf ? <FileText className="w-4 h-4" /> : (iconMap[page.permission] || <Settings className="w-4 h-4" />)}
                     <span>{page.label}</span>
                   </Link>
                 );
@@ -356,7 +361,7 @@ export default function AccountingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <FiscalYearProvider>
       <AccountingSidebar />
 
       <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
@@ -368,6 +373,10 @@ export default function AccountingLayout({
           />
 
           <div className="flex items-center gap-4">
+            <FiscalYearSelect />
+
+            <div className="w-px h-6 bg-gray-200" />
+
             <button
               type="button"
               onClick={() => { window.location.href = '/support'; }}
@@ -395,6 +404,6 @@ export default function AccountingLayout({
           {children}
         </div>
       </div>
-    </>
+    </FiscalYearProvider>
   );
 }

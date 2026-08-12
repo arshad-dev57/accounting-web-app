@@ -59,6 +59,7 @@ export async function GET(request) {
     const period = searchParams.get('period') || 'month';
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const fiscalYearId = searchParams.get('fiscalYearId');
 
     const token =
       request.cookies.get('auth_token')?.value ||
@@ -74,6 +75,7 @@ export async function GET(request) {
     const qs = new URLSearchParams({ period });
     if (startDate) qs.set('startDate', startDate);
     if (endDate) qs.set('endDate', endDate);
+    if (fiscalYearId) qs.set('fiscalYearId', fiscalYearId);
 
     // Same parallel fetches as Flutter PurchaseController
     const [metricsRes, trendRes, statusRes, suppliersRes, activitiesRes] =

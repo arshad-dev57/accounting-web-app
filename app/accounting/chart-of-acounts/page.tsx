@@ -20,6 +20,7 @@ import {
   Edit, Archive, MoreVertical, Info, Layers
 } from 'lucide-react';
 import { chartOfAccountService, ChartOfAccount, ChartOfAccountStats } from '../../../lib/chart-of-accounts-service';
+import { TaxCodeSelect } from '../../../components/TaxRateSelect';
 
 
 interface AccountTypeStats {
@@ -720,7 +721,6 @@ function AccountForm({
     'Revenue': ['Operating Income'],
     'Expense': ['Operating Expenses']
   };
-  const taxOptions = ['N/A', 'GST-13%', 'GST-5%', 'WHT-10%'];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -888,15 +888,11 @@ function AccountForm({
             <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
               Tax Code
             </label>
-            <select
+            <TaxCodeSelect
               value={formData.taxCode || 'N/A'}
-              onChange={(e) => setFormData(prev => ({ ...prev, taxCode: e.target.value }))}
+              onChange={(taxCode) => setFormData(prev => ({ ...prev, taxCode }))}
               className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
-            >
-              {taxOptions.map((tax) => (
-                <option key={tax} value={tax}>{tax}</option>
-              ))}
-            </select>
+            />
           </div>
 
           <div>
