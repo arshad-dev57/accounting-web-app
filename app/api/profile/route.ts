@@ -3,7 +3,10 @@ import { API_BASE_URL } from '@/lib/constants';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth_token')?.value;
+    const token =
+      request.cookies.get('auth_token')?.value ||
+      request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
+      '';
 
     if (!token) {
       return NextResponse.json(
@@ -26,6 +29,41 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error.message || 'Failed to get profile' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const token =
+      request.cookies.get('auth_token')?.value ||
+      request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
+      '';
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const formData = await request.formData();
+
+    const response = await fetch(`${API_BASE_URL}/api/profile`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    return NextResponse.json(data, { status: response.status });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to update profile' },
       { status: 500 }
     );
   }

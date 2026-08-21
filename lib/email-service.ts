@@ -270,7 +270,7 @@ export class EmailService {
                 </tr>
               </table>
               <p style="font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.8; margin: 0;">
-                Questions? <span style="color: #7c4dff;">${data.companyInfo?.email || 'support@company.com'}</span>
+                Questions? <span style="color: #014582;">${data.companyInfo?.email || 'support@company.com'}</span>
               </p>
             </td>
           </tr>

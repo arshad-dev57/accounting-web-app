@@ -1,5 +1,13 @@
 // app/api/verify-otp/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  AUTH_TOKEN_MAX_AGE,
+  LOGGED_IN_COOKIE,
+  REFRESH_TOKEN_MAX_AGE,
+  httpOnlyAuthCookie,
+  loggedInCookieOptions,
+  publicAuthCookie,
+} from '@/lib/auth-cookies';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -38,43 +46,56 @@ export async function POST(request: NextRequest) {
         user: data.user,
         token: token,                 // ← Include token for client-side storage
         refreshToken: refreshToken,   // ← Include refreshToken
+        pdfReportSettings:
+          data.pdfReportSettings || data.user?.pdfReportSettings || null,
       });
 
       console.log('🍪 [OTP API] Setting cookies');
 
       // Also set httpOnly cookies (for server-side authentication)
+      // COOKIE_DOMAIN=.bisonstechs.com enables marketing site session awareness
       if (token) {
-        nextResponse.cookies.set('auth_token', token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 7 * 24 * 60 * 60,
-          path: '/',
-        });
+        nextResponse.cookies.set(
+          'auth_token',
+          token,
+          httpOnlyAuthCookie(AUTH_TOKEN_MAX_AGE)
+        );
         console.log('✅ [OTP API] Auth token cookie set');
       }
 
       if (refreshToken) {
-        nextResponse.cookies.set('refresh_token', refreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 30 * 24 * 60 * 60,
-          path: '/',
-        });
+        nextResponse.cookies.set(
+          'refresh_token',
+          refreshToken,
+          httpOnlyAuthCookie(REFRESH_TOKEN_MAX_AGE)
+        );
         console.log('✅ [OTP API] Refresh token cookie set');
       }
 
       if (data.user) {
-        nextResponse.cookies.set('user_data', JSON.stringify(data.user), {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 7 * 24 * 60 * 60,
-          path: '/',
-        });
+        nextResponse.cookies.set(
+          'user_data',
+          JSON.stringify(data.user),
+          httpOnlyAuthCookie(AUTH_TOKEN_MAX_AGE)
+        );
         console.log('✅ [OTP API] User data cookie set');
       }
+
+      // Hint for proxy — client will refresh accurately via /api/subscription/status
+      const sub = data.user?.subscription;
+      const hintActive = sub?.status === 'active';
+      nextResponse.cookies.set(
+        'subscription_access',
+        hintActive ? '1' : '0',
+        publicAuthCookie(AUTH_TOKEN_MAX_AGE)
+      );
+
+      // Readable by bisonstechs.com so Sign In ↔ Dashboard can switch
+      nextResponse.cookies.set(
+        LOGGED_IN_COOKIE,
+        '1',
+        loggedInCookieOptions(AUTH_TOKEN_MAX_AGE)
+      );
 
       console.log('✅ [OTP API] Returning successful response');
       return nextResponse;

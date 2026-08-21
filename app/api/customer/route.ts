@@ -37,6 +37,9 @@ export interface Customer {
   totalSpent: number;
   averageOrderValue: number;
   lastOrderDate?: string;
+  outstandingBalance?: number;
+  creditLimit?: number;
+  creditTerms?: string;
   notes?: string;
   tags: string[];
   preferences?: {

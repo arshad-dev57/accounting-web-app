@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       console.log('📤 [Login API] Sending to backend:', `${API_BASE_URL}/api/users/login`);
       const response = await fetch(`${API_BASE_URL}/api/users/login`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
@@ -26,9 +26,9 @@ export async function POST(request: NextRequest) {
       if (!response.ok) {
         console.log('❌ [Login API] Backend Error:', response.status);
         return NextResponse.json(
-          { 
-            success: false, 
-            message: `Backend error: ${response.status}` 
+          {
+            success: false,
+            message: `Backend error: ${response.status}`
           },
           { status: response.status }
         );
@@ -41,18 +41,18 @@ export async function POST(request: NextRequest) {
 
       if (data.success) {
         console.log('✅ [Login API] Returning success with OTP requirement');
-        return NextResponse.json({ 
-          success: true, 
+        return NextResponse.json({
+          success: true,
           requiresOtp: true,
-          email: body.email 
+          email: body.email
         });
       }
 
       console.log('❌ [Login API] Login failed:', data.message);
       return NextResponse.json(
-        { 
-          success: false, 
-          message: data.message || 'Login failed' 
+        {
+          success: false,
+          message: data.message || 'Login failed'
         },
         { status: 400 }
       );
@@ -60,22 +60,22 @@ export async function POST(request: NextRequest) {
       // Agar backend nahi chal raha toh mock response
       console.log('⚠️ [Login API] Backend not available, using mock response');
       console.log('🔧 [Login API] Fetch error:', fetchError);
-      
+
       // Mock login - test@example.com / password123
       if (body.email === 'test@example.com' && body.password === 'password123') {
         console.log('✅ [Login API] Mock login successful');
-        return NextResponse.json({ 
-          success: true, 
+        return NextResponse.json({
+          success: true,
           requiresOtp: true,
-          email: body.email 
+          email: body.email
         });
       }
 
       console.log('❌ [Login API] Mock login failed');
       return NextResponse.json(
-        { 
-          success: false, 
-          message: 'Invalid email or password' 
+        {
+          success: false,
+          message: 'Invalid email or password'
         },
         { status: 401 }
       );
@@ -85,9 +85,9 @@ export async function POST(request: NextRequest) {
     console.log('❌ [Login API] Server Error:', error);
     console.log('❌ [Login API] Error message:', error.message);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: error.message || 'Internal server error' 
+      {
+        success: false,
+        message: error.message || 'Internal server error'
       },
       { status: 500 }
     );

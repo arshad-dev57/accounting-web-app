@@ -76,16 +76,24 @@ export const journalEntryService = {
     endDate?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    locationId?: string;
+    fiscalYearId?: string;
   } = {}): Promise<JournalEntryListResponse> => {
     const query = new URLSearchParams();
-    
+    const page = params.page && params.page > 0 ? params.page : 1;
+    const limit = params.limit && params.limit > 0 ? Math.min(params.limit, 100) : 10;
+
+    query.set('page', String(page));
+    query.set('limit', String(limit));
+
     Object.entries(params).forEach(([key, value]) => {
+      if (key === 'page' || key === 'limit') return;
       if (value !== undefined && value !== null && value !== '') {
         query.append(key, String(value));
       }
     });
 
-    const url = `/api/journal-entries${query.toString() ? `?${query.toString()}` : ''}`;
+    const url = `/api/journal-entries?${query.toString()}`;
     
     try {
       const response = await apiClient.get(url);
@@ -95,19 +103,35 @@ export const journalEntryService = {
       }
       
       const data = response.data || {};
-      
-      // Map backend summary to frontend stats
+      const paginationSource = data.pagination || data;
       const summary = data.summary || {};
-      const stats = data.stats || {
-        totalDebit: summary.totalDebit || 0,
-        totalCredit: summary.totalCredit || 0,
-        difference: summary.difference || Math.abs((summary.totalDebit || 0) - (summary.totalCredit || 0)),
-        postedCount: summary.postedCount || 0,
-        draftCount: 0
+      const rawEntries = Array.isArray(data.data)
+        ? data.data
+        : Array.isArray(data)
+          ? data
+          : [];
+
+      const total = Number(
+        paginationSource.total ?? data.totalCount ?? rawEntries.length
+      );
+      const currentPage = Number(paginationSource.page ?? page);
+      const pageSize = Number(paginationSource.limit ?? limit);
+      const pages = Number(
+        paginationSource.pages ?? (Math.max(1, Math.ceil(total / pageSize) || 1))
+      );
+      
+      const stats = {
+        totalDebit: data.stats?.totalDebit ?? summary.totalDebit ?? 0,
+        totalCredit: data.stats?.totalCredit ?? summary.totalCredit ?? 0,
+        difference:
+          data.stats?.difference ??
+          summary.difference ??
+          Math.abs((summary.totalDebit || 0) - (summary.totalCredit || 0)),
+        postedCount: data.stats?.postedCount ?? summary.postedCount ?? 0,
+        draftCount: data.stats?.draftCount ?? summary.draftCount ?? 0
       };
       
-      // Calculate totalDebit and totalCredit for each entry from lines
-      const entries = (data.data || []).map((entry: any) => ({
+      const entries = rawEntries.map((entry: any) => ({
         ...entry,
         totalDebit: entry.totalDebit || (entry.lines || []).reduce((sum: number, line: any) => sum + (line.debit || 0), 0),
         totalCredit: entry.totalCredit || (entry.lines || []).reduce((sum: number, line: any) => sum + (line.credit || 0), 0)
@@ -118,12 +142,12 @@ export const journalEntryService = {
         data: entries,
         stats,
         pagination: {
-          page: data.page || params.page || 1,
-          limit: data.limit || params.limit || 10,
-          total: data.total || 0,
-          pages: data.pages || 0,
-          hasNext: data.hasNext || false,
-          hasPrev: data.hasPrev || false
+          page: currentPage,
+          limit: pageSize,
+          total,
+          pages,
+          hasNext: paginationSource.hasNext ?? currentPage < pages,
+          hasPrev: paginationSource.hasPrev ?? currentPage > 1
         }
       };
     } catch (error: any) {

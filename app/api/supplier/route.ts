@@ -2,6 +2,7 @@
 import { apiClient } from '../../lib/api-client';
 
 export interface Supplier {
+  id?: string;
   _id?: string;
   name: string;
   companyName?: string;
@@ -19,6 +20,12 @@ export interface Supplier {
   status?: 'active' | 'inactive';
   createdAt?: string;
   updatedAt?: string;
+}
+
+function normalizeSupplier(s: any): Supplier {
+  if (!s) return s;
+  const id = String(s.id || s._id || '');
+  return { ...s, id, _id: id };
 }
 
 export interface SupplierListResponse {
@@ -40,7 +47,6 @@ export interface SupplierListResponse {
 }
 
 export const supplierService = {
-  // Get suppliers with pagination, search, status filter
   getSuppliers: async (
     params: {
       page?: number;
@@ -56,41 +62,49 @@ export const supplierService = {
     if (!response.success) {
       throw new Error(response.message || 'Failed to fetch suppliers');
     }
-    return response.data;
+    const payload = response.data || {};
+    return {
+      ...payload,
+      data: (payload.data || []).map(normalizeSupplier),
+    };
   },
 
-  // Get single supplier by ID
   getSupplierById: async (id: string): Promise<Supplier> => {
     const response = await apiClient.get(`/api/warehouse/supplier/${id}`);
     if (!response.success) {
       throw new Error(response.message || 'Failed to fetch supplier');
     }
-    return response.data;
+    return normalizeSupplier(response.data?.data || response.data);
   },
 
-  // Create new supplier
   createSupplier: async (data: Partial<Supplier>): Promise<Supplier> => {
     const response = await apiClient.post('/api/warehouse/supplier', data);
     if (!response.success) {
       throw new Error(response.message || 'Failed to create supplier');
     }
-    return response.data;
+    return normalizeSupplier(response.data?.data || response.data);
   },
 
-  // Update supplier
   updateSupplier: async (id: string, data: Partial<Supplier>): Promise<Supplier> => {
     const response = await apiClient.put(`/api/warehouse/supplier/${id}`, data);
     if (!response.success) {
       throw new Error(response.message || 'Failed to update supplier');
     }
-    return response.data;
+    return normalizeSupplier(response.data?.data || response.data);
   },
 
-  // Delete supplier
-  deleteSupplier: async (id: string): Promise<void> => {
+  deleteSupplier: async (
+    id: string
+  ): Promise<{ success: boolean; message: string }> => {
+    if (!id) throw new Error('Supplier id is required');
     const response = await apiClient.delete(`/api/warehouse/supplier/${id}`);
     if (!response.success) {
       throw new Error(response.message || 'Failed to delete supplier');
     }
+    const body = response.data || {};
+    return {
+      success: true,
+      message: body.message || response.message || 'Supplier deleted successfully',
+    };
   },
 };

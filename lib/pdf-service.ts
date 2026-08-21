@@ -1,6 +1,14 @@
 // lib/pdf-service.ts - Reusable PDF Service for Frontend
 
-import { generatePDF, savePDF, generatePDFBlob, PDFGeneratorData } from './pdf-generator';
+import {
+  generatePDF,
+  savePDF,
+  generatePDFBlob,
+  generatePDFAsync,
+  generatePDFBlobAsync,
+  savePDFAsync,
+  PDFGeneratorData,
+} from './pdf-generator';
 
 /**
  * PDF Service - Provides reusable methods for PDF generation and download
@@ -15,12 +23,14 @@ export class PDFService {
   private static getCompanyInfo(): any {
     try {
       const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-      const businessDetails = userProfile?.businessDetails || {};
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const source = userProfile?.organizationName ? userProfile : user;
+      const businessDetails = source?.businessDetails || {};
       return {
-        name: userProfile?.organizationName || 'Your Company Name',
-        address: userProfile?.address || '',
-        phone: userProfile?.contactNo || userProfile?.phone || '',
-        email: userProfile?.email || '',
+        name: source?.organizationName || 'Your Company Name',
+        address: source?.address || '',
+        phone: source?.contactNo || source?.phone || '',
+        email: source?.email || '',
         logo: businessDetails.logo || ''
       };
     } catch (error) {
@@ -36,13 +46,11 @@ export class PDFService {
   }
 
   /**
-   * Generate and download PDF
-   * @param data - PDF data object
-   * @param filename - Optional custom filename
+   * Generate and download PDF (applies PDF report branding)
    */
-  static downloadPDF(data: PDFGeneratorData, filename?: string): void {
+  static async downloadPDF(data: PDFGeneratorData, filename?: string): Promise<void> {
     try {
-      savePDF(data, filename);
+      await savePDFAsync(data, filename);
     } catch (error) {
       console.error('Failed to download PDF:', error);
       throw new Error('Failed to generate PDF');
@@ -50,13 +58,11 @@ export class PDFService {
   }
 
   /**
-   * Generate PDF as blob (for email attachments or preview)
-   * @param data - PDF data object
-   * @returns PDF blob
+   * Generate PDF as blob (applies PDF report branding)
    */
-  static generatePDFBlob(data: PDFGeneratorData): Blob {
+  static async generatePDFBlob(data: PDFGeneratorData): Promise<Blob> {
     try {
-      return generatePDFBlob(data);
+      return await generatePDFBlobAsync(data);
     } catch (error) {
       console.error('Failed to generate PDF blob:', error);
       throw new Error('Failed to generate PDF blob');
@@ -64,102 +70,72 @@ export class PDFService {
   }
 
   /**
-   * Generate PDF as jsPDF document (for custom operations)
-   * @param data - PDF data object
-   * @returns jsPDF document
+   * Generate PDF as jsPDF document (applies PDF report branding)
    */
-  static generatePDFDocument(data: PDFGeneratorData): any {
+  static async generatePDFDocument(data: PDFGeneratorData): Promise<any> {
     try {
-      return generatePDF(data);
+      return await generatePDFAsync(data);
     } catch (error) {
       console.error('Failed to generate PDF document:', error);
       throw new Error('Failed to generate PDF document');
     }
   }
 
-  /**
-   * Download purchase order PDF (auto-fetches company info)
-   * @param orderData - Purchase order data
-   * @param companyInfo - Optional company information (auto-fetched if not provided)
-   * @param filename - Optional custom filename
-   */
-  static downloadPurchaseOrderPDF(orderData: any, companyInfo?: any, filename?: string): void {
+  /** Sync fallback without branding reload (when branding already on data). */
+  static downloadPDFSync(data: PDFGeneratorData, filename?: string): void {
+    savePDF(data, filename);
+  }
+
+  static generatePDFBlobSync(data: PDFGeneratorData): Blob {
+    return generatePDFBlob(data);
+  }
+
+  static generatePDFDocumentSync(data: PDFGeneratorData): any {
+    return generatePDF(data);
+  }
+
+  static async downloadPurchaseOrderPDF(orderData: any, companyInfo?: any, filename?: string): Promise<void> {
     const { createPurchaseOrderPDFData } = require('./pdf-generator');
     const finalCompanyInfo = companyInfo || this.getCompanyInfo();
     const pdfData = createPurchaseOrderPDFData(orderData, finalCompanyInfo);
-    this.downloadPDF(pdfData, filename);
+    await this.downloadPDF(pdfData, filename);
   }
 
-  /**
-   * Download invoice PDF (auto-fetches company info)
-   * @param invoiceData - Invoice data
-   * @param companyInfo - Optional company information (auto-fetched if not provided)
-   * @param filename - Optional custom filename
-   */
-  static downloadInvoicePDF(invoiceData: any, companyInfo?: any, filename?: string): void {
+  static async downloadInvoicePDF(invoiceData: any, companyInfo?: any, filename?: string): Promise<void> {
     const { createInvoicePDFData } = require('./pdf-generator');
     const finalCompanyInfo = companyInfo || this.getCompanyInfo();
     const pdfData = createInvoicePDFData(invoiceData, finalCompanyInfo);
-    this.downloadPDF(pdfData, filename);
+    await this.downloadPDF(pdfData, filename);
   }
 
-  /**
-   * Download goods receiving PDF (auto-fetches company info)
-   * @param grnData - Goods receiving data
-   * @param companyInfo - Optional company information (auto-fetched if not provided)
-   * @param filename - Optional custom filename
-   */
-  static downloadGoodsReceivingPDF(grnData: any, companyInfo?: any, filename?: string): void {
+  static async downloadGoodsReceivingPDF(grnData: any, companyInfo?: any, filename?: string): Promise<void> {
     const { createGoodsReceivingPDFData } = require('./pdf-generator');
     const finalCompanyInfo = companyInfo || this.getCompanyInfo();
     const pdfData = createGoodsReceivingPDFData(grnData, finalCompanyInfo);
-    this.downloadPDF(pdfData, filename);
+    await this.downloadPDF(pdfData, filename);
   }
 
-  /**
-   * Generate purchase order PDF blob for email attachment (auto-fetches company info)
-   * @param orderData - Purchase order data
-   * @param companyInfo - Optional company information (auto-fetched if not provided)
-   * @returns PDF blob
-   */
-  static generatePurchaseOrderPDFBlob(orderData: any, companyInfo?: any): Blob {
+  static async generatePurchaseOrderPDFBlob(orderData: any, companyInfo?: any): Promise<Blob> {
     const { createPurchaseOrderPDFData } = require('./pdf-generator');
     const finalCompanyInfo = companyInfo || this.getCompanyInfo();
     const pdfData = createPurchaseOrderPDFData(orderData, finalCompanyInfo);
     return this.generatePDFBlob(pdfData);
   }
 
-  /**
-   * Generate invoice PDF blob for email attachment (auto-fetches company info)
-   * @param invoiceData - Invoice data
-   * @param companyInfo - Optional company information (auto-fetched if not provided)
-   * @returns PDF blob
-   */
-  static generateInvoicePDFBlob(invoiceData: any, companyInfo?: any): Blob {
+  static async generateInvoicePDFBlob(invoiceData: any, companyInfo?: any): Promise<Blob> {
     const { createInvoicePDFData } = require('./pdf-generator');
     const finalCompanyInfo = companyInfo || this.getCompanyInfo();
     const pdfData = createInvoicePDFData(invoiceData, finalCompanyInfo);
     return this.generatePDFBlob(pdfData);
   }
 
-  /**
-   * Generate goods receiving PDF blob for email attachment (auto-fetches company info)
-   * @param grnData - Goods receiving data
-   * @param companyInfo - Optional company information (auto-fetched if not provided)
-   * @returns PDF blob
-   */
-  static generateGoodsReceivingPDFBlob(grnData: any, companyInfo?: any): Blob {
+  static async generateGoodsReceivingPDFBlob(grnData: any, companyInfo?: any): Promise<Blob> {
     const { createGoodsReceivingPDFData } = require('./pdf-generator');
     const finalCompanyInfo = companyInfo || this.getCompanyInfo();
     const pdfData = createGoodsReceivingPDFData(grnData, finalCompanyInfo);
     return this.generatePDFBlob(pdfData);
   }
 
-  /**
-   * Convert blob to base64 (for sending to backend)
-   * @param blob - PDF blob
-   * @returns Base64 string
-   */
   static async blobToBase64(blob: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();

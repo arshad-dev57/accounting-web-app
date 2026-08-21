@@ -36,6 +36,7 @@ export const profitLossService = {
     startDate?: string;
     endDate?: string;
     fiscalYearId?: string;
+    locationId?: string;
   } = {}): Promise<PLData> => {
     const query = new URLSearchParams();
     
@@ -90,28 +91,24 @@ export const profitLossService = {
   // ─── Export to PDF ──────────────────────────────────────────
   exportToPdf: async (data: PLData, formatCurrency: (amount: number) => string): Promise<void> => {
     try {
-      const { default: jsPDF } = await import('jspdf');
       const autoTable = (await import('jspdf-autotable')).default;
+      const { createBrandedReport } = await import('../../../lib/pdf-branding');
 
-      const doc = new jsPDF('portrait', 'mm', 'a4');
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 14;
-      let y = 20;
+      const {
+        doc,
+        margin,
+        pageWidth,
+        startY,
+        accentHex,
+        finalize,
+      } = await createBrandedReport({ reportTitle: 'Profit & Loss Statement' });
 
-      // Header
-      doc.setFontSize(18);
-      doc.setTextColor('#7c4dff');
-      doc.text('Profit & Loss Statement', pageWidth / 2, y, { align: 'center' });
-      y += 8;
-
+      let y = startY;
       doc.setFontSize(10);
       doc.setTextColor('#666666');
-      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, y, { align: 'center' });
-      y += 6;
       doc.text(`Period: ${data.periodText}`, pageWidth / 2, y, { align: 'center' });
-      y += 10;
+      y += 8;
 
-      // Summary
       doc.setFontSize(11);
       doc.setTextColor('#333333');
       doc.text('Summary', margin, y);
@@ -131,7 +128,7 @@ export const profitLossService = {
         head: [['Metric', 'Amount']],
         body: summaryData,
         theme: 'striped',
-        headStyles: { fillColor: '#7c4dff', textColor: '#ffffff' },
+        headStyles: { fillColor: accentHex, textColor: '#ffffff' },
         styles: { fontSize: 9 },
         columnStyles: {
           0: { cellWidth: 80 },
@@ -142,7 +139,6 @@ export const profitLossService = {
 
       y = (doc as any).lastAutoTable.finalY + 10;
 
-      // Revenue Section
       doc.setFontSize(12);
       doc.setTextColor('#2E7D32');
       doc.text('Revenue', margin, y);
@@ -167,7 +163,6 @@ export const profitLossService = {
 
       y = (doc as any).lastAutoTable.finalY + 10;
 
-      // Expenses Section
       doc.setFontSize(12);
       doc.setTextColor('#C62828');
       doc.text('Operating Expenses', margin, y);
@@ -192,7 +187,6 @@ export const profitLossService = {
 
       y = (doc as any).lastAutoTable.finalY + 10;
 
-      // Other Income/Expenses
       if (data.otherIncomeItems.length > 0 || data.otherExpenseItems.length > 0) {
         if (data.otherIncomeItems.length > 0) {
           doc.setFontSize(12);
@@ -249,7 +243,6 @@ export const profitLossService = {
         }
       }
 
-      // Net Profit
       doc.setFontSize(14);
       const isProfit = data.netProfit >= 0;
       doc.setTextColor(isProfit ? '#2E7D32' : '#C62828');
@@ -267,14 +260,10 @@ export const profitLossService = {
       doc.setFont('helvetica', 'normal');
       doc.text(`Profit Margin: ${data.netProfitMargin.toFixed(2)}%`, pageWidth / 2, y + 10, { align: 'center' });
 
-      // Footer
-      doc.setFontSize(8);
-      doc.setTextColor('#999999');
-      doc.text('Confidential - For Internal Use Only', margin, doc.internal.pageSize.getHeight() - 10);
-      doc.text('Page 1 of 1', pageWidth - margin, doc.internal.pageSize.getHeight() - 10, { align: 'right' });
-
-      // Save
-      doc.save(`profit_loss_${new Date().toISOString().split('T')[0]}.pdf`);
+      finalize({
+        signatureY: y + 18,
+        filename: `profit_loss_${new Date().toISOString().split('T')[0]}.pdf`,
+      });
     } catch (error) {
       console.error('Export PDF error:', error);
       throw new Error('Failed to export PDF');

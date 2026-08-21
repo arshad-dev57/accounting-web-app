@@ -31,7 +31,7 @@ import {
   AlertTriangle as AlertTriangleIcon, Package as InventoryIcon,
   Truck, Box, Settings
 } from 'lucide-react';
-import { fixedAssetsService, FixedAsset, Summary, Vendor } from '../../api/fixed-assets/route';
+import { fixedAssetsService, FixedAsset, Summary, Vendor, BankAccountOption } from '../../api/fixed-assets/route';
 import { toast } from 'react-hot-toast';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -72,6 +72,7 @@ export default function FixedAssetsPage() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [showDisposeForm, setShowDisposeForm] = useState(false);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccountOption[]>([]);
 
   const [currencySymbol, setCurrencySymbol] = useState('Rs.');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -135,6 +136,15 @@ export default function FixedAssetsPage() {
     }
   }, []);
 
+  const fetchBankAccounts = useCallback(async () => {
+    try {
+      const data = await fixedAssetsService.getBankAccounts();
+      setBankAccounts(data || []);
+    } catch (error) {
+      console.error('Failed to fetch bank accounts:', error);
+    }
+  }, []);
+
   // ─── Fetch Summary ────────────────────────────────────────────
 
   const fetchSummary = useCallback(async () => {
@@ -174,6 +184,7 @@ export default function FixedAssetsPage() {
 
   useEffect(() => {
     fetchVendors();
+    fetchBankAccounts();
     fetchSummary();
     fetchAssets(true);
   }, []);
@@ -382,6 +393,7 @@ export default function FixedAssetsPage() {
       {showCreateForm ? (
         <CreateAssetForm
           vendors={vendors}
+          bankAccounts={bankAccounts}
           categoryOptions={categoryOptions}
           onCancel={() => setShowCreateForm(false)}
           onSave={handleCreateAsset}
@@ -424,7 +436,7 @@ export default function FixedAssetsPage() {
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <InventoryIcon className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+                <InventoryIcon className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
                 Fixed Assets
                 <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
                   ({pagination.total} assets)
@@ -434,7 +446,7 @@ export default function FixedAssetsPage() {
             <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={handleRefresh}
-                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
                 title="Refresh"
                 disabled={loading}
               >
@@ -450,7 +462,7 @@ export default function FixedAssetsPage() {
               </button>
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
               >
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Add Asset</span>
@@ -490,7 +502,7 @@ export default function FixedAssetsPage() {
                   placeholder="Search assets..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
                 {searchTerm && (
                   <button onClick={clearSearch} className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2">
@@ -504,7 +516,7 @@ export default function FixedAssetsPage() {
                   <select
                     value={filter.status}
                     onChange={(e) => handleStatusChange(e.target.value)}
-                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   >
                     {statusOptions.map((status) => (
                       <option key={status} value={status}>{status}</option>
@@ -520,7 +532,7 @@ export default function FixedAssetsPage() {
           <div className="space-y-3 md:space-y-4">
             {loading && assets.length === 0 ? (
               <div className="text-center py-8 md:py-12">
-                <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#7c4dff] animate-spin" />
+                <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                 <p className="mt-2 text-xs md:text-sm text-gray-500">Loading assets...</p>
               </div>
             ) : assets.length === 0 ? (
@@ -578,8 +590,10 @@ export default function FixedAssetsPage() {
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-sm md:text-base font-bold text-green-600">{formatCurrency(asset.netBookValue)}</p>
-                          <p className="text-[10px] md:text-xs text-gray-400">NBV</p>
+                          <p className="text-sm md:text-base font-bold text-[#014582]">{formatCurrency(asset.purchaseCost)}</p>
+                          <p className="text-[10px] md:text-xs text-gray-400">Purchase cost</p>
+                          <p className="text-xs md:text-sm font-semibold text-green-600 mt-1">{formatCurrency(asset.netBookValue)}</p>
+                          <p className="text-[10px] md:text-xs text-gray-400">Book value</p>
                         </div>
                       </div>
                     </div>
@@ -595,7 +609,7 @@ export default function FixedAssetsPage() {
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50"
+                className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all disabled:opacity-50"
               >
                 {loadingMore ? (
                   <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -621,7 +635,7 @@ export default function FixedAssetsPage() {
                 >
                   <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
-                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg text-xs md:text-sm">
+                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg text-xs md:text-sm">
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
@@ -664,6 +678,7 @@ export default function FixedAssetsPage() {
 
 function CreateAssetForm({
   vendors,
+  bankAccounts,
   categoryOptions,
   onCancel,
   onSave,
@@ -681,7 +696,11 @@ function CreateAssetForm({
     location: '',
     supplierId: '',
     warrantyExpiry: '',
-    notes: ''
+    notes: '',
+    acquisitionType: 'purchase',
+    paymentMethod: 'Cash',
+    bankAccountId: '',
+    openingAccumulatedDepreciation: '0',
   });
   const [error, setError] = useState('');
 
@@ -701,6 +720,19 @@ function CreateAssetForm({
       setError('Please enter a valid useful life');
       return;
     }
+    if (formData.acquisitionType === 'purchase' && formData.paymentMethod === 'Bank' && !formData.bankAccountId) {
+      setError('Please select a bank account');
+      return;
+    }
+    if (formData.acquisitionType === 'purchase' && formData.paymentMethod === 'Credit' && !formData.supplierId) {
+      setError('Supplier is required for credit purchases');
+      return;
+    }
+    const openingDep = parseFloat(formData.openingAccumulatedDepreciation) || 0;
+    if (formData.acquisitionType === 'opening_balance' && openingDep > cost) {
+      setError('Opening accumulated depreciation cannot exceed purchase cost');
+      return;
+    }
     setError('');
 
     onSave({
@@ -713,7 +745,11 @@ function CreateAssetForm({
       location: formData.location,
       supplierId: formData.supplierId || undefined,
       warrantyExpiry: formData.warrantyExpiry ? new Date(formData.warrantyExpiry) : undefined,
-      notes: formData.notes
+      notes: formData.notes,
+      acquisitionType: formData.acquisitionType,
+      paymentMethod: formData.acquisitionType === 'opening_balance' ? 'Opening Balance' : formData.paymentMethod,
+      bankAccountId: formData.paymentMethod === 'Bank' ? formData.bankAccountId : undefined,
+      openingAccumulatedDepreciation: formData.acquisitionType === 'opening_balance' ? openingDep : 0,
     });
   };
 
@@ -721,7 +757,7 @@ function CreateAssetForm({
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2 md:gap-3">
-          <InventoryIcon className="w-4 h-4 md:w-5 md:h-5 text-[#7c4dff]" />
+          <InventoryIcon className="w-4 h-4 md:w-5 md:h-5 text-[#014582]" />
           <h2 className="text-base md:text-lg font-bold text-gray-800">Add Fixed Asset</h2>
         </div>
         <button onClick={onCancel} className="p-1.5 md:p-2 hover:bg-gray-200 rounded-lg transition-all">
@@ -745,7 +781,7 @@ function CreateAssetForm({
               placeholder="e.g., Office Building"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               required
             />
           </div>
@@ -755,7 +791,7 @@ function CreateAssetForm({
             <select
               value={formData.category}
               onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             >
               {categoryOptions.map((cat: string) => (
                 <option key={cat} value={cat}>{cat}</option>
@@ -763,14 +799,91 @@ function CreateAssetForm({
             </select>
           </div>
 
+          <div>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Acquisition Type *</label>
+            <select
+              value={formData.acquisitionType}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                acquisitionType: e.target.value,
+                paymentMethod: e.target.value === 'opening_balance' ? 'Cash' : prev.paymentMethod,
+                bankAccountId: e.target.value === 'opening_balance' ? '' : prev.bankAccountId,
+              }))}
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+            >
+              <option value="purchase">New Purchase</option>
+              <option value="opening_balance">Opening Balance / Existing</option>
+            </select>
+          </div>
+
+          {formData.acquisitionType === 'purchase' && (
+            <>
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Payment Method *</label>
+                <select
+                  value={formData.paymentMethod}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    paymentMethod: e.target.value,
+                    bankAccountId: e.target.value === 'Bank' ? prev.bankAccountId : '',
+                  }))}
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="Bank">Bank</option>
+                  <option value="Credit">Credit (Accounts Payable)</option>
+                </select>
+              </div>
+
+              {formData.paymentMethod === 'Bank' && (
+                <div>
+                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Bank Account *</label>
+                  <select
+                    value={formData.bankAccountId}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bankAccountId: e.target.value }))}
+                    className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+                    required
+                  >
+                    <option value="">Select bank account</option>
+                    {(bankAccounts || []).map((a: any) => (
+                      <option key={a.id} value={a.id}>
+                        {a.accountName}{a.bankName ? ` • ${a.bankName}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
+          )}
+
+          {formData.acquisitionType === 'opening_balance' && (
+            <div>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Opening Accumulated Depreciation</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-xs md:text-sm">{currencySymbol}</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={formData.openingAccumulatedDepreciation}
+                  onChange={(e) => setFormData(prev => ({ ...prev, openingAccumulatedDepreciation: e.target.value }))}
+                  className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Purchase Date *</label>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+                {formData.acquisitionType === 'opening_balance' ? 'Acquisition Date *' : 'Purchase Date *'}
+              </label>
               <input
                 type="date"
                 value={formData.purchaseDate}
                 onChange={(e) => setFormData(prev => ({ ...prev, purchaseDate: e.target.value }))}
-                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               />
             </div>
@@ -785,7 +898,7 @@ function CreateAssetForm({
                   placeholder="0.00"
                   value={formData.purchaseCost}
                   onChange={(e) => setFormData(prev => ({ ...prev, purchaseCost: e.target.value }))}
-                  className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   required
                 />
               </div>
@@ -801,7 +914,7 @@ function CreateAssetForm({
                 placeholder="5"
                 value={formData.usefulLife}
                 onChange={(e) => setFormData(prev => ({ ...prev, usefulLife: e.target.value }))}
-                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               />
             </div>
@@ -816,7 +929,7 @@ function CreateAssetForm({
                   placeholder="0.00"
                   value={formData.salvageValue}
                   onChange={(e) => setFormData(prev => ({ ...prev, salvageValue: e.target.value }))}
-                  className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
               </div>
             </div>
@@ -829,18 +942,20 @@ function CreateAssetForm({
               placeholder="e.g., Main Office"
               value={formData.location}
               onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
 
           <div>
-            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Supplier</label>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+              Supplier{formData.paymentMethod === 'Credit' ? ' *' : ''}
+            </label>
             <select
               value={formData.supplierId}
               onChange={(e) => setFormData(prev => ({ ...prev, supplierId: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             >
-              <option value="">Select supplier (optional)</option>
+              <option value="">Select supplier {formData.paymentMethod === 'Credit' ? '' : '(optional)'}</option>
               {vendors.map((v: any) => (
                 <option key={v.id} value={v.id}>{v.name}</option>
               ))}
@@ -853,7 +968,7 @@ function CreateAssetForm({
               type="date"
               value={formData.warrantyExpiry}
               onChange={(e) => setFormData(prev => ({ ...prev, warrantyExpiry: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
 
@@ -864,7 +979,7 @@ function CreateAssetForm({
               placeholder="Additional notes"
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
             />
           </div>
 
@@ -879,7 +994,7 @@ function CreateAssetForm({
             <button
               type="submit"
               disabled={submitting}
-              className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : <Save className="w-3.5 h-3.5 md:w-4 md:h-4" />}
               Add Asset
@@ -956,7 +1071,7 @@ function EditAssetForm({
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2 md:gap-3">
-          <Edit className="w-4 h-4 md:w-5 md:h-5 text-[#7c4dff]" />
+          <Edit className="w-4 h-4 md:w-5 md:h-5 text-[#014582]" />
           <h2 className="text-base md:text-lg font-bold text-gray-800">Edit Fixed Asset</h2>
         </div>
         <button onClick={onCancel} className="p-1.5 md:p-2 hover:bg-gray-200 rounded-lg transition-all">
@@ -981,7 +1096,7 @@ function EditAssetForm({
               placeholder="e.g., Office Building"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               required
             />
           </div>
@@ -991,7 +1106,7 @@ function EditAssetForm({
             <select
               value={formData.category}
               onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             >
               {categoryOptions.map((cat: string) => (
                 <option key={cat} value={cat}>{cat}</option>
@@ -1007,7 +1122,7 @@ function EditAssetForm({
                 type="date"
                 value={formData.purchaseDate}
                 onChange={(e) => setFormData(prev => ({ ...prev, purchaseDate: e.target.value }))}
-                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               />
             </div>
@@ -1022,7 +1137,7 @@ function EditAssetForm({
                   placeholder="0.00"
                   value={formData.purchaseCost}
                   onChange={(e) => setFormData(prev => ({ ...prev, purchaseCost: e.target.value }))}
-                  className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   required
                 />
               </div>
@@ -1038,7 +1153,7 @@ function EditAssetForm({
                 placeholder="5"
                 value={formData.usefulLife}
                 onChange={(e) => setFormData(prev => ({ ...prev, usefulLife: e.target.value }))}
-                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               />
             </div>
@@ -1053,7 +1168,7 @@ function EditAssetForm({
                   placeholder="0.00"
                   value={formData.salvageValue}
                   onChange={(e) => setFormData(prev => ({ ...prev, salvageValue: e.target.value }))}
-                  className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
               </div>
             </div>
@@ -1066,7 +1181,7 @@ function EditAssetForm({
               placeholder="e.g., Main Office"
               value={formData.location}
               onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
 
@@ -1075,7 +1190,7 @@ function EditAssetForm({
             <select
               value={formData.supplierId}
               onChange={(e) => setFormData(prev => ({ ...prev, supplierId: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             >
               <option value="">Select supplier (optional)</option>
               {vendors.map((v: any) => (
@@ -1090,7 +1205,7 @@ function EditAssetForm({
               type="date"
               value={formData.warrantyExpiry}
               onChange={(e) => setFormData(prev => ({ ...prev, warrantyExpiry: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
 
@@ -1101,7 +1216,7 @@ function EditAssetForm({
               placeholder="Additional notes"
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
             />
           </div>
 
@@ -1116,7 +1231,7 @@ function EditAssetForm({
             <button
               type="submit"
               disabled={submitting}
-              className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : <Save className="w-3.5 h-3.5 md:w-4 md:h-4" />}
               Update Asset
@@ -1199,7 +1314,7 @@ function DisposeAssetForm({
               type="date"
               value={formData.disposalDate}
               onChange={(e) => setFormData(prev => ({ ...prev, disposalDate: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               required
             />
           </div>
@@ -1215,7 +1330,7 @@ function DisposeAssetForm({
                 placeholder="0.00"
                 value={formData.disposalAmount}
                 onChange={(e) => setFormData(prev => ({ ...prev, disposalAmount: e.target.value }))}
-                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               />
             </div>
@@ -1226,7 +1341,7 @@ function DisposeAssetForm({
             <select
               value={formData.disposalReason}
               onChange={(e) => setFormData(prev => ({ ...prev, disposalReason: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             >
               <option value="Sold">Sold</option>
               <option value="Scrapped">Scrapped</option>

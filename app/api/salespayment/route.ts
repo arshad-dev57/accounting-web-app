@@ -177,6 +177,7 @@
       customerId?: string;
       sortBy?: string;
       sortOrder?: 'asc' | 'desc';
+      locationId?: string;
     } = {}): Promise<PaymentListResponse> => {
       const query = new URLSearchParams();
       
@@ -206,6 +207,9 @@
       }
       if (params.sortOrder) {
         query.append('sortOrder', params.sortOrder);
+      }
+      if (params.locationId) {
+        query.append('locationId', params.locationId);
       }
 
       const url = `/api/sales/payments${query.toString() ? `?${query.toString()}` : ''}`;
@@ -278,10 +282,13 @@
     },
 
     // ─── Get customer invoices for payment ────────────────────
-    getCustomerInvoices: async (customerId: string): Promise<InvoiceForPayment[]> => {
+    getCustomerInvoices: async (customerId: string, locationId?: string): Promise<InvoiceForPayment[]> => {
       try {
+        const params = new URLSearchParams();
+        if (locationId) params.append('locationId', locationId);
+        const qs = params.toString();
         const response = await apiClient.get(
-          `/api/sales/payments/customer/${customerId}/invoices`
+          `/api/sales/payments/customer/${customerId}/invoices${qs ? `?${qs}` : ''}`
         );
         if (!response.success) {
           throw new Error(response.message || 'Failed to fetch customer invoices');

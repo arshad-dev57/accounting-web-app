@@ -33,7 +33,7 @@ export interface Quotation {
   quotationDate: string;
   validUntil: string;
   salesPerson?: string;
-  status: 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired' | 'Converted';
+  status: 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired' | 'Converted' | 'Cancelled';
   subtotal: number;
   totalDiscount: number;
   totalTax: number;

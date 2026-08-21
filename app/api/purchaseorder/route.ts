@@ -114,6 +114,7 @@ export interface CreatePurchaseOrderRequest {
   notes?: string;
   termsConditions?: string;
   status: string;
+  locationId?: string;
 }
 
 // ─── SERVICE ──────────────────────────────────────────────────
@@ -129,6 +130,7 @@ export const purchaseOrderService = {
     toDate?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    locationId?: string;
   } = {}): Promise<PurchaseOrderListResponse> => {
     const query = new URLSearchParams();
     
@@ -184,12 +186,17 @@ export const purchaseOrderService = {
   searchSuppliers: async (query: string, limit: number = 10): Promise<Supplier[]> => {
     try {
       const response = await apiClient.get(
-        `/api/warehouse/supplier?search=${encodeURIComponent(query)}&limit=${limit}`
+        `/api/warehouse/supplier?search=${encodeURIComponent(query)}&limit=${limit}&status=active`
       );
       if (!response.success) {
         throw new Error(response.message || 'Failed to search suppliers');
       }
-      return response.data?.data || [];
+      const rows = response.data?.data || [];
+      return rows.map((s: any) => ({
+        ...s,
+        id: String(s.id || s._id || ''),
+        isActive: String(s.status || '').toLowerCase() === 'active',
+      })).filter((s: Supplier) => !!s.id);
     } catch (error: any) {
       console.error('Search suppliers error:', error);
       return [];
@@ -197,10 +204,23 @@ export const purchaseOrderService = {
   },
 
   // ─── Search products ──────────────────────────────────────
-  searchProducts: async (query: string, limit: number = 10): Promise<Product[]> => {
+  searchProducts: async (
+    query: string,
+    limit: number = 10,
+    locationId?: string
+  ): Promise<Product[]> => {
     try {
+      const params = new URLSearchParams({
+        search: query,
+        limit: String(limit),
+      });
+      // PO can add any company product to a warehouse (scope=company)
+      if (locationId) {
+        params.set('locationId', locationId);
+        params.set('scope', 'company');
+      }
       const response = await apiClient.get(
-        `/api/warehouse/products?search=${encodeURIComponent(query)}&limit=${limit}`
+        `/api/warehouse/products?${params.toString()}`
       );
       if (!response.success) {
         throw new Error(response.message || 'Failed to search products');

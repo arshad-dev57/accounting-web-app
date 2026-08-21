@@ -5,7 +5,7 @@ import { apiClient } from '@/lib/api-client';
 export async function GET(request, { params }) {
   try {
     const { id } = params;
-    const response = await apiClient.get(`/orders/${id}`, true);
+    const response = await apiClient.get(`/api/orders/${id}`, true);
 
     return NextResponse.json(response);
   } catch (error) {
@@ -23,7 +23,7 @@ export async function PUT(request, { params }) {
     const { id } = params;
     const body = await request.json();
 
-    const response = await apiClient.put(`/orders/${id}`, body, true);
+    const response = await apiClient.put(`/api/orders/${id}`, body, true);
 
     return NextResponse.json(response);
   } catch (error) {
@@ -39,7 +39,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const { id } = params;
-    const response = await apiClient.delete(`/orders/${id}`, true);
+    const response = await apiClient.delete(`/api/orders/${id}`, true);
 
     return NextResponse.json(response);
   } catch (error) {

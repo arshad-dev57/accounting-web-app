@@ -40,7 +40,7 @@ interface FilterState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function PaymentsReceivedPage({ searchParams }: { searchParams?: { customerId?: string; invoiceId?: string } }) {
+export default function PaymentsReceivedPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -338,7 +338,7 @@ export default function PaymentsReceivedPage({ searchParams }: { searchParams?: 
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+                <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
                 Payments Received
                 <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
                   ({pagination.total} payments)
@@ -348,7 +348,7 @@ export default function PaymentsReceivedPage({ searchParams }: { searchParams?: 
             <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={handleRefresh}
-                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
                 title="Refresh"
                 disabled={loading}
               >
@@ -399,7 +399,7 @@ export default function PaymentsReceivedPage({ searchParams }: { searchParams?: 
                   placeholder="Search payments..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
                 {searchTerm && (
                   <button onClick={clearSearch} className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2">
@@ -413,7 +413,7 @@ export default function PaymentsReceivedPage({ searchParams }: { searchParams?: 
                   <select
                     value={filter.period}
                     onChange={(e) => handlePeriodChange(e.target.value)}
-                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   >
                     {periodOptions.map((period) => (
                       <option key={period} value={period}>{period}</option>
@@ -429,7 +429,7 @@ export default function PaymentsReceivedPage({ searchParams }: { searchParams?: 
           <div className="space-y-3 md:space-y-4">
             {loading && payments.length === 0 ? (
               <div className="text-center py-8 md:py-12">
-                <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#7c4dff] animate-spin" />
+                <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                 <p className="mt-2 text-xs md:text-sm text-gray-500">Loading payments...</p>
               </div>
             ) : payments.length === 0 ? (
@@ -490,7 +490,7 @@ export default function PaymentsReceivedPage({ searchParams }: { searchParams?: 
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50"
+                className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all disabled:opacity-50"
               >
                 {loadingMore ? (
                   <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -516,7 +516,7 @@ export default function PaymentsReceivedPage({ searchParams }: { searchParams?: 
                 >
                   <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
-                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg text-xs md:text-sm">
+                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg text-xs md:text-sm">
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
@@ -637,7 +637,7 @@ function RecordPaymentForm({
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2 md:gap-3">
-          <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-[#7c4dff]" />
+          <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-[#014582]" />
           <h2 className="text-base md:text-lg font-bold text-gray-800">Record Payment</h2>
         </div>
         <button onClick={onCancel} className="p-1.5 md:p-2 hover:bg-gray-200 rounded-lg transition-all">
@@ -660,7 +660,7 @@ function RecordPaymentForm({
             <select
               value={formData.customerId}
               onChange={(e) => handleCustomerChange(e.target.value)}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               required
             >
               <option value="">Select customer...</option>
@@ -675,13 +675,13 @@ function RecordPaymentForm({
             <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Invoice *</label>
             {isLoadingInvoices ? (
               <div className="flex items-center justify-center py-4">
-                <Loader2 className="w-5 h-5 animate-spin text-[#7c4dff]" />
+                <Loader2 className="w-5 h-5 animate-spin text-[#014582]" />
               </div>
             ) : (
               <select
                 value={formData.invoiceId}
                 onChange={(e) => handleInvoiceChange(e.target.value)}
-                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
                 disabled={!formData.customerId}
               >
@@ -710,7 +710,7 @@ function RecordPaymentForm({
                 placeholder="0.00"
                 value={formData.amount}
                 onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               />
             </div>
@@ -723,7 +723,7 @@ function RecordPaymentForm({
               type="date"
               value={formData.paymentDate}
               onChange={(e) => setFormData(prev => ({ ...prev, paymentDate: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               required
             />
           </div>
@@ -734,7 +734,7 @@ function RecordPaymentForm({
             <select
               value={formData.paymentMethod}
               onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value, bankAccountId: '' }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             >
               <option value="Bank Transfer">Bank Transfer</option>
               <option value="Cash">Cash</option>
@@ -750,7 +750,7 @@ function RecordPaymentForm({
               <select
                 value={formData.bankAccountId}
                 onChange={(e) => setFormData(prev => ({ ...prev, bankAccountId: e.target.value }))}
-                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               >
                 <option value="">Select bank account...</option>
@@ -771,7 +771,7 @@ function RecordPaymentForm({
               placeholder="Reference number"
               value={formData.reference}
               onChange={(e) => setFormData(prev => ({ ...prev, reference: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
 
@@ -783,7 +783,7 @@ function RecordPaymentForm({
               placeholder="Additional notes"
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
             />
           </div>
 

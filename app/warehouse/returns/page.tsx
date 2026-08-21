@@ -93,7 +93,7 @@ function ReturnList({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <RotateCcw className="w-6 h-6 text-[#7c4dff]" />
+            <RotateCcw className="w-6 h-6 text-[#014582]" />
             Returns
             <span className="text-sm font-normal text-gray-400 ml-2">
               ({pagination.total} returns)
@@ -111,7 +111,7 @@ function ReturnList({
           </button>
           <button
             onClick={onAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
           >
             <Plus className="w-4 h-4" />
             New Return
@@ -142,7 +142,7 @@ function ReturnList({
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <p className="text-xs text-gray-400 font-medium">Total Refund Amount</p>
-          <p className="text-2xl font-bold text-[#7c4dff]">Rs. {(stats.totalRefund || 0).toFixed(2)}</p>
+          <p className="text-2xl font-bold text-[#014582]">Rs. {(stats.totalRefund || 0).toFixed(2)}</p>
         </div>
       </div>
 
@@ -156,13 +156,13 @@ function ReturnList({
               placeholder="Search returns by order #, customer..."
               value={filters.search}
               onChange={(e) => onFilterChange('search', e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
             />
           </div>
           <select
             value={filters.status}
             onChange={(e) => onFilterChange('status', e.target.value)}
-            className="px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 appearance-none"
+            className="px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 appearance-none"
           >
             {statusOptions.map((status) => (
               <option key={status} value={status}>
@@ -173,7 +173,7 @@ function ReturnList({
           <select
             value={filters.type}
             onChange={(e) => onFilterChange('type', e.target.value)}
-            className="px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 appearance-none"
+            className="px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 appearance-none"
           >
             {typeOptions.map((type) => (
               <option key={type} value={type}>
@@ -187,7 +187,7 @@ function ReturnList({
               type="date"
               value={filters.fromDate}
               onChange={(e) => onFilterChange('fromDate', e.target.value)}
-              className="pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
           <div className="relative">
@@ -196,7 +196,7 @@ function ReturnList({
               type="date"
               value={filters.toDate}
               onChange={(e) => onFilterChange('toDate', e.target.value)}
-              className="pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
         </div>
@@ -206,7 +206,7 @@ function ReturnList({
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="p-12 text-center">
-            <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+            <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
             <p className="mt-2 text-gray-500">Loading returns...</p>
           </div>
         ) : returns.length === 0 ? (
@@ -234,7 +234,7 @@ function ReturnList({
               <tbody>
                 {returns.map((returnData) => (
                   <tr key={returnData._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-3 font-mono text-xs font-semibold text-[#7c4dff]">
+                    <td className="px-6 py-3 font-mono text-xs font-semibold text-[#014582]">
                       {returnData.returnNumber}
                     </td>
                     <td className="px-6 py-3 font-mono text-xs text-gray-600">
@@ -311,7 +311,7 @@ function ReturnList({
               <ChevronLeft className="w-4 h-4" />
               Previous
             </button>
-            <span className="px-3 py-1 bg-[#7c4dff] text-white rounded-lg">
+            <span className="px-3 py-1 bg-[#014582] text-white rounded-lg">
               {pagination.page}
             </span>
             <button
@@ -505,8 +505,8 @@ function CreateReturnModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50 sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#7c4dff]/10 rounded-lg flex items-center justify-center">
-              <RotateCcw className="w-5 h-5 text-[#7c4dff]" />
+            <div className="w-10 h-10 bg-[#014582]/10 rounded-lg flex items-center justify-center">
+              <RotateCcw className="w-5 h-5 text-[#014582]" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-800">New Return Request</h2>
@@ -530,7 +530,7 @@ function CreateReturnModal({
           {step === 1 && (
             <div className="space-y-4">
               <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                <Search className="w-4 h-4 text-[#7c4dff]" />
+                <Search className="w-4 h-4 text-[#014582]" />
                 Find Order
               </h3>
               <p className="text-xs text-gray-400">Search for the order to process return</p>
@@ -542,7 +542,7 @@ function CreateReturnModal({
                   placeholder="Search by order number or customer name..."
                   value={searchOrder}
                   onChange={(e) => handleSearchOrder(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
                 {orderSearchLoading && (
                   <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
@@ -559,7 +559,7 @@ function CreateReturnModal({
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-mono text-sm font-semibold text-[#7c4dff]">{order.orderNumber}</p>
+                          <p className="font-mono text-sm font-semibold text-[#014582]">{order.orderNumber}</p>
                           <p className="text-sm text-gray-600">{order.customerName}</p>
                         </div>
                         <div className="text-right">
@@ -577,7 +577,7 @@ function CreateReturnModal({
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-800">Order Selected</p>
-                      <p className="font-mono text-sm text-[#7c4dff]">{returnData.orderNumber}</p>
+                      <p className="font-mono text-sm text-[#014582]">{returnData.orderNumber}</p>
                       <p className="text-sm text-gray-600">{returnData.customerName}</p>
                     </div>
                     <button
@@ -609,7 +609,7 @@ function CreateReturnModal({
                 <button
                   onClick={() => setStep(2)}
                   disabled={!returnData.orderNumber}
-                  className="px-6 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next →
                 </button>
@@ -621,7 +621,7 @@ function CreateReturnModal({
           {step === 2 && (
             <div className="space-y-4">
               <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                <Package className="w-4 h-4 text-[#7c4dff]" />
+                <Package className="w-4 h-4 text-[#014582]" />
                 Select Items to Return
               </h3>
               <p className="text-xs text-gray-400">Choose items from the order and specify return details</p>
@@ -638,7 +638,7 @@ function CreateReturnModal({
                     const selectedItem = returnItems.find(i => i.productId === item.productId);
                     
                     return (
-                      <div key={index} className="p-4 border border-gray-200 rounded-lg hover:border-[#7c4dff] transition-all">
+                      <div key={index} className="p-4 border border-gray-200 rounded-lg hover:border-[#014582] transition-all">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-3">
@@ -646,7 +646,7 @@ function CreateReturnModal({
                                 type="checkbox"
                                 checked={isSelected}
                                 onChange={() => toggleReturnItem(item)}
-                                className="w-4 h-4 text-[#7c4dff] rounded border-gray-300"
+                                className="w-4 h-4 text-[#014582] rounded border-gray-300"
                               />
                               <div>
                                 <p className="font-medium text-gray-800">{item.productName}</p>
@@ -675,7 +675,7 @@ function CreateReturnModal({
                                 max={item.quantity}
                                 value={selectedItem.returnQuantity}
                                 onChange={(e) => updateReturnQuantity(item.productId, parseInt(e.target.value) || 1)}
-                                className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                                className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                               />
                             </div>
                             <div>
@@ -683,7 +683,7 @@ function CreateReturnModal({
                               <select
                                 value={selectedItem.condition}
                                 onChange={(e) => updateReturnCondition(item.productId, e.target.value)}
-                                className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                                className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                               >
                                 <option value="New">New</option>
                                 <option value="Used">Used</option>
@@ -693,7 +693,7 @@ function CreateReturnModal({
                             </div>
                             <div>
                               <label className="block text-xs font-semibold text-gray-500 mb-1">Refund Amount</label>
-                              <p className="text-sm font-semibold text-[#7c4dff]">
+                              <p className="text-sm font-semibold text-[#014582]">
                                 Rs. {selectedItem.refundAmount.toFixed(2)}
                               </p>
                             </div>
@@ -715,7 +715,7 @@ function CreateReturnModal({
                 <button
                   onClick={() => setStep(3)}
                   disabled={returnItems.length === 0}
-                  className="px-6 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next →
                 </button>
@@ -727,7 +727,7 @@ function CreateReturnModal({
           {step === 3 && (
             <div className="space-y-4">
               <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-[#7c4dff]" />
+                <FileText className="w-4 h-4 text-[#014582]" />
                 Return Details
               </h3>
               <p className="text-xs text-gray-400">Provide additional return information</p>
@@ -740,7 +740,7 @@ function CreateReturnModal({
                   <select
                     value={returnData.returnType}
                     onChange={(e) => setReturnData({ ...returnData, returnType: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   >
                     <option value="Return">Return</option>
                     <option value="Exchange">Exchange</option>
@@ -754,7 +754,7 @@ function CreateReturnModal({
                   <select
                     value={returnData.returnMethod}
                     onChange={(e) => setReturnData({ ...returnData, returnMethod: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   >
                     <option value="Original Payment">Original Payment</option>
                     <option value="Store Credit">Store Credit</option>
@@ -773,7 +773,7 @@ function CreateReturnModal({
                   value={returnData.reason}
                   onChange={(e) => setReturnData({ ...returnData, reason: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
                 />
               </div>
 
@@ -787,7 +787,7 @@ function CreateReturnModal({
                     placeholder="0.00"
                     value={returnData.restockingFee}
                     onChange={(e) => setReturnData({ ...returnData, restockingFee: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                 </div>
                 <div>
@@ -799,7 +799,7 @@ function CreateReturnModal({
                     placeholder="0.00"
                     value={returnData.shippingCost}
                     onChange={(e) => setReturnData({ ...returnData, shippingCost: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   />
                 </div>
               </div>
@@ -813,7 +813,7 @@ function CreateReturnModal({
                   value={returnData.notes}
                   onChange={(e) => setReturnData({ ...returnData, notes: e.target.value })}
                   rows={2}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
                 />
               </div>
 
@@ -835,7 +835,7 @@ function CreateReturnModal({
                   </div>
                   <div className="flex justify-between border-t border-gray-200 pt-2 font-bold text-lg">
                     <span>Total Refund</span>
-                    <span className="text-[#7c4dff]">Rs. {Math.max(0, totalRefund).toFixed(2)}</span>
+                    <span className="text-[#014582]">Rs. {Math.max(0, totalRefund).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-xs text-gray-400">
                     <span>Items: {returnItems.reduce((sum, i) => sum + i.returnQuantity, 0)}</span>
@@ -861,7 +861,7 @@ function CreateReturnModal({
                   <button
                     onClick={handleSubmit}
                     disabled={loading || !returnData.reason}
-                    className="px-6 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center gap-2 shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -922,8 +922,8 @@ function ReturnDetailModal({ returnData, onClose, onApprove, onReject }: {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50 sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#7c4dff]/10 rounded-lg flex items-center justify-center">
-              <RotateCcw className="w-5 h-5 text-[#7c4dff]" />
+            <div className="w-10 h-10 bg-[#014582]/10 rounded-lg flex items-center justify-center">
+              <RotateCcw className="w-5 h-5 text-[#014582]" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-800">{returnData.returnNumber}</h2>
@@ -950,7 +950,7 @@ function ReturnDetailModal({ returnData, onClose, onApprove, onReject }: {
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Order</p>
-              <p className="font-mono text-sm text-[#7c4dff]">{returnData.orderNumber}</p>
+              <p className="font-mono text-sm text-[#014582]">{returnData.orderNumber}</p>
               <p className="text-sm text-gray-600">Return Type: {returnData.returnType}</p>
               <p className="text-sm text-gray-600">Method: {returnData.returnMethod}</p>
             </div>
@@ -966,7 +966,7 @@ function ReturnDetailModal({ returnData, onClose, onApprove, onReject }: {
           {/* Return Items */}
           <div>
             <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-              <Package className="w-4 h-4 text-[#7c4dff]" />
+              <Package className="w-4 h-4 text-[#014582]" />
               Return Items ({returnData.items.length})
             </h3>
             <div className="overflow-x-auto border border-gray-100 rounded-xl">
@@ -996,7 +996,7 @@ function ReturnDetailModal({ returnData, onClose, onApprove, onReject }: {
                 <tfoot>
                   <tr className="border-t-2 border-gray-200 bg-gray-50">
                     <td colSpan={4} className="px-4 py-2 text-right font-semibold">Total Refund</td>
-                    <td className="px-4 py-2 text-right font-bold text-[#7c4dff]">
+                    <td className="px-4 py-2 text-right font-bold text-[#014582]">
                       Rs. {returnData.totalRefund.toFixed(2)}
                     </td>
                   </tr>
@@ -1024,7 +1024,7 @@ function ReturnDetailModal({ returnData, onClose, onApprove, onReject }: {
                 </div>
                 <div className="flex justify-between border-t border-gray-200 pt-2 font-bold">
                   <span>Total Refund</span>
-                  <span className="text-[#7c4dff]">Rs. {returnData.totalRefund.toFixed(2)}</span>
+                  <span className="text-[#014582]">Rs. {returnData.totalRefund.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -1079,7 +1079,7 @@ function ReturnDetailModal({ returnData, onClose, onApprove, onReject }: {
               <p className="text-sm text-gray-700">Carrier: {returnData.shippingCarrier || 'N/A'}</p>
               <p className="text-sm text-gray-700">Tracking: {returnData.trackingNumber}</p>
               {returnData.returnLabel && (
-                <a href="#" className="text-sm text-[#7c4dff] hover:underline flex items-center gap-1">
+                <a href="#" className="text-sm text-[#014582] hover:underline flex items-center gap-1">
                   <Download className="w-4 h-4" /> Download Return Label
                 </a>
               )}
@@ -1126,7 +1126,7 @@ function ReturnDetailModal({ returnData, onClose, onApprove, onReject }: {
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 rows={3}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
               />
               <div className="flex gap-3 mt-4">
                 <button

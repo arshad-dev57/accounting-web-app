@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Calendar, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
 import { OrderForDelivery, OrderItemForDelivery, DeliveryLineDraft } from '@/types/delivery';
+import { useLocationOptional } from '@/lib/location-context';
 
 interface CreateDeliveryWizardProps {
   onSuccess: () => void;
@@ -10,6 +11,7 @@ interface CreateDeliveryWizardProps {
 }
 
 export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliveryWizardProps) {
+  const { selectedLocationId } = useLocationOptional();
   const [wizardStep, setWizardStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSearchingOrders, setIsSearchingOrders] = useState(false);
@@ -31,6 +33,13 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
     setDeliveryDate(tomorrow.toISOString().split('T')[0]);
   }, []);
 
+  // Re-scope order search when warehouse changes
+  useEffect(() => {
+    setSelectedOrder(null);
+    setOrderSearchResults([]);
+    setOrderSearchQuery('');
+  }, [selectedLocationId]);
+
   const searchOrders = async (query: string) => {
     if (query.trim().length < 2) {
       setOrderSearchResults([]);
@@ -47,9 +56,22 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`/api/deliveries/available-orders?search=${encodeURIComponent(query)}&limit=10`, {
-        headers,
+      const params = new URLSearchParams({
+        search: query,
+        limit: '10',
       });
+      if (selectedLocationId) params.set('locationId', selectedLocationId);
+      if (!selectedLocationId) {
+        setOrderSearchResults([]);
+        setIsSearchingOrders(false);
+        return;
+      }
+      const response = await fetch(
+        `/api/deliveries/available-orders?${params.toString()}`,
+        {
+          headers,
+        }
+      );
       const result = await response.json();
       console.log('Available orders response:', result);
 
@@ -187,6 +209,7 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
         deliveryPerson: deliveryPerson.trim() || null,
         trackingNumber: trackingNumber.trim() || null,
         notes: notes.trim() || null,
+        locationId: selectedLocationId || undefined,
       };
 
       const response = await fetch('/api/deliveries', {
@@ -235,7 +258,7 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
               <div
                 key={i}
                 className={`flex-1 h-1 rounded-full transition-colors ${
-                  wizardStep >= i ? 'bg-[#7c4dff]' : 'bg-gray-300'
+                  wizardStep >= i ? 'bg-[#014582]' : 'bg-gray-300'
                 }`}
               />
             ))}
@@ -257,7 +280,7 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
                     setOrderSearchQuery(e.target.value);
                     searchOrders(e.target.value);
                   }}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] focus:border-transparent"
                 />
                 {orderSearchQuery && (
                   <button
@@ -274,7 +297,7 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
 
               {isSearchingOrders && (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="animate-spin text-[#7c4dff]" size={24} />
+                  <Loader2 className="animate-spin text-[#014582]" size={24} />
                 </div>
               )}
 
@@ -299,8 +322,8 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
               )}
 
               {selectedOrder && (
-                <div className="p-4 bg-[#7c4dff]/10 border border-[#7c4dff]/20 rounded-lg">
-                  <p className="font-semibold text-[#7c4dff]">{selectedOrder.orderNumber}</p>
+                <div className="p-4 bg-[#014582]/10 border border-[#014582]/20 rounded-lg">
+                  <p className="font-semibold text-[#014582]">{selectedOrder.orderNumber}</p>
                   <p className="text-sm text-gray-700">{selectedOrder.customerName}</p>
                   <p className="text-sm text-gray-600">{selectedOrder.remainingItems?.length || selectedOrder.items?.length || 0} items available for delivery</p>
                 </div>
@@ -359,7 +382,7 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
                             </div>
                             <div className="px-4 py-2 bg-gray-100 rounded-lg">
                               <p className="text-xs text-gray-500">Remaining</p>
-                              <p className="font-semibold text-[#7c4dff]">{line.remainingQuantity}</p>
+                              <p className="font-semibold text-[#014582]">{line.remainingQuantity}</p>
                             </div>
                           </div>
                         )}
@@ -388,7 +411,7 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
                     type="date"
                     value={deliveryDate}
                     onChange={(e) => setDeliveryDate(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] focus:border-transparent"
                   />
                   <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                 </div>
@@ -401,7 +424,7 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
                   value={deliveryPerson}
                   onChange={(e) => setDeliveryPerson(e.target.value)}
                   placeholder="Enter delivery person name"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] focus:border-transparent"
                 />
               </div>
 
@@ -412,7 +435,7 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
                   value={trackingNumber}
                   onChange={(e) => setTrackingNumber(e.target.value)}
                   placeholder="Enter tracking number"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] focus:border-transparent"
                 />
               </div>
 
@@ -423,11 +446,11 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Enter delivery notes"
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] focus:border-transparent resize-none"
                 />
               </div>
 
-              <div className="p-4 bg-[#7c4dff]/10 border border-[#7c4dff]/20 rounded-lg space-y-2">
+              <div className="p-4 bg-[#014582]/10 border border-[#014582]/20 rounded-lg space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Total Items</span>
                   <span className="font-semibold">{totalDeliveryQuantity}</span>
@@ -460,7 +483,7 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
             {wizardStep < 2 ? (
               <button
                 onClick={nextStep}
-                className="px-6 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#7c4dff]/90 transition-colors font-semibold"
+                className="px-6 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#014582]/90 transition-colors font-semibold"
               >
                 Next
               </button>
@@ -468,7 +491,7 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="px-6 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#7c4dff]/90 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#014582]/90 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isSubmitting ? (
                   <>

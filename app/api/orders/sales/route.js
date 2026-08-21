@@ -14,6 +14,7 @@ export async function GET(request) {
     const status = searchParams.get('status') || '';
     const paymentStatus = searchParams.get('paymentStatus') || '';
     const priority = searchParams.get('priority') || '';
+    const locationId = searchParams.get('locationId') || '';
 
     const params = {
       page,
@@ -27,9 +28,10 @@ export async function GET(request) {
     if (status) params.status = status;
     if (paymentStatus) params.paymentStatus = paymentStatus;
     if (priority) params.priority = priority;
+    if (locationId) params.locationId = locationId;
 
     const queryString = new URLSearchParams(params).toString();
-    const response = await apiClient.get(`/orders/sales?${queryString}`, true);
+    const response = await apiClient.get(`/api/orders/sales?${queryString}`, true);
 
     return NextResponse.json(response);
   } catch (error) {
@@ -46,7 +48,7 @@ export async function POST(request) {
   try {
     const body = await request.json();
 
-    const response = await apiClient.post('/orders/sales', body, true);
+    const response = await apiClient.post('/api/orders/sales', body, true);
 
     return NextResponse.json(response);
   } catch (error) {

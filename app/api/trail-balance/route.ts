@@ -45,6 +45,7 @@ export const trialBalanceService = {
     startDate?: string;
     endDate?: string;
     fiscalYearId?: string;
+    locationId?: string;
     search?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';

@@ -36,6 +36,7 @@ export const balanceSheetService = {
   getReport: async (params: {
     period?: string;
     fiscalYearId?: string;
+    locationId?: string;
   } = {}): Promise<BalanceSheetData> => {
     const query = new URLSearchParams();
     
@@ -156,30 +157,26 @@ export const balanceSheetService = {
   // ─── Export to PDF ──────────────────────────────────────────
   exportToPdf: async (data: BalanceSheetData, formatCurrency: (amount: number) => string, period: string): Promise<void> => {
     try {
-      const { default: jsPDF } = await import('jspdf');
       const autoTable = (await import('jspdf-autotable')).default;
+      const { createBrandedReport } = await import('../../../lib/pdf-branding');
 
-      const doc = new jsPDF('portrait', 'mm', 'a4');
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 14;
-      let y = 20;
+      const {
+        doc,
+        margin,
+        pageWidth,
+        startY,
+        accentHex,
+        finalize,
+      } = await createBrandedReport({ reportTitle: 'Balance Sheet Report' });
 
-      // Header
-      doc.setFontSize(18);
-      doc.setTextColor('#7c4dff');
-      doc.text('Balance Sheet', pageWidth / 2, y, { align: 'center' });
-      y += 8;
-
+      let y = startY;
       doc.setFontSize(10);
       doc.setTextColor('#666666');
-      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, y, { align: 'center' });
-      y += 6;
       doc.text(`As of: ${new Date(data.asOfDate).toLocaleDateString()}`, pageWidth / 2, y, { align: 'center' });
-      y += 6;
+      y += 5;
       doc.text(`Period: ${period}`, pageWidth / 2, y, { align: 'center' });
-      y += 10;
+      y += 8;
 
-      // Summary
       doc.setFontSize(11);
       doc.setTextColor('#333333');
       doc.text('Summary', margin, y);
@@ -197,7 +194,7 @@ export const balanceSheetService = {
         head: [['Metric', 'Amount']],
         body: summaryData,
         theme: 'striped',
-        headStyles: { fillColor: '#7c4dff', textColor: '#ffffff' },
+        headStyles: { fillColor: accentHex, textColor: '#ffffff' },
         styles: { fontSize: 9 },
         columnStyles: {
           0: { cellWidth: 80 },
@@ -208,7 +205,6 @@ export const balanceSheetService = {
 
       y = (doc as any).lastAutoTable.finalY + 10;
 
-      // Render Categories Helper
       const renderCategorySection = (title: string, categories: BalanceSheetCategory[], total: number) => {
         if (!categories || categories.length === 0) return;
 
@@ -232,7 +228,7 @@ export const balanceSheetService = {
             head: [['Description', 'Amount']],
             body: rows,
             theme: 'plain',
-            headStyles: { fillColor: '#F5F5F5', textColor: '#333333' },
+            headStyles: { fillColor: accentHex, textColor: '#ffffff' },
             styles: { fontSize: 9 },
             columnStyles: {
               0: { cellWidth: 80 },
@@ -244,7 +240,6 @@ export const balanceSheetService = {
           y = (doc as any).lastAutoTable.finalY + 4;
         }
 
-        // Total
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.text(`Total ${title}`, margin, y);
@@ -252,16 +247,10 @@ export const balanceSheetService = {
         y += 10;
       };
 
-      // Assets
       renderCategorySection('Assets', data.assets, data.totalAssets);
-
-      // Liabilities
       renderCategorySection('Liabilities', data.liabilities, data.totalLiabilities);
-
-      // Equity
       renderCategorySection('Equity', data.equity, data.totalEquity);
 
-      // Accounting Equation Check
       const totalLE = data.totalLiabilities + data.totalEquity;
       const isBalanced = Math.abs(data.totalAssets - totalLE) < 1;
 
@@ -274,7 +263,7 @@ export const balanceSheetService = {
       const eqData = [
         ['Total Assets', formatCurrency(data.totalAssets)],
         ['Total Liabilities + Equity', formatCurrency(totalLE)],
-        ['Balance', isBalanced ? '✓ Balanced' : `⚠️ Difference: ${formatCurrency(Math.abs(data.totalAssets - totalLE))}`],
+        ['Balance', isBalanced ? '✓ Balanced' : `Difference: ${formatCurrency(Math.abs(data.totalAssets - totalLE))}`],
       ];
 
       autoTable(doc, {
@@ -282,6 +271,7 @@ export const balanceSheetService = {
         head: [['', '']],
         body: eqData,
         theme: 'striped',
+        headStyles: { fillColor: accentHex, textColor: '#ffffff' },
         styles: { fontSize: 9 },
         columnStyles: {
           0: { cellWidth: 80 },
@@ -290,15 +280,9 @@ export const balanceSheetService = {
         margin: { left: margin, right: margin },
       });
 
-      // Footer
-      y = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(8);
-      doc.setTextColor('#999999');
-      doc.text('Confidential - For Internal Use Only', margin, doc.internal.pageSize.getHeight() - 10);
-      doc.text('Page 1 of 1', pageWidth - margin, doc.internal.pageSize.getHeight() - 10, { align: 'right' });
-
-      // Save
-      doc.save(`balance_sheet_${new Date().toISOString().split('T')[0]}.pdf`);
+      finalize({
+        filename: `balance_sheet_${new Date().toISOString().split('T')[0]}.pdf`,
+      });
     } catch (error) {
       console.error('Export PDF error:', error);
       throw new Error('Failed to export PDF');

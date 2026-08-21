@@ -9,6 +9,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const limit = searchParams.get('limit') || '10';
+    const locationId = searchParams.get('locationId') || '';
 
     const headers = {
       'Content-Type': 'application/json',
@@ -17,9 +18,12 @@ export async function GET(request) {
       headers['Authorization'] = authHeader;
     }
 
+    const params = { search, limit };
+    if (locationId) params.locationId = locationId;
+
     const response = await axios.get(`${API_BASE_URL}/api/deliveries/available-orders`, {
       headers,
-      params: { search, limit },
+      params,
     });
 
     return NextResponse.json(response.data);

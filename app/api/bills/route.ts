@@ -25,7 +25,7 @@ export interface Bill {
   totalAmount: number;
   paidAmount: number;
   outstanding: number;
-  status: 'Unpaid' | 'Paid' | 'Overdue' | 'Partial';
+  status: 'Unpaid' | 'Paid' | 'Overdue' | 'Partial' | string;
   reference: string;
   description: string;
   notes: string;
@@ -94,22 +94,123 @@ export interface RecordPaymentRequest {
   notes?: string;
 }
 
-// ─── SERVICE ──────────────────────────────────────────────────
+// ─── HELPERS (mirror Flutter Bill.fromJson) ─────────────────────
+
+function num(value: unknown): number {
+  if (value == null) return 0;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return parseFloat(value) || 0;
+  return 0;
+}
+
+function str(value: unknown): string {
+  if (value == null) return '';
+  return String(value);
+}
+
+function normalizeBill(raw: any): Bill {
+  const vendor = raw?.vendor;
+  let supplierId = str(raw?.supplierId || raw?.vendorId);
+  let supplierName = str(raw?.supplierName || raw?.vendorName);
+
+  if (vendor && typeof vendor === 'object') {
+    supplierId = str(vendor.id || vendor._id || supplierId);
+    if (!supplierName) supplierName = str(vendor.name);
+  }
+
+  const totalAmount = num(raw?.totalAmount);
+  const paidAmount = num(raw?.paidAmount);
+  const outstanding =
+    raw?.outstanding != null ? num(raw.outstanding) : totalAmount - paidAmount;
+
+  return {
+    id: str(raw?.id || raw?._id),
+    billNumber: str(raw?.billNumber),
+    date: raw?.date ? String(raw.date) : new Date().toISOString(),
+    dueDate: raw?.dueDate ? String(raw.dueDate) : new Date().toISOString(),
+    supplierId,
+    supplierName,
+    items: Array.isArray(raw?.items)
+      ? raw.items.map((item: any) => ({
+          description: str(item.description),
+          quantity: num(item.quantity),
+          unitPrice: num(item.unitPrice),
+          amount: num(item.amount ?? item.quantity * item.unitPrice),
+          taxRate: num(item.taxRate),
+          taxAmount: num(item.taxAmount),
+        }))
+      : [],
+    subtotal: num(raw?.subtotal),
+    taxTotal: num(raw?.taxTotal ?? raw?.taxAmount),
+    discount: num(raw?.discount),
+    totalAmount,
+    paidAmount,
+    outstanding,
+    status: str(raw?.status || 'Unpaid'),
+    reference: str(raw?.reference),
+    description: str(raw?.description),
+    notes: str(raw?.notes),
+    createdAt: str(raw?.createdAt),
+    updatedAt: str(raw?.updatedAt),
+  };
+}
+
+function computeSummary(bills: Bill[]): Summary {
+  const totalAmount = bills.reduce((sum, b) => sum + b.totalAmount, 0);
+  const totalPaid = bills.reduce((sum, b) => sum + b.paidAmount, 0);
+  return {
+    totalBills: bills.length,
+    totalAmount,
+    totalPaid,
+    totalOutstanding: totalAmount - totalPaid,
+  };
+}
+
+function matchesSearch(bill: Bill, search?: string): boolean {
+  if (!search?.trim()) return true;
+  const q = search.trim().toLowerCase();
+  return (
+    bill.billNumber.toLowerCase().includes(q) ||
+    bill.supplierName.toLowerCase().includes(q) ||
+    bill.reference.toLowerCase().includes(q) ||
+    bill.notes.toLowerCase().includes(q)
+  );
+}
+
+function paginate<T>(
+  items: T[],
+  page = 1,
+  limit = 10
+): { data: T[]; pagination: BillListResponse['pagination'] } {
+  const total = items.length;
+  const pages = Math.max(1, Math.ceil(total / limit) || 1);
+  const safePage = Math.min(Math.max(page, 1), pages);
+  const start = (safePage - 1) * limit;
+  return {
+    data: items.slice(start, start + limit),
+    pagination: {
+      page: safePage,
+      limit,
+      total,
+      pages,
+      hasNext: safePage < pages,
+      hasPrev: safePage > 1,
+    },
+  };
+}
+
+// ─── SERVICE (same endpoints as Flutter) ────────────────────────
 
 export const billsService = {
-  // ─── Get summary ──────────────────────────────────────────────
+  // ─── Get summary (computed like Flutter from bills list) ──────
   getSummary: async (): Promise<Summary> => {
     try {
-      const response = await apiClient.get('/api/bills/summary');
+      const response = await apiClient.get('/api/accounts-payable/bills');
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch summary');
       }
-      return response.data?.data || {
-        totalBills: 0,
-        totalAmount: 0,
-        totalPaid: 0,
-        totalOutstanding: 0
-      };
+      const bills = ((response.data?.data as any[]) || []).map(normalizeBill);
+      return computeSummary(bills);
     } catch (error: any) {
       console.error('Get summary error:', error);
       throw new Error(error.message || 'Failed to fetch summary');
@@ -123,43 +224,59 @@ export const billsService = {
     search?: string;
     status?: string;
     supplierId?: string;
+    fiscalYearId?: string;
   } = {}): Promise<BillListResponse> => {
     const query = new URLSearchParams();
-    
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        query.append(key, String(value));
-      }
-    });
 
-    const url = `/api/bills${query.toString() ? `?${query.toString()}` : ''}`;
-    
+    // Backend supports: supplierId, status, startDate, endDate, fiscalYearId
+    if (params.status) query.append('status', params.status);
+    if (params.supplierId) query.append('supplierId', params.supplierId);
+    if (params.fiscalYearId) query.append('fiscalYearId', params.fiscalYearId);
+
+    const url = `/api/accounts-payable/bills${
+      query.toString() ? `?${query.toString()}` : ''
+    }`;
+
     try {
       const response = await apiClient.get(url);
-      
+
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch bills');
       }
-      
-      const data = response.data || {};
-      
+
+      const payload = response.data || {};
+      let bills = ((payload.data as any[]) || []).map(normalizeBill);
+
+      // Backend does not search — filter client-side (Flutter also soft-handles this)
+      bills = bills.filter((b) => matchesSearch(b, params.search));
+
+      const page = params.page || 1;
+      const limit = params.limit || 10;
+      const summary = computeSummary(bills);
+
+      // Prefer server pagination if present; otherwise paginate locally
+      if (payload.pagination) {
+        return {
+          success: true,
+          data: bills,
+          summary,
+          pagination: {
+            page: payload.pagination.page || page,
+            limit: payload.pagination.limit || limit,
+            total: payload.pagination.total ?? payload.count ?? bills.length,
+            pages: payload.pagination.pages || 1,
+            hasNext: Boolean(payload.pagination.hasNext),
+            hasPrev: Boolean(payload.pagination.hasPrev),
+          },
+        };
+      }
+
+      const paged = paginate(bills, page, limit);
       return {
-        success: response.success,
-        data: data.data || [],
-        summary: data.summary || {
-          totalBills: 0,
-          totalAmount: 0,
-          totalPaid: 0,
-          totalOutstanding: 0
-        },
-        pagination: data.pagination || {
-          page: params.page || 1,
-          limit: params.limit || 10,
-          total: 0,
-          pages: 0,
-          hasNext: false,
-          hasPrev: false
-        }
+        success: true,
+        data: paged.data,
+        summary,
+        pagination: paged.pagination,
       };
     } catch (error: any) {
       console.error('Get bills error:', error);
@@ -174,7 +291,14 @@ export const billsService = {
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch suppliers');
       }
-      return response.data?.data || [];
+      const list = (response.data?.data as any[]) || [];
+      return list.map((s) => ({
+        id: str(s.id || s._id),
+        name: str(s.name),
+        email: s.email ? str(s.email) : undefined,
+        phone: s.phone ? str(s.phone) : undefined,
+        address: s.address ? str(s.address) : undefined,
+      }));
     } catch (error: any) {
       console.error('Get suppliers error:', error);
       return [];
@@ -188,7 +312,13 @@ export const billsService = {
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch bank accounts');
       }
-      return response.data?.data || [];
+      const list = (response.data?.data as any[]) || [];
+      return list.map((a) => ({
+        id: str(a.id || a._id),
+        name: str(a.name || a.accountName),
+        accountNumber: str(a.accountNumber),
+        bankName: str(a.bankName),
+      }));
     } catch (error: any) {
       console.error('Get bank accounts error:', error);
       return [];
@@ -198,33 +328,26 @@ export const billsService = {
   // ─── Create bill ───────────────────────────────────────────────
   createBill: async (data: CreateBillRequest): Promise<Bill> => {
     try {
-      // Generate bill number if not provided
-      const billNumber = data.billNumber || `BILL-${Date.now()}`;
-      
-      // Calculate totals
-      const subtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-      const taxTotal = subtotal * ((data.taxRate || 0) / 100);
-      const totalAmount = subtotal + taxTotal - (data.discount || 0);
-      
       const payload = {
-        ...data,
-        billNumber,
-        subtotal,
-        taxTotal,
-        totalAmount,
-        items: data.items.map(item => ({
-          ...item,
-          amount: item.quantity * item.unitPrice,
-          taxRate: data.taxRate || 0,
-          taxAmount: (item.quantity * item.unitPrice) * ((data.taxRate || 0) / 100)
-        }))
+        supplierId: data.supplierId,
+        date: data.date,
+        dueDate: data.dueDate,
+        reference: data.reference || '',
+        notes: data.notes || data.description || '',
+        discount: data.discount || 0,
+        items: data.items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          taxRate: item.taxRate ?? data.taxRate ?? 0,
+        })),
       };
-      
-      const response = await apiClient.post('/api/bills', payload);
+
+      const response = await apiClient.post('/api/accounts-payable/bills', payload);
       if (!response.success) {
         throw new Error(response.message || 'Failed to create bill');
       }
-      return response.data?.data;
+      return normalizeBill(response.data?.data);
     } catch (error: any) {
       console.error('Create bill error:', error);
       throw new Error(error.message || 'Failed to create bill');
@@ -234,11 +357,11 @@ export const billsService = {
   // ─── Get bill by ID ────────────────────────────────────────────
   getBillById: async (id: string): Promise<Bill> => {
     try {
-      const response = await apiClient.get(`/api/bills/${id}`);
+      const response = await apiClient.get(`/api/accounts-payable/bills/${id}`);
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch bill');
       }
-      return response.data?.data;
+      return normalizeBill(response.data?.data);
     } catch (error: any) {
       console.error('Get bill error:', error);
       throw new Error(error.message || 'Failed to fetch bill');
@@ -256,10 +379,13 @@ export const billsService = {
         paymentMethod: data.paymentMethod,
         reference: data.reference,
         bankAccountId: data.bankAccountId,
-        notes: data.notes || ''
+        notes: data.notes || '',
       };
-      
-      const response = await apiClient.post('/api/bills/payments', payload);
+
+      const response = await apiClient.post(
+        '/api/accounts-payable/payments',
+        payload
+      );
       if (!response.success) {
         throw new Error(response.message || 'Failed to record payment');
       }
@@ -270,24 +396,27 @@ export const billsService = {
     }
   },
 
-  // ─── Update bill ───────────────────────────────────────────────
+  // ─── Update bill (not exposed by backend currently) ────────────
   updateBill: async (id: string, data: Partial<CreateBillRequest>): Promise<Bill> => {
     try {
-      const response = await apiClient.put(`/api/bills/${id}`, data);
+      const response = await apiClient.put(
+        `/api/accounts-payable/bills/${id}`,
+        data
+      );
       if (!response.success) {
         throw new Error(response.message || 'Failed to update bill');
       }
-      return response.data?.data;
+      return normalizeBill(response.data?.data);
     } catch (error: any) {
       console.error('Update bill error:', error);
       throw new Error(error.message || 'Failed to update bill');
     }
   },
 
-  // ─── Delete bill ───────────────────────────────────────────────
+  // ─── Delete bill (not exposed by backend currently) ────────────
   deleteBill: async (id: string): Promise<void> => {
     try {
-      const response = await apiClient.delete(`/api/bills/${id}`);
+      const response = await apiClient.delete(`/api/accounts-payable/bills/${id}`);
       if (!response.success) {
         throw new Error(response.message || 'Failed to delete bill');
       }
@@ -295,5 +424,5 @@ export const billsService = {
       console.error('Delete bill error:', error);
       throw new Error(error.message || 'Failed to delete bill');
     }
-  }
+  },
 };

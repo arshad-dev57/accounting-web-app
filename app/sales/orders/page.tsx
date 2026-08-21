@@ -11,6 +11,7 @@ import {
 import { customerService } from '../../api/customer/route';
 import { productService } from '../../api/product/route';
 import { salesOrderService } from '../../api/orders/sales/route';
+import { useLocation } from '@/lib/location-context';
 
 interface Order {
   _id: string;
@@ -113,7 +114,8 @@ const normalizeId = (item: any) => ({
   _id:
     typeof item._id === 'object'
       ? (item._id?.$oid ?? JSON.stringify(item._id))
-      : String(item._id ?? ''),
+      : String(item._id ?? item.id ?? ''),
+  id: String(item.id ?? item._id ?? ''),
 });
 
 const STATUS_COLORS: Record<string, string> = {
@@ -123,6 +125,7 @@ const STATUS_COLORS: Record<string, string> = {
   Packed: 'bg-purple-100 text-purple-700',
   Shipped: 'bg-indigo-100 text-indigo-700',
   'In Transit': 'bg-cyan-100 text-cyan-700',
+  'Partially Delivered': 'bg-sky-100 text-sky-700',
   Delivered: 'bg-green-100 text-green-700',
   Cancelled: 'bg-red-100 text-red-700',
   Returned: 'bg-pink-100 text-pink-700',
@@ -148,7 +151,7 @@ const pill = (map: Record<string, string>, val: string) =>
   `text-xs font-semibold px-2.5 py-1 rounded-full ${map[val] ?? 'bg-gray-100 text-gray-700'}`;
 
 // ── static option lists ───────────────────────────────────────────────────────
-const STATUS_OPTIONS = ['all', 'Draft', 'Pending', 'Processing', 'Packed', 'Shipped', 'In Transit', 'Delivered', 'Cancelled', 'Returned', 'On Hold'];
+const STATUS_OPTIONS = ['all', 'Draft', 'Pending', 'Processing', 'Packed', 'Shipped', 'In Transit', 'Partially Delivered', 'Delivered', 'Cancelled', 'Returned', 'On Hold'];
 const PAYMENT_OPTIONS = ['all', 'Pending', 'Paid', 'Partial', 'Refunded', 'Cancelled'];
 const PRIORITY_OPTIONS = ['all', 'Low', 'Medium', 'High', 'Urgent'];
 const CUSTOMER_TYPES = ['Individual', 'Business', 'Wholesale', 'Retail'];
@@ -275,7 +278,7 @@ function CustomerPickerModal({
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <User className="w-5 h-5 text-[#7c4dff]" />
+            <User className="w-5 h-5 text-[#014582]" />
             <h3 className="font-bold text-gray-800">Select Customer</h3>
             {pagination.total > 0 && (
               <span className="text-xs text-gray-400 font-normal">({pagination.total} total)</span>
@@ -295,7 +298,7 @@ function CustomerPickerModal({
               placeholder="Search by name, email or phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
             {searchTerm && (
               <button
@@ -306,7 +309,7 @@ function CustomerPickerModal({
               </button>
             )}
             {loading && !searchTerm && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7c4dff] animate-spin" />
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#014582] animate-spin" />
             )}
           </div>
           {error && (
@@ -319,7 +322,7 @@ function CustomerPickerModal({
         <div ref={listRef} className="overflow-y-auto flex-1 px-2 pb-4">
           {loading && customers.length === 0 ? (
             <div className="py-10 text-center text-gray-400">
-              <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+              <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
               <p className="text-sm mt-2">Loading customers...</p>
             </div>
           ) : customers.length === 0 ? (
@@ -340,7 +343,7 @@ function CustomerPickerModal({
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200 transition-colors">
-                        <span className="text-sm font-bold text-[#7c4dff]">
+                        <span className="text-sm font-bold text-[#014582]">
                           {customer.name?.charAt(0)?.toUpperCase() || 'C'}
                         </span>
                       </div>
@@ -378,7 +381,7 @@ function CustomerPickerModal({
 
               {loadingMore && (
                 <div className="py-3 text-center">
-                  <Loader2 className="w-5 h-5 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-5 h-5 mx-auto text-[#014582] animate-spin" />
                   <p className="text-xs text-gray-400 mt-1">Loading more...</p>
                 </div>
               )}
@@ -400,6 +403,7 @@ function CustomerPickerModal({
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SalesOrdersPage() {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -432,6 +436,7 @@ export default function SalesOrdersPage() {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         paymentStatus: paymentStatusFilter !== 'all' ? paymentStatusFilter : undefined,
         priority: priorityFilter !== 'all' ? priorityFilter : undefined,
+        locationId: selectedLocationId || undefined,
       });
       
       setOrders(response.data || []);
@@ -444,9 +449,13 @@ export default function SalesOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchTerm, statusFilter, paymentStatusFilter, priorityFilter]);
+  }, [currentPage, searchTerm, statusFilter, paymentStatusFilter, priorityFilter, selectedLocationId]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLocationId]);
 
   const pendingCount = orders.filter((o) => o.orderStatus === 'Pending').length;
   const processingCount = orders.filter((o) => o.orderStatus === 'Processing').length;
@@ -522,25 +531,33 @@ export default function SalesOrdersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <ShoppingCart className="w-6 h-6 text-[#7c4dff]" />
+          <ShoppingCart className="w-6 h-6 text-[#014582]" />
           Sales Orders
           <span className="text-sm font-normal text-gray-400">({totalRecords} orders)</span>
         </h1>
         <div className="flex items-center gap-3">
           <button
             onClick={() => { setCurrentPage(1); fetchOrders(); }}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all"
           >
             <RefreshCw className="w-4 h-4" /> Refresh
           </button>
           <button
             onClick={() => setShowCreateForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
           >
             <Plus className="w-4 h-4" /> Create Order
           </button>
         </div>
       </div>
+
+      {selectedLocation && (
+        <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+          <MapPin className="w-4 h-4 flex-shrink-0" />
+          Showing orders for <strong>{selectedLocation.name}</strong>
+          <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4">
         {[
@@ -571,7 +588,7 @@ export default function SalesOrdersPage() {
               placeholder="Search orders..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+              className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -588,7 +605,7 @@ export default function SalesOrdersPage() {
               <select
                 value={value}
                 onChange={(e) => set(e.target.value)}
-                className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
                 {opts.map((o) => (
                   <option key={o} value={o}>{o === 'all' ? placeholder : o}</option>
@@ -603,7 +620,7 @@ export default function SalesOrdersPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="text-center py-12">
-            <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+            <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
             <p className="mt-2 text-gray-500">Loading orders...</p>
           </div>
         ) : orders.length === 0 ? (
@@ -625,7 +642,7 @@ export default function SalesOrdersPage() {
               <tbody>
                 {orders.map((order) => (
                   <tr key={order._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-3 font-mono text-xs font-semibold text-[#7c4dff]">{order.orderNumber}</td>
+                    <td className="px-6 py-3 font-mono text-xs font-semibold text-[#014582]">{order.orderNumber}</td>
                     <td className="px-6 py-3">
                       <p className="font-medium text-gray-800">{order.customerName}</p>
                       {order.customerEmail && <p className="text-xs text-gray-500">{order.customerEmail}</p>}
@@ -648,7 +665,7 @@ export default function SalesOrdersPage() {
                           value={order.orderStatus}
                           onChange={(e) => handleUpdateStatus(order._id || order.id, e.target.value)}
                           disabled={actionLoading?.startsWith('status-') || getValidTransitions(order.orderStatus).length === 0}
-                          className="text-xs px-2 py-1 border border-gray-200 rounded hover:border-[#7c4dff] focus:ring-2 focus:ring-[#7c4dff] outline-none disabled:opacity-50"
+                          className="text-xs px-2 py-1 border border-gray-200 rounded hover:border-[#014582] focus:ring-2 focus:ring-[#014582] outline-none disabled:opacity-50"
                         >
                           <option value={order.orderStatus}>{order.orderStatus}</option>
                           {getValidTransitions(order.orderStatus).map((status) => (
@@ -695,7 +712,7 @@ export default function SalesOrdersPage() {
               className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
               <ChevronDown className="w-4 h-4 rotate-90" />
             </button>
-            <span className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg">{currentPage} / {totalPages}</span>
+            <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg">{currentPage} / {totalPages}</span>
             <button onClick={() => setCurrentPage((p) => p + 1)} disabled={!hasNext}
               className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
               <ChevronDown className="w-4 h-4 -rotate-90" />
@@ -799,10 +816,8 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CREATE ORDER FORM - COMPLETE FIXED VERSION
-// ─────────────────────────────────────────────────────────────────────────────
 function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -872,36 +887,65 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   // ── FIXED: Helper to normalize IDs ──────────────────────────────────────────
   const getNormalizedId = (item: any): string => {
     if (!item) return '';
-    if (!item._id) {
-      if (item.id) return String(item.id);
-      return `temp-${Date.now()}-${Math.random()}`;
+    const raw = item._id ?? item.id;
+    if (!raw) return '';
+    if (typeof raw === 'object') {
+      return (raw as any)?.$oid || JSON.stringify(raw);
     }
-    if (typeof item._id === 'object') {
-      return (item._id as any)?.$oid || JSON.stringify(item._id);
-    }
-    return String(item._id);
+    return String(raw);
   };
 
-  // ── fetch ───────────────────────────────────────────────────────────────
+  // ── fetch customers once; products by selected warehouse ───────────────
   useEffect(() => {
     (async () => {
       try {
-        console.log('🚀 Fetching customers and products...');
-        const [cd, pd] = await Promise.all([
-          customerService.getCustomers({ limit: 100 }),
-          productService.getProducts({ limit: 100 }),
-        ]);
+        setLoadingCustomers(true);
+        const cd = await customerService.getCustomers({ limit: 100 });
         setCustomers((cd.data || []).map(normalizeId));
-        setProducts((pd.data || []).map(normalizeId));
-        console.log(`✅ Loaded ${cd.data?.length || 0} customers and ${pd.data?.length || 0} products`);
       } catch (err) {
-        console.error('❌ Fetch error:', err);
+        console.error('❌ Fetch customers error:', err);
       } finally {
         setLoadingCustomers(false);
-        setLoadingProducts(false);
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!selectedLocationId) {
+      setProducts([]);
+      setLoadingProducts(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingProducts(true);
+        const pd = await productService.getProducts({
+          limit: 500,
+          locationId: selectedLocationId,
+        });
+        if (cancelled) return;
+        const list = (pd.data || []).map(normalizeId);
+        setProducts(list);
+        // Drop selected product / lines that are not at this warehouse
+        setSelectedProduct(null);
+        setProductSearchQuery('');
+        setOrderItems((prev) =>
+          prev.filter((item) =>
+            list.some((p) => getNormalizedId(p) === String(item.productId))
+          )
+        );
+      } catch (err) {
+        console.error('❌ Fetch products error:', err);
+        if (!cancelled) setProducts([]);
+      } finally {
+        if (!cancelled) setLoadingProducts(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLocationId]);
 
   // ── computed ────────────────────────────────────────────────────────────
   const filteredProducts = productSearchQuery.trim()
@@ -1076,7 +1120,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       console.log('✅ Updated existing item:', updated[idx]);
     } else {
       const newItem = {
-        productId: selectedProduct._id,
+        productId: getNormalizedId(selectedProduct),
         productName: selectedProduct.name,
         sku: selectedProduct.sku,
         quantity,
@@ -1105,6 +1149,10 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
+    if (!selectedLocationId) {
+      setFormError('Select a warehouse from the top bar before creating the order');
+      return;
+    }
     if (!customerName.trim()) { setFormError('Customer name is required'); return; }
     if (orderItems.length === 0) { setFormError('Please add at least one item'); return; }
 
@@ -1118,7 +1166,10 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         customerCompany, customerTaxId,
         shippingAddress: shippingAddr,
         billingAddress: billingAddr,
-        items: orderItems,
+        items: orderItems.map((item) => ({
+          ...item,
+          productId: String(item.productId || ''),
+        })),
         orderType, priority, source, salesPerson,
         expectedDeliveryDate: expectedDeliveryDate || null,
         shippingMethod, shippingCarrier, shippingCost,
@@ -1127,6 +1178,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         customerNotes, internalNotes,
         tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
         subtotal, discountTotal: calculatedDiscount, grandTotal,
+        locationId: selectedLocationId,
       });
       onSuccess();
     } catch (err: any) {
@@ -1138,7 +1190,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   };
 
   // ── reusable input classes ───────────────────────────────────────────────
-  const inp = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none';
+  const inp = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none';
   const sel = inp;
 
   return (
@@ -1146,13 +1198,27 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Plus className="w-6 h-6 text-[#7c4dff]" /> Create Sales Order
+          <Plus className="w-6 h-6 text-[#014582]" /> Create Sales Order
         </h1>
         <button type="button" onClick={onCancel}
           className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
           <X className="w-4 h-4" /> Cancel
         </button>
       </div>
+
+      {selectedLocation ? (
+        <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+          <MapPin className="w-4 h-4 flex-shrink-0" />
+          Fulfilling from <strong>{selectedLocation.name}</strong>
+          <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+          <span className="text-sky-600/80">— product stock is for this warehouse only</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          Select a warehouse from the top bar to load products
+        </div>
+      )}
 
       {formError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">
@@ -1164,7 +1230,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Customer Information ──────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <User className="w-5 h-5 text-[#7c4dff]" /> Customer Information
+          <User className="w-5 h-5 text-[#014582]" /> Customer Information
         </h2>
 
         <div>
@@ -1173,7 +1239,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
             <button
               type="button"
               onClick={() => setShowCustomerModal(true)}
-              className="flex-1 flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 hover:border-[#7c4dff] hover:bg-purple-50 transition-all text-left focus:ring-2 focus:ring-[#7c4dff] focus:outline-none"
+              className="flex-1 flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 hover:border-[#014582] hover:bg-purple-50 transition-all text-left focus:ring-2 focus:ring-[#014582] focus:outline-none"
             >
               <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
               {selectedCustomer ? (
@@ -1200,7 +1266,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
           
           {selectedCustomer && (
             <div className="mt-2 px-3 py-2 bg-purple-50 border border-purple-100 rounded-lg flex items-center gap-3">
-              <div className="w-6 h-6 rounded-full bg-[#7c4dff] flex items-center justify-center flex-shrink-0">
+              <div className="w-6 h-6 rounded-full bg-[#014582] flex items-center justify-center flex-shrink-0">
                 <span className="text-white text-xs font-bold">
                   {selectedCustomer.name?.charAt(0)?.toUpperCase()}
                 </span>
@@ -1250,7 +1316,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Shipping Address ──────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Truck className="w-5 h-5 text-[#7c4dff]" /> Shipping Address
+          <Truck className="w-5 h-5 text-[#014582]" /> Shipping Address
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
@@ -1281,11 +1347,11 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Billing Address ───────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Receipt className="w-5 h-5 text-[#7c4dff]" /> Billing Address
+          <Receipt className="w-5 h-5 text-[#014582]" /> Billing Address
         </h2>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={sameAsShipping} onChange={(e) => setSameAsShipping(e.target.checked)}
-            className="w-4 h-4 text-[#7c4dff] rounded focus:ring-[#7c4dff]" />
+            className="w-4 h-4 text-[#014582] rounded focus:ring-[#014582]" />
           <span className="text-sm text-gray-700">Same as shipping address</span>
         </label>
         {!sameAsShipping && (
@@ -1319,7 +1385,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Order Items ───────────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Package className="w-5 h-5 text-[#7c4dff]" /> Order Items
+          <Package className="w-5 h-5 text-[#014582]" /> Order Items
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1380,7 +1446,11 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
           </select>
           {!loadingProducts && filteredProducts.length === 0 && (
             <p className="text-xs text-gray-400 mt-1">
-              {productSearchQuery ? `No products match "${productSearchQuery}"` : 'No products available'}
+              {selectedLocationId
+                ? productSearchQuery
+                  ? 'No products match your search at this warehouse'
+                  : 'No products assigned to this warehouse (add stock or assign products first)'
+                : 'Select a warehouse to load products'}
             </p>
           )}
           {selectedProduct && (
@@ -1392,12 +1462,12 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
 
         {/* Live preview */}
         {selectedProduct && (
-          <div className="flex flex-wrap items-center gap-4 bg-[#7c4dff]/5 border border-[#7c4dff]/20 rounded-lg px-4 py-3 text-sm">
+          <div className="flex flex-wrap items-center gap-4 bg-[#014582]/5 border border-[#014582]/20 rounded-lg px-4 py-3 text-sm">
             <span className="text-gray-500">
               Unit price: <strong className="text-gray-800">Rs. {selectedProduct.sellingPrice.toLocaleString()}</strong>
             </span>
             <span className="text-gray-500">
-              × {quantity} = <strong className="text-[#7c4dff]">Rs. {previewTotal.toLocaleString()}</strong>
+              × {quantity} = <strong className="text-[#014582]">Rs. {previewTotal.toLocaleString()}</strong>
             </span>
             <span className="ml-auto text-xs">
               Stock:{' '}
@@ -1410,7 +1480,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
 
         <button
           type="button" onClick={handleAddItem} disabled={!selectedProduct}
-          className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" /> Add to Order
         </button>
@@ -1436,7 +1506,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
                       <input
                         type="number" min="1" value={item.quantity}
                         onChange={(e) => handleUpdateQty(i, parseInt(e.target.value) || 1)}
-                        className="w-16 text-center px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#7c4dff] outline-none"
+                        className="w-16 text-center px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] outline-none"
                       />
                     </td>
                     <td className="px-4 py-2 text-right font-semibold text-gray-800">Rs. {item.totalPrice.toLocaleString()}</td>
@@ -1469,7 +1539,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Order Details ─────────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-[#7c4dff]" /> Order Details
+          <FileText className="w-5 h-5 text-[#014582]" /> Order Details
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -1504,7 +1574,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Shipping & Payment ────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <CreditCard className="w-5 h-5 text-[#7c4dff]" /> Shipping & Payment
+          <CreditCard className="w-5 h-5 text-[#014582]" /> Shipping & Payment
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -1542,7 +1612,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Discounts ─────────────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Tag className="w-5 h-5 text-[#7c4dff]" /> Discounts
+          <Tag className="w-5 h-5 text-[#014582]" /> Discounts
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -1576,7 +1646,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Notes ─────────────────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-[#7c4dff]" /> Notes
+          <FileText className="w-5 h-5 text-[#014582]" /> Notes
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -1602,7 +1672,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* ── Order Summary ─────────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-4">
-          <DollarSign className="w-5 h-5 text-[#7c4dff]" /> Order Summary
+          <DollarSign className="w-5 h-5 text-[#014582]" /> Order Summary
         </h2>
         <div className="max-w-sm ml-auto space-y-3">
           <div className="flex justify-between text-sm">
@@ -1623,7 +1693,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
           )}
           <div className="border-t-2 border-gray-200 pt-3 flex justify-between items-center">
             <span className="font-bold text-gray-800">Grand Total</span>
-            <span className="font-bold text-2xl text-[#7c4dff]">Rs. {grandTotal.toLocaleString()}</span>
+            <span className="font-bold text-2xl text-[#014582]">Rs. {grandTotal.toLocaleString()}</span>
           </div>
         </div>
       </section>
@@ -1635,7 +1705,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
           Cancel
         </button>
         <button type="submit" disabled={isSubmitting}
-          className="flex items-center gap-2 px-6 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
+          className="flex items-center gap-2 px-6 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed">
           {isSubmitting
             ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
             : <><CheckCircle className="w-4 h-4" /> Create Order</>}

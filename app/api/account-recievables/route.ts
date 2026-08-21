@@ -76,10 +76,17 @@ export interface RecordPaymentRequest {
 
 export const accountsReceivableService = {
   // ─── Get summary ──────────────────────────────────────────────
-  getSummary: async (): Promise<Summary> => {
+  getSummary: async (params: { locationId?: string; fiscalYearId?: string } = {}): Promise<Summary> => {
     try {
       console.log('🔍 [Accounts Receivable] Fetching summary...');
-      const response = await apiClient.get('/api/accounts-receivable/summary');
+      const query = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          query.append(key, String(value));
+        }
+      });
+      const url = `/api/accounts-receivable/summary${query.toString() ? `?${query.toString()}` : ''}`;
+      const response = await apiClient.get(url);
       
       console.log('📊 [Accounts Receivable] Summary API Response:', JSON.stringify(response, null, 2));
       console.log('📊 [Accounts Receivable] Summary success:', response.success);
@@ -117,6 +124,8 @@ export const accountsReceivableService = {
     search?: string;
     filter?: string;
     refresh?: boolean;
+    locationId?: string;
+    fiscalYearId?: string;
   } = {}): Promise<CustomerListResponse> => {
     const query = new URLSearchParams();
     
@@ -390,36 +399,39 @@ export async function exportToPdf(
   currencySymbol: string = 'Rs.'
 ): Promise<void> {
   try {
-    const { default: jsPDF } = await import('jspdf');
     const autoTable = (await import('jspdf-autotable')).default;
+    const { createBrandedReport } = await import('../../../lib/pdf-branding');
 
-    const doc = new jsPDF('landscape', 'mm', 'a4');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 14;
+    const {
+      doc,
+      margin,
+      pageWidth,
+      startY,
+      accentHex,
+      finalize,
+    } = await createBrandedReport({
+      reportTitle: 'Accounts Receivable Report',
+      orientation: 'landscape',
+    });
 
     const formatAmountWithSymbol = (amount: number) => {
       return `${currencySymbol} ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
     };
 
-    // Header
-    doc.setFontSize(18);
-    doc.setTextColor('#7c4dff');
-    doc.text('Accounts Receivable Report', pageWidth / 2, 20, { align: 'center' });
-
+    let y = startY;
     doc.setFontSize(10);
     doc.setTextColor('#666666');
-    doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 28, { align: 'center' });
-    doc.text(`Filter: ${filter}`, 14, 36);
-
+    doc.text(`Filter: ${filter}`, margin, y);
+    y += 5;
     if (searchQuery) {
-      doc.text(`Search: ${searchQuery}`, 14, 42);
+      doc.text(`Search: ${searchQuery}`, margin, y);
+      y += 5;
     }
+    y += 2;
 
-    // Summary
-    const summaryY = searchQuery ? 48 : 42;
     doc.setFontSize(11);
     doc.setTextColor('#333333');
-    doc.text('Summary', 14, summaryY);
+    doc.text('Summary', margin, y);
 
     const summaryData = [
       ['Total Outstanding', formatAmountWithSymbol(summary.totalOutstanding)],
@@ -431,11 +443,11 @@ export async function exportToPdf(
     ];
 
     autoTable(doc, {
-      startY: summaryY + 4,
+      startY: y + 4,
       head: [['Metric', 'Value']],
       body: summaryData,
       theme: 'striped',
-      headStyles: { fillColor: '#7c4dff', textColor: '#ffffff' },
+      headStyles: { fillColor: accentHex, textColor: '#ffffff' },
       styles: { fontSize: 9 },
       columnStyles: {
         0: { cellWidth: 50 },
@@ -444,12 +456,11 @@ export async function exportToPdf(
       margin: { left: margin, right: margin },
     });
 
-    // Customers Table
-    const startY = (doc as any).lastAutoTable.finalY + 8;
+    const tableStartY = (doc as any).lastAutoTable.finalY + 8;
 
     doc.setFontSize(11);
     doc.setTextColor('#333333');
-    doc.text('Customer Details', 14, startY);
+    doc.text('Customer Details', margin, tableStartY);
 
     const customerRows = customers.map((c) => [
       c.name,
@@ -461,11 +472,11 @@ export async function exportToPdf(
     ]);
 
     autoTable(doc, {
-      startY: startY + 4,
+      startY: tableStartY + 4,
       head: [['Customer', 'Phone', 'Invoices', 'Total', 'Paid', 'Outstanding']],
       body: customerRows,
       theme: 'striped',
-      headStyles: { fillColor: '#7c4dff', textColor: '#ffffff' },
+      headStyles: { fillColor: accentHex, textColor: '#ffffff' },
       styles: { fontSize: 8 },
       columnStyles: {
         0: { cellWidth: 50 },
@@ -478,7 +489,6 @@ export async function exportToPdf(
       margin: { left: margin, right: margin },
     });
 
-    // Totals
     const totalAmount = customers.reduce((sum, c) => sum + c.totalAmount, 0);
     const totalPaid = customers.reduce((sum, c) => sum + c.paidAmount, 0);
     const totalOutstanding = customers.reduce((sum, c) => sum + c.outstandingAmount, 0);
@@ -491,14 +501,10 @@ export async function exportToPdf(
     const totalsText = `Totals: Total: ${formatAmountWithSymbol(totalAmount)}  |  Paid: ${formatAmountWithSymbol(totalPaid)}  |  Outstanding: ${formatAmountWithSymbol(totalOutstanding)}`;
     doc.text(totalsText, pageWidth / 2, finalY, { align: 'center' });
 
-    // Footer
-    doc.setFontSize(8);
-    doc.setTextColor('#999999');
-    doc.text(`Page 1 of 1`, pageWidth - margin, doc.internal.pageSize.getHeight() - 10, {
-      align: 'right',
+    finalize({
+      signatureY: finalY + 4,
+      filename: `accounts_receivable_${new Date().toISOString().split('T')[0]}.pdf`,
     });
-
-    doc.save(`accounts_receivable_${new Date().toISOString().split('T')[0]}.pdf`);
   } catch (error) {
     console.error('Export PDF error:', error);
     throw new Error('Failed to export PDF');
