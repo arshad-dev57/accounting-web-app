@@ -17,6 +17,7 @@ import {
   subscribePaymentTerminalStatus,
   type TerminalLinkStatus,
 } from '../../../lib/pos-payment-terminal';
+import { reconnectThermalPrinter } from '../../../lib/pos-thermal-printer';
 import {
   Store,
   DollarSign,
@@ -68,6 +69,12 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
     posReceiptService.get().then((res: any) => {
       if (res?.data) saveReceiptTemplate(res.data);
     }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (loadPosSettings().thermalPrintMode === 'escpos') {
+      void reconnectThermalPrinter();
+    }
   }, []);
 
   useEffect(() => {

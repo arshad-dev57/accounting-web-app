@@ -345,27 +345,24 @@ export async function renderReceiptQrCanvas(
 }
 
 export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
-  const win = window.open('', 'pos-receipt', 'width=480,height=800');
-  if (!win) {
-    window.print();
-    return;
-  }
+  if (typeof document === 'undefined') return;
 
   const clone = node.cloneNode(true) as HTMLElement;
+  clone.classList.add('pos-receipt-paper');
   clone.querySelectorAll('img').forEach((img) => {
     const src = img.getAttribute('src') || '';
     if (src.startsWith('/')) img.setAttribute('src', `${window.location.origin}${src}`);
   });
-  // Canvas (QR) does not clone pixels — replace with PNG images for print
   const sourceCanvases = Array.from(node.querySelectorAll('canvas'));
   clone.querySelectorAll('canvas').forEach((canvasEl, idx) => {
     const source = sourceCanvases[idx] as HTMLCanvasElement | undefined;
     if (!source) return;
     try {
-      const img = win.document.createElement('img');
+      const img = document.createElement('img');
       img.src = source.toDataURL('image/png');
-      img.style.width = `${source.width || 160}px`;
-      img.style.height = `${source.height || 160}px`;
+      img.className = 'receipt-qr';
+      img.style.width = `${Math.min(source.width || 160, widthMm === 58 ? 140 : 180)}px`;
+      img.style.height = 'auto';
       img.style.display = 'inline-block';
       canvasEl.replaceWith(img);
     } catch {
@@ -373,51 +370,133 @@ export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
     }
   });
 
-  win.document.write(`<!DOCTYPE html>
+  const paperPx = widthMm === 58 ? 220 : 302;
+  const marginMm = widthMm === 58 ? 2 : 3;
+
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('title', 'POS thermal print');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.style.opacity = '0';
+  iframe.style.pointerEvents = 'none';
+  document.body.appendChild(iframe);
+
+  const win = iframe.contentWindow;
+  const doc = win?.document;
+  if (!win || !doc) {
+    try {
+      document.body.removeChild(iframe);
+    } catch {
+      /* ignore */
+    }
+    window.print();
+    return;
+  }
+
+  doc.open();
+  doc.write(`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Receipt</title>
+  <title>POS Receipt</title>
   <style>
-    @page { size: ${widthMm}mm auto; margin: 4mm; }
-    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page {
+      size: ${widthMm}mm auto;
+      margin: ${marginMm}mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
     html, body {
       margin: 0;
       padding: 0;
+      width: ${widthMm}mm;
       background: #fff;
-      color: #111827;
+      color: #000;
     }
     body {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+      font-family: "Courier New", Courier, ui-monospace, monospace;
+      font-size: 11px;
+      line-height: 1.35;
     }
     .pos-receipt-paper {
+      width: ${paperPx}px !important;
+      max-width: 100% !important;
       margin: 0 auto !important;
+      background: #fff !important;
+      box-shadow: none !important;
+      border: none !important;
+      border-radius: 0 !important;
     }
-    img.company-logo { max-width: 160px; height: auto; display: block; margin: 0 auto; }
-    img.receipt-qr { width: 48mm !important; height: 48mm !important; max-width: 48mm !important; image-rendering: pixelated; display: block; margin: 8px auto; }
+    .no-print { display: none !important; }
+    img.company-logo {
+      max-width: ${widthMm === 58 ? 110 : 150}px;
+      height: auto;
+      display: block;
+      margin: 0 auto 6px;
+    }
+    img.receipt-qr {
+      width: ${widthMm === 58 ? 36 : 42}mm !important;
+      height: ${widthMm === 58 ? 36 : 42}mm !important;
+      max-width: 90% !important;
+      image-rendering: pixelated;
+      display: block;
+      margin: 6px auto;
+    }
     table { width: 100%; border-collapse: collapse; }
-    svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+    svg {
+      max-width: 100% !important;
+      height: auto !important;
+      display: block;
+      margin: 4px auto;
+    }
+    @media print {
+      html, body { width: ${widthMm}mm; }
+      .pos-receipt-paper { width: 100% !important; }
+    }
   </style>
 </head>
 <body>${clone.outerHTML}</body>
 </html>`);
-  win.document.close();
+  doc.close();
 
+  let printed = false;
+  const cleanup = () => {
+    setTimeout(() => {
+      try {
+        document.body.removeChild(iframe);
+      } catch {
+        /* ignore */
+      }
+    }, 1200);
+  };
   const printWhenReady = () => {
-    win.focus();
-    win.print();
-    win.close();
+    if (printed) return;
+    printed = true;
+    try {
+      win.focus();
+      win.print();
+    } finally {
+      cleanup();
+    }
   };
 
-  const images = Array.from(win.document.images);
+  const images = Array.from(doc.images);
   if (!images.length) {
-    setTimeout(printWhenReady, 200);
+    setTimeout(printWhenReady, 250);
     return;
   }
   let remaining = images.length;
   const done = () => {
     remaining -= 1;
-    if (remaining <= 0) setTimeout(printWhenReady, 150);
+    if (remaining <= 0) setTimeout(printWhenReady, 200);
   };
   images.forEach((img) => {
     if (img.complete) done();
@@ -426,6 +505,7 @@ export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
       img.onerror = done;
     }
   });
+  setTimeout(printWhenReady, 4000);
 }
 
 export async function downloadPosReceiptPdf(opts: {

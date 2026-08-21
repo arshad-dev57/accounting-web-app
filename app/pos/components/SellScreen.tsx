@@ -23,11 +23,11 @@ import POSReceipt from './POSReceipt';
 import {
   barcodePngDataUrl,
   downloadPosReceiptPdf,
-  printReceiptNode,
   receiptBarcodeValue,
   receiptQrPngDataUrl,
   resolveReceiptCompany,
 } from '../../../lib/pos-receipt';
+import { printPosReceipt } from '../../../lib/pos-thermal-printer';
 import {
   computeTaxLine,
   resolveProductTaxRate,
@@ -168,11 +168,47 @@ function ReceiptModal({ sale, companyProfile, shift, onClose, onDownloadReport, 
   const [emailInput, setEmailInput] = useState('');
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [printHint, setPrintHint] = useState('');
   const paperRef = useRef<HTMLDivElement | null>(null);
+  const autoPrintedRef = useRef(false);
 
-  const handlePrint = () => {
-    if (paperRef.current) printReceiptNode(paperRef.current, loadReceiptTemplate().thermalPaperWidthMm);
+  const handlePrint = async () => {
+    if (!paperRef.current) return;
+    setPrinting(true);
+    setPrintHint('');
+    try {
+      const result = await printPosReceipt({
+        sale,
+        companyProfile,
+        shift,
+        paperNode: paperRef.current,
+      });
+      if (result.mode === 'escpos') {
+        setPrintHint('Sent to thermal printer');
+      } else if ((result as any).fallback) {
+        setPrintHint('ESC/POS unavailable — opened browser print');
+      }
+    } catch (e: any) {
+      setPrintHint(e?.message || 'Print failed');
+      alert(e?.message || 'Print failed');
+    } finally {
+      setPrinting(false);
+    }
   };
+
+  useEffect(() => {
+    if (autoPrintedRef.current) return;
+    const settings = loadPosSettings();
+    if (!settings.autoPrintOnSale) return;
+    autoPrintedRef.current = true;
+    // Wait for barcode/QR images to render on the receipt paper
+    const t = setTimeout(() => {
+      void handlePrint();
+    }, 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sale?.invoiceNumber]);
 
   const handleSendEmail = async () => {
     if (!emailInput || !emailInput.includes('@')) {
@@ -201,17 +237,25 @@ function ReceiptModal({ sale, companyProfile, shift, onClose, onDownloadReport, 
         
         <div className="flex gap-3 mt-5 no-print">
           <button
-            onClick={handlePrint}
-            className="flex-1 py-2.5 rounded-lg border-none bg-[#014582] text-white cursor-pointer font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[#01366a]"
+            onClick={() => void handlePrint()}
+            disabled={printing}
+            className="flex-1 py-2.5 rounded-lg border-none bg-[#014582] text-white cursor-pointer font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[#01366a] disabled:opacity-60"
           >
-            <Printer className="w-4 h-4" />
-            Print
+            {printing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+            {printing ? 'Printing…' : 'Print thermal'}
           </button>
           <button onClick={onDownloadReport} className="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white cursor-pointer font-semibold text-sm flex items-center justify-center gap-2">
             <Download className="w-4 h-4" />
             Download
           </button>
         </div>
+        {printHint ? (
+          <div className="mt-2 text-center text-xs text-gray-500 no-print">{printHint}</div>
+        ) : (
+          <div className="mt-2 text-center text-[11px] text-gray-400 no-print">
+            Tip: choose your {loadReceiptTemplate().thermalPaperWidthMm}mm thermal printer in the dialog (margins none, no headers)
+          </div>
+        )}
         
         <div className="flex gap-3 mt-3 no-print">
           <button onClick={()=>setShowEmailForm(!showEmailForm)} className="flex-1 py-2.5 rounded-lg border border-[#014582] bg-[#014582]/5 text-[#014582] cursor-pointer font-semibold text-sm flex items-center justify-center gap-2">
