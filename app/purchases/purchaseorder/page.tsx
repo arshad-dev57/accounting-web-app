@@ -21,6 +21,7 @@ import { purchaseOrderService, PurchaseOrderModel, PurchaseOrderStats, PurchaseO
 import PDFService from '../../../lib/pdf-service';
 import EmailService from '../../../lib/email-service';
 import TaxRateSelect from '../../../components/TaxRateSelect';
+import { useLocation } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -56,6 +57,7 @@ interface WizardState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export default function PurchaseOrdersPage() {
+  const { selectedLocationId } = useLocation();
   const [orders, setOrders] = useState<PurchaseOrderModel[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<PurchaseOrderModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,7 +138,8 @@ export default function PurchaseOrdersPage() {
         search: searchTerm || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setOrders(response.data || []);
@@ -154,7 +157,7 @@ export default function PurchaseOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, fromDate, toDate, pagination.page, pagination.limit]);
+  }, [searchTerm, statusFilter, fromDate, toDate, pagination.page, pagination.limit, selectedLocationId]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -169,7 +172,8 @@ export default function PurchaseOrdersPage() {
         search: searchTerm || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setOrders(prev => [...prev, ...(response.data || [])]);
@@ -180,7 +184,7 @@ export default function PurchaseOrdersPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, fromDate, toDate]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, fromDate, toDate, selectedLocationId]);
 
   // ─── Apply Local Filters ────────────────────────────────────
 
@@ -218,6 +222,11 @@ export default function PurchaseOrdersPage() {
     fetchOrders(true);
     fetchUserProfile();
   }, []);
+
+  useEffect(() => {
+    fetchOrders(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLocationId]);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -301,9 +310,10 @@ export default function PurchaseOrdersPage() {
   };
 
   const selectSupplier = (supplier: Supplier) => {
+    const id = String(supplier.id || (supplier as any)._id || '');
     setWizardState(prev => ({
       ...prev,
-      selectedSupplier: supplier,
+      selectedSupplier: { ...supplier, id },
       supplierSearchResults: []
     }));
   };
@@ -315,7 +325,11 @@ export default function PurchaseOrdersPage() {
     }
     setWizardState(prev => ({ ...prev, isSearchingProducts: true }));
     try {
-      const results = await purchaseOrderService.searchProducts(query);
+      const results = await purchaseOrderService.searchProducts(
+        query,
+        10,
+        selectedLocationId || undefined
+      );
       setWizardState(prev => ({ ...prev, productSearchResults: results }));
     } catch (error) {
       console.error('Failed to search products:', error);
@@ -458,8 +472,16 @@ export default function PurchaseOrdersPage() {
         taxRate: line.taxRate
       }));
 
+      const supplierId =
+        wizardState.selectedSupplier.id ||
+        (wizardState.selectedSupplier as any)._id;
+      if (!supplierId) {
+        alert('Invalid supplier selected. Please search and pick again.');
+        return;
+      }
+
       await purchaseOrderService.createOrder({
-        supplierId: wizardState.selectedSupplier.id,
+        supplierId: String(supplierId),
         supplierName: wizardState.selectedSupplier.name,
         supplierEmail: wizardState.selectedSupplier.email || '',
         supplierPhone: wizardState.selectedSupplier.phone || '',
@@ -469,7 +491,8 @@ export default function PurchaseOrdersPage() {
         items,
         notes: wizardState.notes || undefined,
         termsConditions: wizardState.termsConditions || undefined,
-        status: 'Draft'
+        status: 'Draft',
+        locationId: selectedLocationId || undefined,
       });
 
       closeCreateWizard();

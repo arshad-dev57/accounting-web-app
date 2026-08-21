@@ -20,6 +20,7 @@ import {
 import { goodsReceivingService, GoodsReceivingModel, GoodsReceivingStats, PurchaseOrderForReceiving, GRNLineDraft } from '../../api/goodsrecieving/route';
 import PDFService from '../../../lib/pdf-service';
 import EmailService from '../../../lib/email-service';
+import { useLocation } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -37,6 +38,7 @@ interface WizardState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export default function GoodsReceivingPage() {
+  const { selectedLocationId } = useLocation();
   const [grns, setGrns] = useState<GoodsReceivingModel[]>([]);
   const [filteredGrns, setFilteredGrns] = useState<GoodsReceivingModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,7 +104,8 @@ export default function GoodsReceivingPage() {
         search: searchTerm || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setGrns(response.data || []);
@@ -117,7 +120,7 @@ export default function GoodsReceivingPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, fromDate, toDate, pagination.page, pagination.limit]);
+  }, [searchTerm, statusFilter, fromDate, toDate, pagination.page, pagination.limit, selectedLocationId]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -132,7 +135,8 @@ export default function GoodsReceivingPage() {
         search: searchTerm || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setGrns(prev => [...prev, ...(response.data || [])]);
@@ -143,7 +147,7 @@ export default function GoodsReceivingPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, fromDate, toDate]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, fromDate, toDate, selectedLocationId]);
 
   // ─── Apply Local Filters ────────────────────────────────────
 
@@ -169,6 +173,18 @@ export default function GoodsReceivingPage() {
   useEffect(() => {
     fetchGRNs(true);
   }, []);
+
+  useEffect(() => {
+    fetchGRNs(true);
+    // clear open wizard order search when warehouse changes
+    setWizardState((prev: WizardState) => ({
+      ...prev,
+      orderSearchResults: [],
+      selectedOrder: null,
+      lineDrafts: [],
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLocationId]);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -238,7 +254,11 @@ export default function GoodsReceivingPage() {
     }
     setWizardState((prev: WizardState) => ({ ...prev, isSearchingOrders: true }));
     try {
-      const results = await goodsReceivingService.searchAvailableOrders(query);
+      const results = await goodsReceivingService.searchAvailableOrders(
+        query,
+        10,
+        selectedLocationId || undefined
+      );
       setWizardState((prev: WizardState) => ({ ...prev, orderSearchResults: results }));
     } catch (error) {
       console.error('Failed to search orders:', error);
@@ -332,7 +352,9 @@ export default function GoodsReceivingPage() {
         receivingDate: wizardState.receivingDate,
         receivedBy: wizardState.receivedBy || undefined,
         notes: wizardState.notes || undefined,
-        items
+        status: 'Draft',
+        items,
+        locationId: selectedLocationId || undefined,
       });
 
       closeCreateWizard();
@@ -496,6 +518,11 @@ export default function GoodsReceivingPage() {
                 <span className="sm:hidden">Receive</span>
               </button>
             </div>
+          </div>
+
+          <div className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+            <strong>Flow:</strong> GRN is saved as <strong>Draft</strong> → <strong>Confirm</strong> to add stock to inventory.
+            Post the purchase invoice separately for accounts payable.
           </div>
 
           {/* Stats */}

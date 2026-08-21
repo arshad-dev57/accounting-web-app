@@ -3,10 +3,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import { 
   Plus, Search, RefreshCw, Truck, Clock, 
-  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2 
+  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, MapPin
 } from 'lucide-react';
 import { Delivery, DeliveryStats } from '@/types/delivery';
 import CreateDeliveryWizard from '@/components/deliveries/CreateDeliveryWizard';
+import { useLocation } from '@/lib/location-context';
 
 const STATUS_COLORS: Record<string, string> = {
   'Pending': 'bg-orange-100 text-orange-700',
@@ -27,6 +28,7 @@ const pill = (map: Record<string, string>, val: string) =>
 const STATUS_OPTIONS = ['all', 'Pending', 'Partially Delivered', 'Delivered'];
 
 export default function DeliveriesPage() {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
@@ -60,6 +62,7 @@ export default function DeliveriesPage() {
 
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (selectedLocationId) params.append('locationId', selectedLocationId);
 
       const token = localStorage.getItem('auth_token');
       const headers: HeadersInit = {
@@ -91,7 +94,11 @@ export default function DeliveriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchTerm, statusFilter]);
+  }, [currentPage, searchTerm, statusFilter, selectedLocationId]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLocationId]);
 
   const handleDeliveryClick = (delivery: Delivery) => {
     setSelectedDelivery(delivery);
@@ -185,6 +192,19 @@ export default function DeliveriesPage() {
             Create Delivery
           </button>
         </div>
+
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          <strong>Flow:</strong> Create delivery as Pending → <strong>Confirm</strong> to deduct stock from warehouse.
+          Invoice posting records revenue and COGS separately.
+        </div>
+
+        {selectedLocation && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+            <MapPin className="w-4 h-4 flex-shrink-0" />
+            Showing deliveries for <strong>{selectedLocation.name}</strong>
+            <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+          </div>
+        )}
 
         {/* KPI Cards */}
         <div className="grid grid-cols-3 gap-4 mb-4">

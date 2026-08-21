@@ -33,6 +33,8 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { TopBarBrand } from '../../../components/BrandHeader';
+import LocationSelect from '../../../components/LocationSelect';
+import { useLocation } from '../../../lib/location-context';
 
 interface Props {
   shift: any;
@@ -42,6 +44,7 @@ interface Props {
 
 export default function POSLayout({ shift, onShiftClose, children }: Props) {
   const { isAdmin } = usePermissions();
+  const { locationIdForApi, selectedLocation, isAllLocations } = useLocation();
   const [activeTab, setActiveTab] = useState<'sell'|'held'|'shifts'|'reports'|'settings'>('sell');
   const [showCloseShift, setShowCloseShift] = useState(false);
   const [actualCash, setActualCash] = useState('');
@@ -158,17 +161,16 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
   ];
 
   return (
-    <div className="flex flex-col h-screen bg-[#0f0f1a] text-white overflow-hidden font-sans">
+    <div className="flex flex-col h-screen bg-gray-50 text-gray-900 overflow-hidden font-sans">
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-6 h-[60px] bg-white/4 border-b border-white/7 flex-shrink-0">
+      <div className="flex items-center justify-between px-6 h-[60px] bg-white border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-2.5 font-bold text-lg">
           <TopBarBrand
             title="Point of Sale"
-            dark
-            icon={<Store className="w-4 h-4 text-[#f59e0b]" />}
+            icon={<Store className="w-4 h-4 text-[#014582]" />}
           />
           {!online && (
-            <span className="ml-2 text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <span className="ml-2 text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
               <WifiOff className="w-3 h-3" /> Offline
             </span>
           )}
@@ -176,7 +178,7 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
             <button
               onClick={syncOffline}
               disabled={syncing || !online}
-              className="ml-2 text-xs bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 disabled:opacity-50"
+              className="ml-2 text-xs bg-sky-50 text-sky-700 border border-sky-200 px-2 py-0.5 rounded-full flex items-center gap-1 disabled:opacity-50"
             >
               {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
               Sync {offlineCount}
@@ -184,45 +186,49 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
           )}
         </div>
         <div className="flex items-center gap-3">
+          <LocationSelect allowAll showManageLink={false} compact />
           <div className="flex items-center gap-4 text-gray-400 text-xs">
             <span className="flex items-center gap-1.5">
               <Store className="w-3.5 h-3.5" />
-              {shift.terminal?.name || 'Terminal'}
+              {shift.terminal?.location?.name ||
+                shift.terminal?.name ||
+                (isAllLocations ? 'All locations' : selectedLocation?.name) ||
+                'Terminal'}
             </span>
             <span className="flex items-center gap-1.5">
               <span>👤</span>
               {shift.cashier?.firstName} {shift.cashier?.lastName}
             </span>
-            <span className="bg-green-500/10 border border-green-500/20 text-green-400 px-2.5 py-1 rounded-full text-xs font-semibold">
+            <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold">
               ● SHIFT OPEN
             </span>
             {payDeviceOn && (
               <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
                 payDeviceStatus === 'ready' || payDeviceStatus === 'busy'
-                  ? 'bg-sky-500/10 border-sky-500/20 text-sky-300'
-                  : 'bg-red-500/10 border-red-500/20 text-red-300'
+                  ? 'bg-sky-500/10 border-sky-500/20 text-sky-700'
+                  : 'bg-red-500/10 border-red-500/20 text-red-600'
               }`}>
                 {loadPosSettings().paymentTerminalModel} {payDeviceStatus === 'ready' ? 'Ready' : payDeviceStatus === 'busy' ? 'Charging' : 'Offline'}
               </span>
             )}
           </div>
-          <span className="text-[#f59e0b] font-bold text-sm tabular-nums">{time.toLocaleTimeString()}</span>
+          <span className="text-[#014582] font-bold text-sm tabular-nums">{time.toLocaleTimeString()}</span>
           <button
-            className="px-3 py-2 rounded-lg bg-white/8 text-white text-xs font-semibold hover:bg-white/10 transition-colors flex items-center gap-2"
+            className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-50 border border-gray-200 transition-colors flex items-center gap-2"
             onClick={() => openCashDrawer()}
             title="Open cash drawer"
           >
             Drawer
           </button>
           <button
-            className="px-3 py-2 rounded-lg bg-white/8 text-white text-xs font-semibold hover:bg-white/10 transition-colors flex items-center gap-2"
+            className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-50 border border-gray-200 transition-colors flex items-center gap-2"
             onClick={()=>setShowCashFlow(true)}
           >
             <DollarSign className="w-4 h-4" />
             Cash
           </button>
           <button
-            className="px-3 py-2 rounded-lg bg-yellow-500/15 text-yellow-300 border border-yellow-500/25 text-xs font-semibold hover:bg-yellow-500/25 transition-colors flex items-center gap-2"
+            className="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold hover:bg-amber-100 transition-colors flex items-center gap-2"
             onClick={handleSuspend}
           >
             <Pause className="w-4 h-4" />
@@ -230,7 +236,7 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
           </button>
           {isAdmin && (
             <button
-              className="px-3 py-2 rounded-lg bg-[#f59e0b]/20 text-[#fbbf24] border border-[#f59e0b]/30 text-xs font-semibold hover:bg-[#f59e0b]/30 transition-colors flex items-center gap-2"
+              className="px-3 py-2 rounded-lg bg-[#014582]/10 text-[#014582] border border-[#014582]/30 text-xs font-semibold hover:bg-[#014582]/15 transition-colors flex items-center gap-2"
               onClick={() => window.location.href = '/pos/management'}
             >
               <Settings className="w-4 h-4" />
@@ -239,7 +245,7 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
           )}
           {isAdmin && (
             <button
-              className="px-3 py-2 rounded-lg bg-white/8 text-white text-xs font-semibold hover:bg-white/10 transition-colors flex items-center gap-2"
+              className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-50 border border-gray-200 transition-colors flex items-center gap-2"
               onClick={() => { window.location.href = '/plans'; }}
             >
               <CreditCard className="w-4 h-4" />
@@ -258,17 +264,17 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-[72px] bg-white/3 border-r border-white/7 flex flex-col items-center py-4 gap-1 flex-shrink-0">
+        <div className="w-[72px] bg-white border-r border-gray-200 flex flex-col items-center py-4 gap-1 flex-shrink-0">
           {tabs.map(t=>(
             <button
               key={t.id}
               className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center gap-0.5 cursor-pointer border-none transition-all outline-none ${
-                activeTab===t.id ? 'bg-[#f59e0b]/20' : 'hover:bg-white/5'
+                activeTab===t.id ? 'bg-[#014582]/10' : 'hover:bg-gray-50'
               }`}
               onClick={()=>setActiveTab(t.id)}
             >
-              <t.icon className={`w-5 h-5 ${activeTab===t.id ? 'text-[#f59e0b]' : 'text-gray-400'}`} />
-              <span className={`text-[9px] font-semibold ${activeTab===t.id ? 'text-[#f59e0b]' : 'text-gray-400'}`}>{t.label}</span>
+              <t.icon className={`w-5 h-5 ${activeTab===t.id ? 'text-[#014582]' : 'text-gray-400'}`} />
+              <span className={`text-[9px] font-semibold ${activeTab===t.id ? 'text-[#014582]' : 'text-gray-400'}`}>{t.label}</span>
             </button>
           ))}
         </div>
@@ -276,8 +282,16 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
         <div className="flex-1 overflow-hidden">
           {activeTab === 'sell'     && children}
           {activeTab === 'held'     && <HeldSales onRecalled={() => setActiveTab('sell')} />}
-          {activeTab === 'shifts'   && <ShiftHistory currentShift={shift} onRefresh={() => {}} />}
-          {activeTab === 'reports'  && <ReportsPanel shiftId={shift.id} />}
+          {activeTab === 'shifts'   && (
+            <ShiftHistory
+              currentShift={shift}
+              onRefresh={() => {}}
+              locationIdForApi={locationIdForApi}
+            />
+          )}
+          {activeTab === 'reports'  && (
+            <ReportsPanel shiftId={shift.id} locationIdForApi={locationIdForApi} />
+          )}
           {activeTab === 'settings' && <POSSettings />}
         </div>
       </div>
@@ -285,21 +299,21 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
       {/* Close Shift Modal */}
       {showCloseShift && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-8 w-[460px] max-w-[90vw]">
+          <div className="bg-white border border-gray-200 shadow-lg rounded-2xl p-8 w-[460px] max-w-[90vw]">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-white text-xl font-semibold m-0 flex items-center gap-2">
+              <h2 className="text-gray-900 text-xl font-semibold m-0 flex items-center gap-2">
                 <Lock className="w-5 h-5" />
                 Close Shift
               </h2>
               <button
                 onClick={()=>setShowCloseShift(false)}
-                className="bg-transparent border-none text-gray-400 cursor-pointer hover:text-white transition-colors"
+                className="bg-transparent border-none text-gray-400 cursor-pointer hover:text-gray-900 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             {closeError && (
-              <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-3 text-red-400 text-xs mb-4">
+              <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-3 text-red-600 text-xs mb-4">
                 {closeError}
               </div>
             )}
@@ -307,7 +321,7 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
               <label className="block text-gray-400 text-xs mb-2">Count the cash in your drawer</label>
               <input
                 type="number"
-                className="w-full bg-white/6 border border-white/12 rounded-lg px-4 py-3 text-white text-2xl font-bold text-center outline-none focus:border-[#f59e0b] transition-colors"
+                className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-gray-900 text-2xl font-bold text-center outline-none focus:border-[#014582] transition-colors"
                 value={actualCash}
                 onChange={e=>setActualCash(e.target.value)}
                 placeholder="0.00"
@@ -318,7 +332,7 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
             <div className="mb-5">
               <label className="block text-gray-400 text-xs mb-2">Closing Notes (optional)</label>
               <input
-                className="w-full bg-white/6 border border-white/12 rounded-lg px-4 py-3 text-white text-sm outline-none focus:border-[#f59e0b] transition-colors"
+                className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-gray-900 text-sm outline-none focus:border-[#014582] transition-colors"
                 value={closeNotes}
                 onChange={e=>setCloseNotes(e.target.value)}
                 placeholder="Any notes for closing..."
@@ -326,7 +340,7 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
             </div>
             <div className="flex gap-3">
               <button
-                className="flex-1 py-3 rounded-lg bg-transparent border border-white/12 text-gray-400 text-sm cursor-pointer hover:bg-white/5 transition-colors"
+                className="flex-1 py-3 rounded-lg bg-transparent border border-gray-200 text-gray-400 text-sm cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={()=>setShowCloseShift(false)}
               >
                 Cancel
@@ -384,24 +398,24 @@ function CashFlowModal({ shiftId, onClose }: { shiftId: string; onClose: () => v
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-      <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-8 w-[420px] max-w-[90vw] font-sans">
-        <h2 className="text-white text-xl font-semibold m-0 mb-5 flex items-center gap-2">
+      <div className="bg-white border border-gray-200 shadow-lg rounded-2xl p-8 w-[420px] max-w-[90vw] font-sans">
+        <h2 className="text-gray-900 text-xl font-semibold m-0 mb-5 flex items-center gap-2">
           <DollarSign className="w-5 h-5" />
           Cash In / Out
         </h2>
         {success ? (
-          <div className="text-center py-6 text-green-400 text-lg">✅ Recorded successfully!</div>
+          <div className="text-center py-6 text-emerald-600 text-lg">✅ Recorded successfully!</div>
         ) : (
           <>
             {error && (
-              <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-3 text-red-400 text-xs mb-4">
+              <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-3 text-red-600 text-xs mb-4">
                 {error}
               </div>
             )}
-            <div className="flex gap-2 mb-5 bg-white/4 rounded-lg p-1">
+            <div className="flex gap-2 mb-5 bg-white rounded-lg p-1">
               <button
                 className={`flex-1 py-2.5 rounded-lg border-none cursor-pointer font-semibold text-sm transition-colors ${
-                  type==='CASH_IN' ? 'bg-green-500/20 text-green-400' : 'bg-transparent text-gray-400'
+                  type==='CASH_IN' ? 'bg-emerald-50 text-emerald-700' : 'bg-transparent text-gray-500'
                 }`}
                 onClick={()=>setType('CASH_IN')}
               >
@@ -409,7 +423,7 @@ function CashFlowModal({ shiftId, onClose }: { shiftId: string; onClose: () => v
               </button>
               <button
                 className={`flex-1 py-2.5 rounded-lg border-none cursor-pointer font-semibold text-sm transition-colors ${
-                  type==='CASH_OUT' ? 'bg-red-500/20 text-red-400' : 'bg-transparent text-gray-400'
+                  type==='CASH_OUT' ? 'bg-red-50 text-red-600' : 'bg-transparent text-gray-500'
                 }`}
                 onClick={()=>setType('CASH_OUT')}
               >
@@ -420,7 +434,7 @@ function CashFlowModal({ shiftId, onClose }: { shiftId: string; onClose: () => v
               <label className="block text-gray-400 text-xs mb-2">Amount</label>
               <input
                 type="number"
-                className="w-full bg-white/6 border border-white/12 rounded-lg px-4 py-3 text-white text-2xl font-bold text-center outline-none focus:border-[#f59e0b] transition-colors mt-2"
+                className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-gray-900 text-2xl font-bold text-center outline-none focus:border-[#014582] transition-colors mt-2"
                 value={amount}
                 onChange={e=>setAmount(e.target.value)}
                 placeholder="0.00"
@@ -430,7 +444,7 @@ function CashFlowModal({ shiftId, onClose }: { shiftId: string; onClose: () => v
             <div className="mb-5">
               <label className="block text-gray-400 text-xs mb-2">Reason</label>
               <input
-                className="w-full bg-white/6 border border-white/12 rounded-lg px-4 py-3 text-white text-sm outline-none focus:border-[#f59e0b] transition-colors mt-2"
+                className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-gray-900 text-sm outline-none focus:border-[#014582] transition-colors mt-2"
                 value={reason}
                 onChange={e=>setReason(e.target.value)}
                 placeholder="e.g. Petty cash withdrawal, Owner deposit..."
@@ -439,14 +453,14 @@ function CashFlowModal({ shiftId, onClose }: { shiftId: string; onClose: () => v
             <div className="flex gap-3">
               <button
                 onClick={onClose}
-                className="flex-1 py-3 rounded-lg bg-transparent border border-white/12 text-gray-400 text-sm cursor-pointer hover:bg-white/5 transition-colors"
+                className="flex-1 py-3 rounded-lg bg-transparent border border-gray-200 text-gray-400 text-sm cursor-pointer hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={submit}
                 disabled={loading}
-                className="flex-[2] py-3 rounded-lg bg-gradient-to-r from-[#f59e0b] to-[#d97706] border-none text-white text-sm font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-[2] py-3 rounded-lg bg-gradient-to-r from-[#014582] to-[#01366a] border-none text-white text-sm font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -503,7 +517,7 @@ function HeldSales({ onRecalled }: { onRecalled: () => void }) {
 
   return (
     <div className="p-6 font-sans h-full overflow-y-auto">
-      <h2 className="text-white text-xl font-semibold mb-5 flex items-center gap-2">
+      <h2 className="text-gray-900 text-xl font-semibold mb-5 flex items-center gap-2">
         <PauseCircle className="w-5 h-5" />
         Held Sales ({held.length})
       </h2>
@@ -519,29 +533,29 @@ function HeldSales({ onRecalled }: { onRecalled: () => void }) {
           {held.map((s: any) => (
             <div
               key={s.id}
-              className="bg-white/4 border border-white/8 rounded-xl p-4 flex justify-between items-center gap-4"
+              className="bg-white border border-gray-200 shadow-sm rounded-xl p-4 flex justify-between items-center gap-4"
             >
               <div>
-                <div className="text-white font-semibold">{s.invoiceNumber}</div>
+                <div className="text-gray-900 font-semibold">{s.invoiceNumber}</div>
                 <div className="text-gray-400 text-xs mt-1">
                   {s.customerName} · {s.items?.length || 0} items
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-[#f59e0b] font-bold text-lg">${Number(s.grandTotal || 0).toFixed(2)}</div>
+                  <div className="text-[#014582] font-bold text-lg">${Number(s.grandTotal || 0).toFixed(2)}</div>
                   <div className="text-gray-400 text-xs">{new Date(s.createdAt).toLocaleTimeString()}</div>
                 </div>
                 <button
                   onClick={() => recall(s)}
-                  className="px-3 py-2 rounded-lg bg-[#f59e0b] text-black text-xs font-bold"
+                  className="px-3 py-2 rounded-lg bg-[#014582] text-white text-xs font-bold"
                 >
                   Recall
                 </button>
                 {(isAdmin) && (
                   <button
                     onClick={() => remove(s.id)}
-                    className="px-3 py-2 rounded-lg bg-red-500/20 text-red-300 text-xs font-semibold border border-red-500/30"
+                    className="px-3 py-2 rounded-lg bg-red-50 text-red-600 text-xs font-semibold border border-red-200"
                   >
                     Delete
                   </button>
@@ -555,20 +569,37 @@ function HeldSales({ onRecalled }: { onRecalled: () => void }) {
   );
 }
 
-function ShiftHistory({ currentShift, onRefresh }: { currentShift: any; onRefresh: ()=>void }) {
+function ShiftHistory({
+  currentShift,
+  onRefresh,
+  locationIdForApi,
+}: {
+  currentShift: any;
+  onRefresh: () => void;
+  locationIdForApi: string;
+}) {
   const [shifts, setShifts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    posShiftService.getHistory().then((r:any) => { setShifts(r.shifts||[]); setLoading(false); }).catch(()=>setLoading(false));
-  }, []);
+    setLoading(true);
+    const qs = new URLSearchParams({ limit: '50' });
+    if (locationIdForApi) qs.set('locationId', locationIdForApi);
+    posShiftService
+      .getHistory(qs.toString())
+      .then((r: any) => {
+        setShifts(r.shifts || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [locationIdForApi]);
 
   const getStatusColor = (s:string) => {
     switch(s) {
-      case 'Open': return 'bg-green-500/10 text-green-400 border-green-500/20';
-      case 'Closed': return 'bg-red-500/10 text-red-400 border-red-500/20';
-      case 'Suspended': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
-      default: return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+      case 'Open': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'Closed': return 'bg-red-50 text-red-600 border-red-200';
+      case 'Suspended': return 'bg-amber-50 text-amber-700 border-amber-200';
+      default: return 'bg-gray-50 text-gray-500 border-gray-200';
     }
   };
 
@@ -584,7 +615,7 @@ function ShiftHistory({ currentShift, onRefresh }: { currentShift: any; onRefres
 
   return (
     <div className="p-6 font-sans h-full overflow-y-auto">
-      <h2 className="text-white text-xl font-semibold mb-5 flex items-center gap-2">
+      <h2 className="text-gray-900 text-xl font-semibold mb-5 flex items-center gap-2">
         <Clock className="w-5 h-5" />
         Shift History
       </h2>
@@ -593,9 +624,9 @@ function ShiftHistory({ currentShift, onRefresh }: { currentShift: any; onRefres
       ) : (
         <div className="grid gap-2.5">
           {shifts.map((sh:any) => (
-            <div key={sh.id} className="bg-white/4 border border-white/8 rounded-xl p-4 flex justify-between items-center">
+            <div key={sh.id} className="bg-white border border-gray-200 shadow-sm rounded-xl p-4 flex justify-between items-center">
               <div>
-                <div className="text-white font-semibold text-sm mb-1">{sh.terminal?.name} — {sh.cashier?.firstName} {sh.cashier?.lastName}</div>
+                <div className="text-gray-900 font-semibold text-sm mb-1">{sh.terminal?.name} — {sh.cashier?.firstName} {sh.cashier?.lastName}</div>
                 <div className="text-gray-400 text-xs">Opened: {new Date(sh.openedAt).toLocaleString()}</div>
                 {sh.closedAt && <div className="text-gray-400 text-xs">Closed: {new Date(sh.closedAt).toLocaleString()}</div>}
               </div>
@@ -603,9 +634,9 @@ function ShiftHistory({ currentShift, onRefresh }: { currentShift: any; onRefres
                 <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(sh.status)}`}>
                   {sh.status}
                 </span>
-                <div className="text-[#f59e0b] font-bold text-base">Opening: ${sh.openingCash?.toFixed(2)}</div>
+                <div className="text-[#014582] font-bold text-base">Opening: ${sh.openingCash?.toFixed(2)}</div>
                 {sh.status === 'Suspended' && (
-                  <button onClick={() => resume(sh.id)} className="text-xs px-3 py-1 rounded bg-green-500/20 text-green-300 border border-green-500/30">
+                  <button onClick={() => resume(sh.id)} className="text-xs px-3 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
                     Resume
                   </button>
                 )}
@@ -618,21 +649,28 @@ function ShiftHistory({ currentShift, onRefresh }: { currentShift: any; onRefres
   );
 }
 
-function ReportsPanel({ shiftId }: { shiftId: string }) {
+function ReportsPanel({
+  shiftId,
+  locationIdForApi,
+}: {
+  shiftId: string;
+  locationIdForApi: string;
+}) {
   const [daily, setDaily] = useState<any>(null);
   const [shiftReport, setShiftReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     Promise.all([
-      posSaleService.dailyReport().catch(() => null),
+      posSaleService.dailyReport(undefined, locationIdForApi || undefined).catch(() => null),
       posSaleService.shiftReport(shiftId).catch(() => null),
     ]).then(([d, s]) => {
       setDaily(d?.data || null);
       setShiftReport(s?.data || null);
       setLoading(false);
     });
-  }, [shiftId]);
+  }, [shiftId, locationIdForApi]);
 
   const printZ = () => {
     if (!shiftReport) return;
@@ -672,16 +710,16 @@ function ReportsPanel({ shiftId }: { shiftId: string }) {
   return (
     <div className="p-6 font-sans h-full overflow-y-auto">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-white text-xl font-semibold flex items-center gap-2">
+        <h2 className="text-gray-900 text-xl font-semibold flex items-center gap-2">
           <BarChart3 className="w-5 h-5" />
           Reports
         </h2>
-        <button onClick={printZ} className="px-4 py-2 rounded-lg bg-[#f59e0b] text-black text-xs font-bold">
+        <button onClick={printZ} className="px-4 py-2 rounded-lg bg-[#014582] text-white text-xs font-bold">
           Print {shiftReport?.type || 'X'}-Report
         </button>
       </div>
 
-      <h3 className="text-white font-semibold mb-3">Current Shift ({shiftReport?.type || 'X'}-Report)</h3>
+      <h3 className="text-gray-900 font-semibold mb-3">Current Shift ({shiftReport?.type || 'X'}-Report)</h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         {[
           { label: 'Sales', value: `$${Number(shiftReport?.summary?.grandTotal||0).toFixed(2)}` },
@@ -689,14 +727,14 @@ function ReportsPanel({ shiftId }: { shiftId: string }) {
           { label: 'Expected Cash', value: `$${Number(shiftReport?.summary?.expectedCash||0).toFixed(2)}` },
           { label: 'Returns', value: `$${Number(shiftReport?.summary?.returnsTotal||0).toFixed(2)}` },
         ].map((c) => (
-          <div key={c.label} className="bg-white/4 border border-white/8 rounded-xl p-4">
-            <div className="text-[#f59e0b] text-xl font-bold">{c.value}</div>
+          <div key={c.label} className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="text-[#014582] text-xl font-bold">{c.value}</div>
             <div className="text-gray-400 text-xs mt-1">{c.label}</div>
           </div>
         ))}
       </div>
 
-      <h3 className="text-white font-semibold mb-3">Today (store-wide)</h3>
+      <h3 className="text-gray-900 font-semibold mb-3">Today (store-wide)</h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
           { label:'Total Sales', value:`$${(daily?.sales?._sum?.grandTotal||0).toFixed(2)}` },
@@ -704,8 +742,8 @@ function ReportsPanel({ shiftId }: { shiftId: string }) {
           { label:'Returns', value:`$${(daily?.returns?._sum?.refundedAmount||0).toFixed(2)}` },
           { label:'Discounts', value:`$${(daily?.sales?._sum?.discountTotal||0).toFixed(2)}` },
         ].map(c=>(
-          <div key={c.label} className="bg-white/4 border border-white/8 rounded-xl p-4">
-            <div className="text-green-400 text-xl font-bold">{c.value}</div>
+          <div key={c.label} className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="text-emerald-600 text-xl font-bold">{c.value}</div>
             <div className="text-gray-400 text-xs mt-1">{c.label}</div>
           </div>
         ))}
@@ -713,12 +751,12 @@ function ReportsPanel({ shiftId }: { shiftId: string }) {
 
       {(shiftReport?.paymentBreakdown || daily?.paymentBreakdown)?.length > 0 && (
         <>
-          <h3 className="text-white text-lg font-semibold mb-4">Payment Breakdown</h3>
+          <h3 className="text-gray-900 text-lg font-semibold mb-4">Payment Breakdown</h3>
           <div className="grid gap-2.5">
             {(shiftReport?.paymentBreakdown || daily?.paymentBreakdown || []).map((p:any) => (
-              <div key={p.paymentMethod} className="bg-white/4 border border-white/8 rounded-xl p-3.5 flex justify-between items-center">
-                <span className="text-gray-300 font-medium text-sm">{p.paymentMethod}</span>
-                <span className="text-[#f59e0b] font-bold text-base">${(p._sum?.amount||0).toFixed(2)}</span>
+              <div key={p.paymentMethod} className="bg-white border border-gray-200 rounded-xl p-3.5 flex justify-between items-center">
+                <span className="text-gray-600 font-medium text-sm">{p.paymentMethod}</span>
+                <span className="text-[#014582] font-bold text-base">${(p._sum?.amount||0).toFixed(2)}</span>
               </div>
             ))}
           </div>
@@ -749,15 +787,15 @@ function POSSettings() {
     checked: boolean;
     onChange: (v: boolean) => void;
   }) => (
-    <label className="flex items-center justify-between bg-white/4 border border-white/8 rounded-xl px-4 py-3 cursor-pointer">
-      <span className="text-sm text-gray-200">{label}</span>
+    <label className="flex items-center justify-between bg-white border border-gray-200 shadow-sm rounded-xl px-4 py-3 cursor-pointer hover:bg-gray-50">
+      <span className="text-sm text-gray-700">{label}</span>
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="w-4 h-4" />
     </label>
   );
 
   return (
     <div className="p-6 font-sans h-full overflow-y-auto max-w-2xl">
-      <h2 className="text-white text-xl font-semibold mb-5 flex items-center gap-2">
+      <h2 className="text-gray-900 text-xl font-semibold mb-5 flex items-center gap-2">
         <Settings className="w-5 h-5" />
         POS Settings
       </h2>
@@ -767,15 +805,15 @@ function POSSettings() {
           checked={settings.requireManagerForDiscount}
           onChange={(v) => update({ requireManagerForDiscount: v })}
         />
-        <div className="bg-white/4 border border-white/8 rounded-xl px-4 py-3">
-          <label className="text-sm text-gray-200 block mb-2">Discount threshold % (manager required above)</label>
+        <div className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+          <label className="text-sm text-gray-700 block mb-2">Discount threshold % (manager required above)</label>
           <input
             type="number"
             min={0}
             max={100}
             value={settings.discountThresholdPct}
             onChange={(e) => update({ discountThresholdPct: Number(e.target.value) || 0 })}
-            className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white"
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-900"
           />
         </div>
         <Toggle label="Require manager for voids" checked={settings.requireManagerForVoid} onChange={(v) => update({ requireManagerForVoid: v })} />
@@ -783,8 +821,8 @@ function POSSettings() {
         <Toggle label="Loyalty points enabled" checked={settings.loyaltyEnabled} onChange={(v) => update({ loyaltyEnabled: v })} />
         <Toggle label="Open cash drawer on cash sale" checked={settings.openDrawerOnCashSale} onChange={(v) => update({ openDrawerOnCashSale: v })} />
         <Toggle label="Offline mode (queue sales when offline)" checked={settings.enableOfflineMode} onChange={(v) => update({ enableOfflineMode: v })} />
-        <div className="bg-white/4 border border-white/8 rounded-xl px-4 py-3">
-          <p className="text-sm text-gray-200 font-medium">Barcode scanner</p>
+        <div className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+          <p className="text-sm text-gray-700 font-medium">Barcode scanner</p>
           <p className="text-xs text-gray-400 mt-1">
             USB / serial scanner device is configured by an admin in POS Management → Scanner.
           </p>
@@ -798,8 +836,8 @@ function POSSettings() {
             </button>
           )}
         </div>
-        <div className="bg-white/4 border border-white/8 rounded-xl px-4 py-3">
-          <p className="text-sm text-gray-200 font-medium">Payment terminal</p>
+        <div className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+          <p className="text-sm text-gray-700 font-medium">Payment terminal</p>
           <p className="text-xs text-gray-400 mt-1">
             CS30G / card device is enabled or disabled by an admin in POS Management → Payments.
             Off keeps the current manual payment flow.
@@ -814,8 +852,8 @@ function POSSettings() {
             </button>
           )}
         </div>
-        <div className="bg-white/4 border border-white/8 rounded-xl px-4 py-3">
-          <p className="text-sm text-gray-200 font-medium">Receipt layout</p>
+        <div className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+          <p className="text-sm text-gray-700 font-medium">Receipt layout</p>
           <p className="text-xs text-gray-400 mt-1">
             Header, footer, barcode, store details and return policy are edited in POS Management → Receipt.
           </p>

@@ -265,6 +265,8 @@ export default function RegisterPage() {
 
       if (data.token) {
         apiClient.setTokens(data.token, data.refreshToken || '');
+        const { setMarketingLoggedInFlag } = await import('../../lib/marketing-session');
+        setMarketingLoggedInFlag();
       }
 
       const currency = selectedCurrency || GEO_CURRENCIES[0];

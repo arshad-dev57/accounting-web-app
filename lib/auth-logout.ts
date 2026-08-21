@@ -1,6 +1,8 @@
 'use client';
 
 import { apiClient } from '../app/lib/api-client';
+import { LOGGED_IN_COOKIE } from './auth-cookies';
+import { clearMarketingLoggedInFlag } from './marketing-session';
 
 /** Known app keys — also wiped via localStorage.clear() as a safety net. */
 export const LOGOUT_STORAGE_KEYS = [
@@ -31,8 +33,14 @@ export const LOGOUT_STORAGE_KEYS = [
 function expireCookie(name: string) {
   if (typeof document === 'undefined') return;
   const expires = 'Thu, 01 Jan 1970 00:00:00 GMT';
+  const domain =
+    typeof process !== 'undefined' && process.env.NEXT_PUBLIC_COOKIE_DOMAIN
+      ? process.env.NEXT_PUBLIC_COOKIE_DOMAIN
+      : '.bisonstechs.com';
   document.cookie = `${name}=; expires=${expires}; Max-Age=0; path=/`;
   document.cookie = `${name}=; expires=${expires}; Max-Age=0; path=/; SameSite=Lax`;
+  // Also clear parent-domain cookie used for marketing ↔ app session bridge
+  document.cookie = `${name}=; expires=${expires}; Max-Age=0; path=/; domain=${domain}; SameSite=Lax`;
 }
 
 /** Wipe all browser-stored app/auth data (local + session). */
@@ -58,6 +66,8 @@ export function clearLocalAuthData() {
   expireCookie('refresh_token');
   expireCookie('user_data');
   expireCookie('subscription_access');
+  expireCookie(LOGGED_IN_COOKIE);
+  clearMarketingLoggedInFlag();
 
   try {
     apiClient.clearTokens();

@@ -37,6 +37,7 @@ export const cashFlowService = {
     startDate?: string;
     endDate?: string;
     fiscalYearId?: string;
+    locationId?: string;
   } = {}): Promise<CashFlowData> => {
     const query = new URLSearchParams();
     

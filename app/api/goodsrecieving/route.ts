@@ -115,6 +115,8 @@ export interface CreateGRNRequest {
   receivingDate: string;
   receivedBy?: string;
   notes?: string;
+  status?: string;
+  locationId?: string;
   items: Array<{
     purchaseOrderItemId: string;
     receivingQuantity: number;
@@ -134,6 +136,7 @@ export const goodsReceivingService = {
     toDate?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    locationId?: string;
   } = {}): Promise<GoodsReceivingListResponse> => {
     const query = new URLSearchParams();
     
@@ -181,10 +184,19 @@ export const goodsReceivingService = {
   },
 
   // ─── Search available purchase orders for receiving ────────
-  searchAvailableOrders: async (query: string, limit: number = 10): Promise<PurchaseOrderForReceiving[]> => {
+  searchAvailableOrders: async (
+    query: string,
+    limit: number = 10,
+    locationId?: string
+  ): Promise<PurchaseOrderForReceiving[]> => {
     try {
+      const params = new URLSearchParams({
+        search: query,
+        limit: String(limit),
+      });
+      if (locationId) params.set('locationId', locationId);
       const response = await apiClient.get(
-        `/api/purchase/goods-receiving/available-orders?search=${encodeURIComponent(query)}&limit=${limit}`
+        `/api/purchase/goods-receiving/available-orders?${params.toString()}`
       );
       if (!response.success) {
         throw new Error(response.message || 'Failed to search available orders');

@@ -18,8 +18,11 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./app/*"]   // ✅ app folder point karega
+      "@/lib/*": ["./lib/*", "./app/lib/*"],
+      "@/components/*": ["./components/*", "./app/components/*"],
+      "@/*": ["./app/*"]
     }
   },
   "include": [

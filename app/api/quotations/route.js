@@ -12,6 +12,7 @@ export async function GET(request) {
     const status = searchParams.get('status') || 'all';
     const fromDate = searchParams.get('fromDate') || '';
     const toDate = searchParams.get('toDate') || '';
+    const locationId = searchParams.get('locationId') || '';
 
     const params = new URLSearchParams({
       page,
@@ -22,6 +23,7 @@ export async function GET(request) {
     if (status !== 'all') params.append('status', status);
     if (fromDate) params.append('fromDate', fromDate);
     if (toDate) params.append('toDate', toDate);
+    if (locationId) params.append('locationId', locationId);
 
     // Get token from request headers
     const authHeader = request.headers.get('authorization');

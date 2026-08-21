@@ -11,6 +11,7 @@ import {
 import { customerService } from '../../api/customer/route';
 import { productService } from '../../api/product/route';
 import { salesOrderService } from '../../api/orders/sales/route';
+import { useLocation } from '@/lib/location-context';
 
 interface Order {
   _id: string;
@@ -113,7 +114,8 @@ const normalizeId = (item: any) => ({
   _id:
     typeof item._id === 'object'
       ? (item._id?.$oid ?? JSON.stringify(item._id))
-      : String(item._id ?? ''),
+      : String(item._id ?? item.id ?? ''),
+  id: String(item.id ?? item._id ?? ''),
 });
 
 const STATUS_COLORS: Record<string, string> = {
@@ -123,6 +125,7 @@ const STATUS_COLORS: Record<string, string> = {
   Packed: 'bg-purple-100 text-purple-700',
   Shipped: 'bg-indigo-100 text-indigo-700',
   'In Transit': 'bg-cyan-100 text-cyan-700',
+  'Partially Delivered': 'bg-sky-100 text-sky-700',
   Delivered: 'bg-green-100 text-green-700',
   Cancelled: 'bg-red-100 text-red-700',
   Returned: 'bg-pink-100 text-pink-700',
@@ -148,7 +151,7 @@ const pill = (map: Record<string, string>, val: string) =>
   `text-xs font-semibold px-2.5 py-1 rounded-full ${map[val] ?? 'bg-gray-100 text-gray-700'}`;
 
 // ── static option lists ───────────────────────────────────────────────────────
-const STATUS_OPTIONS = ['all', 'Draft', 'Pending', 'Processing', 'Packed', 'Shipped', 'In Transit', 'Delivered', 'Cancelled', 'Returned', 'On Hold'];
+const STATUS_OPTIONS = ['all', 'Draft', 'Pending', 'Processing', 'Packed', 'Shipped', 'In Transit', 'Partially Delivered', 'Delivered', 'Cancelled', 'Returned', 'On Hold'];
 const PAYMENT_OPTIONS = ['all', 'Pending', 'Paid', 'Partial', 'Refunded', 'Cancelled'];
 const PRIORITY_OPTIONS = ['all', 'Low', 'Medium', 'High', 'Urgent'];
 const CUSTOMER_TYPES = ['Individual', 'Business', 'Wholesale', 'Retail'];
@@ -400,6 +403,7 @@ function CustomerPickerModal({
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SalesOrdersPage() {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -432,6 +436,7 @@ export default function SalesOrdersPage() {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         paymentStatus: paymentStatusFilter !== 'all' ? paymentStatusFilter : undefined,
         priority: priorityFilter !== 'all' ? priorityFilter : undefined,
+        locationId: selectedLocationId || undefined,
       });
       
       setOrders(response.data || []);
@@ -444,9 +449,13 @@ export default function SalesOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchTerm, statusFilter, paymentStatusFilter, priorityFilter]);
+  }, [currentPage, searchTerm, statusFilter, paymentStatusFilter, priorityFilter, selectedLocationId]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLocationId]);
 
   const pendingCount = orders.filter((o) => o.orderStatus === 'Pending').length;
   const processingCount = orders.filter((o) => o.orderStatus === 'Processing').length;
@@ -541,6 +550,14 @@ export default function SalesOrdersPage() {
           </button>
         </div>
       </div>
+
+      {selectedLocation && (
+        <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+          <MapPin className="w-4 h-4 flex-shrink-0" />
+          Showing orders for <strong>{selectedLocation.name}</strong>
+          <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4">
         {[
@@ -799,10 +816,8 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CREATE ORDER FORM - COMPLETE FIXED VERSION
-// ─────────────────────────────────────────────────────────────────────────────
 function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -872,36 +887,65 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   // ── FIXED: Helper to normalize IDs ──────────────────────────────────────────
   const getNormalizedId = (item: any): string => {
     if (!item) return '';
-    if (!item._id) {
-      if (item.id) return String(item.id);
-      return `temp-${Date.now()}-${Math.random()}`;
+    const raw = item._id ?? item.id;
+    if (!raw) return '';
+    if (typeof raw === 'object') {
+      return (raw as any)?.$oid || JSON.stringify(raw);
     }
-    if (typeof item._id === 'object') {
-      return (item._id as any)?.$oid || JSON.stringify(item._id);
-    }
-    return String(item._id);
+    return String(raw);
   };
 
-  // ── fetch ───────────────────────────────────────────────────────────────
+  // ── fetch customers once; products by selected warehouse ───────────────
   useEffect(() => {
     (async () => {
       try {
-        console.log('🚀 Fetching customers and products...');
-        const [cd, pd] = await Promise.all([
-          customerService.getCustomers({ limit: 100 }),
-          productService.getProducts({ limit: 100 }),
-        ]);
+        setLoadingCustomers(true);
+        const cd = await customerService.getCustomers({ limit: 100 });
         setCustomers((cd.data || []).map(normalizeId));
-        setProducts((pd.data || []).map(normalizeId));
-        console.log(`✅ Loaded ${cd.data?.length || 0} customers and ${pd.data?.length || 0} products`);
       } catch (err) {
-        console.error('❌ Fetch error:', err);
+        console.error('❌ Fetch customers error:', err);
       } finally {
         setLoadingCustomers(false);
-        setLoadingProducts(false);
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!selectedLocationId) {
+      setProducts([]);
+      setLoadingProducts(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingProducts(true);
+        const pd = await productService.getProducts({
+          limit: 500,
+          locationId: selectedLocationId,
+        });
+        if (cancelled) return;
+        const list = (pd.data || []).map(normalizeId);
+        setProducts(list);
+        // Drop selected product / lines that are not at this warehouse
+        setSelectedProduct(null);
+        setProductSearchQuery('');
+        setOrderItems((prev) =>
+          prev.filter((item) =>
+            list.some((p) => getNormalizedId(p) === String(item.productId))
+          )
+        );
+      } catch (err) {
+        console.error('❌ Fetch products error:', err);
+        if (!cancelled) setProducts([]);
+      } finally {
+        if (!cancelled) setLoadingProducts(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLocationId]);
 
   // ── computed ────────────────────────────────────────────────────────────
   const filteredProducts = productSearchQuery.trim()
@@ -1076,7 +1120,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       console.log('✅ Updated existing item:', updated[idx]);
     } else {
       const newItem = {
-        productId: selectedProduct._id,
+        productId: getNormalizedId(selectedProduct),
         productName: selectedProduct.name,
         sku: selectedProduct.sku,
         quantity,
@@ -1105,6 +1149,10 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
+    if (!selectedLocationId) {
+      setFormError('Select a warehouse from the top bar before creating the order');
+      return;
+    }
     if (!customerName.trim()) { setFormError('Customer name is required'); return; }
     if (orderItems.length === 0) { setFormError('Please add at least one item'); return; }
 
@@ -1118,7 +1166,10 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         customerCompany, customerTaxId,
         shippingAddress: shippingAddr,
         billingAddress: billingAddr,
-        items: orderItems,
+        items: orderItems.map((item) => ({
+          ...item,
+          productId: String(item.productId || ''),
+        })),
         orderType, priority, source, salesPerson,
         expectedDeliveryDate: expectedDeliveryDate || null,
         shippingMethod, shippingCarrier, shippingCost,
@@ -1127,6 +1178,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         customerNotes, internalNotes,
         tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
         subtotal, discountTotal: calculatedDiscount, grandTotal,
+        locationId: selectedLocationId,
       });
       onSuccess();
     } catch (err: any) {
@@ -1153,6 +1205,20 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
           <X className="w-4 h-4" /> Cancel
         </button>
       </div>
+
+      {selectedLocation ? (
+        <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+          <MapPin className="w-4 h-4 flex-shrink-0" />
+          Fulfilling from <strong>{selectedLocation.name}</strong>
+          <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+          <span className="text-sky-600/80">— product stock is for this warehouse only</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          Select a warehouse from the top bar to load products
+        </div>
+      )}
 
       {formError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">
@@ -1380,7 +1446,11 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
           </select>
           {!loadingProducts && filteredProducts.length === 0 && (
             <p className="text-xs text-gray-400 mt-1">
-              {productSearchQuery ? `No products match "${productSearchQuery}"` : 'No products available'}
+              {selectedLocationId
+                ? productSearchQuery
+                  ? 'No products match your search at this warehouse'
+                  : 'No products assigned to this warehouse (add stock or assign products first)'
+                : 'Select a warehouse to load products'}
             </p>
           )}
           {selectedProduct && (

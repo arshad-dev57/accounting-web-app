@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   ArrowLeft, Search, Plus, Edit, Trash2, Eye, Users,
   User, Mail, Phone, Building2, MapPin, Tag,
@@ -45,6 +46,11 @@ function CustomerListView({
   selectedStatus: string;
   setSelectedStatus: (val: string) => void;
 }) {
+  const pathname = usePathname();
+  const backHref = pathname.startsWith('/sales')
+    ? '/sales/dashboard'
+    : '/warehouse/dashboard';
+
   const getStatusColor = (status: string) => {
     switch(status) {
       case 'Active': return 'bg-green-100 text-green-700';
@@ -75,7 +81,7 @@ function CustomerListView({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/warehouse/dashboard" className="p-2 hover:bg-gray-100 rounded-lg transition-all">
+          <Link href={backHref} className="p-2 hover:bg-gray-100 rounded-lg transition-all">
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </Link>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">

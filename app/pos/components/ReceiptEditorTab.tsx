@@ -14,18 +14,18 @@ import { sampleReceiptSale } from '../../../lib/pos-receipt';
 
 const field = {
   width: '100%',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.12)',
+  background: '#ffffff',
+  border: '1px solid #e5e7eb',
   borderRadius: 10,
   padding: '9px 14px',
-  color: '#fff',
+  color: '#0f172a',
   fontSize: 14,
   outline: 'none',
 } as const;
 
 const labelStyle = {
   display: 'block',
-  color: '#9ca3af',
+  color: '#64748b',
   fontSize: 12,
   fontWeight: 600,
   marginBottom: 6,
@@ -118,34 +118,34 @@ export default function ReceiptEditorTab({ isAdmin }: { isAdmin: boolean }) {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      background: 'rgba(255,255,255,0.04)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      background: '#ffffff',
+      border: '1px solid #e5e7eb',
       borderRadius: 12,
       padding: '10px 14px',
       cursor: 'pointer',
     }}>
-      <span style={{ fontSize: 13, color: '#e5e7eb' }}>{label}</span>
+      <span style={{ fontSize: 13, color: '#0f172a' }}>{label}</span>
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
     </label>
   );
 
   if (loading) {
-    return <p style={{ color: '#8b8fa8' }}>Loading receipt template...</p>;
+    return <p style={{ color: '#64748b' }}>Loading receipt template...</p>;
   }
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
         <div>
-          <h2 style={{ color: '#fff', margin: 0, fontSize: 18, fontWeight: 700 }}>🧾 Receipt template</h2>
-          <p style={{ color: '#8b8fa8', fontSize: 13, margin: '6px 0 0' }}>
+          <h2 style={{ color: '#0f172a', margin: 0, fontSize: 18, fontWeight: 700 }}>🧾 Receipt template</h2>
+          <p style={{ color: '#64748b', fontSize: 13, margin: '6px 0 0' }}>
             Edit the POS receipt once here. Printed, emailed and downloaded receipts all use this layout.
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={resetDefaults}
-            style={{ padding: '9px 14px', borderRadius: 10, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#ccc', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
+            style={{ padding: '9px 14px', borderRadius: 10, border: 'none', background: '#f1f5f9', color: '#475569', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
           >
             <RotateCcw size={14} /> Reset
           </button>
@@ -153,7 +153,7 @@ export default function ReceiptEditorTab({ isAdmin }: { isAdmin: boolean }) {
             <button
               onClick={save}
               disabled={saving}
-              style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#014582,#448aff)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, opacity: saving ? 0.7 : 1 }}
+              style={{ padding: '9px 16px', borderRadius: 10, border: 'none', background: '#014582', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, opacity: saving ? 0.7 : 1 }}
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               {saving ? 'Saving...' : 'Save receipt'}
@@ -163,12 +163,12 @@ export default function ReceiptEditorTab({ isAdmin }: { isAdmin: boolean }) {
       </div>
 
       {error && (
-        <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '10px 14px', color: '#f87171', fontSize: 13, marginBottom: 14 }}>
+        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 10, padding: '10px 14px', color: '#dc2626', fontSize: 13, marginBottom: 14 }}>
           {error}
         </div>
       )}
       {message && (
-        <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 10, padding: '10px 14px', color: '#34d399', fontSize: 13, marginBottom: 14 }}>
+        <div style={{ background: 'rgba(5,150,105,0.08)', border: '1px solid rgba(5,150,105,0.25)', borderRadius: 10, padding: '10px 14px', color: '#059669', fontSize: 13, marginBottom: 14 }}>
           {message}
         </div>
       )}
@@ -227,7 +227,7 @@ export default function ReceiptEditorTab({ isAdmin }: { isAdmin: boolean }) {
         </div>
 
         <div style={{ position: 'sticky', top: 16 }}>
-          <div style={{ color: '#9ca3af', fontSize: 12, fontWeight: 700, marginBottom: 10, letterSpacing: 0.6 }}>LIVE PREVIEW</div>
+          <div style={{ color: '#64748b', fontSize: 12, fontWeight: 700, marginBottom: 10, letterSpacing: 0.6 }}>LIVE PREVIEW</div>
           <div style={{ background: '#e5e7eb', borderRadius: 16, padding: 12, maxHeight: '80vh', overflow: 'auto' }}>
             <POSReceipt
               sale={sampleReceiptSale()}
@@ -243,8 +243,8 @@ export default function ReceiptEditorTab({ isAdmin }: { isAdmin: boolean }) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 16, padding: 18 }}>
-      <h3 style={{ color: '#fff', margin: '0 0 14px', fontSize: 14 }}>{title}</h3>
+    <div style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 18 }}>
+      <h3 style={{ color: '#0f172a', margin: '0 0 14px', fontSize: 14 }}>{title}</h3>
       <div style={{ display: 'grid', gap: 12 }}>{children}</div>
     </div>
   );

@@ -105,6 +105,16 @@ export function buildEquitySummary(accounts: EquityAccount[]): EquitySummary {
 // ─── SERVICE ──────────────────────────────────────────────────
 
 export const equityService = {
+  getBankAccounts: async (): Promise<{ id: string; accountName: string }[]> => {
+    try {
+      const response = await apiClient.get('/api/bank-accounts');
+      if (!response.success) return [];
+      return response.data?.data || [];
+    } catch {
+      return [];
+    }
+  },
+
   // Same source as Flutter: Chart of Accounts filtered to Equity
   getEquityAccounts: async (params: {
     page?: number;
@@ -209,6 +219,8 @@ export const equityService = {
     amount: number;
     description: string;
     reference?: string;
+    paymentMethod?: string;
+    bankAccountId?: string | null;
   }): Promise<any> => {
     try {
       const response = await apiClient.post('/api/equity/add-capital', data);
@@ -227,6 +239,8 @@ export const equityService = {
     amount: number;
     description: string;
     reference?: string;
+    paymentMethod?: string;
+    bankAccountId?: string | null;
   }): Promise<any> => {
     try {
       const response = await apiClient.post('/api/equity/record-drawings', data);

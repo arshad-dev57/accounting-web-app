@@ -27,6 +27,7 @@ export interface Invoice {
   outstanding: number;
   status: string;
   notes: string;
+  invoiceType?: 'sales' | 'purchase' | string;
 }
 
 export interface Customer {
@@ -98,6 +99,8 @@ export const invoicesService = {
     customerId?: string;
     startDate?: string;
     endDate?: string;
+    invoiceType?: 'all' | 'sales' | 'purchase' | string;
+    locationId?: string;
   } = {}): Promise<InvoiceListResponse> => {
     const query = new URLSearchParams();
     const page = params.page && params.page > 0 ? params.page : 1;
@@ -105,10 +108,11 @@ export const invoicesService = {
 
     query.set('page', String(page));
     query.set('limit', String(limit));
-    query.set('invoiceType', 'sales');
+    // Match Flutter: default to all (sales + purchase warehouse invoices)
+    query.set('invoiceType', params.invoiceType || 'all');
 
     Object.entries(params).forEach(([key, value]) => {
-      if (key === 'page' || key === 'limit') return;
+      if (key === 'page' || key === 'limit' || key === 'invoiceType') return;
       if (value === undefined || value === null || value === '') return;
       if (key === 'status') {
         query.set('paymentStatus', String(value));
@@ -137,8 +141,8 @@ export const invoicesService = {
       const invoices: Invoice[] = rawInvoices.map((inv: any) => ({
         id: inv.id,
         invoiceNumber: inv.invoiceNumber,
-        customerId: inv.customerId || '',
-        customerName: inv.customerName || '',
+        customerId: inv.customerId || inv.supplierId || '',
+        customerName: inv.customerName || inv.supplierName || inv.partyName || '',
         date: inv.date || inv.invoiceDate,
         dueDate: inv.dueDate,
         items: (inv.items || []).map((item: any) => ({
@@ -157,6 +161,7 @@ export const invoicesService = {
         outstanding: Number(inv.outstanding ?? inv.netOutstanding) || 0,
         status: inv.status || inv.paymentStatus || inv.displayStatus || 'Unpaid',
         notes: inv.notes || '',
+        invoiceType: inv.invoiceType || 'sales',
       }));
 
       const total = Number(paginationSource.total ?? invoices.length);

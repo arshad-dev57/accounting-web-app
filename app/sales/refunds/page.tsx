@@ -11,9 +11,10 @@ import {
   Check, AlertTriangle,
   Ban, Filter, CircleCheck, CircleX,
   Receipt, ShoppingCart, Banknote, CreditCard,
-  Building2, User, Phone, Mail
+  Building2, User, Phone, Mail, MapPin
 } from 'lucide-react';
 import { salesRefundService, RefundModel, RefundStats, OrderModel } from '../../api/salesrefunds/route';
+import { useLocation } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ interface CreateFormState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export default function SalesRefundsPage() {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [refunds, setRefunds] = useState<RefundModel[]>([]);
   const [filteredRefunds, setFilteredRefunds] = useState<RefundModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +66,9 @@ export default function SalesRefundsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [viewingRefund, setViewingRefund] = useState<RefundModel | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [refundToActOn, setRefundToActOn] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
 
   // ─── Create Form State ──────────────────────────────────────
   const [formState, setFormState] = useState<CreateFormState>({
@@ -98,7 +102,8 @@ export default function SalesRefundsPage() {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         method: methodFilter !== 'all' ? methodFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setRefunds(response.data || []);
@@ -113,7 +118,7 @@ export default function SalesRefundsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, methodFilter, fromDate, toDate, pagination.page, pagination.limit]);
+  }, [searchTerm, statusFilter, methodFilter, fromDate, toDate, pagination.page, pagination.limit, selectedLocationId]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -129,7 +134,8 @@ export default function SalesRefundsPage() {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         method: methodFilter !== 'all' ? methodFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setRefunds(prev => [...prev, ...(response.data || [])]);
@@ -140,7 +146,7 @@ export default function SalesRefundsPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, methodFilter, fromDate, toDate]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, methodFilter, fromDate, toDate, selectedLocationId]);
 
   // ─── Apply Local Filters ────────────────────────────────────
 
@@ -166,6 +172,11 @@ export default function SalesRefundsPage() {
   useEffect(() => {
     fetchRefunds(true);
   }, []);
+
+  useEffect(() => {
+    fetchRefunds(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLocationId]);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -243,7 +254,7 @@ export default function SalesRefundsPage() {
     }
     setFormState(prev => ({ ...prev, isSearchingOrders: true }));
     try {
-      const results = await salesRefundService.searchOrders(query);
+      const results = await salesRefundService.searchOrders(query, 10, selectedLocationId || undefined);
       setFormState(prev => ({ ...prev, orderSearchResults: results }));
     } catch (error) {
       console.error('Failed to search orders:', error);
@@ -341,6 +352,24 @@ export default function SalesRefundsPage() {
     } catch (error: any) {
       console.error('Failed to complete refund:', error);
       alert(error.message || 'Failed to complete refund');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancelRefund = async () => {
+    if (!refundToActOn) return;
+    setSubmitting(true);
+    try {
+      await salesRefundService.cancelRefund(refundToActOn, cancelReason || 'Cancelled by user');
+      setShowCancelConfirm(false);
+      setRefundToActOn(null);
+      setCancelReason('');
+      setViewingRefund(null);
+      fetchRefunds(true);
+    } catch (error: any) {
+      console.error('Failed to cancel refund:', error);
+      alert(error.message || 'Failed to cancel refund');
     } finally {
       setSubmitting(false);
     }
@@ -458,6 +487,19 @@ export default function SalesRefundsPage() {
               </button>
             </div>
           </div>
+
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            <strong>Flow:</strong> Create refund as Pending → <strong>Complete</strong> to post cash refund (Dr AR / Cr Bank).
+            Stock is restored when the linked return is completed, not here.
+          </div>
+
+          {selectedLocation && (
+            <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+              <MapPin className="w-4 h-4 flex-shrink-0" />
+              Showing refunds for <strong>{selectedLocation.name}</strong>
+              <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+            </div>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
@@ -662,6 +704,18 @@ export default function SalesRefundsPage() {
                                 <CheckCircle className="w-4 h-4" />
                               </button>
                             )}
+                            {(refund.refundStatus === 'Pending' || refund.refundStatus === 'Processing') && (
+                              <button
+                                onClick={() => {
+                                  setRefundToActOn(refund.id);
+                                  setShowCancelConfirm(true);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                title="Cancel"
+                              >
+                                <Ban className="w-4 h-4" />
+                              </button>
+                            )}
                             {(refund.refundStatus === 'Failed' || refund.refundStatus === 'Cancelled') && (
                               <button
                                 onClick={() => {
@@ -739,6 +793,11 @@ export default function SalesRefundsPage() {
           onClose={() => setViewingRefund(null)}
           onProcess={handleProcessRefund}
           onComplete={handleCompleteRefund}
+          onCancelRefund={(id: string) => {
+            setRefundToActOn(id);
+            setShowCancelConfirm(true);
+            setViewingRefund(null);
+          }}
           onDelete={(id) => {
             setRefundToActOn(id);
             setShowDeleteConfirm(true);
@@ -749,6 +808,35 @@ export default function SalesRefundsPage() {
           getStatusColor={getStatusColor}
           getStatusIcon={getStatusIcon}
           submitting={submitting}
+        />
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <ConfirmationModal
+          title="Cancel Refund"
+          message="Are you sure you want to cancel this refund? This action cannot be undone."
+          confirmLabel="Cancel Refund"
+          confirmColor="bg-red-500 hover:bg-red-600"
+          onConfirm={handleCancelRefund}
+          onCancel={() => {
+            setShowCancelConfirm(false);
+            setRefundToActOn(null);
+            setCancelReason('');
+          }}
+          loading={submitting}
+          extraContent={
+            <div className="mt-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Reason (Optional)</label>
+              <input
+                type="text"
+                placeholder="Enter reason for cancellation"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
+              />
+            </div>
+          }
         />
       )}
 
@@ -1019,6 +1107,7 @@ function RefundDetailModal({
   onClose,
   onProcess,
   onComplete,
+  onCancelRefund,
   onDelete,
   formatCurrency,
   formatDate,
@@ -1119,25 +1208,39 @@ function RefundDetailModal({
 
           {/* Action Buttons */}
           {refund.refundStatus === 'Pending' && (
-            <div className="border-t border-gray-100 pt-4 mt-4">
+            <div className="border-t border-gray-100 pt-4 mt-4 flex gap-3">
               <button
                 onClick={() => onProcess(refund.id)}
                 disabled={submitting}
-                className="w-full px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-all disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-all disabled:opacity-50"
               >
                 Process Refund
+              </button>
+              <button
+                onClick={() => onCancelRefund(refund.id)}
+                disabled={submitting}
+                className="flex-1 px-4 py-2.5 border border-red-500 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
+              >
+                Cancel
               </button>
             </div>
           )}
 
           {refund.refundStatus === 'Processing' && (
-            <div className="border-t border-gray-100 pt-4 mt-4">
+            <div className="border-t border-gray-100 pt-4 mt-4 flex gap-3">
               <button
                 onClick={() => onComplete(refund.id)}
                 disabled={submitting}
-                className="w-full px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-all disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-all disabled:opacity-50"
               >
                 Complete Refund
+              </button>
+              <button
+                onClick={() => onCancelRefund(refund.id)}
+                disabled={submitting}
+                className="flex-1 px-4 py-2.5 border border-red-500 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
+              >
+                Cancel
               </button>
             </div>
           )}

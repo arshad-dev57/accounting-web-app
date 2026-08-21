@@ -36,6 +36,7 @@ export const balanceSheetService = {
   getReport: async (params: {
     period?: string;
     fiscalYearId?: string;
+    locationId?: string;
   } = {}): Promise<BalanceSheetData> => {
     const query = new URLSearchParams();
     

@@ -27,7 +27,8 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
 
 // ─── Terminals ───────────────────────────────────────────────────────────────
 export const posTerminalService = {
-  list: () => api<any>('GET', '/terminals'),
+  list: (params?: string) =>
+    api<any>('GET', `/terminals${params ? '?' + params : ''}`),
   create: (body: any) => api<any>('POST', '/terminals', body),
   update: (id: string, body: any) => api<any>('PUT', `/terminals/${id}`, body),
   delete: (id: string) => api<any>('DELETE', `/terminals/${id}`),
@@ -48,8 +49,15 @@ export const posShiftService = {
 // ─── Products ─────────────────────────────────────────────────────────────────
 export const posProductService = {
   search: (params: string) => api<any>('GET', `/products/search?${params}`),
-  byBarcode: (code: string) =>
-    api<any>('GET', `/products/barcode/${encodeURIComponent(code)}`),
+  byBarcode: (code: string, locationId?: string) => {
+    const qs = locationId
+      ? `?locationId=${encodeURIComponent(locationId)}`
+      : '';
+    return api<any>(
+      'GET',
+      `/products/barcode/${encodeURIComponent(code)}${qs}`
+    );
+  },
 };
 
 // ─── Sales ────────────────────────────────────────────────────────────────────
@@ -65,8 +73,13 @@ export const posSaleService = {
   void: (id: string, body: { reason: string }) => api<any>('POST', `/sales/${id}/void`, body),
   convertToInvoice: (id: string, body?: any) =>
     api<any>('POST', `/sales/${id}/convert-to-invoice`, body || {}),
-  dailyReport: (date?: string) =>
-    api<any>('GET', `/reports/daily${date ? '?date=' + date : ''}`),
+  dailyReport: (date?: string, locationId?: string) => {
+    const qs = new URLSearchParams();
+    if (date) qs.set('date', date);
+    if (locationId) qs.set('locationId', locationId);
+    const q = qs.toString();
+    return api<any>('GET', `/reports/daily${q ? '?' + q : ''}`);
+  },
   shiftReport: (shiftId: string) => api<any>('GET', `/reports/shift/${shiftId}`),
   verifyManager: (body: { email: string; password: string }) =>
     api<any>('POST', '/auth/verify-manager', body),

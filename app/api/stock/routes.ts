@@ -54,6 +54,7 @@ export const stockService = {
     limit?: number;
     type?: 'all' | 'in' | 'out';
     search?: string;
+    locationId?: string;
   }): Promise<StockMovementResponse> => {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', String(params.page));
@@ -62,6 +63,7 @@ export const stockService = {
       query.append('type', params.type === 'in' ? 'stock_in' : 'stock_out');
     }
     if (params?.search) query.append('search', params.search);
+    if (params?.locationId) query.append('locationId', params.locationId);
     
     // ✅ Correct path: /api/warehouse/stock/movements
     const url = `/api/warehouse/stock/movements${query.toString() ? `?${query.toString()}` : ''}`;
@@ -99,6 +101,18 @@ export const stockService = {
     return response.data;
   },
 
+  // ─── Reason catalog ────────────────────────────────────────
+  getReasons: async (): Promise<{
+    stockIn: Array<{ value: string; label: string; requiresSupplier?: boolean; requiresBankAccount?: boolean }>;
+    stockOut: Array<{ value: string; label: string }>;
+  }> => {
+    const response = await apiClient.get('/api/warehouse/stock/reasons');
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to load stock reasons');
+    }
+    return response.data?.data || response.data;
+  },
+
   // ─── Add Stock (Stock In) ──────────────────────────────────
   addStock: async (data: {
     productId: string;
@@ -106,9 +120,14 @@ export const stockService = {
     quantity: number;
     boxCount?: number;
     piecesPerBox?: number;
+    supplierId?: string;
     supplierName?: string;
+    stockSourceReason: string;
+    unitCost?: number;
+    bankAccountId?: string;
     reference?: string;
     notes?: string;
+    locationId?: string;
   }): Promise<StockMovement> => {
     // ✅ Correct path: /api/warehouse/stock/in
     const response = await apiClient.post('/api/warehouse/stock/in', data);
@@ -122,10 +141,12 @@ export const stockService = {
   removeStock: async (data: {
     productId: string;
     quantity: number;
-    reason: string;
+    stockOutReason: string;
     customerName?: string;
     reference?: string;
     notes?: string;
+    unitCost?: number;
+    locationId?: string;
   }): Promise<StockMovement> => {
     // ✅ Correct path: /api/warehouse/stock/out
     const response = await apiClient.post('/api/warehouse/stock/out', data);

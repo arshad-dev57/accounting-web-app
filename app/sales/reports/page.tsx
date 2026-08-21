@@ -7,12 +7,14 @@ import {
   FileText,
   Filter,
   Loader2,
+  MapPin,
   RefreshCw,
   Search,
   Store,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { loadCurrencyLocal } from '../../../lib/currency-service';
+import { useLocation } from '@/lib/location-context';
 
 type ReportRow = {
   id: string;
@@ -87,6 +89,7 @@ function authHeaders(): HeadersInit {
 }
 
 export default function SalesReportsPage() {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [period, setPeriod] = useState('month');
   const [channel, setChannel] = useState('all');
   const [status, setStatus] = useState('all');
@@ -111,12 +114,13 @@ export default function SalesReportsPage() {
       limit: '50',
     });
     if (search.trim()) qs.set('search', search.trim());
+    if (selectedLocationId) qs.set('locationId', selectedLocationId);
     if (period === 'custom') {
       if (startDate) qs.set('startDate', startDate);
       if (endDate) qs.set('endDate', endDate);
     }
     return qs.toString();
-  }, [channel, period, status, search, page, startDate, endDate]);
+  }, [channel, period, status, search, page, startDate, endDate, selectedLocationId]);
 
   const fetchReport = async () => {
     try {
@@ -309,6 +313,14 @@ export default function SalesReportsPage() {
           </button>
         </div>
       </div>
+
+      {selectedLocation && (
+        <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+          <MapPin className="w-4 h-4 flex-shrink-0" />
+          Showing report for <strong>{selectedLocation.name}</strong>
+          <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">

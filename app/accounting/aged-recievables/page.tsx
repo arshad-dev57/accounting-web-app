@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { agedReceivablesService, AgedCustomer, AgedInvoice, AgedSummary } from '../../api/aged-recievables/route';
 import { toast } from 'react-hot-toast';
+import { useLocation } from '../../../lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -27,6 +28,7 @@ interface FilterState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export default function AgedReceivablesPage() {
+  const { locationIdForApi } = useLocation();
   const [customers, setCustomers] = useState<AgedCustomer[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<AgedCustomer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,7 +132,9 @@ export default function AgedReceivablesPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await agedReceivablesService.getAgedReceivables();
+      const data = await agedReceivablesService.getAgedReceivables({
+        locationId: locationIdForApi || undefined,
+      });
       
       const { updatedCustomers, totals } = calculateAging(data.data.customers, asAtDate);
       setCustomers(updatedCustomers);
@@ -142,7 +146,7 @@ export default function AgedReceivablesPage() {
     } finally {
       setLoading(false);
     }
-  }, [asAtDate, calculateAging]);
+  }, [asAtDate, calculateAging, locationIdForApi]);
 
   useEffect(() => {
     fetchData();

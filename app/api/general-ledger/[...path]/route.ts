@@ -31,6 +31,8 @@ async function proxyGeneralLedger(request: NextRequest, pathSegments: string[]) 
       'sortBy',
       'sortOrder',
       'status',
+      'fiscalYearId',
+      'locationId',
     ];
     for (const key of allowed) {
       const value = request.nextUrl.searchParams.get(key);

@@ -17,17 +17,18 @@ import {
 const METHODS = ['Card', 'Mobile Wallet', 'Bank Transfer'];
 
 const card = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.09)',
+  background: '#ffffff',
+  border: '1px solid #e5e7eb',
   borderRadius: '16px',
   padding: '20px',
+  boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
 };
 const input = {
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.12)',
+  background: '#ffffff',
+  border: '1px solid #e5e7eb',
   borderRadius: '10px',
   padding: '9px 14px',
-  color: '#fff',
+  color: '#0f172a',
   fontSize: '14px',
   outline: 'none' as const,
   width: '100%',
@@ -91,7 +92,7 @@ export default function PaymentTerminalTab({ isAdmin }: { isAdmin: boolean }) {
     <div style={{ display: 'grid', gap: 18, maxWidth: 820 }}>
       <div style={card}>
         <h3 style={{ margin: '0 0 6px', fontSize: 18 }}>Payment device</h3>
-        <p style={{ margin: 0, color: '#8b8fa8', fontSize: 13, lineHeight: 1.55 }}>
+        <p style={{ margin: 0, color: '#64748b', fontSize: 13, lineHeight: 1.55 }}>
           Off = cashiers enter Card / Wallet / Bank payments manually (current flow).
           On = those methods are charged on a connected device such as a CS30G PIN pad.
           Cash always stays manual.
@@ -100,10 +101,10 @@ export default function PaymentTerminalTab({ isAdmin }: { isAdmin: boolean }) {
           <p style={{ color: '#fbbf24', fontSize: 13 }}>View only. Ask an admin to change payment device settings.</p>
         )}
 
-        <label style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: isAdmin ? 'pointer' : 'default' }}>
+        <label style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '16px 0', borderBottom: '1px solid #e5e7eb', cursor: isAdmin ? 'pointer' : 'default' }}>
           <span>
-            <span style={{ display: 'block', color: '#fff', fontSize: 14 }}>Enable payment terminal</span>
-            <span style={{ display: 'block', color: '#8b8fa8', fontSize: 12, marginTop: 4 }}>
+            <span style={{ display: 'block', color: '#0f172a', fontSize: 14 }}>Enable payment terminal</span>
+            <span style={{ display: 'block', color: '#64748b', fontSize: 12, marginTop: 4 }}>
               {settings.enablePaymentTerminal ? 'Device flow is ON for selected methods' : 'Manual payment entry is ON'}
             </span>
           </span>
@@ -117,7 +118,7 @@ export default function PaymentTerminalTab({ isAdmin }: { isAdmin: boolean }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
           <div>
-            <label style={{ fontSize: 12, color: '#8b8fa8' }}>Device model</label>
+            <label style={{ fontSize: 12, color: '#64748b' }}>Device model</label>
             <select
               style={input}
               disabled={!isAdmin}
@@ -129,7 +130,7 @@ export default function PaymentTerminalTab({ isAdmin }: { isAdmin: boolean }) {
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: '#8b8fa8' }}>Connection</label>
+            <label style={{ fontSize: 12, color: '#64748b' }}>Connection</label>
             <select
               style={input}
               disabled={!isAdmin}
@@ -142,7 +143,7 @@ export default function PaymentTerminalTab({ isAdmin }: { isAdmin: boolean }) {
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: '#8b8fa8' }}>Timeout (seconds)</label>
+            <label style={{ fontSize: 12, color: '#64748b' }}>Timeout (seconds)</label>
             <input
               type="number"
               min={15}
@@ -155,7 +156,7 @@ export default function PaymentTerminalTab({ isAdmin }: { isAdmin: boolean }) {
           </div>
           {settings.paymentTerminalConnection === 'serial' ? (
             <div>
-              <label style={{ fontSize: 12, color: '#8b8fa8' }}>USB baud rate</label>
+              <label style={{ fontSize: 12, color: '#64748b' }}>USB baud rate</label>
               <input
                 type="number"
                 style={input}
@@ -167,7 +168,7 @@ export default function PaymentTerminalTab({ isAdmin }: { isAdmin: boolean }) {
           ) : settings.paymentTerminalConnection === 'network' ? (
             <>
               <div>
-                <label style={{ fontSize: 12, color: '#8b8fa8' }}>Device IP</label>
+                <label style={{ fontSize: 12, color: '#64748b' }}>Device IP</label>
                 <input
                   style={input}
                   disabled={!isAdmin}
@@ -176,7 +177,7 @@ export default function PaymentTerminalTab({ isAdmin }: { isAdmin: boolean }) {
                 />
               </div>
               <div>
-                <label style={{ fontSize: 12, color: '#8b8fa8' }}>Port</label>
+                <label style={{ fontSize: 12, color: '#64748b' }}>Port</label>
                 <input
                   type="number"
                   style={input}
@@ -194,11 +195,11 @@ export default function PaymentTerminalTab({ isAdmin }: { isAdmin: boolean }) {
 
       <div style={card}>
         <h3 style={{ margin: '0 0 8px', fontSize: 18 }}>Methods that use the device</h3>
-        <p style={{ margin: '0 0 12px', color: '#8b8fa8', fontSize: 13 }}>
+        <p style={{ margin: '0 0 12px', color: '#64748b', fontSize: 13 }}>
           Selected methods must be charged on the {settings.paymentTerminalModel}. Unselected methods stay manual.
         </p>
         {METHODS.map((method) => (
-          <label key={method} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: isAdmin ? 'pointer' : 'default' }}>
+          <label key={method} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #e5e7eb', cursor: isAdmin ? 'pointer' : 'default' }}>
             <span>{method}</span>
             <input
               type="checkbox"
@@ -212,20 +213,20 @@ export default function PaymentTerminalTab({ isAdmin }: { isAdmin: boolean }) {
 
       <div style={card}>
         <h3 style={{ margin: '0 0 8px', fontSize: 18 }}>Connect {settings.paymentTerminalModel}</h3>
-        <p style={{ margin: '0 0 14px', color: '#8b8fa8', fontSize: 13 }}>
-          Status: <strong style={{ color: ready ? '#4ade80' : status === 'connecting' ? '#fbbf24' : '#f87171' }}>{status}</strong>
+        <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: 13 }}>
+          Status: <strong style={{ color: ready ? '#059669' : status === 'connecting' ? '#d97706' : '#dc2626' }}>{status}</strong>
           {detail ? ` — ${detail}` : ''}
         </p>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button type="button" disabled={!isAdmin || busy || ready} style={btn('linear-gradient(135deg,#014582,#448aff)')} onClick={connect}>
+          <button type="button" disabled={!isAdmin || busy || ready} style={btn('#014582')} onClick={connect}>
             {busy ? 'Connecting…' : 'Connect device'}
           </button>
           <button type="button" disabled={!ready} style={btn('rgba(239,68,68,0.75)')} onClick={disconnect}>
             Disconnect
           </button>
         </div>
-        {error ? <p style={{ color: '#f87171', fontSize: 13 }}>{error}</p> : null}
-        <p style={{ color: '#8b8fa8', fontSize: 12, marginBottom: 0, lineHeight: 1.5 }}>
+        {error ? <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p> : null}
+        <p style={{ color: '#64748b', fontSize: 12, marginBottom: 0, lineHeight: 1.5 }}>
           USB: plug the CS30G into this computer, click Connect, and pick the COM/serial device.
           Network: put the terminal on the same LAN and enter its IP. Sandbox lets you test the checkout UI without hardware.
         </p>

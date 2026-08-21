@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Plus, Search, Edit, Trash2, Eye, Package, ChevronDown,
@@ -18,6 +18,8 @@ import { categoryService, Category } from '../../api/category/route';
 import { supplierService, Supplier } from '../../api/supplier/route';
 import { settingService } from '../../api/settings/route';
 import { ProductTaxFields } from '../../../components/TaxRateSelect';
+import QuickAddSelect from '../../../components/QuickAddSelect';
+import { useLocation } from '@/lib/location-context';
 
 // ============================================================
 // BARCODE DISPLAY COMPONENT
@@ -573,8 +575,12 @@ function ProductList({
   onScanClick: () => void;
   categories: Category[];
 }) {
-  const catOptions = ['All', ...categories.map(c => c.name)];
-  const statusOptions = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
+  const statusOptions = [
+    { label: 'All Products', value: 'all' },
+    { label: 'In Stock (here)', value: 'in' },
+    { label: 'Out of Stock (here)', value: 'out' },
+    { label: 'Low Stock (here)', value: 'low' },
+  ];
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -606,19 +612,38 @@ function ProductList({
               className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none" />
           </div>
           <div className="relative flex-1 sm:flex-none min-w-[120px]">
-            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}
-              className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
-              {catOptions.map((cat) => (
-                <option key={cat} value={cat === 'All' ? 'all' : cat}>{cat}</option>
-              ))}
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+            >
+              <option value="all">All Categories</option>
+              {categories
+                .filter((cat) => {
+                  const parent = cat.parentId;
+                  return parent == null || parent === '';
+                })
+                .map((cat) => {
+                const id = cat.id || (cat as any)._id || '';
+                return (
+                  <option key={id || cat.name} value={id}>
+                    {cat.name}
+                  </option>
+                );
+              })}
             </select>
             <ChevronDown className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 pointer-events-none" />
           </div>
           <div className="relative flex-1 sm:flex-none min-w-[100px]">
-            <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}
-              className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+            >
               {statusOptions.map((status) => (
-                <option key={status} value={status === 'All' ? 'all' : status.toLowerCase().replace(' ', '-')}>{status}</option>
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
               ))}
             </select>
             <ChevronDown className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 pointer-events-none" />
@@ -636,7 +661,7 @@ function ProductList({
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Category</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Supplier</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Stock</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Stock (location)</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
@@ -730,6 +755,10 @@ function ProductList({
 // ============================================================
 function ProductForm({
   editingProduct, onCancel, onSuccess, categories, suppliers, settingsData, loadingSettings,
+  locationId,
+  onCategoryCreated,
+  onSupplierCreated,
+  onSettingCreated,
 }: {
   editingProduct?: Product | null;
   onCancel: () => void;
@@ -738,12 +767,22 @@ function ProductForm({
   suppliers: Supplier[];
   settingsData: Record<string, any[]>;
   loadingSettings: boolean;
+  locationId?: string;
+  onCategoryCreated?: (cat: Category) => void;
+  onSupplierCreated?: (sup: Supplier) => void;
+  onSettingCreated?: (settingCategory: string, item: any) => void;
 }) {
-  const categoryList = Array.isArray(categories) ? categories : [];
+  const categoryList = Array.isArray(categories)
+    ? categories.filter((c) => {
+        const parent = c.parentId;
+        return parent == null || parent === '' || parent === undefined;
+      })
+    : [];
   const supplierList = Array.isArray(suppliers) ? suppliers : [];
   const isEditing = !!editingProduct;
 
   const [activeTab, setActiveTab] = useState('basic');
+  const [loadingSubs, setLoadingSubs] = useState(false);
   const [formData, setFormData] = useState({
     name: editingProduct?.name || '',
     sku: editingProduct?.sku || '',
@@ -873,16 +912,51 @@ function ProductForm({
 
   const handleInputChange = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
 
-  const handleCategoryChange = (categoryId: string) => {
+  const handleCategoryChange = async (categoryId: string) => {
     handleInputChange('category', categoryId);
     handleInputChange('subCategory', '');
-    
-    if (categoryId) {
-      const selectedCategory = categories.find(c => c.id === categoryId);
-      const subCats = selectedCategory?.subCategories || selectedCategory?.children || [];
-      setSubCategories(subCats);
-    } else {
+    setSubCategories([]);
+
+    if (!categoryId) return;
+
+    // 1) Instant from flat list (parentId match)
+    const fromFlat = (Array.isArray(categories) ? categories : [])
+      .filter((c) => String(c.parentId || '') === String(categoryId))
+      .map((c) => ({ ...c, id: c.id || (c as any)._id || '' }))
+      .filter((c) => !!c.id);
+
+    if (fromFlat.length > 0) {
+      setSubCategories(fromFlat);
+      return;
+    }
+
+    // 2) From nested children if tree was loaded
+    const selectedCategory = categories.find(
+      (c) => String(c.id || (c as any)._id) === String(categoryId)
+    );
+    const nested = (
+      selectedCategory?.children ||
+      selectedCategory?.subCategories ||
+      []
+    )
+      .map((s) => ({ ...s, id: s.id || (s as any)._id || '' }))
+      .filter((s) => !!s.id);
+
+    if (nested.length > 0) {
+      setSubCategories(nested);
+      return;
+    }
+
+    // 3) API fetch by parentId
+    setLoadingSubs(true);
+    try {
+      const subs = await categoryService.getSubCategories(categoryId);
+      setSubCategories(subs);
+    } catch (err) {
+      console.error('Failed to load subcategories:', err);
       setSubCategories([]);
+    } finally {
+      setLoadingSubs(false);
     }
   };
 
@@ -900,7 +974,6 @@ function ProductForm({
         description: 'description',
         costPrice: 'costPrice',
         sellingPrice: 'sellingPrice',
-        currentStock: 'currentStock',
         minimumStock: 'minimumStock',
         maximumStock: 'maximumStock',
         category: 'categoryId',
@@ -973,6 +1046,9 @@ function ProductForm({
 
       const categoryId = formData.subCategory || formData.category;
       if (categoryId) payload.append('categoryId', String(categoryId));
+      if (locationId && !isEditing) {
+        payload.append('locationId', locationId);
+      }
 
       if (formData.tags) {
         const tags = formData.tags.split(',').map(t => t.trim());
@@ -1063,15 +1139,21 @@ function ProductForm({
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Product Type</label>
-                <div className="flex gap-2">
-                  <select value={formData.productType} onChange={(e) => handleInputChange('productType', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select type...</option>
-                    {productTypes.map((type) => <option key={type._id} value={type.name}>{type.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="productType"
+                  title="Add product type"
+                  value={formData.productType}
+                  onChange={(v) => handleInputChange('productType', v)}
+                  placeholder="Select type..."
+                  options={productTypes.map((type) => ({
+                    value: type.name,
+                    label: type.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('productType', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Description</label>
@@ -1113,14 +1195,25 @@ function ProductForm({
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Currency *</label>
-                <div className="flex gap-2">
-                  <select value={formData.currency} onChange={(e) => handleInputChange('currency', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
-                    <option>PKR</option><option>USD</option><option>EUR</option><option>GBP</option><option>AUD</option>
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="local"
+                  title="Add currency"
+                  value={formData.currency}
+                  onChange={(v) => handleInputChange('currency', v)}
+                  placeholder="Select currency..."
+                  required
+                  options={[
+                    ...['PKR', 'USD', 'EUR', 'GBP', 'AUD']
+                      .concat(
+                        formData.currency &&
+                          !['PKR', 'USD', 'EUR', 'GBP', 'AUD'].includes(formData.currency)
+                          ? [formData.currency]
+                          : []
+                      )
+                      .filter((v, i, arr) => arr.indexOf(v) === i)
+                      .map((c) => ({ value: c, label: c })),
+                  ]}
+                />
               </div>
               <div className="md:col-span-2">
                 <ProductTaxFields
@@ -1134,22 +1227,45 @@ function ProductForm({
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Stock Unit</label>
-                <div className="flex gap-2">
-                  <select value={formData.stockUnit} onChange={(e) => handleInputChange('stockUnit', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select unit...</option>
-                    {stockUnits.map((unit) => <option key={unit._id} value={unit.name}>{unit.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="stockUnit"
+                  title="Add stock unit"
+                  value={formData.stockUnit}
+                  onChange={(v) => handleInputChange('stockUnit', v)}
+                  placeholder="Select unit..."
+                  options={stockUnits.map((unit) => ({
+                    value: unit.name,
+                    label: unit.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('stockUnit', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Current Stock *</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+                  {editingProduct ? 'Current Stock (read-only)' : 'Opening Stock'}
+                </label>
                 <div className="relative">
                   <Box className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="number" placeholder="0" value={formData.currentStock} onChange={(e) => handleInputChange('currentStock', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" required />
+                  <input
+                    type="number"
+                    value={editingProduct ? (editingProduct.currentStock ?? 0) : 0}
+                    readOnly
+                    disabled
+                    className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm bg-gray-100 text-gray-600 cursor-not-allowed"
+                  />
                 </div>
+                {!editingProduct && (
+                  <p className="text-[10px] md:text-xs text-blue-700 mt-1">
+                    Add opening stock via{' '}
+                    <Link href="/warehouse/stock-movement" className="underline font-semibold">
+                      Stock Movement → Opening Stock
+                    </Link>{' '}
+                    (posts accounting entry).
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Minimum Stock</label>
@@ -1167,48 +1283,62 @@ function ProductForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Category *</label>
-                <div className="flex gap-2">
-                  <select 
-                    value={formData.category} 
-                    onChange={(e) => handleCategoryChange(e.target.value)} 
-                    className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
-                    required
-                  >
-                    <option value="">Select category...</option>
-                    {categoryList.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                  <Link href="/warehouse/categories" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="category"
+                  title="Add category"
+                  value={formData.category}
+                  onChange={(v) => handleCategoryChange(v)}
+                  placeholder="Select category..."
+                  required
+                  options={categoryList.map((cat) => ({
+                    value: String(cat.id || ''),
+                    label: cat.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    const cat = {
+                      ...(raw as Category),
+                      id: opt.value,
+                      name: opt.label,
+                      parentId: null,
+                    };
+                    onCategoryCreated?.(cat);
+                  }}
+                />
               </div>
               
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Sub-Category</label>
-                <div className="flex gap-2">
-                  <select 
-                    value={formData.subCategory} 
-                    onChange={(e) => handleInputChange('subCategory', e.target.value)} 
-                    className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
-                    disabled={subCategories.length === 0}
-                  >
-                    <option value="">
-                      {subCategories.length === 0 ? 'No sub-categories available' : 'Select sub-category...'}
-                    </option>
-                    {subCategories.map((sub) => (
-                      <option key={sub.id} value={sub.id}>
-                        {sub.name}
-                      </option>
-                    ))}
-                  </select>
-                  <Link href="/warehouse/categories" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="subcategory"
+                  title="Add sub-category"
+                  parentCategoryId={formData.category || undefined}
+                  value={formData.subCategory}
+                  onChange={(v) => handleInputChange('subCategory', v)}
+                  placeholder={
+                    loadingSubs
+                      ? 'Loading sub-categories...'
+                      : !formData.category
+                        ? 'Select category first'
+                        : subCategories.length === 0
+                          ? 'No sub-categories — click + to add'
+                          : 'Select sub-category...'
+                  }
+                  disabled={loadingSubs || !formData.category}
+                  options={subCategories.map((sub) => ({
+                    value: String(sub.id || ''),
+                    label: sub.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    const cat = {
+                      ...(raw as Category),
+                      id: opt.value,
+                      name: opt.label,
+                      parentId: formData.category,
+                    };
+                    setSubCategories((prev) => [...prev, cat]);
+                    onCategoryCreated?.(cat);
+                  }}
+                />
               </div>
               
               <div>
@@ -1235,24 +1365,26 @@ function ProductForm({
               
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Supplier *</label>
-                <div className="flex gap-2">
-                  <select 
-                    value={formData.supplier} 
-                    onChange={(e) => handleInputChange('supplier', e.target.value)} 
-                    className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
-                    required
-                  >
-                    <option value="">Select supplier...</option>
-                    {supplierList.map((sup) => (
-                      <option key={sup.id} value={sup.id}>
-                        {sup.name}
-                      </option>
-                    ))}
-                  </select>
-                  <Link href="/warehouse/suppliers" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="supplier"
+                  title="Add supplier"
+                  value={formData.supplier}
+                  onChange={(v) => handleInputChange('supplier', v)}
+                  placeholder="Select supplier..."
+                  required
+                  options={supplierList.map((sup) => {
+                    const id = String((sup as any).id || (sup as any)._id || '');
+                    return { value: id, label: sup.name };
+                  }).filter((o) => !!o.value)}
+                  onCreated={(opt, raw) => {
+                    const data = (raw as any)?.data || raw;
+                    onSupplierCreated?.({
+                      ...(data as Supplier),
+                      id: opt.value,
+                      name: opt.label,
+                    } as Supplier);
+                  }}
+                />
               </div>
               
               <div>
@@ -1295,27 +1427,39 @@ function ProductForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Rack Location</label>
-                <div className="flex gap-2">
-                  <select value={formData.rackLocation} onChange={(e) => handleInputChange('rackLocation', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select rack...</option>
-                    {rackLocations.map((rack) => <option key={rack._id} value={rack.name}>{rack.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="rackLocation"
+                  title="Add rack location"
+                  value={formData.rackLocation}
+                  onChange={(v) => handleInputChange('rackLocation', v)}
+                  placeholder="Select rack..."
+                  options={rackLocations.map((rack) => ({
+                    value: rack.name,
+                    label: rack.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('rackLocation', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Zone</label>
-                <div className="flex gap-2">
-                  <select value={formData.zone} onChange={(e) => handleInputChange('zone', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select zone...</option>
-                    {zones.map((zone) => <option key={zone._id} value={zone.name}>{zone.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="zone"
+                  title="Add zone"
+                  value={formData.zone}
+                  onChange={(v) => handleInputChange('zone', v)}
+                  placeholder="Select zone..."
+                  options={zones.map((zone) => ({
+                    value: zone.name,
+                    label: zone.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('zone', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Pallet Number</label>
@@ -1327,15 +1471,21 @@ function ProductForm({
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Storage Condition</label>
-                <div className="flex gap-2">
-                  <select value={formData.storageCondition} onChange={(e) => handleInputChange('storageCondition', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select condition...</option>
-                    {storageConditions.map((cond) => <option key={cond._id} value={cond.name}>{cond.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="storageCondition"
+                  title="Add storage condition"
+                  value={formData.storageCondition}
+                  onChange={(v) => handleInputChange('storageCondition', v)}
+                  placeholder="Select condition..."
+                  options={storageConditions.map((cond) => ({
+                    value: cond.name,
+                    label: cond.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('storageCondition', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1355,29 +1505,47 @@ function ProductForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Weight</label>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-start">
                   <div className="relative flex-1">
                     <Scale className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
                     <input type="number" step="0.01" placeholder="0.00" value={formData.weight} onChange={(e) => handleInputChange('weight', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                   </div>
-                  <select value={formData.weightUnit} onChange={(e) => handleInputChange('weightUnit', e.target.value)} className="w-20 md:w-24 px-2 md:px-3 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
-                    {weightUnits.map((unit) => <option key={unit._id} value={unit.name}>{unit.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
+                  <div className="w-36 md:w-40 flex-shrink-0">
+                    <QuickAddSelect
+                      kind="setting"
+                      settingCategory="weightUnit"
+                      title="Add weight unit"
+                      value={formData.weightUnit}
+                      onChange={(v) => handleInputChange('weightUnit', v)}
+                      placeholder="Unit"
+                      options={weightUnits.map((unit) => ({
+                        value: unit.name,
+                        label: unit.name,
+                      }))}
+                      onCreated={(opt, raw) => {
+                        onSettingCreated?.('weightUnit', raw || { name: opt.label });
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Dimension Unit</label>
-                <div className="flex gap-2">
-                  <select value={formData.dimensionUnit} onChange={(e) => handleInputChange('dimensionUnit', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
-                    {dimensionUnits.map((unit) => <option key={unit._id} value={unit.name}>{unit.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="dimensionUnit"
+                  title="Add dimension unit"
+                  value={formData.dimensionUnit}
+                  onChange={(v) => handleInputChange('dimensionUnit', v)}
+                  placeholder="Select unit..."
+                  options={dimensionUnits.map((unit) => ({
+                    value: unit.name,
+                    label: unit.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('dimensionUnit', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Length</label>
@@ -1400,15 +1568,21 @@ function ProductForm({
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Size</label>
-                <div className="flex gap-2">
-                  <select value={formData.size} onChange={(e) => handleInputChange('size', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select size...</option>
-                    {sizes.map((size) => <option key={size._id} value={size.name}>{size.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="size"
+                  title="Add size"
+                  value={formData.size}
+                  onChange={(v) => handleInputChange('size', v)}
+                  placeholder="Select size..."
+                  options={sizes.map((size) => ({
+                    value: size.name,
+                    label: size.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('size', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Material</label>
@@ -1498,15 +1672,21 @@ function ProductForm({
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Shipping Class</label>
-                <div className="flex gap-2">
-                  <select value={formData.shippingClass} onChange={(e) => handleInputChange('shippingClass', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select class...</option>
-                    {shippingClasses.map((cls) => <option key={cls._id} value={cls.name}>{cls.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="shippingClass"
+                  title="Add shipping class"
+                  value={formData.shippingClass}
+                  onChange={(v) => handleInputChange('shippingClass', v)}
+                  placeholder="Select class..."
+                  options={shippingClasses.map((cls) => ({
+                    value: cls.name,
+                    label: cls.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('shippingClass', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Freight Class</label>
@@ -1660,14 +1840,15 @@ function ProductForm({
 // MAIN PAGE
 // ============================================================
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const { selectedLocationId, selectedLocation } = useLocation();
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
     page: 1, limit: 20, total: 0, pages: 0, hasNext: false, hasPrev: false,
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all'); // full catalog; stock qty is per location
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
@@ -1696,10 +1877,20 @@ export default function ProductsPage() {
     const fetchDropdowns = async () => {
       try {
         const [cats, supps] = await Promise.all([
-          categoryService.getCategories({ tree: true }),
-          supplierService.getSuppliers({ limit: 100 })
+          // Flat list: parents + children with parentId (needed for subcategory filter)
+          categoryService.getCategories({ tree: false }),
+          supplierService.getSuppliers({ limit: 100 }),
         ]);
-        setCategories(Array.isArray(cats) ? cats : []);
+
+        const flat = (Array.isArray(cats) ? cats : [])
+          .map((c) => ({
+            ...c,
+            id: c.id || (c as any)._id || '',
+            parentId: c.parentId ?? null,
+          }))
+          .filter((c) => !!c.id);
+
+        setCategories(flat);
         setSuppliers(supps?.data || []);
       } catch (err) {
         console.error('Failed to fetch dropdowns:', err);
@@ -1710,38 +1901,101 @@ export default function ProductsPage() {
   }, [fetchSettings]);
 
   const fetchProducts = useCallback(async () => {
-    console.log('🔵 [fetchProducts] Starting fetch');
+    if (!selectedLocationId) return;
+    console.log('🔵 [fetchProducts] Starting fetch', {
+      selectedLocationId,
+      searchTerm,
+    });
     setLoading(true);
     try {
+      // Load location stock for all products; category/status filtered client-side
       const result = await productService.getProducts({
-        page: pagination.page,
-        limit: pagination.limit,
-        search: searchTerm,
-        categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
-        stockStatus: selectedStatus !== 'all' ? selectedStatus as any : undefined,
+        page: 1,
+        limit: 500,
+        search: searchTerm || undefined,
+        locationId: selectedLocationId,
       });
       console.log('🔵 [fetchProducts] Received', result.data.length, 'products');
-      if (result.data.length > 0) {
-        console.log('🔵 [fetchProducts] First product:', result.data[0]);
-        console.log('🔵 [fetchProducts] First product ID:', result.data[0].id);
-      }
-      setProducts(result.data);
-      setPagination(result.pagination);
+      setAllProducts(result.data);
     } catch (error: any) {
       console.error('❌ [fetchProducts] Failed to fetch products:', error);
       alert(error.message || 'Failed to load products');
+      setAllProducts([]);
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, searchTerm, selectedCategory, selectedStatus]);
+  }, [searchTerm, selectedLocationId]);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // Client-side category + status filter (reliable; uses location-overlaid stock)
+  const filteredProducts = useMemo(() => {
+    let list = allProducts;
+
+    if (selectedCategory !== 'all') {
+      const childIds = categories
+        .filter((c) => String(c.parentId || '') === String(selectedCategory))
+        .map((c) => String(c.id || ''));
+      const allowed = new Set(
+        [String(selectedCategory), ...childIds].filter(Boolean)
+      );
+      list = list.filter((p) => allowed.has(String(p.categoryId || '')));
+    }
+
+    if (selectedStatus === 'in') {
+      list = list.filter((p) => Number(p.currentStock || 0) > 0);
+    } else if (selectedStatus === 'out') {
+      list = list.filter((p) => Number(p.currentStock || 0) === 0);
+    } else if (selectedStatus === 'low') {
+      list = list.filter((p) => {
+        const qty = Number(p.currentStock || 0);
+        const min = Number(p.minimumStock || 5);
+        return qty > 0 && qty <= min;
+      });
+    }
+
+    return list;
+  }, [allProducts, selectedCategory, selectedStatus, categories]);
+
+  const pageSize = 20;
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const currentPage = Math.min(pagination.page, totalPages);
+  const pagedProducts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredProducts.slice(start, start + pageSize);
+  }, [filteredProducts, currentPage]);
+
+  const listPagination = useMemo(
+    () => ({
+      page: currentPage,
+      limit: pageSize,
+      total: filteredProducts.length,
+      pages: totalPages,
+      hasNext: currentPage < totalPages,
+      hasPrev: currentPage > 1,
+    }),
+    [currentPage, filteredProducts.length, totalPages]
+  );
+
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  }, [selectedLocationId]);
+
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  }, [selectedCategory, selectedStatus, searchTerm]);
 
   const handleBarcodeScan = useCallback(async (scannedValue: string) => {
     setShowScanner(false);
     setLoading(true);
     try {
-      const result = await productService.getProducts({ search: scannedValue, limit: 1 });
+      const result = await productService.getProducts({
+        search: scannedValue,
+        limit: 1,
+        locationId: selectedLocationId || undefined,
+      });
       if (result.data.length > 0) {
         setViewingProduct(result.data[0]);
       } else {
@@ -1752,12 +2006,19 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedLocationId]);
 
-  const handlePageChange = (page: number) => setPagination(prev => ({ ...prev, page }));
-  const handleSearch = (val: string) => { setSearchTerm(val); setPagination(prev => ({ ...prev, page: 1 })); };
-  const handleCategoryChange = (val: string) => { setSelectedCategory(val); setPagination(prev => ({ ...prev, page: 1 })); };
-  const handleStatusChange = (val: string) => { setSelectedStatus(val); setPagination(prev => ({ ...prev, page: 1 })); };
+  const handlePageChange = (page: number) =>
+    setPagination((prev) => ({ ...prev, page }));
+  const handleSearch = (val: string) => {
+    setSearchTerm(val);
+  };
+  const handleCategoryChange = (val: string) => {
+    setSelectedCategory(val);
+  };
+  const handleStatusChange = (val: string) => {
+    setSelectedStatus(val);
+  };
 
   const handleAddClick = () => { setEditingProduct(null); setShowCreateForm(true); };
 
@@ -1806,10 +2067,33 @@ export default function ProductsPage() {
       alert(error.message || 'Failed to delete product');
     }
   };
-  const handleFormSuccess = () => { setShowCreateForm(false); setEditingProduct(null); fetchProducts(); };
+  const handleFormSuccess = () => {
+    setShowCreateForm(false);
+    setEditingProduct(null);
+    setSelectedStatus('all'); // new product has 0 stock — must show in catalog
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    fetchProducts();
+  };
 
   return (
     <div className="space-y-4 md:space-y-6">
+      {selectedLocation && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2 rounded-lg bg-sky-50 border border-sky-100 text-sm text-sky-800">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 flex-shrink-0" />
+            <span>
+              Products for <strong>{selectedLocation.name}</strong>
+              <span className="text-sky-600 font-mono text-xs ml-1">({selectedLocation.code})</span>
+              {' · '}
+              only products assigned to this location
+              {selectedStatus === 'in' ? ' · In Stock' : ''}
+              {selectedStatus === 'out' ? ' · Out of Stock' : ''}
+              {selectedStatus === 'low' ? ' · Low Stock' : ''}
+            </span>
+          </div>
+        </div>
+      )}
+
       {showScanner && (
         <BarcodeScanner
           onScan={handleBarcodeScan}
@@ -1834,12 +2118,36 @@ export default function ProductsPage() {
           suppliers={suppliers}
           settingsData={settingsData}
           loadingSettings={loadingSettings}
+          locationId={selectedLocationId}
+          onCategoryCreated={(cat) => {
+            setCategories((prev) => {
+              if (prev.some((c) => String(c.id) === String(cat.id))) return prev;
+              return [...prev, cat];
+            });
+          }}
+          onSupplierCreated={(sup) => {
+            setSuppliers((prev) => {
+              const id = String((sup as any).id || (sup as any)._id || '');
+              if (prev.some((s) => String((s as any).id || (s as any)._id) === id)) {
+                return prev;
+              }
+              return [...prev, sup];
+            });
+          }}
+          onSettingCreated={(cat, item) => {
+            setSettingsData((prev) => {
+              const list = prev[cat] || [];
+              const name = item?.name;
+              if (name && list.some((x) => x.name === name)) return prev;
+              return { ...prev, [cat]: [...list, item] };
+            });
+          }}
         />
       ) : (
         <ProductList
-          products={products}
+          products={pagedProducts}
           loading={loading}
-          pagination={pagination}
+          pagination={listPagination}
           searchTerm={searchTerm}
           setSearchTerm={handleSearch}
           selectedCategory={selectedCategory}

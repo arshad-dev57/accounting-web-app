@@ -10,6 +10,7 @@ import {
   Ban,
   CalendarClock,
   Loader2,
+  MapPin,
   Package,
   RefreshCw,
   Wallet,
@@ -26,6 +27,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { useLocation } from '@/lib/location-context';
 
 type Metrics = {
   totalProducts: number;
@@ -144,6 +146,7 @@ function authHeaders(): HeadersInit {
 
 export default function WarehouseDashboardPage() {
   const router = useRouter();
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
@@ -156,12 +159,19 @@ export default function WarehouseDashboardPage() {
     label = period,
     options?: { refresh?: boolean }
   ) => {
+    if (!selectedLocationId) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     try {
       if (options?.refresh) setRefreshing(true);
       else setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/warehouse/dashboard?period=${value}`, {
+      const qs = new URLSearchParams({ period: value });
+      qs.set('locationId', selectedLocationId);
+      const response = await fetch(`/api/warehouse/dashboard?${qs.toString()}`, {
         headers: authHeaders(),
       });
       const result = await response.json();
@@ -184,7 +194,7 @@ export default function WarehouseDashboardPage() {
   useEffect(() => {
     fetchDashboard(periodValue, period);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedLocationId]);
 
   const selectPeriod = (label: string, value: string) => {
     if (loading || refreshing) return;
@@ -275,7 +285,7 @@ export default function WarehouseDashboardPage() {
       label: 'Stock Value',
       value: m.totalStockValue,
       color: '#22c55e',
-      source: 'Current stock × selling price',
+      source: 'Current stock × cost price',
       display: formatCurrency(m.totalStockValue),
     },
     {
@@ -327,12 +337,23 @@ export default function WarehouseDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {selectedLocation && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-50 border border-sky-100 text-sm text-sky-800">
+          <MapPin className="w-4 h-4 flex-shrink-0" />
+          <span>
+            Dashboard for <strong>{selectedLocation.name}</strong>
+            <span className="text-sky-600 font-mono text-xs ml-1">({selectedLocation.code})</span>
+          </span>
+        </div>
+      )}
+
       {/* Header — same pattern as accounting dashboard */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Warehouse Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
             Stock value, movements and inventory health for {period.toLowerCase()}
+            {selectedLocation ? ` · ${selectedLocation.name}` : ''}
           </p>
         </div>
 

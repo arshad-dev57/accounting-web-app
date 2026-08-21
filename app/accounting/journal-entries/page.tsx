@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { journalEntryService, JournalEntry, JournalLine, JournalEntryStats } from '../../../lib/journal-entries-service';
 import { chartOfAccountService } from '../../../lib/chart-of-accounts-service';
+import { useLocation } from '../../../lib/location-context';
 
 const PAGE_LIMIT = 10;
 
@@ -29,6 +30,7 @@ interface JournalLineInput {
 }
 
 export default function JournalEntriesPage() {
+  const { locationIdForApi } = useLocation();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -85,6 +87,7 @@ export default function JournalEntriesPage() {
       status: selectedFilter !== 'All' ? selectedFilter : undefined,
       startDate: dateRange?.start || undefined,
       endDate: dateRange?.end || undefined,
+      locationId: locationIdForApi || undefined,
     }).then(response => {
       if (requestId !== latestRequestRef.current) return;
       const pages = Math.max(1, response.pagination?.pages ?? 1);
@@ -106,7 +109,11 @@ export default function JournalEntriesPage() {
     }).finally(() => {
       if (requestId === latestRequestRef.current) setLoading(false);
     });
-  }, [debouncedSearch, selectedFilter, dateRange, currentPage, refreshTick]);
+  }, [debouncedSearch, selectedFilter, dateRange, currentPage, refreshTick, locationIdForApi]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [locationIdForApi]);
 
   useEffect(() => {
     return () => {

@@ -25,6 +25,7 @@ import {
   downloadPosReceiptPdf,
   printReceiptNode,
   receiptBarcodeValue,
+  receiptQrPngDataUrl,
   resolveReceiptCompany,
 } from '../../../lib/pos-receipt';
 import {
@@ -34,6 +35,7 @@ import {
   type TaxContext,
   type TaxPricingModel,
 } from '../../../lib/tax-service';
+import { effectiveLocationId } from '../../../lib/location-service';
 
 function getAuthToken() {
   if (typeof window === 'undefined') return '';
@@ -62,25 +64,25 @@ function ManagerPinModal({
   if (!open) return null;
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[300]">
-      <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-[400px] max-w-[95vw]">
-        <h3 className="text-white font-semibold mb-2">{title}</h3>
+      <div className="bg-white border border-gray-200 shadow-lg rounded-2xl p-6 w-[400px] max-w-[95vw]">
+        <h3 className="text-gray-900 font-semibold mb-2">{title}</h3>
         <p className="text-gray-400 text-xs mb-4">Enter manager email and password to approve.</p>
-        {error && <div className="text-red-400 text-xs mb-3">{error}</div>}
+        {error && <div className="text-red-600 text-xs mb-3">{error}</div>}
         <input
-          className="w-full mb-2 bg-white/6 border border-white/12 rounded-lg px-3 py-2 text-white text-sm"
+          className="w-full mb-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-sm"
           placeholder="Manager email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
         <input
           type="password"
-          className="w-full mb-4 bg-white/6 border border-white/12 rounded-lg px-3 py-2 text-white text-sm"
+          className="w-full mb-4 bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-sm"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
         <div className="flex gap-2">
-          <button onClick={onCancel} className="flex-1 py-2 rounded-lg border border-white/15 text-gray-300 text-sm">
+          <button onClick={onCancel} className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm">
             Cancel
           </button>
           <button
@@ -97,7 +99,7 @@ function ManagerPinModal({
                 setLoading(false);
               }
             }}
-            className="flex-1 py-2 rounded-lg bg-[#f59e0b] text-black text-sm font-bold"
+            className="flex-1 py-2 rounded-lg bg-[#014582] text-white text-sm font-bold"
           >
             {loading ? 'Checking...' : 'Approve'}
           </button>
@@ -151,8 +153,8 @@ function Keypad({ onKey }: { onKey:(k:string)=>void }) {
           onClick={()=>onKey(k)}
           className={`h-13 rounded-xl font-semibold text-xl cursor-pointer transition-colors ${
             k==='⌫'
-              ? 'bg-red-500/15 border border-red-500/30 text-red-400'
-              : 'bg-white/6 border border-white/10 text-white hover:bg-white/10'
+              ? 'bg-red-500/15 border border-red-500/30 text-red-600'
+              : 'bg-white border border-gray-200 text-gray-900 hover:bg-gray-100'
           }`}
         >
           {k}
@@ -212,7 +214,7 @@ function ReceiptModal({ sale, companyProfile, shift, onClose, onDownloadReport, 
         </div>
         
         <div className="flex gap-3 mt-3 no-print">
-          <button onClick={()=>setShowEmailForm(!showEmailForm)} className="flex-1 py-2.5 rounded-lg border border-[#f59e0b] bg-[#f59e0b]/10 text-[#f59e0b] cursor-pointer font-semibold text-sm flex items-center justify-center gap-2">
+          <button onClick={()=>setShowEmailForm(!showEmailForm)} className="flex-1 py-2.5 rounded-lg border border-[#014582] bg-[#014582]/5 text-[#014582] cursor-pointer font-semibold text-sm flex items-center justify-center gap-2">
             Send Email
           </button>
           <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border-none bg-gray-900 text-white cursor-pointer font-semibold text-sm">Close</button>
@@ -228,13 +230,13 @@ function ReceiptModal({ sale, companyProfile, shift, onClose, onDownloadReport, 
                 value={emailInput}
                 onChange={(e)=>setEmailInput(e.target.value)}
                 placeholder="customer@email.com"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-[#f59e0b]"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-[#014582]"
               />
             </div>
             <button
               onClick={handleSendEmail}
               disabled={sendingEmail}
-              className="w-full py-2 rounded-lg bg-[#f59e0b] text-white font-semibold text-sm cursor-pointer hover:bg-[#d97706] disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2 rounded-lg bg-[#014582] text-white font-semibold text-sm cursor-pointer hover:bg-[#01366a] disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {sendingEmail ? (
                 <>
@@ -547,6 +549,10 @@ export default function SellScreen({ shift }: { shift: any }) {
       const params = new URLSearchParams({ limit: '50' });
       if (q) params.set('q', q);
       if (categoryId && categoryId !== 'All') params.set('categoryId', categoryId);
+      const locId = effectiveLocationId(
+        shift?.terminal?.locationId || shift?.terminal?.location?.id
+      );
+      if (locId) params.set('locationId', locId);
       const res: any = await posProductService.search(params.toString());
       setProducts(res.data || []);
     } catch (e: any) {
@@ -554,7 +560,7 @@ export default function SellScreen({ shift }: { shift: any }) {
     } finally {
       setLoadingProducts(false);
     }
-  }, []);
+  }, [shift?.terminal?.locationId, shift?.terminal?.location?.id]);
 
   useEffect(() => {
     loadCategories();
@@ -597,13 +603,19 @@ export default function SellScreen({ shift }: { shift: any }) {
     setScanStatus('Looking up…');
     try {
       let product: Product | null = null;
+      const locId = effectiveLocationId(
+        shift?.terminal?.locationId || shift?.terminal?.location?.id
+      );
       try {
-        const res: any = await posProductService.byBarcode(trimmed);
+        const res: any = await posProductService.byBarcode(
+          trimmed,
+          locId || undefined
+        );
         product = res.data || null;
       } catch {
-        const r: any = await posProductService.search(
-          new URLSearchParams({ q: trimmed, limit: '8' }).toString()
-        );
+        const params = new URLSearchParams({ q: trimmed, limit: '8' });
+        if (locId) params.set('locationId', locId);
+        const r: any = await posProductService.search(params.toString());
         product = matchScannedProduct(r.data || [], trimmed);
       }
       if (!product) {
@@ -632,7 +644,7 @@ export default function SellScreen({ shift }: { shift: any }) {
       setScanError(e.message || 'Scan failed');
       setScanStatus('');
     }
-  }, []);
+  }, [shift?.terminal?.locationId, shift?.terminal?.location?.id]);
 
   const removeFromCart = (productId: string) => setCart(prev=>prev.filter(i=>i.productId!==productId));
 
@@ -829,6 +841,9 @@ export default function SellScreen({ shift }: { shift: any }) {
       const payload = {
         id: saleId,
         terminalId: shift.terminalId,
+        locationId: effectiveLocationId(
+          shift.terminal?.locationId || shift.terminal?.location?.id
+        ) || undefined,
         customerName,
         customerPhone: customerPhone || null,
         customerEmail: selectedCustomer?.email || null,
@@ -984,6 +999,7 @@ export default function SellScreen({ shift }: { shift: any }) {
           companyProfile,
           receiptMeta: {
             barcodeDataUrl: barcodePngDataUrl(receiptBarcodeValue(lastSale)),
+            qrDataUrl: await receiptQrPngDataUrl(lastSale, shift),
             currencySymbol: (typeof window !== 'undefined'
               ? JSON.parse(localStorage.getItem('sales_selected_currency') || '{}')?.symbol
               : null) || '$',
@@ -1008,14 +1024,14 @@ export default function SellScreen({ shift }: { shift: any }) {
   return (
     <div className="flex h-full overflow-hidden font-sans">
       {/* ─── LEFT: Product Browser ──────────────────────────────── */}
-      <div className="w-[55%] flex flex-col border-r border-white/7 overflow-hidden">
-        <div className="p-3 bg-white/3 border-b border-white/7 space-y-2.5">
+      <div className="w-[55%] flex flex-col border-r border-gray-200 overflow-hidden bg-gray-50">
+        <div className="p-3 bg-white border-b border-gray-200 space-y-2.5">
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 ref={searchRef}
-                className="w-full bg-white/6 border border-white/12 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm outline-none focus:border-[#f59e0b] transition-colors"
+                className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-gray-900 text-sm outline-none focus:border-[#014582] transition-colors"
                 placeholder="Search by name or SKU..."
                 value={query}
                 onChange={e=>setQuery(e.target.value)}
@@ -1023,11 +1039,11 @@ export default function SellScreen({ shift }: { shift: any }) {
             </div>
             {scannerEnabled && (
               <div className="relative w-[44%] min-w-[160px]">
-                <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 text-[#f59e0b] w-4 h-4" />
+                <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 text-[#014582] w-4 h-4" />
                 <input
                   ref={scanRef}
                   data-pos-scan="1"
-                  className="w-full bg-[#f59e0b]/10 border border-[#f59e0b]/35 rounded-xl pl-9 pr-3 py-2.5 text-white text-sm outline-none focus:border-[#f59e0b] transition-colors"
+                  className="w-full bg-[#014582]/5 border border-[#014582]/30 rounded-xl pl-9 pr-3 py-2.5 text-gray-900 text-sm outline-none focus:border-[#014582] transition-colors"
                   placeholder="Scan barcode..."
                   value={scanValue}
                   onChange={(e) => {
@@ -1050,8 +1066,8 @@ export default function SellScreen({ shift }: { shift: any }) {
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
                 Scanner ready — scan a product barcode
               </span>
-              {scanStatus ? <span className="text-green-400 truncate">{scanStatus}</span> : null}
-              {scanError ? <span className="text-red-400 truncate">{scanError}</span> : null}
+              {scanStatus ? <span className="text-emerald-600 truncate">{scanStatus}</span> : null}
+              {scanError ? <span className="text-red-600 truncate">{scanError}</span> : null}
             </div>
           )}
 
@@ -1061,8 +1077,8 @@ export default function SellScreen({ shift }: { shift: any }) {
               onClick={() => handleCategorySelect('All')}
               className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
                 selectedCategoryId === 'All'
-                  ? 'bg-[#f59e0b] border-[#f59e0b] text-black'
-                  : 'bg-white/5 border-white/12 text-gray-300 hover:border-[#f59e0b]/50 hover:text-white'
+                  ? 'bg-[#014582] border-[#014582] text-white'
+                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-[#014582]/40 hover:text-[#014582]'
               }`}
             >
               All
@@ -1082,8 +1098,8 @@ export default function SellScreen({ shift }: { shift: any }) {
                   onClick={() => handleCategorySelect(cat.id)}
                   className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
                     selectedCategoryId === cat.id
-                      ? 'bg-[#f59e0b] border-[#f59e0b] text-black'
-                      : 'bg-white/5 border-white/12 text-gray-300 hover:border-[#f59e0b]/50 hover:text-white'
+                      ? 'bg-[#014582] border-[#014582] text-white'
+                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-[#014582]/40 hover:text-[#014582]'
                   }`}
                   title={cat.name}
                 >
@@ -1101,7 +1117,7 @@ export default function SellScreen({ shift }: { shift: any }) {
           {loadingProducts ? (
             <div className="col-span-full text-center text-gray-400 py-12">Loading products...</div>
           ) : productError ? (
-            <div className="col-span-full text-center text-red-400 py-6">{productError}</div>
+            <div className="col-span-full text-center text-red-600 py-6">{productError}</div>
           ) : products.length === 0 ? (
             <div className="col-span-full text-center text-gray-400 py-12">
               <Package className="w-10 h-10 mx-auto mb-3 opacity-50" />
@@ -1110,7 +1126,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                 <button
                   type="button"
                   onClick={() => handleCategorySelect('All')}
-                  className="mt-3 text-[#f59e0b] text-xs underline"
+                  className="mt-3 text-[#014582] text-xs underline"
                 >
                   Clear category filter
                 </button>
@@ -1119,23 +1135,23 @@ export default function SellScreen({ shift }: { shift: any }) {
           ) : products.map(p=>(
             <div
               key={p.id}
-              className="bg-white/4 border border-white/8 rounded-xl p-3 cursor-pointer transition-all flex flex-col gap-1.5 hover:bg-[#f59e0b]/12"
+              className="bg-white border border-gray-200 shadow-sm rounded-xl p-3 cursor-pointer transition-all flex flex-col gap-1.5 hover:bg-sky-50 hover:border-[#014582]/30"
               onClick={()=>addToCart(p)}
             >
-              <div className="w-full h-20 rounded-lg bg-white/6 flex items-center justify-center overflow-hidden">
+              <div className="w-full h-20 rounded-lg bg-white flex items-center justify-center overflow-hidden">
                 {p.mainImage ? (
                   <img src={p.mainImage} alt={p.name} className="w-full h-full object-cover rounded-lg" onError={e=>{ (e.target as HTMLImageElement).style.display='none'; }} />
                 ) : (
                   <Package className="w-7 h-7 text-gray-400" />
                 )}
               </div>
-              <div className="text-white font-semibold text-xs leading-tight">{p.name}</div>
+              <div className="text-gray-900 font-semibold text-xs leading-tight">{p.name}</div>
               {p.sku && <div className="text-gray-400 text-[10px]">{p.sku}</div>}
               {p.categoryName && (
                 <div className="text-gray-500 text-[10px] truncate">{p.categoryName}</div>
               )}
-              <div className="text-[#f59e0b] font-bold text-base">${p.sellingPrice?.toFixed(2)}</div>
-              <div className={`text-[10px] ${p.currentStock <= 0 ? 'text-red-400' : p.currentStock <= 5 ? 'text-yellow-400' : 'text-green-400'}`}>
+              <div className="text-[#014582] font-bold text-base">${p.sellingPrice?.toFixed(2)}</div>
+              <div className={`text-[10px] ${p.currentStock <= 0 ? 'text-red-600' : p.currentStock <= 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
                 Stock: {p.currentStock}
               </div>
             </div>
@@ -1143,16 +1159,16 @@ export default function SellScreen({ shift }: { shift: any }) {
         </div>
       </div>
 
-      <div className="w-[45%] flex flex-col overflow-hidden">
+      <div className="w-[45%] flex flex-col overflow-hidden bg-white border-l border-gray-200">
         {/* Cart header */}
-        <div className="p-3 bg-white/2 border-b border-white/7">
+        <div className="p-3 bg-white border-b border-gray-200">
           <div className="flex justify-between items-center">
-            <h3 className="text-white font-semibold text-sm flex items-center gap-2 m-0">
+            <h3 className="text-gray-900 font-semibold text-sm flex items-center gap-2 m-0">
               <ShoppingCart className="w-4 h-4" />
               Cart <span className="text-gray-400 font-normal text-xs">({cart.length} items)</span>
             </h3>
             {cart.length > 0 && (
-              <button onClick={clearCart} className="bg-red-500/15 border border-red-500/30 rounded-lg px-3 py-1 text-red-400 cursor-pointer text-xs">Clear</button>
+              <button onClick={clearCart} className="bg-red-500/15 border border-red-500/30 rounded-lg px-3 py-1 text-red-600 cursor-pointer text-xs">Clear</button>
             )}
           </div>
           
@@ -1165,7 +1181,7 @@ export default function SellScreen({ shift }: { shift: any }) {
               </div>
               <input
                 ref={customerSearchRef}
-                className="w-full bg-white/6 border border-white/12 rounded-lg pl-10 pr-10 py-2.5 text-white text-xs outline-none focus:border-[#f59e0b] transition-colors"
+                className="w-full bg-white border border-gray-200 rounded-lg pl-10 pr-10 py-2.5 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
                 placeholder="Search customer or type name..."
                 value={customerSearchQuery}
                 onChange={handleCustomerInputChange}
@@ -1179,7 +1195,7 @@ export default function SellScreen({ shift }: { shift: any }) {
             
             {/* Customer Dropdown */}
             {customerDropdownOpen && (customerSuggestions.length > 0 || loadingCustomers || customerSearchQuery.length >= 2) && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-xl z-50 max-h-[200px] overflow-y-auto">
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-[200px] overflow-y-auto">
                 {loadingCustomers ? (
                   <div className="p-3 text-center text-gray-400 text-xs">
                     <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1" />
@@ -1190,7 +1206,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                     <div className="text-center text-gray-400 text-xs mb-2">No customers found</div>
                     <button
                       onClick={() => setShowAddCustomerModal(true)}
-                      className="w-full bg-[#f59e0b]/15 border border-[#f59e0b]/30 rounded-lg px-3 py-2 text-[#f59e0b] text-xs font-semibold hover:bg-[#f59e0b]/25 transition-colors flex items-center justify-center gap-2"
+                      className="w-full bg-[#014582]/10 border border-[#014582]/30 rounded-lg px-3 py-2 text-[#014582] text-xs font-semibold hover:bg-[#014582]/15 transition-colors flex items-center justify-center gap-2"
                     >
                       <Plus className="w-3 h-3" />
                       Add New Customer
@@ -1201,9 +1217,9 @@ export default function SellScreen({ shift }: { shift: any }) {
                     <div
                       key={customer.id}
                       onClick={() => handleCustomerSelect(customer)}
-                      className="p-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0 transition-colors"
+                      className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors"
                     >
-                      <div className="text-white text-xs font-medium">{customer.name}</div>
+                      <div className="text-gray-900 text-xs font-medium">{customer.name}</div>
                       <div className="text-gray-400 text-xs mt-0.5">{customer.phone || customer.email || 'No contact info'}</div>
                     </div>
                   ))
@@ -1214,37 +1230,37 @@ export default function SellScreen({ shift }: { shift: any }) {
 
           {/* Customer Credit Info */}
           {selectedCustomer && customerCreditInfo && (
-            <div className="mt-2.5 bg-white/4 border border-white/8 rounded-lg p-2.5">
+            <div className="mt-2.5 bg-white border border-gray-200 rounded-lg p-2.5">
               <div className="flex justify-between items-center text-xs mb-1.5">
                 <span className="text-gray-400">Credit Limit:</span>
-                <span className="text-white font-medium">${customerCreditInfo.creditLimit.toFixed(2)}</span>
+                <span className="text-gray-900 font-medium">${customerCreditInfo.creditLimit.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-xs mb-1.5">
                 <span className="text-gray-400">Outstanding:</span>
-                <span className="text-white font-medium">${customerCreditInfo.outstandingBalance.toFixed(2)}</span>
+                <span className="text-gray-900 font-medium">${customerCreditInfo.outstandingBalance.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-xs mb-1.5">
                 <span className="text-gray-400">Available:</span>
-                <span className={`${customerCreditInfo.availableCredit >= 0 ? 'text-green-400' : 'text-red-400'} font-medium`}>
+                <span className={`${customerCreditInfo.availableCredit >= 0 ? 'text-emerald-600' : 'text-red-600'} font-medium`}>
                   ${customerCreditInfo.availableCredit.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-gray-400">Utilization:</span>
-                <span className={`${customerCreditInfo.utilization > 80 ? 'text-red-400' : customerCreditInfo.utilization > 50 ? 'text-yellow-400' : 'text-green-400'} font-medium`}>
+                <span className={`${customerCreditInfo.utilization > 80 ? 'text-red-600' : customerCreditInfo.utilization > 50 ? 'text-amber-600' : 'text-emerald-600'} font-medium`}>
                   {customerCreditInfo.utilization.toFixed(1)}%
                 </span>
               </div>
               {(customerCreditInfo.loyaltyPoints != null || selectedCustomer?.loyaltyPoints != null) && (
                 <div className="flex justify-between items-center text-xs mt-1.5">
                   <span className="text-gray-400">Loyalty points:</span>
-                  <span className="text-sky-400 font-medium">
+                  <span className="text-sky-700 font-medium">
                     {customerCreditInfo.loyaltyPoints ?? selectedCustomer?.loyaltyPoints ?? 0}
                   </span>
                 </div>
               )}
               {customerCreditInfo.utilization > 80 && (
-                <div className="mt-2 text-[10px] text-yellow-400 bg-yellow-400/10 rounded px-2 py-1">
+                <div className="mt-2 text-[10px] text-amber-600 bg-yellow-400/10 rounded px-2 py-1">
                   ⚠️ Credit limit nearly exceeded
                 </div>
               )}
@@ -1253,7 +1269,7 @@ export default function SellScreen({ shift }: { shift: any }) {
 
           <div className="flex gap-2.5 mt-2.5">
             <input
-              className="flex-1 bg-white/6 border border-white/12 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-[#f59e0b] transition-colors"
+              className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
               placeholder="Phone (optional)"
               value={customerPhone}
               onChange={e=>setCustomerPhone(e.target.value)}
@@ -1270,9 +1286,9 @@ export default function SellScreen({ shift }: { shift: any }) {
             </div>
           ) : (
             cart.map(item=>(
-              <div key={item.productId} className="bg-white/4 border border-white/8 rounded-xl p-2.5 mb-2 flex gap-2.5 items-start">
+              <div key={item.productId} className="bg-white border border-gray-200 rounded-xl p-2.5 mb-2 flex gap-2.5 items-start">
                 <div className="flex-1">
-                  <div className="text-white font-semibold text-xs mb-1">{item.productName}</div>
+                  <div className="text-gray-900 font-semibold text-xs mb-1">{item.productName}</div>
                   <div className="text-gray-400 text-xs">${item.unitPrice.toFixed(2)} each</div>
                   {/* discount input */}
                   <div className="flex items-center gap-1.5 mt-1.5">
@@ -1283,21 +1299,21 @@ export default function SellScreen({ shift }: { shift: any }) {
                       max="100"
                       value={item.discount}
                       onChange={e=>updateDiscount(item.productId,parseFloat(e.target.value)||0)}
-                      className="w-14 bg-white/6 border border-white/10 rounded-md px-1.5 py-1 text-white text-xs outline-none"
+                      className="w-14 bg-white border border-gray-200 rounded-md px-1.5 py-1 text-gray-900 text-xs outline-none"
                     />
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <button onClick={()=>removeFromCart(item.productId)} className="bg-transparent border-none text-red-400 cursor-pointer text-sm">
+                  <button onClick={()=>removeFromCart(item.productId)} className="bg-transparent border-none text-red-600 cursor-pointer text-sm">
                     <X className="w-4 h-4" />
                   </button>
-                  <div className="text-[#f59e0b] font-bold text-sm">${item.lineTotal.toFixed(2)}</div>
+                  <div className="text-[#014582] font-bold text-sm">${item.lineTotal.toFixed(2)}</div>
                   <div className="flex items-center gap-1">
-                    <button className="w-7 h-7 rounded-lg border border-white/15 bg-transparent text-white cursor-pointer text-sm flex items-center justify-center" onClick={()=>updateQty(item.productId,item.quantity-1)}>
+                    <button className="w-7 h-7 rounded-lg border border-gray-300 bg-transparent text-gray-900 cursor-pointer text-sm flex items-center justify-center" onClick={()=>updateQty(item.productId,item.quantity-1)}>
                       <Minus className="w-3 h-3" />
                     </button>
-                    <span className="text-white font-semibold w-8 text-center text-sm">{item.quantity}</span>
-                    <button className="w-7 h-7 rounded-lg border border-white/15 bg-transparent text-white cursor-pointer text-sm flex items-center justify-center" onClick={()=>updateQty(item.productId,item.quantity+1)}>
+                    <span className="text-gray-900 font-semibold w-8 text-center text-sm">{item.quantity}</span>
+                    <button className="w-7 h-7 rounded-lg border border-gray-300 bg-transparent text-gray-900 cursor-pointer text-sm flex items-center justify-center" onClick={()=>updateQty(item.productId,item.quantity+1)}>
                       <Plus className="w-3 h-3" />
                     </button>
                   </div>
@@ -1307,7 +1323,7 @@ export default function SellScreen({ shift }: { shift: any }) {
           )}
         </div>
 
-        <div className="p-3 border-t border-white/7 bg-white/2">
+        <div className="p-3 border-t border-gray-200 bg-white">
           <div className="flex flex-col gap-1 mb-3">
             <div className="flex justify-between text-gray-400 text-xs">
               <span>Subtotal</span><span>${subtotal.toFixed(2)}</span>
@@ -1318,7 +1334,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                 <select
                   value={discountMode}
                   onChange={(e) => setDiscountMode(e.target.value as 'pct' | 'amount')}
-                  className="bg-transparent border border-white/20 rounded px-1 text-[10px] text-yellow-400"
+                  className="bg-transparent border border-gray-300 rounded px-1 text-[10px] text-amber-600"
                 >
                   <option value="pct">%</option>
                   <option value="amount">$</option>
@@ -1332,31 +1348,31 @@ export default function SellScreen({ shift }: { shift: any }) {
                     if (discountMode === 'pct') setOverallDiscount(v);
                     else setCartDiscountAmount(v);
                   }}
-                  className="w-12 bg-transparent border-none border-b border-white/20 text-yellow-400 outline-none text-xs text-center"
+                  className="w-12 bg-transparent border-none border-b border-gray-300 text-amber-600 outline-none text-xs text-center"
                 />
               </span>
-              <span className="text-yellow-400">-${discountTotal.toFixed(2)}</span>
+              <span className="text-amber-600">-${discountTotal.toFixed(2)}</span>
             </div>
             {loyaltyPreview > 0 && (
-              <div className="flex justify-between text-sky-400 text-xs">
+              <div className="flex justify-between text-sky-700 text-xs">
                 <span>Loyalty earn</span><span>+{loyaltyPreview} pts</span>
               </div>
             )}
             {heldSaleId && (
-              <div className="text-[10px] text-amber-300">Resuming held sale</div>
+              <div className="text-[10px] text-amber-700">Resuming held sale</div>
             )}
             {taxTotal > 0 && (
               <div className="flex justify-between text-gray-400 text-xs">
                 <span>{taxContext?.regime || 'Tax'}{pricingModel === 'inclusive' ? ' (incl.)' : ''}</span><span>${taxTotal.toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between text-white text-xl font-bold border-t border-white/10 pt-2 mt-1">
-              <span>Total</span><span className="text-[#f59e0b]">${grandTotal.toFixed(2)}</span>
+            <div className="flex justify-between text-gray-900 text-xl font-bold border-t border-gray-200 pt-2 mt-1">
+              <span>Total</span><span className="text-[#014582]">${grandTotal.toFixed(2)}</span>
             </div>
           </div>
 
           <button
-            className={`w-full py-3.5 rounded-xl bg-gradient-to-r from-[#f59e0b] to-[#d97706] text-white font-bold text-sm cursor-pointer mt-2.5 flex items-center justify-center gap-2 hover:opacity-90 transition-opacity ${cart.length===0?'opacity-50':''}`}
+            className={`w-full py-3.5 rounded-xl bg-gradient-to-r from-[#014582] to-[#01366a] text-white font-bold text-sm cursor-pointer mt-2.5 flex items-center justify-center gap-2 hover:opacity-90 transition-opacity ${cart.length===0?'opacity-50':''}`}
             disabled={cart.length===0}
             onClick={()=>{ setPayments([{ paymentMethod:'Cash', amount:grandTotal, reference:'' }]); setSaleError(''); setShowCheckout(true); }}
           >
@@ -1364,7 +1380,7 @@ export default function SellScreen({ shift }: { shift: any }) {
             Checkout — ${grandTotal.toFixed(2)}
           </button>
           <button
-            className="w-full py-2.5 rounded-xl border border-white/12 bg-transparent text-gray-400 text-xs cursor-pointer mt-2 hover:bg-white/5 transition-colors"
+            className="w-full py-2.5 rounded-xl border border-gray-200 bg-transparent text-gray-400 text-xs cursor-pointer mt-2 hover:bg-gray-50 transition-colors"
             onClick={holdSale}
             disabled={cart.length===0}
           >
@@ -1375,30 +1391,30 @@ export default function SellScreen({ shift }: { shift: any }) {
 
       {showCheckout && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[150]">
-          <div className="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-7 w-[500px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
-            <h2 className="text-white text-xl font-semibold m-0 mb-5 flex items-center gap-2">
+          <div className="relative bg-white border border-gray-200 shadow-lg rounded-2xl p-7 w-[500px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
+            <h2 className="text-gray-900 text-xl font-semibold m-0 mb-5 flex items-center gap-2">
               <CreditCard className="w-5 h-5" />
               Checkout
             </h2>
 
             {(saleError || chargeError) && (
-              <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-3 text-red-400 text-xs mb-4">
+              <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-3 text-red-600 text-xs mb-4">
                 {saleError || chargeError}
               </div>
             )}
 
-            <div className="bg-white/4 rounded-xl p-3.5 mb-4 max-h-[150px] overflow-y-auto">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 mb-4 max-h-[150px] overflow-y-auto">
               {cart.map(item=>(
                 <div key={item.productId} className="flex justify-between text-xs mb-1.5">
-                  <span className="text-gray-300">{item.productName} × {item.quantity}</span>
-                  <span className="text-white font-semibold">${item.lineTotal.toFixed(2)}</span>
+                  <span className="text-gray-600">{item.productName} × {item.quantity}</span>
+                  <span className="text-gray-900 font-semibold">${item.lineTotal.toFixed(2)}</span>
                 </div>
               ))}
             </div>
 
-            <div className="border-t border-white/10 pt-3 mb-4">
+            <div className="border-t border-gray-200 pt-3 mb-4">
               {overallDiscount > 0 && (
-                <div className="flex justify-between text-yellow-400 text-xs mb-1">
+                <div className="flex justify-between text-amber-600 text-xs mb-1">
                   <span>Discount ({overallDiscount}%)</span><span>-${discountTotal.toFixed(2)}</span>
                 </div>
               )}
@@ -1407,8 +1423,8 @@ export default function SellScreen({ shift }: { shift: any }) {
                   <span>{taxContext?.regime || 'Tax'}{pricingModel === 'inclusive' ? ' (incl.)' : ''}</span><span>${taxTotal.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-white text-xl font-bold">
-                <span>Total</span><span className="text-[#f59e0b]">${grandTotal.toFixed(2)}</span>
+              <div className="flex justify-between text-gray-900 text-xl font-bold">
+                <span>Total</span><span className="text-[#014582]">${grandTotal.toFixed(2)}</span>
               </div>
             </div>
 
@@ -1418,7 +1434,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                 <label className="text-gray-400 text-xs">Payment</label>
                 <button
                   onClick={addPayment}
-                  className="bg-transparent border border-[#f59e0b]/40 text-[#f59e0b] rounded-lg px-2.5 py-1 cursor-pointer text-xs"
+                  className="bg-transparent border border-[#014582]/40 text-[#014582] rounded-lg px-2.5 py-1 cursor-pointer text-xs"
                 >
                   + Split
                 </button>
@@ -1429,7 +1445,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                     <select
                       value={pmt.paymentMethod}
                       onChange={e=>updatePayment(i,'paymentMethod',e.target.value)}
-                      className="flex-1 bg-white/6 border border-white/12 rounded-lg px-3 py-2 text-white text-xs outline-none"
+                      className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-xs outline-none"
                     >
                       {PAYMENT_METHODS.map(m=><option key={m} value={m}>{m}</option>)}
                     </select>
@@ -1440,11 +1456,11 @@ export default function SellScreen({ shift }: { shift: any }) {
                       min="0"
                       step="0.01"
                       disabled={!!pmt.terminalApproved}
-                      className="w-24 bg-white/6 border border-white/12 rounded-lg px-2 py-2 text-white text-xs outline-none disabled:opacity-60"
+                      className="w-24 bg-white border border-gray-200 rounded-lg px-2 py-2 text-gray-900 text-xs outline-none disabled:opacity-60"
                       placeholder="Amount"
                     />
                     {payments.length > 1 && (
-                      <button onClick={()=>removePayment(i)} className="bg-transparent border-none text-red-400 cursor-pointer text-sm">
+                      <button onClick={()=>removePayment(i)} className="bg-transparent border-none text-red-600 cursor-pointer text-sm">
                         <X className="w-4 h-4" />
                       </button>
                     )}
@@ -1452,7 +1468,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                   {methodNeedsPaymentDevice(pmt.paymentMethod) && (
                     <div className="mt-1.5 flex items-center justify-between gap-2">
                       {pmt.terminalApproved ? (
-                        <span className="text-green-400 text-[11px] font-semibold">
+                        <span className="text-emerald-600 text-[11px] font-semibold">
                           Approved{pmt.cardLast4 ? ` · ****${pmt.cardLast4}` : ''}{pmt.entryMode ? ` · ${pmt.entryMode}` : ''}
                         </span>
                       ) : (
@@ -1471,7 +1487,7 @@ export default function SellScreen({ shift }: { shift: any }) {
               ))}
               <button
                 onClick={setExactAmount}
-                className="w-full py-2 rounded-lg border border-dashed border-[#f59e0b]/40 bg-transparent text-[#f59e0b] cursor-pointer text-xs mt-1 hover:bg-[#f59e0b]/5 transition-colors"
+                className="w-full py-2 rounded-lg border border-dashed border-[#014582]/40 bg-transparent text-[#014582] cursor-pointer text-xs mt-1 hover:bg-[#014582]/5 transition-colors"
               >
                 💡 Set exact amount: ${grandTotal.toFixed(2)}
               </button>
@@ -1484,10 +1500,10 @@ export default function SellScreen({ shift }: { shift: any }) {
                   ? 'bg-green-500/10 border-green-500/20'
                   : 'bg-red-500/10 border-red-500/20'
               }`}>
-                <span className={`${changeDue>=0?'text-green-400':'text-red-400'} font-semibold text-sm`}>
+                <span className={`${changeDue>=0?'text-emerald-600':'text-red-600'} font-semibold text-sm`}>
                   {changeDue>=0?'Change Due':'Still Owed'}
                 </span>
-                <span className={`${changeDue>=0?'text-green-400':'text-red-400'} font-bold text-lg`}>
+                <span className={`${changeDue>=0?'text-emerald-600':'text-red-600'} font-bold text-lg`}>
                   ${Math.abs(changeDue).toFixed(2)}
                 </span>
               </div>
@@ -1496,7 +1512,7 @@ export default function SellScreen({ shift }: { shift: any }) {
             <div className="flex gap-3">
               <button
                 onClick={()=>setShowCheckout(false)}
-                className="flex-1 py-3 rounded-lg bg-transparent border border-white/12 text-gray-400 text-sm cursor-pointer"
+                className="flex-1 py-3 rounded-lg bg-transparent border border-gray-200 text-gray-400 text-sm cursor-pointer"
               >
                 Cancel
               </button>
@@ -1524,18 +1540,18 @@ export default function SellScreen({ shift }: { shift: any }) {
             <div className="absolute inset-0 bg-black/80 rounded-2xl flex items-center justify-center p-6">
               <div className="text-center max-w-sm">
                 <div className="mx-auto mb-4 w-16 h-16 rounded-full border-2 border-[#014582] flex items-center justify-center animate-pulse">
-                  <Nfc className="w-8 h-8 text-sky-300" />
+                  <Nfc className="w-8 h-8 text-sky-700" />
                 </div>
-                <p className="text-white text-lg font-semibold m-0">Present card on {loadPosSettings().paymentTerminalModel}</p>
-                <p className="text-[#f59e0b] text-2xl font-bold mt-2 mb-1">
+                <p className="text-gray-900 text-lg font-semibold m-0">Present card on {loadPosSettings().paymentTerminalModel}</p>
+                <p className="text-[#014582] text-2xl font-bold mt-2 mb-1">
                   ${(payments[chargingIndex]?.amount || grandTotal).toFixed(2)}
                 </p>
                 <p className="text-gray-400 text-xs mb-5">Chip, tap or swipe — waiting for the payment device</p>
-                {chargeError ? <p className="text-red-400 text-xs mb-3">{chargeError}</p> : null}
+                {chargeError ? <p className="text-red-600 text-xs mb-3">{chargeError}</p> : null}
                 <button
                   type="button"
                   onClick={() => { void cancelPaymentTerminalSale(); setChargingIndex(null); }}
-                  className="px-4 py-2 rounded-lg border border-white/20 text-gray-300 text-xs"
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-xs"
                 >
                   Cancel on terminal
                 </button>
@@ -1559,16 +1575,16 @@ export default function SellScreen({ shift }: { shift: any }) {
       {/* Add Customer Modal */}
       {showAddCustomerModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
+          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                  <User className="w-5 h-5 text-[#f59e0b]" />
+                <h3 className="text-gray-900 font-bold text-lg flex items-center gap-2">
+                  <User className="w-5 h-5 text-[#014582]" />
                   Add New Customer
                 </h3>
                 <button
                   onClick={() => setShowAddCustomerModal(false)}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="text-gray-400 hover:text-gray-900 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1581,7 +1597,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                     type="text"
                     value={newCustomer.name}
                     onChange={(e) => setNewCustomer(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-white/6 border border-white/12 rounded-lg px-3 py-2.5 text-white text-xs outline-none focus:border-[#f59e0b] transition-colors"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
                     placeholder="Enter customer name"
                   />
                 </div>
@@ -1592,7 +1608,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                     type="email"
                     value={newCustomer.email}
                     onChange={(e) => setNewCustomer(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full bg-white/6 border border-white/12 rounded-lg px-3 py-2.5 text-white text-xs outline-none focus:border-[#f59e0b] transition-colors"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
                     placeholder="customer@email.com"
                   />
                 </div>
@@ -1603,7 +1619,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                     type="tel"
                     value={newCustomer.phone}
                     onChange={(e) => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full bg-white/6 border border-white/12 rounded-lg px-3 py-2.5 text-white text-xs outline-none focus:border-[#f59e0b] transition-colors"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
                     placeholder="+1 234 567 8900"
                   />
                 </div>
@@ -1614,7 +1630,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                     type="text"
                     value={newCustomer.company}
                     onChange={(e) => setNewCustomer(prev => ({ ...prev, company: e.target.value }))}
-                    className="w-full bg-white/6 border border-white/12 rounded-lg px-3 py-2.5 text-white text-xs outline-none focus:border-[#f59e0b] transition-colors"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
                     placeholder="Company name (optional)"
                   />
                 </div>
@@ -1624,7 +1640,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                   <select
                     value={newCustomer.customerType}
                     onChange={(e) => setNewCustomer(prev => ({ ...prev, customerType: e.target.value as any }))}
-                    className="w-full bg-white/6 border border-white/12 rounded-lg px-3 py-2.5 text-white text-xs outline-none focus:border-[#f59e0b] transition-colors"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
                   >
                     <option value="Individual">Individual</option>
                     <option value="Business">Business</option>
@@ -1642,7 +1658,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                       type="number"
                       value={newCustomer.creditLimit}
                       onChange={(e) => setNewCustomer(prev => ({ ...prev, creditLimit: parseFloat(e.target.value) || 0 }))}
-                      className="w-full bg-white/6 border border-white/12 rounded-lg px-3 py-2.5 text-white text-xs outline-none focus:border-[#f59e0b] transition-colors"
+                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
                       placeholder="0.00"
                       min="0"
                       step="0.01"
@@ -1653,7 +1669,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                     <select
                       value={newCustomer.creditTerms}
                       onChange={(e) => setNewCustomer(prev => ({ ...prev, creditTerms: e.target.value }))}
-                      className="w-full bg-white/6 border border-white/12 rounded-lg px-3 py-2.5 text-white text-xs outline-none focus:border-[#f59e0b] transition-colors"
+                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
                     >
                       <option value="Net 15">Net 15</option>
                       <option value="Net 30">Net 30</option>
@@ -1663,35 +1679,35 @@ export default function SellScreen({ shift }: { shift: any }) {
                   </div>
                 </div>
 
-                <div className="border-t border-white/10 pt-4">
+                <div className="border-t border-gray-200 pt-4">
                   <label className="block text-gray-400 text-xs mb-2">Address</label>
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       type="text"
                       value={newCustomer.address.city}
                       onChange={(e) => setNewCustomer(prev => ({ ...prev, address: { ...prev.address, city: e.target.value } }))}
-                      className="bg-white/6 border border-white/12 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-[#f59e0b] transition-colors"
+                      className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
                       placeholder="City"
                     />
                     <input
                       type="text"
                       value={newCustomer.address.state}
                       onChange={(e) => setNewCustomer(prev => ({ ...prev, address: { ...prev.address, state: e.target.value } }))}
-                      className="bg-white/6 border border-white/12 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-[#f59e0b] transition-colors"
+                      className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
                       placeholder="State"
                     />
                     <input
                       type="text"
                       value={newCustomer.address.postalCode}
                       onChange={(e) => setNewCustomer(prev => ({ ...prev, address: { ...prev.address, postalCode: e.target.value } }))}
-                      className="bg-white/6 border border-white/12 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-[#f59e0b] transition-colors"
+                      className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
                       placeholder="Postal Code"
                     />
                     <input
                       type="text"
                       value={newCustomer.address.country}
                       onChange={(e) => setNewCustomer(prev => ({ ...prev, address: { ...prev.address, country: e.target.value } }))}
-                      className="bg-white/6 border border-white/12 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-[#f59e0b] transition-colors"
+                      className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
                       placeholder="Country"
                     />
                   </div>
@@ -1701,14 +1717,14 @@ export default function SellScreen({ shift }: { shift: any }) {
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={() => setShowAddCustomerModal(false)}
-                  className="flex-1 py-2.5 rounded-lg bg-transparent border border-white/12 text-gray-400 text-sm cursor-pointer hover:bg-white/5 transition-colors"
+                  className="flex-1 py-2.5 rounded-lg bg-transparent border border-gray-200 text-gray-400 text-sm cursor-pointer hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCreateCustomer}
                   disabled={creatingCustomer}
-                  className="flex-[2] py-2.5 rounded-lg bg-gradient-to-r from-[#f59e0b] to-[#d97706] border-none text-white text-sm font-bold cursor-pointer hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-[2] py-2.5 rounded-lg bg-gradient-to-r from-[#014582] to-[#01366a] border-none text-white text-sm font-bold cursor-pointer hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {creatingCustomer ? (
                     <>

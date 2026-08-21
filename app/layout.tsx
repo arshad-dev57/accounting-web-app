@@ -9,6 +9,10 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'Bisonstechs - Business Suite',
   description: 'Bisonstechs warehouse, sales, purchases, POS and accounting management',
+  icons: {
+    icon: '/app-icon.png',
+    apple: '/app-icon.png',
+  },
 };
 
 export default function RootLayout({

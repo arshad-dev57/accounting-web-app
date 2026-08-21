@@ -213,23 +213,77 @@ export function loyaltyPoints(sale: PosReceiptSale, settings: PosSettings) {
   return Math.max(0, Math.floor(Number(sale.grandTotal) || 0) * perUnit);
 }
 
+/** Short CODE128 value — invoice only so bars stay thick and scannable on thermal paper. */
 export function receiptBarcodeValue(sale: PosReceiptSale) {
-  return String(sale.invoiceNumber || 'RECEIPT').replace(/\s+/g, '');
+  return String(sale.invoiceNumber || 'RECEIPT')
+    .replace(/\s+/g, '')
+    .replace(/[^A-Za-z0-9\-_./]/g, '')
+    .slice(0, 32) || 'RECEIPT';
 }
+
+/** Compact receipt payload for QR (short keys, truncated names — denser codes fail on thermal). */
+export function buildReceiptQrPayload(sale: PosReceiptSale, shift?: any) {
+  const meta = resolveReceiptMeta(sale, shift);
+  const when = sale.createdAt ? new Date(sale.createdAt) : new Date();
+  const items = (sale.items || []).slice(0, 25).map((item) => ({
+    n: String(item.productName || 'Item').slice(0, 28),
+    s: item.sku ? String(item.sku).slice(0, 16) : undefined,
+    b: item.barcodeNumber ? String(item.barcodeNumber).slice(0, 20) : undefined,
+    q: Number(item.quantity) || 0,
+    u: Number(item.unitPrice) || 0,
+    d: Number(item.discount) || 0,
+    t: Number(item.taxRate) || 0,
+    l: Number(item.lineTotal) || 0,
+  }));
+  const payments = (sale.payments || []).map((p) => ({
+    m: String(p.paymentMethod || 'Cash').slice(0, 16),
+    a: Number(p.amount) || 0,
+    r: p.reference ? String(p.reference).slice(0, 24) : undefined,
+  }));
+
+  return {
+    v: 1,
+    typ: 'POS',
+    inv: sale.invoiceNumber || '',
+    st: sale.status || 'Completed',
+    dt: when.toISOString().slice(0, 19),
+    cust: String(sale.customerName || 'Walk-in').slice(0, 40),
+    ph: sale.customerPhone ? String(sale.customerPhone).slice(0, 20) : undefined,
+    em: sale.customerEmail ? String(sale.customerEmail).slice(0, 40) : undefined,
+    term: String(meta.terminalCode || meta.terminal || '').slice(0, 20) || undefined,
+    cash: meta.cashier ? String(meta.cashier).slice(0, 30) : undefined,
+    it: items,
+    n: itemCount(sale),
+    sub: Number(sale.subtotal) || 0,
+    disc: Number(sale.discountTotal) || 0,
+    tax: Number(sale.taxTotal) || 0,
+    tot: Number(sale.grandTotal) || 0,
+    paid: Number(sale.paidAmount) || 0,
+    chg: Number(sale.changeAmount) || 0,
+    pay: payments,
+    note: sale.notes ? String(sale.notes).slice(0, 80) : undefined,
+  };
+}
+
+export function receiptQrValue(sale: PosReceiptSale, shift?: any) {
+  return JSON.stringify(buildReceiptQrPayload(sale, shift));
+}
+
+const BARCODE_OPTS = {
+  format: 'CODE128' as const,
+  width: 2.4,
+  height: 64,
+  displayValue: true,
+  fontSize: 13,
+  textMargin: 4,
+  margin: 14,
+  background: '#ffffff',
+  lineColor: '#000000',
+};
 
 export function renderBarcodeSvg(value: string, svg: SVGSVGElement) {
   try {
-    JsBarcode(svg, value, {
-      format: 'CODE128',
-      width: 1.5,
-      height: 46,
-      displayValue: true,
-      fontSize: 11,
-      margin: 0,
-      background: '#ffffff',
-      lineColor: '#111827',
-      fontOptions: 'bold',
-    });
+    JsBarcode(svg, value, BARCODE_OPTS);
   } catch {
     /* ignore invalid barcode values */
   }
@@ -240,18 +294,53 @@ export function barcodePngDataUrl(value: string): string {
   try {
     const canvas = document.createElement('canvas');
     JsBarcode(canvas, value, {
-      format: 'CODE128',
-      width: 2,
-      height: 56,
-      displayValue: true,
-      fontSize: 14,
-      margin: 8,
-      background: '#ffffff',
-      lineColor: '#111827',
+      ...BARCODE_OPTS,
+      width: 2.6,
+      height: 70,
+      margin: 16,
     });
     return canvas.toDataURL('image/png');
   } catch {
     return '';
+  }
+}
+
+const QR_OPTS = {
+  errorCorrectionLevel: 'Q' as const,
+  margin: 3,
+  color: { dark: '#000000', light: '#ffffff' },
+};
+
+export async function receiptQrPngDataUrl(
+  sale: PosReceiptSale,
+  shift?: any,
+  size = 280
+): Promise<string> {
+  if (typeof window === 'undefined') return '';
+  try {
+    const QRCode = (await import('qrcode')).default;
+    return await QRCode.toDataURL(receiptQrValue(sale, shift), {
+      ...QR_OPTS,
+      width: size,
+    });
+  } catch {
+    return '';
+  }
+}
+
+export async function renderReceiptQrCanvas(
+  sale: PosReceiptSale,
+  canvas: HTMLCanvasElement,
+  shift?: any
+) {
+  try {
+    const QRCode = (await import('qrcode')).default;
+    await QRCode.toCanvas(canvas, receiptQrValue(sale, shift), {
+      ...QR_OPTS,
+      width: 220,
+    });
+  } catch {
+    /* ignore */
   }
 }
 
@@ -266,6 +355,22 @@ export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
   clone.querySelectorAll('img').forEach((img) => {
     const src = img.getAttribute('src') || '';
     if (src.startsWith('/')) img.setAttribute('src', `${window.location.origin}${src}`);
+  });
+  // Canvas (QR) does not clone pixels — replace with PNG images for print
+  const sourceCanvases = Array.from(node.querySelectorAll('canvas'));
+  clone.querySelectorAll('canvas').forEach((canvasEl, idx) => {
+    const source = sourceCanvases[idx] as HTMLCanvasElement | undefined;
+    if (!source) return;
+    try {
+      const img = win.document.createElement('img');
+      img.src = source.toDataURL('image/png');
+      img.style.width = `${source.width || 160}px`;
+      img.style.height = `${source.height || 160}px`;
+      img.style.display = 'inline-block';
+      canvasEl.replaceWith(img);
+    } catch {
+      /* ignore */
+    }
   });
 
   win.document.write(`<!DOCTYPE html>
@@ -288,7 +393,8 @@ export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
     .pos-receipt-paper {
       margin: 0 auto !important;
     }
-    img { max-width: 160px; height: auto; display: block; margin: 0 auto; }
+    img.company-logo { max-width: 160px; height: auto; display: block; margin: 0 auto; }
+    img.receipt-qr { width: 48mm !important; height: 48mm !important; max-width: 48mm !important; image-rendering: pixelated; display: block; margin: 8px auto; }
     table { width: 100%; border-collapse: collapse; }
     svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
   </style>
@@ -436,11 +542,17 @@ export async function downloadPosReceiptPdf(opts: {
   if (template.showBarcode) {
     const barcode = barcodePngDataUrl(receiptBarcodeValue(sale));
     if (barcode) {
-      const barcodeW = Math.min(inner, 62);
-      doc.addImage(barcode, 'PNG', (width - barcodeW) / 2, y, barcodeW, 18);
-      y += 22;
+      const barcodeW = Math.min(inner, 72);
+      doc.addImage(barcode, 'PNG', (width - barcodeW) / 2, y, barcodeW, 22);
+      y += 26;
     }
-    center('Scan barcode to look up this receipt', 6);
+    const qr = await receiptQrPngDataUrl(sale, undefined, 360);
+    if (qr) {
+      const qrSize = Math.min(48, inner);
+      doc.addImage(qr, 'PNG', (width - qrSize) / 2, y, qrSize, qrSize);
+      y += qrSize + 4;
+    }
+    center('Barcode = receipt #  ·  QR = sale details', 6);
   }
   dash();
   if (template.receiptReturnPolicy) {

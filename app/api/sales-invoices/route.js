@@ -12,6 +12,7 @@ export async function GET(request) {
     const paymentStatus = searchParams.get('paymentStatus') || 'all';
     const fromDate = searchParams.get('fromDate') || '';
     const toDate = searchParams.get('toDate') || '';
+    const locationId = searchParams.get('locationId') || '';
 
     const token = request.headers.get('authorization');
     const headers = {};
@@ -25,6 +26,7 @@ export async function GET(request) {
     if (paymentStatus !== 'all') params.paymentStatus = paymentStatus;
     if (fromDate) params.fromDate = fromDate;
     if (toDate) params.toDate = toDate;
+    if (locationId) params.locationId = locationId;
 
     const response = await axios.get(`${BACKEND_URL}/api/sales/invoices`, {
       headers,

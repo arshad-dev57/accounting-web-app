@@ -33,6 +33,7 @@ import {
 import { usePermissions } from '../../../lib/usePermissions';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
+import { useLocation } from '@/lib/location-context';
 
 type TrendPoint = {
   date: string;
@@ -184,6 +185,7 @@ export default function SalesDashboardPage() {
   const [periodLabel, setPeriodLabel] = useState('This Year');
   const [period, setPeriod] = useState('year');
   const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
+  const { selectedLocationId } = useLocation();
 
   const canSeeCredits = isAdmin || hasSubPageAccess('sales', 'credits');
 
@@ -195,6 +197,7 @@ export default function SalesDashboardPage() {
       const fyId = selectedFiscalYearId || getStoredFiscalYearId() || '';
       const qs = new URLSearchParams({ period: p });
       if (fyId) qs.set('fiscalYearId', fyId);
+      if (selectedLocationId) qs.set('locationId', selectedLocationId);
 
       const response = await fetch(`/api/sales/dashboard?${qs.toString()}`, {
         headers: {
@@ -216,7 +219,7 @@ export default function SalesDashboardPage() {
   useEffect(() => {
     fetchDashboard(period);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFiscalYearId]);
+  }, [selectedFiscalYearId, selectedLocationId]);
 
   const selectPeriod = (label: string, value: string) => {
     if (loading || refreshing) return;
@@ -832,7 +835,7 @@ export default function SalesDashboardPage() {
             description="View customers"
             icon={Users}
             color="bg-amber-50 text-amber-600"
-            onClick={() => router.push('/warehouse/customers')}
+            onClick={() => router.push('/sales/customers')}
           />
           <QuickAction
             label="Sales Reports"

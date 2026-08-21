@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { accountsReceivableService, Customer, Summary, BankAccount, Invoice } from '../../api/account-recievables/route';
 import { toast } from 'react-hot-toast';
+import { useLocation } from '../../../lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ interface FilterState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export default function AccountsReceivablePage() {
+  const { locationIdForApi } = useLocation();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -105,6 +107,7 @@ export default function AccountsReceivablePage() {
         limit: pagination.limit,
         search: searchTerm || undefined,
         filter: filter.status !== 'All' ? filter.status : undefined,
+        locationId: locationIdForApi || undefined,
         refresh: resetPage // Force refresh on initial load
       });
 
@@ -135,7 +138,7 @@ export default function AccountsReceivablePage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, searchTerm, pagination.page, pagination.limit]);
+  }, [filter, searchTerm, pagination.page, pagination.limit, locationIdForApi]);
 
   // ─── Fetch Bank Accounts ─────────────────────────────────────
 
@@ -152,12 +155,14 @@ export default function AccountsReceivablePage() {
 
   const fetchSummary = useCallback(async () => {
     try {
-      const data = await accountsReceivableService.getSummary();
+      const data = await accountsReceivableService.getSummary({
+        locationId: locationIdForApi || undefined,
+      });
       setSummary(data);
     } catch (error) {
       console.error('Failed to fetch summary:', error);
     }
-  }, []);
+  }, [locationIdForApi]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -170,7 +175,8 @@ export default function AccountsReceivablePage() {
         page: nextPage,
         limit: pagination.limit,
         search: searchTerm || undefined,
-        filter: filter.status !== 'All' ? filter.status : undefined
+        filter: filter.status !== 'All' ? filter.status : undefined,
+        locationId: locationIdForApi || undefined,
       });
 
       // Ensure invoices is always an array for new items
@@ -187,7 +193,7 @@ export default function AccountsReceivablePage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm, locationIdForApi]);
 
   // ─── Initial Fetch ──────────────────────────────────────────
 
@@ -195,7 +201,7 @@ export default function AccountsReceivablePage() {
     fetchBankAccounts();
     fetchSummary();
     fetchCustomers(true);
-  }, []);
+  }, [locationIdForApi]);
 
   // ─── Search ──────────────────────────────────────────────────
 

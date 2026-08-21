@@ -13,9 +13,10 @@ import {
   Ban, Filter, ArrowUpDown, ClipboardList,
   Truck, Home, Store, CreditCard, Banknote,
   CircleCheck, CircleX, CircleAlert,
-  Receipt, ShoppingCart
+  Receipt, ShoppingCart, MapPin
 } from 'lucide-react';
 import { salesReturnService, ReturnModel, ReturnStats, OrderModel, ReturnLineDraft } from '../../api/salesretuns/route';
+import { useLocation } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -36,6 +37,7 @@ interface WizardState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export default function SalesReturnsPage() {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [returns, setReturns] = useState<ReturnModel[]>([]);
   const [filteredReturns, setFilteredReturns] = useState<ReturnModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,8 +69,10 @@ export default function SalesReturnsPage() {
   const [viewingReturn, setViewingReturn] = useState<ReturnModel | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [returnToActOn, setReturnToActOn] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [cancelReason, setCancelReason] = useState('');
 
   // ─── Wizard State ─────────────────────────────────────────────
   const [wizardState, setWizardState] = useState<WizardState>({
@@ -117,7 +121,8 @@ export default function SalesReturnsPage() {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         type: typeFilter !== 'all' ? typeFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setReturns(response.data || []);
@@ -132,7 +137,7 @@ export default function SalesReturnsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, typeFilter, fromDate, toDate, pagination.page, pagination.limit]);
+  }, [searchTerm, statusFilter, typeFilter, fromDate, toDate, pagination.page, pagination.limit, selectedLocationId]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -148,7 +153,8 @@ export default function SalesReturnsPage() {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         type: typeFilter !== 'all' ? typeFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setReturns(prev => [...prev, ...(response.data || [])]);
@@ -159,7 +165,7 @@ export default function SalesReturnsPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, typeFilter, fromDate, toDate]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, typeFilter, fromDate, toDate, selectedLocationId]);
 
   // ─── Apply Local Filters ────────────────────────────────────
 
@@ -185,6 +191,11 @@ export default function SalesReturnsPage() {
   useEffect(() => {
     fetchReturns(true);
   }, []);
+
+  useEffect(() => {
+    fetchReturns(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLocationId]);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -263,7 +274,7 @@ export default function SalesReturnsPage() {
     }
     setWizardState(prev => ({ ...prev, isSearchingOrders: true }));
     try {
-      const results = await salesReturnService.searchOrders(query);
+      const results = await salesReturnService.searchOrders(query, 10, selectedLocationId || undefined);
       setWizardState(prev => ({ ...prev, orderSearchResults: results }));
     } catch (error) {
       console.error('Failed to search orders:', error);
@@ -470,6 +481,24 @@ export default function SalesReturnsPage() {
     }
   };
 
+  const handleCancelReturn = async () => {
+    if (!returnToActOn) return;
+    setSubmitting(true);
+    try {
+      await salesReturnService.cancelReturn(returnToActOn, cancelReason || 'Cancelled by user');
+      setShowCancelConfirm(false);
+      setReturnToActOn(null);
+      setCancelReason('');
+      setViewingReturn(null);
+      fetchReturns(true);
+    } catch (error: any) {
+      console.error('Failed to cancel return:', error);
+      alert(error.message || 'Failed to cancel return');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleDeleteReturn = async () => {
     if (!returnToActOn) return;
     setSubmitting(true);
@@ -595,6 +624,19 @@ export default function SalesReturnsPage() {
               </button>
             </div>
           </div>
+
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <strong>Flow:</strong> Create return → <strong>Approve</strong> → <strong>Complete</strong> to restock inventory and post GL entries.
+            For cash back, create a refund from Sales Refunds and mark it <strong>Complete</strong>.
+          </div>
+
+          {selectedLocation && (
+            <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+              <MapPin className="w-4 h-4 flex-shrink-0" />
+              Showing returns for <strong>{selectedLocation.name}</strong>
+              <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+            </div>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
@@ -820,6 +862,18 @@ export default function SalesReturnsPage() {
                                 <CheckCircle className="w-4 h-4" />
                               </button>
                             )}
+                            {(returnItem.returnStatus === 'Pending' || returnItem.returnStatus === 'Approved') && (
+                              <button
+                                onClick={() => {
+                                  setReturnToActOn(returnItem.id);
+                                  setShowCancelConfirm(true);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                title="Cancel"
+                              >
+                                <Ban className="w-4 h-4" />
+                              </button>
+                            )}
                             {returnItem.returnStatus === 'Cancelled' && (
                               <button
                                 onClick={() => {
@@ -902,6 +956,11 @@ export default function SalesReturnsPage() {
             setViewingReturn(null);
           }}
           onComplete={handleCompleteReturn}
+          onCancel={(id: string) => {
+            setReturnToActOn(id);
+            setShowCancelConfirm(true);
+            setViewingReturn(null);
+          }}
           onDelete={(id) => {
             setReturnToActOn(id);
             setShowDeleteConfirm(true);
@@ -938,6 +997,35 @@ export default function SalesReturnsPage() {
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none resize-none"
+              />
+            </div>
+          }
+        />
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <ConfirmationModal
+          title="Cancel Return"
+          message="Are you sure you want to cancel this return? This action cannot be undone."
+          confirmLabel="Cancel Return"
+          confirmColor="bg-red-500 hover:bg-red-600"
+          onConfirm={handleCancelReturn}
+          onCancel={() => {
+            setShowCancelConfirm(false);
+            setReturnToActOn(null);
+            setCancelReason('');
+          }}
+          loading={submitting}
+          extraContent={
+            <div className="mt-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Reason (Optional)</label>
+              <input
+                type="text"
+                placeholder="Enter reason for cancellation"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
               />
             </div>
           }
@@ -1337,6 +1425,7 @@ function ReturnDetailModal({
   onApprove,
   onReject,
   onComplete,
+  onCancel,
   onDelete,
   formatCurrency,
   formatDate,
@@ -1453,17 +1542,31 @@ function ReturnDetailModal({
               >
                 Reject
               </button>
+              <button
+                onClick={() => onCancel(returnItem.id)}
+                disabled={submitting}
+                className="flex-1 px-4 py-2.5 border border-red-500 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
             </div>
           )}
 
           {returnItem.returnStatus === 'Approved' && (
-            <div className="border-t border-gray-100 pt-4 mt-4">
+            <div className="border-t border-gray-100 pt-4 mt-4 flex gap-3">
               <button
                 onClick={() => onComplete(returnItem.id)}
                 disabled={submitting}
-                className="w-full px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-all disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-all disabled:opacity-50"
               >
                 Complete Return
+              </button>
+              <button
+                onClick={() => onCancel(returnItem.id)}
+                disabled={submitting}
+                className="flex-1 px-4 py-2.5 border border-red-500 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
+              >
+                Cancel
               </button>
             </div>
           )}

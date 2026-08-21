@@ -603,7 +603,7 @@ export default function CategoriesPage() {
       alert('Invalid category ID');
       return;
     }
-    if (!confirm('Delete this category? All subcategories will also be removed.')) return;
+    if (!confirm('Permanently delete this category? All subcategories will also be removed. This cannot be undone.')) return;
     try {
       await categoryService.deleteCategory(id);
       await fetchCategories();
@@ -642,7 +642,7 @@ export default function CategoriesPage() {
       alert('Invalid subcategory ID');
       return;
     }
-    if (!confirm('Delete this subcategory?')) return;
+    if (!confirm('Permanently delete this subcategory? This cannot be undone.')) return;
     try {
       await categoryService.deleteCategory(subId);
       await fetchCategories();

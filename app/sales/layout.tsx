@@ -29,16 +29,18 @@ import {
 import { usePermissions } from '../../lib/usePermissions';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import FiscalYearSelect from '../../components/FiscalYearSelect';
+import LocationSelect from '../../components/LocationSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
+import { LocationProvider } from '../../lib/location-context';
 
 // ============================================================
 // SALES SIDEBAR
 // ============================================================
 function SalesSidebar() {
   const pathname = usePathname();
-  const { hasSubPageAccess, hasModuleAccess, isAdmin } = usePermissions();
+  const { hasSubPageAccess, hasModuleAccess, hasPermission, isAdmin } = usePermissions();
   
   const [expandedSections, setExpandedSections] = React.useState({
     salesCore: true,
@@ -59,7 +61,7 @@ function SalesSidebar() {
   const salesPages = [
     { path: '/sales/dashboard', label: 'Sales Dashboard', permission: 'dashboard' },
     { path: '/sales/reports', label: 'Sales Reports', permission: 'dashboard' },
-    { path: '/products', label: 'Products', permission: 'products' },
+    { path: '/sales/products', label: 'Products', permission: 'products' },
     { path: '/sales/orders', label: 'Sales Orders', permission: 'orders' },
     { path: '/sales/customers', label: 'Customers', permission: 'customers' },
     { path: '/sales/deliveries', label: 'Sales Deliveries', permission: 'deliveries' },
@@ -81,9 +83,21 @@ function SalesSidebar() {
   ];
 
   // Filter pages based on permissions
-  const filteredSalesPages = salesPages.filter(page => 
-    isAdmin || hasSubPageAccess('sales', page.permission)
-  );
+  // Customers are core to sales — show if user has sales-customers OR sales module/orders access
+  const filteredSalesPages = salesPages.filter((page) => {
+    if (isAdmin) return true;
+    if (page.permission === 'customers') {
+      return (
+        hasSubPageAccess('sales', 'customers') ||
+        hasSubPageAccess('sales', 'orders') ||
+        hasPermission('sales-customers') ||
+        hasPermission('customers') ||
+        hasPermission('warehouse-customers') ||
+        hasModuleAccess('sales')
+      );
+    }
+    return hasSubPageAccess('sales', page.permission);
+  });
   
   const filteredReturnsRefundsPages = returnsRefundsPages.filter(page => 
     isAdmin || hasSubPageAccess('sales', page.permission)
@@ -328,6 +342,7 @@ export default function SalesLayout({
 }) {
   return (
     <FiscalYearProvider>
+      <LocationProvider>
       <SalesSidebar />
 
       <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
@@ -339,6 +354,7 @@ export default function SalesLayout({
           />
 
           <div className="flex items-center gap-4">
+            <LocationSelect showManageLink={false} />
             <FiscalYearSelect />
 
             <div className="w-px h-6 bg-gray-200" />
@@ -356,7 +372,6 @@ export default function SalesLayout({
 
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4 text-[#014582]" />
-              <span>Call Us: 03 111 006 555</span>
             </div>
 
             <div className="w-px h-6 bg-gray-200" />
@@ -370,6 +385,7 @@ export default function SalesLayout({
           {children}
         </div>
       </div>
+      </LocationProvider>
     </FiscalYearProvider>
   );
 }

@@ -6,6 +6,8 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const timePeriod = searchParams.get('timePeriod') || 'This Month';
+    const locationId = searchParams.get('locationId');
+    const fiscalYearId = searchParams.get('fiscalYearId');
 
     // Get token from cookies
     const token = request.cookies.get('auth_token')?.value;
@@ -20,7 +22,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/dashboard/summary?timePeriod=${timePeriod}`, {
+    const qs = new URLSearchParams({ timePeriod });
+    if (locationId) qs.set('locationId', locationId);
+    if (fiscalYearId) qs.set('fiscalYearId', fiscalYearId);
+
+    const response = await fetch(`${API_BASE_URL}/api/dashboard/summary?${qs.toString()}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

@@ -1,18 +1,16 @@
 'use client';
 
 import React from 'react';
+import { LocationProvider } from '../../lib/location-context';
 
-// ============================================================
-// POS LAYOUT
-// ============================================================
-export default function POSLayout({
+export default function POSRootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen">
-      {children}
-    </div>
+    <LocationProvider allowAll>
+      <div className="min-h-screen">{children}</div>
+    </LocationProvider>
   );
 }

@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Mail, Lock, Eye, EyeOff, LogIn, CheckCircle2 } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const resetSuccess = searchParams.get('reset') === 'success';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -40,41 +43,20 @@ export default function LoginPage() {
   };
 
   const handleLogin = async (email: string, password: string) => {
-    try {
-      console.log('� [Login Page] Starting login process');
-      console.log('📧 [Login Page] Email:', email);
-      console.log('🔑 [Login Page] Password length:', password.length);
-      
-      // ✅ Backend route k
-      // e mutabiq sahi URL
-      console.log('📤 [Login Page] Sending request to backend: http://localhost:5000/api/users/login');
-      const response = await fetch('http://localhost:5000/api/users/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+    const response = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
 
-      console.log('📥 [Login Page] Response status:', response.status);
-      const data = await response.json();
-      console.log('� [Login Page] Response data:', data);
-      console.log('✅ [Login Page] Login success:', data.success);
-      console.log('🔐 [Login Page] Requires OTP:', data.requiresOtp);
+    const data = await response.json();
 
-      if (data.success === true) {
-        console.log('✅ [Login Page] Redirecting to OTP page');
-        // OTP page par redirect
-        window.location.replace(`/login-otp?email=${encodeURIComponent(email)}`);
-        return;
-      }
-
-      console.log('❌ [Login Page] Login failed:', data.message);
-      throw new Error(data.message || 'Invalid email or password');
-      
-    } catch (error: any) {
-      console.error('❌ [Login Page] Login Error:', error);
-      console.error('❌ [Login Page] Error message:', error.message);
-      throw new Error(error.message || 'Login failed. Please try again.');
+    if (response.ok && data.success) {
+      window.location.replace(`/login-otp?email=${encodeURIComponent(email)}`);
+      return;
     }
+
+    throw new Error(data.message || 'Invalid email or password');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -168,6 +150,13 @@ export default function LoginPage() {
           <h2 className="text-3xl font-bold text-gray-800 mb-1">Welcome Back!</h2>
           <p className="text-gray-500 text-sm mb-8">Sign in to continue to Bisonstechs</p>
 
+          {resetSuccess && (
+            <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm font-medium flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              Password reset successfully. Please sign in with your new password.
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} noValidate>
             {/* Email Field */}
             <div className="mb-5">
@@ -218,9 +207,12 @@ export default function LoginPage() {
 
             {/* Forgot Password */}
             <div className="text-right mb-6">
-              <button type="button" className="text-sm text-blue-600 hover:text-blue-700 font-semibold">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-blue-600 hover:text-blue-700 font-semibold"
+              >
                 Forgot Password?
-              </button>
+              </Link>
             </div>
 
             {/* Submit Button */}
@@ -259,5 +251,19 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

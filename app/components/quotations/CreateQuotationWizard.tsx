@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { QuotationLineDraft, Customer, Product } from '@/lib/types/quotation';
 import TaxRateSelect from '../../../components/TaxRateSelect';
+import { useLocationOptional } from '@/lib/location-context';
 
 interface CreateQuotationWizardProps {
   onClose: () => void;
@@ -22,6 +23,7 @@ interface CreateQuotationWizardProps {
 }
 
 export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuotationWizardProps) {
+  const { selectedLocationId } = useLocationOptional();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -99,7 +101,13 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
           headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`/api/product/search?q=${encodeURIComponent(productSearch)}&limit=10`, {
+        const params = new URLSearchParams({
+          q: productSearch,
+          limit: '10',
+        });
+        if (selectedLocationId) params.append('locationId', selectedLocationId);
+
+        const response = await fetch(`/api/product/search?${params.toString()}`, {
           headers,
         });
         const result = await response.json();
@@ -116,7 +124,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
 
     const debounceTimer = setTimeout(searchProducts, 300);
     return () => clearTimeout(debounceTimer);
-  }, [productSearch]);
+  }, [productSearch, selectedLocationId]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PK', {
@@ -257,6 +265,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
         notes: notes || null,
         termsConditions: termsConditions || null,
         status: 'Draft',
+        ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
       };
 
       const token = localStorage.getItem('auth_token');

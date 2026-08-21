@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').trim();
 
 function toNum(v: unknown) {
   const n = Number(v);
@@ -94,7 +94,10 @@ export async function GET(request: NextRequest) {
     const qs = new URLSearchParams({ period });
     if (startDate) qs.set('startDate', startDate);
     if (endDate) qs.set('endDate', endDate);
+    const locationId = searchParams.get('locationId');
+    if (locationId) qs.set('locationId', locationId);
     const emptyQs = new URLSearchParams();
+    if (locationId) emptyQs.set('locationId', locationId);
 
     // Same parallel fetches as Flutter WarehouseDashboardController
     const [

@@ -161,7 +161,7 @@ function SupplierList({
                 </tr>
               ) : (
                 suppliers.map((supplier) => (
-                  <tr key={supplier._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => onViewClick(supplier)}>
+                  <tr key={supplier.id || supplier._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => onViewClick(supplier)}>
                     <td className="px-6 py-3 font-mono text-xs text-gray-600 font-semibold">{supplier.code || 'N/A'}</td>
                     <td className="px-6 py-3 font-medium text-gray-800">{supplier.name}</td>
                     <td className="px-6 py-3 text-gray-600">{supplier.companyName || '-'}</td>
@@ -192,7 +192,7 @@ function SupplierList({
                           <Edit className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => onDeleteClick(supplier._id!)}
+                          onClick={() => onDeleteClick((supplier.id || supplier._id)!)}
                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" 
                           title="Delete"
                         >
@@ -363,8 +363,8 @@ function SupplierForm({
     setError('');
 
     try {
-      if (supplier?._id) {
-        await supplierService.updateSupplier(supplier._id, formData);
+      if (supplier?.id || supplier?._id) {
+        await supplierService.updateSupplier((supplier.id || supplier._id)!, formData);
       } else {
         await supplierService.createSupplier(formData);
       }
@@ -376,7 +376,7 @@ function SupplierForm({
     }
   };
 
-  const isEditing = !!supplier?._id;
+  const isEditing = !!(supplier?.id || supplier?._id);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -686,7 +686,7 @@ export default function SuppliersPage() {
   });
   const [kpi, setKpi] = useState({ total: 0, active: 0, inactive: 0 });
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active');
   const [showForm, setShowForm] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | undefined>(undefined);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null); // for details modal
@@ -701,15 +701,15 @@ export default function SuppliersPage() {
         status: statusFilter,
       });
       setSuppliers(result.data || []);
-      setPagination(result.pagination);
-      setKpi(result.kpi);
+      if (result.pagination) setPagination((prev) => ({ ...prev, ...result.pagination }));
+      if (result.kpi) setKpi(result.kpi);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
       setSuppliers([]);
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, searchTerm, statusFilter]);
+  }, [pagination.page, pagination.limit, searchTerm, statusFilter]);
 
   useEffect(() => {
     fetchSuppliers();
@@ -744,12 +744,25 @@ export default function SuppliersPage() {
   };
 
   const handleDeleteClick = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this supplier?')) return;
-    
+    const supplierId = String(id || '').trim();
+    if (!supplierId) {
+      alert('Invalid supplier id');
+      return;
+    }
+    if (!confirm('Permanently delete this supplier? This cannot be undone.')) {
+      return;
+    }
+
     try {
-      await supplierService.deleteSupplier(id);
+      const result = await supplierService.deleteSupplier(supplierId);
+      // Remove from current list immediately
+      setSuppliers((prev) =>
+        prev.filter((s) => String(s.id || s._id) !== supplierId)
+      );
+      alert(result.message || 'Supplier deleted');
       fetchSuppliers();
     } catch (error: any) {
+      console.error('Delete supplier failed:', error);
       alert(error.message || 'Failed to delete supplier');
     }
   };

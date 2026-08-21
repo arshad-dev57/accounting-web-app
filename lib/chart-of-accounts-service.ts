@@ -94,7 +94,7 @@ export const chartOfAccountService = {
         data.pagination?.total ?? data.totalCount ?? data.stats?.total ?? accounts.length
       );
       const pages = Number(
-        data.pagination?.pages ?? Math.max(1, Math.ceil(total / limit) || 1)
+        data.pagination?.pages ?? (Math.max(1, Math.ceil(total / limit) || 1))
       );
       const currentPage = Number(data.pagination?.page ?? page);
       const stats = {

@@ -14,6 +14,7 @@ import {
 import { balanceSheetService, BalanceSheetData, BalanceSheetCategory } from '../../api/balance-sheet/route';
 import { toast } from 'react-hot-toast';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
+import { useLocation } from '../../../lib/location-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -31,6 +32,7 @@ export default function BalanceSheetPage() {
   const [currencySymbol, setCurrencySymbol] = useState('Rs.');
   const [selectedPeriod, setSelectedPeriod] = useState('All Time');
   const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
+  const { locationIdForApi } = useLocation();
 
   const periodOptions: PeriodOption[] = [
     { label: 'All Time', value: 'All Time' },
@@ -70,6 +72,9 @@ export default function BalanceSheetPage() {
       if (selectedFiscalYearId) {
         params.fiscalYearId = selectedFiscalYearId;
       }
+      if (locationIdForApi) {
+        params.locationId = locationIdForApi;
+      }
 
       const data = await balanceSheetService.getReport(params);
       setReportData(data);
@@ -79,7 +84,7 @@ export default function BalanceSheetPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedPeriod, selectedFiscalYearId]);
+  }, [selectedPeriod, selectedFiscalYearId, locationIdForApi]);
 
   useEffect(() => {
     fetchReport();

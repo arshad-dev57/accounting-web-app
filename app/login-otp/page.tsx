@@ -100,6 +100,10 @@ function OtpContent() {
           apiClient.setTokens(data.token, data.refreshToken);
         }
 
+        // Marketing site (bisonstechs.com) session bridge
+        const { setMarketingLoggedInFlag } = await import('../../lib/marketing-session');
+        setMarketingLoggedInFlag();
+
         // ✅ Save complete user data with permissions to localStorage (Flutter PermissionService parity)
         if (data.user) {
           const saved = saveUserToLocal(data.user);

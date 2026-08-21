@@ -25,6 +25,7 @@ import {
   Banknote as BanknoteIcon, CreditCard
 } from 'lucide-react';
 import { bankAccountService, BankAccount, BankAccountStats } from '../../api/bankAccounts/route';
+import { chartOfAccountService } from '@/lib/chart-of-accounts-service';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -490,8 +491,19 @@ function CreateAccountForm({
     branchCode: '',
     accountType: 'Current',
     currency: 'PKR',
-    openingBalance: 0
+    openingBalance: 0,
+    offsetType: 'source_account',
+    sourceAccountId: ''
   });
+
+  const [sourceAccounts, setSourceAccounts] = useState<{ id: string; code: string; name: string }[]>([]);
+
+  useEffect(() => {
+    chartOfAccountService
+      .getAccounts({ type: 'Asset', limit: 100 })
+      .then((res) => setSourceAccounts(res.data || []))
+      .catch(() => setSourceAccounts([]));
+  }, []);
 
   const [error, setError] = useState('');
   const accountTypes = ['Current', 'Savings', 'Business', 'Islamic'];

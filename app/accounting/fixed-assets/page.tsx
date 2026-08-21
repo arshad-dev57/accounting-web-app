@@ -590,8 +590,10 @@ export default function FixedAssetsPage() {
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-sm md:text-base font-bold text-green-600">{formatCurrency(asset.netBookValue)}</p>
-                          <p className="text-[10px] md:text-xs text-gray-400">NBV</p>
+                          <p className="text-sm md:text-base font-bold text-[#014582]">{formatCurrency(asset.purchaseCost)}</p>
+                          <p className="text-[10px] md:text-xs text-gray-400">Purchase cost</p>
+                          <p className="text-xs md:text-sm font-semibold text-green-600 mt-1">{formatCurrency(asset.netBookValue)}</p>
+                          <p className="text-[10px] md:text-xs text-gray-400">Book value</p>
                         </div>
                       </div>
                     </div>

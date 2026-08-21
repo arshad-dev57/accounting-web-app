@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
       'search',
       'page',
       'limit',
+      'fiscalYearId',
+      'locationId',
     ]) {
       const v = searchParams.get(key);
       if (v) qs.set(key, v);

@@ -967,7 +967,6 @@ const handleSubmit = async (e: React.FormEvent) => {
         description: 'description',
         costPrice: 'costPrice',
         sellingPrice: 'sellingPrice',
-        currentStock: 'currentStock',
         minimumStock: 'minimumStock',
         maximumStock: 'maximumStock',
         supplier: 'supplierId',
@@ -1198,11 +1197,27 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Current Stock *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  {editingProduct ? 'Current Stock (read-only)' : 'Opening Stock'}
+                </label>
                 <div className="relative">
                   <Box className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" placeholder="0" value={formData.currentStock} onChange={(e) => handleInputChange('currentStock', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" required />
+                  <input
+                    type="number"
+                    value={editingProduct ? (editingProduct.currentStock ?? 0) : 0}
+                    readOnly
+                    disabled
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-600 cursor-not-allowed"
+                  />
                 </div>
+                {!editingProduct && (
+                  <p className="text-xs text-blue-700 mt-1">
+                    Add opening stock via{' '}
+                    <Link href="/warehouse/stock-movement" className="underline font-semibold">
+                      Stock Movement → Opening Stock
+                    </Link>.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Minimum Stock</label>
@@ -1907,7 +1922,7 @@ const fetchDropdowns = async () => {
           </Link>
 
           <Link
-            href="/sales"
+            href="/sales/dashboard"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/60 hover:text-white hover:bg-white/5"
           >
             <ShoppingCart className="w-5 h-5" />
@@ -1959,7 +1974,6 @@ const fetchDropdowns = async () => {
 
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4 text-[#014582]" />
-              <span>Call Us: 03 111 006 555</span>
             </div>
 
             <div className="w-px h-6 bg-gray-200" />

@@ -47,10 +47,10 @@ export default function POSPage() {
 
   if (authLoading || loading) {
     return (
-      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#0f0f1a' }}>
+      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f3f6fa' }}>
         <div style={{ textAlign:'center' }}>
           <div className="pos-spinner" />
-          <p style={{ color:'#8b8fa8', marginTop:'16px', fontFamily:'Inter, sans-serif' }}>Loading POS System...</p>
+          <p style={{ color:'#64748b', marginTop:'16px', fontFamily:'Inter, sans-serif' }}>Loading POS System...</p>
         </div>
       </div>
     );

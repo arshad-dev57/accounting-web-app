@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { generalLedgerService, AccountSummary, LedgerEntry, LedgerStats } from '../../../lib/general-ledger-service';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
+import { useLocation } from '../../../lib/location-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -72,6 +73,7 @@ export default function GeneralLedgerPage() {
 
   const [currencySymbol, setCurrencySymbol] = useState('Rs.');
   const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
+  const { locationIdForApi } = useLocation();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestRequestRef = useRef(0);
@@ -103,13 +105,14 @@ export default function GeneralLedgerPage() {
         startDate: filter.startDate || undefined,
         endDate: filter.endDate || undefined,
         fiscalYearId: selectedFiscalYearId || undefined,
+        locationId: locationIdForApi || undefined,
       });
       setAccountSummaries(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error('Failed to fetch account summaries:', error);
       setAccountSummaries([]);
     }
-  }, [filter.startDate, filter.endDate, selectedFiscalYearId]);
+  }, [filter.startDate, filter.endDate, selectedFiscalYearId, locationIdForApi]);
 
   const fetchEntries = useCallback(async (page: number) => {
     const requestId = ++latestRequestRef.current;
@@ -128,6 +131,7 @@ export default function GeneralLedgerPage() {
         showDebitOnly: filter.showDebitOnly || undefined,
         showCreditOnly: filter.showCreditOnly || undefined,
         fiscalYearId: selectedFiscalYearId || undefined,
+        locationId: locationIdForApi || undefined,
       });
 
       if (requestId !== latestRequestRef.current) return;
@@ -158,7 +162,7 @@ export default function GeneralLedgerPage() {
         setLoading(false);
       }
     }
-  }, [filter, debouncedSearch, selectedFiscalYearId]);
+  }, [filter, debouncedSearch, selectedFiscalYearId, locationIdForApi]);
 
   useEffect(() => {
     fetchAccountSummaries();

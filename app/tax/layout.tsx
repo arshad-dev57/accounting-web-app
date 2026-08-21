@@ -77,7 +77,7 @@ function TaxSidebar() {
           </Link>
         )}
         {(isAdmin || hasModuleAccess('sales')) && (
-          <Link href="/sales" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5">
+          <Link href="/sales/dashboard" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5">
             <ShoppingCart className="w-5 h-5" />
             <span className="text-sm font-medium">Sales</span>
           </Link>
@@ -151,7 +151,6 @@ export default function TaxLayout({ children }: { children: React.ReactNode }) {
             <div className="w-px h-6 bg-gray-200" />
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4 text-[#014582]" />
-              <span>Call Us: 03 111 006 555</span>
             </div>
             <div className="w-px h-6 bg-gray-200" />
             <ProfileDropdown accentClassName="bg-[#091746]" />

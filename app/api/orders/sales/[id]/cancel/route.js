@@ -5,9 +5,9 @@ import { apiClient } from '@/lib/api-client';
 export async function POST(request, { params }) {
   try {
     const { id } = params;
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
 
-    const response = await apiClient.post(`/orders/${id}/cancel`, body, true);
+    const response = await apiClient.post(`/api/orders/${id}/cancel`, body, true);
 
     return NextResponse.json(response);
   } catch (error) {

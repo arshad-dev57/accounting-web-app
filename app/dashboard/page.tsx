@@ -36,7 +36,7 @@ function Sidebar() {
     { icon: <Home className="w-5 h-5" />, label: 'Home', path: '/dashboard', show: true },
     { icon: <Building2 className="w-5 h-5" />, label: 'Accounting', path: '/accounting/dashboard', show: isAdmin || hasModuleAccess('accounting') },
     { icon: <Warehouse className="w-5 h-5" />, label: 'Warehouse', path: '/warehouse/dashboard', show: isAdmin || hasModuleAccess('warehouse') },
-    { icon: <ShoppingCart className="w-5 h-5" />, label: 'Sales', path: '/sales', show: isAdmin || hasModuleAccess('sales') },
+    { icon: <ShoppingCart className="w-5 h-5" />, label: 'Sales', path: '/sales/dashboard', show: isAdmin || hasModuleAccess('sales') },
     { icon: <Package className="w-5 h-5" />, label: 'Purchases', path: '/purchases', show: isAdmin || hasModuleAccess('purchases') },
     { icon: <Store className="w-5 h-5" />, label: 'Point of Sale', path: '/pos', show: isAdmin || hasModuleAccess('pos') },
     { icon: <Scale className="w-5 h-5" />, label: 'Tax Compliance', path: '/tax', show: isAdmin || hasModuleAccess('accounting') || hasModuleAccess('sales') || hasModuleAccess('purchases') || hasModuleAccess('pos') },
@@ -171,7 +171,6 @@ export default function DashboardPage() {
 
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4 text-[#014582]" />
-              <span>Call Us: 03 111 006 555</span>
             </div>
 
             <div className="w-px h-6 bg-gray-200" />

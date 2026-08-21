@@ -36,6 +36,7 @@ export const profitLossService = {
     startDate?: string;
     endDate?: string;
     fiscalYearId?: string;
+    locationId?: string;
   } = {}): Promise<PLData> => {
     const query = new URLSearchParams();
     

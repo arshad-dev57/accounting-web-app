@@ -13,9 +13,11 @@ import {
   Ban, Filter, ArrowUpDown
 } from 'lucide-react';
 import { salesPaymentService, SalesPayment, InvoiceForPayment, PaymentStats, Customer, BankAccount } from '../../api/salespayment/route';
+import { useLocation } from '@/lib/location-context';
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 export default function SalesPaymentsPage() {
+  const { selectedLocationId } = useLocation();
   const [payments, setPayments] = useState<SalesPayment[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<SalesPayment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,7 +79,8 @@ export default function SalesPaymentsPage() {
         search: searchTerm || undefined,
         status: selectedFilter !== 'all' ? selectedFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setPayments(response.data || []);
@@ -92,7 +95,7 @@ export default function SalesPaymentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, selectedFilter, fromDate, toDate, pagination.page, pagination.limit]);
+  }, [searchTerm, selectedFilter, fromDate, toDate, pagination.page, pagination.limit, selectedLocationId]);
 
   // ─── Load More ──────────────────────────────────────────────
   const loadMore = useCallback(async () => {
@@ -106,7 +109,8 @@ export default function SalesPaymentsPage() {
         search: searchTerm || undefined,
         status: selectedFilter !== 'all' ? selectedFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setPayments(prev => [...prev, ...(response.data || [])]);
@@ -117,7 +121,7 @@ export default function SalesPaymentsPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, selectedFilter, fromDate, toDate]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, selectedFilter, fromDate, toDate, selectedLocationId]);
 
   // ─── Apply Local Filters ────────────────────────────────────
   useEffect(() => {
@@ -143,6 +147,11 @@ export default function SalesPaymentsPage() {
   useEffect(() => {
     fetchPayments(true);
   }, []);
+
+  useEffect(() => {
+    fetchPayments(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLocationId]);
 
   // ─── Search ──────────────────────────────────────────────────
   const handleSearch = (query: string) => {
@@ -231,7 +240,10 @@ export default function SalesPaymentsPage() {
     setCustomerSearchQuery(customer.name || '');
     setIsLoadingInvoices(true);
     try {
-      const invoices = await salesPaymentService.getCustomerInvoices(customer.id || customer._id || '');
+      const invoices = await salesPaymentService.getCustomerInvoices(
+        customer.id || customer._id || '',
+        selectedLocationId || undefined
+      );
       setAvailableInvoices(invoices);
       // Auto-select all invoices
       const selected = invoices.map((inv: InvoiceForPayment) => ({
@@ -307,8 +319,8 @@ export default function SalesPaymentsPage() {
       alert('Enter a valid payment amount');
       return;
     }
-    if (paymentMethod === 'Bank Transfer' && !selectedBankAccount) {
-      alert('Please select a bank account for bank transfer');
+    if ((paymentMethod === 'Bank Transfer' || paymentMethod === 'Cheque') && !selectedBankAccount) {
+      alert('Please select a bank account');
       return;
     }
     if (!paymentDate) {
@@ -329,8 +341,12 @@ export default function SalesPaymentsPage() {
         customerName: selectedCustomer.name || '',
         amount: amount,
         paymentMethod,
-        bankAccountId: selectedBankAccount?.id,
-        bankAccountName: selectedBankAccount?.accountName || '',
+        ...(paymentMethod !== 'Cash' && selectedBankAccount?.id
+          ? {
+              bankAccountId: selectedBankAccount.id,
+              bankAccountName: selectedBankAccount.accountName || '',
+            }
+          : {}),
         reference: paymentReference,
         notes: paymentNotes,
         paymentDate,
@@ -1057,7 +1073,11 @@ function CreatePaymentForm({
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Payment Method *</label>
                 <select
                   value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setPaymentMethod(next);
+                    if (next === 'Cash') setSelectedBankAccount(null);
+                  }}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {paymentMethods.map((method: string) => (
@@ -1067,7 +1087,7 @@ function CreatePaymentForm({
               </div>
 
               {/* Bank Account (for Bank Transfer) */}
-              {paymentMethod === 'Bank Transfer' && (
+              {paymentMethod !== 'Cash' && (
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Bank Account *</label>
                   <select

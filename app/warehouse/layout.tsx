@@ -12,19 +12,27 @@ import {
   LogOut,
   Phone,
   Headset,
-  ChevronDown,
   Home,
   Building2,
   Warehouse,
   FolderTree,
   CreditCard,
+  ArrowLeftRight,
+  Wallet,
+  BarChart3,
+  AlertTriangle,
+  CalendarClock,
+  FileBarChart,
+  MapPin,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import FiscalYearSelect from '../../components/FiscalYearSelect';
+import LocationSelect from '../../components/LocationSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
+import { LocationProvider } from '../../lib/location-context';
 
 // ============================================================
 // WAREHOUSE SIDEBAR
@@ -35,14 +43,17 @@ function WarehouseSidebar() {
 
   const menuItems = [
     { icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard', path: '/warehouse/dashboard', permission: 'dashboard' },
-    { icon: <Package className="w-5 h-5" />, label: 'Products', path: '/products', permission: 'products' },
+    { icon: <Package className="w-5 h-5" />, label: 'Products', path: '/warehouse/products', permission: 'products' },
     { icon: <FolderTree className="w-5 h-5" />, label: 'Categories', path: '/warehouse/categories', permission: 'categories' },
     { icon: <Users className="w-5 h-5" />, label: 'Suppliers', path: '/warehouse/suppliers', permission: 'suppliers' },
-    { icon: <Users className="w-5 h-5" />, label: 'Stock-Movement', path: '/warehouse/stock-movement', permission: 'stock-movement' },
-    { icon: <Users className="w-5 h-5" />, label: 'customers', path: '/warehouse/customers', permission: 'customers' },
-    { icon: <Users className="w-5 h-5" />, label: 'Orders', path: '/warehouse/orders', permission: 'orders' },
-    { icon: <Users className="w-5 h-5" />, label: 'Returns', path: '/warehouse/returns', permission: 'returns' },
-    { icon: <Users className="w-5 h-5" />, label: 'Refunds', path: '/warehouse/refunds', permission: 'refunds' },
+    { icon: <ArrowLeftRight className="w-5 h-5" />, label: 'Stock Movement', path: '/warehouse/stock-movement', permission: 'stock-movement' },
+    { icon: <MapPin className="w-5 h-5" />, label: 'Locations', path: '/warehouse/locations', permission: 'products' },
+    { icon: <Users className="w-5 h-5" />, label: 'Customers', path: '/warehouse/customers', permission: 'customers' },
+    { icon: <Wallet className="w-5 h-5" />, label: 'Inventory Valuation', path: '/warehouse/inventory-valuation', permission: 'inventory-valuation' },
+    { icon: <BarChart3 className="w-5 h-5" />, label: 'Stock Summary', path: '/warehouse/reports/stock-summary', permission: 'stock-summary' },
+    { icon: <AlertTriangle className="w-5 h-5" />, label: 'Low Stock Report', path: '/warehouse/reports/low-stock', permission: 'low-stock' },
+    { icon: <CalendarClock className="w-5 h-5" />, label: 'Expiry Report', path: '/warehouse/reports/expiry', permission: 'expiry' },
+    { icon: <FileBarChart className="w-5 h-5" />, label: 'All Reports', path: '/warehouse/reports', permission: 'reports' },
     { icon: <Settings className="w-5 h-5" />, label: 'Tax Compliance', path: '/tax', permission: 'settings' },
     { icon: <Settings className="w-5 h-5" />, label: 'Settings', path: '/warehouse/product-settings', permission: 'settings' },
     { icon: <CreditCard className="w-5 h-5" />, label: 'Subscription Plans', path: '/plans', permission: '*' },
@@ -53,7 +64,9 @@ function WarehouseSidebar() {
     { icon: <Building2 className="w-5 h-5" />, label: 'Accounting', path: '/accounting/dashboard' },
   ];
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) =>
+    pathname === path ||
+    (path !== '/warehouse/reports' && pathname.startsWith(`${path}/`));
 
   // Filter menu items based on permissions
   const filteredMenuItems = menuItems.filter(item => {
@@ -158,6 +171,7 @@ export default function WarehouseLayout({
 }) {
   return (
     <FiscalYearProvider>
+      <LocationProvider>
       <WarehouseSidebar />
 
       <div className="ml-56 min-h-screen bg-gray-50 flex flex-col">
@@ -169,6 +183,7 @@ export default function WarehouseLayout({
           />
 
           <div className="flex items-center gap-4">
+            <LocationSelect />
             <FiscalYearSelect />
 
             <div className="w-px h-6 bg-gray-200" />
@@ -186,7 +201,6 @@ export default function WarehouseLayout({
 
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4 text-[#014582]" />
-              <span>Call Us: 03 111 006 555</span>
             </div>
 
             <div className="w-px h-6 bg-gray-200" />
@@ -200,6 +214,7 @@ export default function WarehouseLayout({
           {children}
         </div>
       </div>
+      </LocationProvider>
     </FiscalYearProvider>
   );
 }

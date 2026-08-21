@@ -76,6 +76,8 @@ export const journalEntryService = {
     endDate?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    locationId?: string;
+    fiscalYearId?: string;
   } = {}): Promise<JournalEntryListResponse> => {
     const query = new URLSearchParams();
     const page = params.page && params.page > 0 ? params.page : 1;
@@ -115,7 +117,7 @@ export const journalEntryService = {
       const currentPage = Number(paginationSource.page ?? page);
       const pageSize = Number(paginationSource.limit ?? limit);
       const pages = Number(
-        paginationSource.pages ?? Math.max(1, Math.ceil(total / pageSize) || 1)
+        paginationSource.pages ?? (Math.max(1, Math.ceil(total / pageSize) || 1))
       );
       
       const stats = {

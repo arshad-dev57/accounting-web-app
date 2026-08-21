@@ -7,7 +7,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'sales';
 
-    const response = await apiClient.get(`/orders/stats?type=${type}`, true);
+    const response = await apiClient.get(`/api/orders/stats?type=${type}`, true);
 
     return NextResponse.json(response);
   } catch (error) {

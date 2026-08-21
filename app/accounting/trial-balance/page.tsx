@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { trialBalanceService, TrialBalanceAccount, TrialBalanceStats } from '../../api/trail-balance/route';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
+import { useLocation } from '../../../lib/location-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -68,6 +69,7 @@ export default function TrialBalancePage() {
   const [viewingAccount, setViewingAccount] = useState<TrialBalanceAccount | null>(null);
   const [showZeroBalance, setShowZeroBalance] = useState(true);
   const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
+  const { locationIdForApi } = useLocation();
 
   const [currencySymbol, setCurrencySymbol] = useState('Rs.');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -107,6 +109,7 @@ export default function TrialBalancePage() {
         startDate: filter.startDate || undefined,
         endDate: filter.endDate || undefined,
         fiscalYearId: selectedFiscalYearId || filter.fiscalYearId || undefined,
+        locationId: locationIdForApi || undefined,
         search: searchTerm || undefined
       });
 
@@ -121,7 +124,7 @@ export default function TrialBalancePage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, searchTerm, pagination.page, pagination.limit, selectedFiscalYearId]);
+  }, [filter, searchTerm, pagination.page, pagination.limit, selectedFiscalYearId, locationIdForApi]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -138,6 +141,7 @@ export default function TrialBalancePage() {
         startDate: filter.startDate || undefined,
         endDate: filter.endDate || undefined,
         fiscalYearId: selectedFiscalYearId || filter.fiscalYearId || undefined,
+        locationId: locationIdForApi || undefined,
         search: searchTerm || undefined
       });
 
@@ -148,13 +152,13 @@ export default function TrialBalancePage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm, selectedFiscalYearId]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm, selectedFiscalYearId, locationIdForApi]);
 
   // ─── Initial Fetch ──────────────────────────────────────────
 
   useEffect(() => {
     fetchTrialBalance(true);
-  }, [selectedFiscalYearId]);
+  }, [selectedFiscalYearId, locationIdForApi]);
 
   // ─── Search ──────────────────────────────────────────────────
 

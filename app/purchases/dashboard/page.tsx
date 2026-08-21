@@ -32,6 +32,7 @@ import {
 } from 'recharts';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
+import { useLocation } from '@/lib/location-context';
 
 type SpendPoint = {
   date: string;
@@ -135,6 +136,7 @@ export default function PurchasesDashboardPage() {
   const [periodLabel, setPeriodLabel] = useState('This Year');
   const [period, setPeriod] = useState('year');
   const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
+  const { selectedLocationId } = useLocation();
 
   const fetchDashboard = async (p = period, options?: { refresh?: boolean }) => {
     try {
@@ -144,6 +146,7 @@ export default function PurchasesDashboardPage() {
       const fyId = selectedFiscalYearId || getStoredFiscalYearId() || '';
       const qs = new URLSearchParams({ period: p });
       if (fyId) qs.set('fiscalYearId', fyId);
+      if (selectedLocationId) qs.set('locationId', selectedLocationId);
 
       const response = await fetch(`/api/purchases/dashboard?${qs.toString()}`);
       const result = await response.json();
@@ -161,7 +164,7 @@ export default function PurchasesDashboardPage() {
   useEffect(() => {
     fetchDashboard(period);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFiscalYearId]);
+  }, [selectedFiscalYearId, selectedLocationId]);
 
   const selectPeriod = (label: string, value: string) => {
     if (loading || refreshing) return;

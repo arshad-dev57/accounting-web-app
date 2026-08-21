@@ -86,7 +86,7 @@ export default function ExpensesPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const statusOptions = ['All', 'Draft', 'Posted', 'Cancelled'];
-  const expenseTypeOptions = ['All', 'Rent', 'Utilities', 'Salaries', 'Marketing', 'Office Supplies', 'Travel', 'Meals', 'Insurance', 'Maintenance', 'Software', 'Taxes', 'Other'];
+  const expenseTypeOptions = ['All', 'Rent', 'Utilities', 'Salaries', 'Marketing', 'Office Supplies', 'Travel', 'Meals', 'Insurance', 'Maintenance', 'Software', 'Taxes', 'Miscellaneous', 'Other'];
   const paymentMethods = ['Cash', 'Bank Transfer', 'Cheque', 'Credit Card'];
 
   // ─── Get Currency Symbol from Local Storage ──────────────────

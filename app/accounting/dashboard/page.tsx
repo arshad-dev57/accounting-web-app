@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
+import { useLocation } from '../../../lib/location-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
 import {
@@ -10,6 +11,7 @@ import {
   TrendingDown,
   Landmark,
   Clock,
+  Wallet,
   RefreshCw,
   Loader2,
   DollarSign,
@@ -19,11 +21,13 @@ import {
   ArrowDownRight,
   Plus,
   Minus,
+  Store,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  Line,
   PieChart,
   Pie,
   Cell,
@@ -49,6 +53,7 @@ type DashboardData = {
   kpi: {
     totalRevenue?: KpiMetric;
     totalSales?: KpiMetric;
+    posSales?: KpiMetric;
     totalPurchases?: KpiMetric;
     totalExpenses?: KpiMetric;
     netProfit?: KpiMetric;
@@ -57,7 +62,23 @@ type DashboardData = {
     accountsReceivable?: KpiMetric;
     accountsPayable?: KpiMetric;
     cashBalance?: KpiMetric;
+    cashInHand?: KpiMetric;
     bankBalance?: KpiMetric;
+    capital?: KpiMetric;
+  };
+  capital?: {
+    openingCapital?: number;
+    currentEquity?: number;
+    periodEarnings?: number;
+    changeOnCapital?: number;
+    isIncrease?: boolean;
+    chart?: Array<{
+      month?: string;
+      label?: string;
+      opening?: number;
+      capital?: number;
+      earnings?: number;
+    }>;
   };
   chartData?: Array<{
     month?: string;
@@ -138,6 +159,7 @@ export default function AccountingDashboard() {
   const [period, setPeriod] = useState<string>('This Year');
   const [error, setError] = useState<string | null>(null);
   const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
+  const { locationIdForApi } = useLocation();
 
   const fetchDashboard = async (timePeriod = period, options?: { refresh?: boolean }) => {
     try {
@@ -151,6 +173,7 @@ export default function AccountingDashboard() {
         limit: '10',
       });
       if (fyId) qs.set('fiscalYearId', fyId);
+      if (locationIdForApi) qs.set('locationId', locationIdForApi);
 
       const response = await fetch(`/api/dashboard/overview?${qs.toString()}`);
       const result = await response.json();
@@ -172,7 +195,7 @@ export default function AccountingDashboard() {
   useEffect(() => {
     fetchDashboard(period);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFiscalYearId]);
+  }, [selectedFiscalYearId, locationIdForApi]);
 
   const selectPeriod = (label: string) => {
     if (loading || refreshing) return;
@@ -184,8 +207,10 @@ export default function AccountingDashboard() {
   const revenue = toNum(kpi.totalRevenue?.amount);
   const expenses = toNum(kpi.totalExpenses?.amount);
   const sales = toNum(kpi.totalSales?.amount);
+  const posSales = toNum(kpi.posSales?.amount);
   const purchases = toNum(kpi.totalPurchases?.amount);
   const bankBalance = toNum(kpi.bankBalance?.amount ?? kpi.cashBalance?.amount);
+  const cashInHand = toNum(kpi.cashInHand?.amount ?? kpi.cashBalance?.cashOnly);
   const receivables = toNum(kpi.accountsReceivable?.amount ?? kpi.outstanding?.amount);
   const payables = toNum(kpi.accountsPayable?.amount);
   const netProfit = toNum(kpi.netProfit?.amount);
@@ -230,10 +255,12 @@ export default function AccountingDashboard() {
 
   const overviewRows = [
     { label: 'Revenue', value: revenue, color: '#22c55e', source: 'Sales + Income − Credit Notes' },
-    { label: 'Sales', value: sales, color: ACCENT, source: `${toNum(kpi.totalSales?.count)} invoice(s) · Paid` },
+    { label: 'Invoice Sales', value: sales, color: ACCENT, source: `${toNum(kpi.totalSales?.count)} invoice(s) · Paid` },
+    { label: 'POS Sales', value: posSales, color: '#7c3aed', source: `${toNum(kpi.posSales?.count)} sale(s) · Completed` },
     { label: 'Purchases', value: purchases, color: '#f59e0b', source: 'Purchase invoices (period)' },
     { label: 'Expenses', value: expenses, color: '#ef4444', source: 'Posted expenses (period)' },
     { label: 'Bank Balance', value: bankBalance, color: '#3b82f6', source: 'Bank accounts' },
+    { label: 'Cash', value: cashInHand, color: '#22c55e', source: 'Cash in Hand (Chart of Accounts)' },
     { label: 'Receivables', value: receivables, color: '#f59e0b', source: 'Sales invoices outstanding' },
     { label: 'Payables', value: payables, color: '#f97316', source: 'Bills + purchase invoices' },
     { label: 'Net Profit', value: Math.abs(netProfit), color: netProfit >= 0 ? '#22c55e' : '#ef4444', source: 'Revenue − Expenses', display: formatCurrency(netProfit) },
@@ -250,6 +277,17 @@ export default function AccountingDashboard() {
       trendUp: !!kpi.totalRevenue?.isPositive,
     },
     {
+      label: 'POS Sales',
+      value: formatCurrency(posSales),
+      icon: Store,
+      color: 'bg-violet-50 text-violet-600',
+      trend:
+        toNum(kpi.posSales?.count) > 0
+          ? `${toNum(kpi.posSales?.count)} sale(s)`
+          : 'No POS sales',
+      trendUp: posSales >= 0,
+    },
+    {
       label: 'Expenses',
       value: formatCurrency(expenses),
       icon: TrendingDown,
@@ -264,6 +302,14 @@ export default function AccountingDashboard() {
       color: 'bg-blue-50 text-blue-600',
       trend: bankAccountsCount > 0 ? `${bankAccountsCount} accounts` : 'No accounts',
       trendUp: kpi.bankBalance?.isPositive ?? kpi.cashBalance?.isPositive ?? bankBalance >= 0,
+    },
+    {
+      label: 'Cash',
+      value: formatCurrency(cashInHand),
+      icon: Wallet,
+      color: 'bg-emerald-50 text-emerald-600',
+      trend: 'Cash in Hand',
+      trendUp: cashInHand >= 0,
     },
     {
       label: 'Receivables',
@@ -363,7 +409,7 @@ export default function AccountingDashboard() {
           </div>
 
           {/* KPI cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-4">
             {kpis.map((item) => {
               const Icon = item.icon;
               return (
@@ -396,6 +442,109 @@ export default function AccountingDashboard() {
               );
             })}
           </div>
+
+          {/* Capital & earnings */}
+          {(() => {
+            const cap = data?.capital;
+            const opening = toNum(cap?.openingCapital);
+            const equityNow = toNum(cap?.currentEquity);
+            const earned = toNum(cap?.periodEarnings);
+            const up = cap?.isIncrease ?? earned >= 0;
+            const capChart =
+              (cap?.chart || []).length > 0
+                ? (cap?.chart || []).map((r) => ({
+                    label: r.label || r.month || '',
+                    opening: toNum(r.opening),
+                    capital: toNum(r.capital),
+                  }))
+                : [
+                    { label: 'Start', opening, capital: opening },
+                    { label: 'Now', opening, capital: opening + earned },
+                  ];
+            return (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="font-bold text-gray-800">Capital &amp; earnings</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Opening capital vs earnings in {period.toLowerCase()}
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                  <div className="rounded-xl bg-blue-50 p-3">
+                    <p className="text-xs font-semibold text-blue-700">Your capital</p>
+                    <p className="text-lg font-bold text-blue-800 mt-1">{formatCurrency(opening)}</p>
+                  </div>
+                  <div className={`rounded-xl p-3 ${up ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                    <p className={`text-xs font-semibold ${up ? 'text-emerald-700' : 'text-red-700'}`}>
+                      {up ? 'Earned this period' : 'Decreased this period'}
+                    </p>
+                    <p className={`text-lg font-bold mt-1 ${up ? 'text-emerald-800' : 'text-red-800'}`}>
+                      {formatCurrency(earned)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-violet-50 p-3">
+                    <p className="text-xs font-semibold text-violet-700">Equity now</p>
+                    <p className="text-lg font-bold text-violet-800 mt-1">{formatCurrency(equityNow)}</p>
+                  </div>
+                </div>
+                <div className="h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={capChart} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="capFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.22} />
+                          <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fontSize: 11, fill: '#94a3b8' }}
+                        axisLine={false}
+                        tickLine={false}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis
+                        tickFormatter={formatAxis}
+                        tick={{ fontSize: 11, fill: '#94a3b8' }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={48}
+                      />
+                      <Tooltip
+                        formatter={(value: number | string, name: string) => [
+                          formatCurrency(Number(value)),
+                          name === 'opening' ? 'Opening capital' : 'Capital + earnings',
+                        ]}
+                        contentStyle={{
+                          borderRadius: 12,
+                          border: '1px solid #e5e7eb',
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="opening"
+                        stroke="#1088dd"
+                        strokeWidth={2}
+                        strokeDasharray="6 4"
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="capital"
+                        stroke="#7c3aed"
+                        strokeWidth={2.5}
+                        fill="url(#capFill)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Charts */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">

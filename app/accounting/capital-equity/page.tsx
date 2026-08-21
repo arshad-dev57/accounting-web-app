@@ -620,9 +620,16 @@ function AddCapitalForm({
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
-    reference: ''
+    reference: '',
+    paymentMethod: 'Cash',
+    bankAccountId: ''
   });
   const [error, setError] = useState('');
+  const [banks, setBanks] = useState<{ id: string; accountName: string }[]>([]);
+
+  useEffect(() => {
+    equityService.getBankAccounts().then(setBanks);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -635,13 +642,19 @@ function AddCapitalForm({
       setError('Please enter a description');
       return;
     }
+    if (formData.paymentMethod !== 'Cash' && !formData.bankAccountId) {
+      setError('Please select a bank account');
+      return;
+    }
     setError('');
 
     onSave({
       accountId: account.id,
       amount: amount,
       description: formData.description,
-      reference: formData.reference
+      reference: formData.reference,
+      paymentMethod: formData.paymentMethod,
+      bankAccountId: formData.paymentMethod === 'Cash' ? null : formData.bankAccountId
     });
   };
 
@@ -689,6 +702,38 @@ function AddCapitalForm({
               />
             </div>
           </div>
+
+          <div>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Paid via *</label>
+            <select
+              value={formData.paymentMethod}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                paymentMethod: e.target.value,
+                bankAccountId: e.target.value === 'Cash' ? '' : prev.bankAccountId
+              }))}
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+            >
+              <option value="Cash">Cash</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+            </select>
+          </div>
+
+          {formData.paymentMethod !== 'Cash' && (
+            <div>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Bank Account *</label>
+              <select
+                value={formData.bankAccountId}
+                onChange={(e) => setFormData(prev => ({ ...prev, bankAccountId: e.target.value }))}
+                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+              >
+                <option value="">Select bank account</option>
+                {banks.map((b) => (
+                  <option key={b.id} value={b.id}>{b.accountName}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Description *</label>
@@ -751,9 +796,16 @@ function RecordDrawingsForm({
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
-    reference: ''
+    reference: '',
+    paymentMethod: 'Cash',
+    bankAccountId: ''
   });
   const [error, setError] = useState('');
+  const [banks, setBanks] = useState<{ id: string; accountName: string }[]>([]);
+
+  useEffect(() => {
+    equityService.getBankAccounts().then(setBanks);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -766,13 +818,19 @@ function RecordDrawingsForm({
       setError('Please enter a description');
       return;
     }
+    if (formData.paymentMethod !== 'Cash' && !formData.bankAccountId) {
+      setError('Please select a bank account');
+      return;
+    }
     setError('');
 
     onSave({
       accountId: account.id,
       amount: amount,
       description: formData.description,
-      reference: formData.reference
+      reference: formData.reference,
+      paymentMethod: formData.paymentMethod,
+      bankAccountId: formData.paymentMethod === 'Cash' ? null : formData.bankAccountId
     });
   };
 
@@ -820,6 +878,38 @@ function RecordDrawingsForm({
               />
             </div>
           </div>
+
+          <div>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Paid via *</label>
+            <select
+              value={formData.paymentMethod}
+              onChange={(e) => setFormData(prev => ({
+                ...prev,
+                paymentMethod: e.target.value,
+                bankAccountId: e.target.value === 'Cash' ? '' : prev.bankAccountId
+              }))}
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+            >
+              <option value="Cash">Cash</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+            </select>
+          </div>
+
+          {formData.paymentMethod !== 'Cash' && (
+            <div>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Bank Account *</label>
+              <select
+                value={formData.bankAccountId}
+                onChange={(e) => setFormData(prev => ({ ...prev, bankAccountId: e.target.value }))}
+                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+              >
+                <option value="">Select bank account</option>
+                {banks.map((b) => (
+                  <option key={b.id} value={b.id}>{b.accountName}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Description *</label>

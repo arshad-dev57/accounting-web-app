@@ -114,10 +114,16 @@ export interface ProductListResponse {
 /** Normalize Prisma/backend product shape for the UI. */
 export function normalizeProduct(raw: any): Product {
   if (!raw) return raw;
+  const locationQty =
+    raw.locationStock != null
+      ? Number(raw.locationStock)
+      : Number(raw.currentStock ?? 0);
   return {
     ...raw,
     id: raw.id || raw._id,
     _id: raw._id || raw.id,
+    categoryId: raw.categoryId || raw.category?.id || '',
+    categoryName: raw.categoryName || raw.category?.name || '',
     barcode: raw.barcode || {
       number: raw.barcodeNumber || '',
       image: raw.barcodeImage || undefined,
@@ -154,6 +160,8 @@ export function normalizeProduct(raw: any): Product {
     images: Array.isArray(raw.images) ? raw.images : [],
     mainImage: raw.mainImage || (Array.isArray(raw.images) && raw.images[0]) || undefined,
     barcodeImage: raw.barcodeImage || raw.barcode?.image || undefined,
+    currentStock: locationQty,
+    minimumStock: Number(raw.minimumStock ?? 0),
   };
 }
 
@@ -174,6 +182,7 @@ export const productService = {
     maxPrice?: number;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    locationId?: string;
   } = {}): Promise<ProductListResponse> => {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {

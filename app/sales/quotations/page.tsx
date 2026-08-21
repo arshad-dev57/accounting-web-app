@@ -3,10 +3,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import { 
   Plus, Search, RefreshCw, FileText, Clock, 
-  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2 
+  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, MapPin, Ban, ShoppingCart
 } from 'lucide-react';
 import { Quotation } from '@/lib/types/quotation';
 import CreateQuotationWizard from '@/components/quotations/CreateQuotationWizard';
+import { useLocation } from '@/lib/location-context';
 
 const STATUS_COLORS: Record<string, string> = {
   Draft: 'bg-gray-100 text-gray-700',
@@ -15,14 +16,16 @@ const STATUS_COLORS: Record<string, string> = {
   Rejected: 'bg-red-100 text-red-700',
   Expired: 'bg-gray-100 text-gray-700',
   Converted: 'bg-purple-100 text-purple-700',
+  Cancelled: 'bg-gray-100 text-gray-700',
 };
 
 const pill = (map: Record<string, string>, val: string) =>
   `text-xs font-semibold px-2.5 py-1 rounded-full ${map[val] ?? 'bg-gray-100 text-gray-700'}`;
 
-const STATUS_OPTIONS = ['all', 'Draft', 'Sent', 'Accepted', 'Rejected', 'Expired', 'Converted'];
+const STATUS_OPTIONS = ['all', 'Draft', 'Sent', 'Accepted', 'Rejected', 'Expired', 'Converted', 'Cancelled'];
 
 export default function QuotationsPage() {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
@@ -50,6 +53,7 @@ export default function QuotationsPage() {
 
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (selectedLocationId) params.append('locationId', selectedLocationId);
 
       const token = localStorage.getItem('auth_token');
       const headers: HeadersInit = {
@@ -78,7 +82,11 @@ export default function QuotationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchTerm, statusFilter]);
+  }, [currentPage, searchTerm, statusFilter, selectedLocationId]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLocationId]);
 
   const handleCreateSuccess = () => {
     setShowCreateWizard(false);
@@ -115,6 +123,78 @@ export default function QuotationsPage() {
     } catch (error) {
       console.error('Failed to delete quotation:', error);
       alert('Failed to delete quotation');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCancelQuotation = async (quotation: Quotation) => {
+    // Draft → Cancelled; Sent → Rejected (backend status transitions)
+    const nextStatus = quotation.status === 'Draft' ? 'Cancelled' : 'Rejected';
+    if (!confirm(`Are you sure you want to cancel this quotation?`)) return;
+    setActionLoading(`cancel-${quotation.id}`);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/quotations/${quotation.id}/status`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ status: nextStatus, notes: 'Cancelled by user' }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        if (selectedQuotation?.id === quotation.id) {
+          setShowDetailModal(false);
+          setSelectedQuotation(null);
+        }
+        fetchQuotations();
+      } else {
+        alert(result.message || 'Failed to cancel quotation');
+      }
+    } catch (error) {
+      console.error('Failed to cancel quotation:', error);
+      alert('Failed to cancel quotation');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleConvertQuotation = async (quotationId: string) => {
+    if (!confirm('Convert this quotation to a sales order?')) return;
+    setActionLoading(`convert-${quotationId}`);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/quotations/${quotationId}/convert`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({}),
+      });
+      const result = await response.json();
+      if (result.success) {
+        if (selectedQuotation?.id === quotationId) {
+          setShowDetailModal(false);
+          setSelectedQuotation(null);
+        }
+        fetchQuotations();
+      } else {
+        alert(result.message || 'Failed to convert quotation');
+      }
+    } catch (error) {
+      console.error('Failed to convert quotation:', error);
+      alert('Failed to convert quotation');
     } finally {
       setActionLoading(null);
     }
@@ -168,6 +248,14 @@ export default function QuotationsPage() {
           </button>
         </div>
       </div>
+
+      {selectedLocation && (
+        <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+          <MapPin className="w-4 h-4 flex-shrink-0" />
+          Showing quotations for <strong>{selectedLocation.name}</strong>
+          <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4">
         {[
@@ -265,6 +353,26 @@ export default function QuotationsPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
+                        {(quotation.status === 'Draft' || quotation.status === 'Sent') && (
+                          <button
+                            onClick={() => handleCancelQuotation(quotation)}
+                            disabled={actionLoading === `cancel-${quotation.id}`}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
+                            title="Cancel"
+                          >
+                            <Ban className="w-4 h-4" />
+                          </button>
+                        )}
+                        {quotation.status === 'Accepted' && (
+                          <button
+                            onClick={() => handleConvertQuotation(quotation.id)}
+                            disabled={actionLoading === `convert-${quotation.id}`}
+                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all disabled:opacity-50"
+                            title="Convert to Order"
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                          </button>
+                        )}
                         {quotation.status === 'Draft' && (
                           <button
                             onClick={() => handleDeleteQuotation(quotation.id)}
@@ -312,13 +420,39 @@ export default function QuotationsPage() {
       )}
 
       {showDetailModal && selectedQuotation && (
-        <QuotationDetailModal quotation={selectedQuotation} onClose={() => setShowDetailModal(false)} />
+        <QuotationDetailModal
+          quotation={selectedQuotation}
+          onClose={() => setShowDetailModal(false)}
+          onCancel={
+            selectedQuotation.status === 'Draft' || selectedQuotation.status === 'Sent'
+              ? () => handleCancelQuotation(selectedQuotation)
+              : undefined
+          }
+          onConvert={
+            selectedQuotation.status === 'Accepted'
+              ? () => handleConvertQuotation(selectedQuotation.id)
+              : undefined
+          }
+          actionLoading={actionLoading}
+        />
       )}
     </div>
   );
 }
 
-function QuotationDetailModal({ quotation, onClose }: { quotation: Quotation; onClose: () => void }) {
+function QuotationDetailModal({
+  quotation,
+  onClose,
+  onCancel,
+  onConvert,
+  actionLoading,
+}: {
+  quotation: Quotation;
+  onClose: () => void;
+  onCancel?: () => void;
+  onConvert?: () => void;
+  actionLoading?: string | null;
+}) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PK', {
       style: 'currency',
@@ -426,6 +560,29 @@ function QuotationDetailModal({ quotation, onClose }: { quotation: Quotation; on
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Terms & Conditions</p>
               <p className="text-sm text-gray-700">{quotation.termsConditions}</p>
+            </div>
+          )}
+
+          {(onCancel || onConvert) && (
+            <div className="border-t border-gray-100 pt-4 flex gap-3">
+              {onConvert && (
+                <button
+                  onClick={onConvert}
+                  disabled={!!actionLoading}
+                  className="flex-1 px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-all disabled:opacity-50"
+                >
+                  Convert to Order
+                </button>
+              )}
+              {onCancel && (
+                <button
+                  onClick={onCancel}
+                  disabled={!!actionLoading}
+                  className="flex-1 px-4 py-2.5 border border-red-500 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           )}
         </div>

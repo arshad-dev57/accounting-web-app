@@ -21,6 +21,8 @@ function buildQuery(searchParams: URLSearchParams) {
     'endDate',
     'sortBy',
     'sortOrder',
+    'locationId',
+    'fiscalYearId',
   ]) {
     const value = searchParams.get(key);
     if (value !== null && value !== '') {

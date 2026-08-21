@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   itemCount,
   loyaltyPoints,
   money,
   receiptBarcodeValue,
+  receiptQrPngDataUrl,
   renderBarcodeSvg,
   resolveReceiptCompany,
   resolveReceiptMeta,
@@ -25,6 +26,7 @@ export default function POSReceipt({
   template?: PosReceiptTemplate;
 }) {
   const barcodeRef = useRef<SVGSVGElement | null>(null);
+  const [qrUrl, setQrUrl] = useState('');
   const settings = loadPosSettings();
   const tpl = template || loadReceiptTemplate();
   const company = resolveReceiptCompany(companyProfile, tpl);
@@ -35,12 +37,22 @@ export default function POSReceipt({
   const points = loyaltyPoints(sale, settings);
   const soldAt = new Date(sale.createdAt || Date.now());
   const paperWidth = tpl.thermalPaperWidthMm === 58 ? 260 : 320;
+  const barcodeValue = receiptBarcodeValue(sale);
+  const qrDisplaySize = tpl.thermalPaperWidthMm === 58 ? 168 : 196;
 
   useEffect(() => {
-    if (tpl.showBarcode && barcodeRef.current) {
-      renderBarcodeSvg(receiptBarcodeValue(sale), barcodeRef.current);
+    if (!tpl.showBarcode) return;
+    if (barcodeRef.current) {
+      renderBarcodeSvg(barcodeValue, barcodeRef.current);
     }
-  }, [sale.invoiceNumber, tpl.showBarcode]);
+    let cancelled = false;
+    void receiptQrPngDataUrl(sale, shift, 320).then((url) => {
+      if (!cancelled) setQrUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [barcodeValue, sale, shift, tpl.showBarcode]);
 
   const wrap: CSSProperties = {
     width: paperWidth,
@@ -64,6 +76,7 @@ export default function POSReceipt({
         {tpl.showLogo ? (
           <div style={{ textAlign: 'center', marginBottom: 8 }}>
             <img
+              className="company-logo"
               src={company.logo || '/bisontechs.png'}
               alt={company.name}
               style={{ height: 56, maxWidth: 160, objectFit: 'contain', display: 'inline-block' }}
@@ -190,11 +203,31 @@ export default function POSReceipt({
         {tpl.showBarcode ? (
           <>
             <Dash />
-            <div style={{ textAlign: 'center', padding: '4px 0' }}>
-              <svg ref={barcodeRef} style={{ maxWidth: '100%', display: 'inline-block' }} />
+            <div style={{ textAlign: 'center', padding: '8px 0 4px', overflow: 'hidden' }}>
+              <svg
+                ref={barcodeRef}
+                style={{ maxWidth: '100%', height: 'auto', display: 'inline-block' }}
+              />
+            </div>
+            <div style={{ textAlign: 'center', padding: '10px 0 4px' }}>
+              {qrUrl ? (
+              <img
+                  src={qrUrl}
+                  alt={`QR ${invoice}`}
+                  className="receipt-qr"
+                  width={qrDisplaySize}
+                  height={qrDisplaySize}
+                  style={{
+                    width: qrDisplaySize,
+                    height: qrDisplaySize,
+                    display: 'inline-block',
+                    imageRendering: 'pixelated',
+                  }}
+                />
+              ) : null}
             </div>
             <div style={{ ...center, fontSize: 9, color: '#6b7280', marginBottom: 4 }}>
-              Scan this barcode to look up receipt {invoice}
+              Barcode = receipt # · QR = sale details
             </div>
           </>
         ) : null}

@@ -30,9 +30,11 @@ import {
 import { usePermissions } from '../../lib/usePermissions';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import FiscalYearSelect from '../../components/FiscalYearSelect';
+import LocationSelect from '../../components/LocationSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
+import { LocationProvider } from '../../lib/location-context';
 
 // ============================================================
 // PURCHASES SIDEBAR
@@ -60,6 +62,7 @@ function PurchasesSidebar() {
   const purchasesPages = [
     { path: '/purchases/dashboard', label: 'Dashboard', permission: 'dashboard' },
     { path: '/purchases/reports', label: 'Purchase Reports', permission: 'dashboard' },
+    { path: '/purchases/products', label: 'Products', permission: 'products' },
     { path: '/purchases/purchaseorder', label: 'Purchase Orders', permission: 'purchase-orders' },
     { path: '/purchases/suppliers', label: 'Suppliers', permission: 'suppliers' },
     { path: '/purchases/quotations', label: 'Quotations', permission: 'quotations' },
@@ -124,6 +127,7 @@ function PurchasesSidebar() {
               {filteredPurchasesPages.map((page) => {
                 const iconMap: Record<string, React.ReactNode> = {
                   'dashboard': <Home className="w-4 h-4" />,
+                  'products': <Package className="w-4 h-4" />,
                   'purchase-orders': <ShoppingCart className="w-4 h-4" />,
                   'suppliers': <Users className="w-4 h-4" />,
                   'quotations': <FileText className="w-4 h-4" />,
@@ -269,7 +273,7 @@ function PurchasesSidebar() {
 
         {isAdmin || hasModuleAccess('sales') && (
           <Link
-            href="/sales"
+            href="/sales/dashboard"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
           >
             <ShoppingCart className="w-5 h-5" />
@@ -329,6 +333,7 @@ export default function PurchasesLayout({
 }) {
   return (
     <FiscalYearProvider>
+      <LocationProvider>
       <PurchasesSidebar />
 
       <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
@@ -340,6 +345,7 @@ export default function PurchasesLayout({
           />
 
           <div className="flex items-center gap-4">
+            <LocationSelect showManageLink={false} />
             <FiscalYearSelect />
 
             <div className="w-px h-6 bg-gray-200" />
@@ -357,7 +363,6 @@ export default function PurchasesLayout({
 
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4 text-[#00E676]" />
-              <span>Call Us: 03 111 006 555</span>
             </div>
 
             <div className="w-px h-6 bg-gray-200" />
@@ -371,6 +376,7 @@ export default function PurchasesLayout({
           {children}
         </div>
       </div>
+      </LocationProvider>
     </FiscalYearProvider>
   );
 }

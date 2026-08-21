@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { LOGGED_IN_COOKIE, clearCookieOptions } from '@/lib/auth-cookies';
 
 export async function POST(_request: NextRequest) {
   try {
@@ -7,17 +8,11 @@ export async function POST(_request: NextRequest) {
       message: 'Logged out successfully',
     });
 
-    const cookieOpts = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax' as const,
-      path: '/',
-      maxAge: 0,
-    };
-
-    response.cookies.set('auth_token', '', cookieOpts);
-    response.cookies.set('refresh_token', '', cookieOpts);
-    response.cookies.set('user_data', '', cookieOpts);
+    response.cookies.set('auth_token', '', clearCookieOptions(true));
+    response.cookies.set('refresh_token', '', clearCookieOptions(true));
+    response.cookies.set('user_data', '', clearCookieOptions(true));
+    response.cookies.set('subscription_access', '', clearCookieOptions(false));
+    response.cookies.set(LOGGED_IN_COOKIE, '', clearCookieOptions(false));
 
     return response;
   } catch (error: unknown) {

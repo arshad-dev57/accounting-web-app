@@ -76,10 +76,17 @@ export interface RecordPaymentRequest {
 
 export const accountsReceivableService = {
   // ─── Get summary ──────────────────────────────────────────────
-  getSummary: async (): Promise<Summary> => {
+  getSummary: async (params: { locationId?: string; fiscalYearId?: string } = {}): Promise<Summary> => {
     try {
       console.log('🔍 [Accounts Receivable] Fetching summary...');
-      const response = await apiClient.get('/api/accounts-receivable/summary');
+      const query = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          query.append(key, String(value));
+        }
+      });
+      const url = `/api/accounts-receivable/summary${query.toString() ? `?${query.toString()}` : ''}`;
+      const response = await apiClient.get(url);
       
       console.log('📊 [Accounts Receivable] Summary API Response:', JSON.stringify(response, null, 2));
       console.log('📊 [Accounts Receivable] Summary success:', response.success);
@@ -117,6 +124,8 @@ export const accountsReceivableService = {
     search?: string;
     filter?: string;
     refresh?: boolean;
+    locationId?: string;
+    fiscalYearId?: string;
   } = {}): Promise<CustomerListResponse> => {
     const query = new URLSearchParams();
     

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Calendar, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
 import { OrderForDelivery, OrderItemForDelivery, DeliveryLineDraft } from '@/types/delivery';
+import { useLocationOptional } from '@/lib/location-context';
 
 interface CreateDeliveryWizardProps {
   onSuccess: () => void;
@@ -10,6 +11,7 @@ interface CreateDeliveryWizardProps {
 }
 
 export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliveryWizardProps) {
+  const { selectedLocationId } = useLocationOptional();
   const [wizardStep, setWizardStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSearchingOrders, setIsSearchingOrders] = useState(false);
@@ -31,6 +33,13 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
     setDeliveryDate(tomorrow.toISOString().split('T')[0]);
   }, []);
 
+  // Re-scope order search when warehouse changes
+  useEffect(() => {
+    setSelectedOrder(null);
+    setOrderSearchResults([]);
+    setOrderSearchQuery('');
+  }, [selectedLocationId]);
+
   const searchOrders = async (query: string) => {
     if (query.trim().length < 2) {
       setOrderSearchResults([]);
@@ -47,9 +56,22 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`/api/deliveries/available-orders?search=${encodeURIComponent(query)}&limit=10`, {
-        headers,
+      const params = new URLSearchParams({
+        search: query,
+        limit: '10',
       });
+      if (selectedLocationId) params.set('locationId', selectedLocationId);
+      if (!selectedLocationId) {
+        setOrderSearchResults([]);
+        setIsSearchingOrders(false);
+        return;
+      }
+      const response = await fetch(
+        `/api/deliveries/available-orders?${params.toString()}`,
+        {
+          headers,
+        }
+      );
       const result = await response.json();
       console.log('Available orders response:', result);
 
@@ -187,6 +209,7 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
         deliveryPerson: deliveryPerson.trim() || null,
         trackingNumber: trackingNumber.trim() || null,
         notes: notes.trim() || null,
+        locationId: selectedLocationId || undefined,
       };
 
       const response = await fetch('/api/deliveries', {

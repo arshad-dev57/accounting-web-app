@@ -31,6 +31,7 @@ import {
 import { accountsPayableService, Bill, Summary, Supplier, BankAccount, BillItem } from '../../api/accounts-payable/route';
 import TaxRateSelect from '../../../components/TaxRateSelect';
 import { toast } from 'react-hot-toast';
+import { useLocation } from '../../../lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ interface FilterState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export default function AccountsPayablePage() {
+  const { locationIdForApi } = useLocation();
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -106,7 +108,8 @@ export default function AccountsPayablePage() {
         page,
         limit: pagination.limit,
         search: searchTerm || undefined,
-        status: filter.status !== 'All' ? filter.status : undefined
+        status: filter.status !== 'All' ? filter.status : undefined,
+        locationId: locationIdForApi || undefined,
       });
 
       // Ensure items is always an array
@@ -117,16 +120,14 @@ export default function AccountsPayablePage() {
 
       setBills(billsWithItems);
       setPagination(response.pagination);
-      if (response.summary) {
-        setSummary(response.summary);
-      }
+      // Summary comes from fetchSummary only — do not overwrite with empty defaults
     } catch (error: any) {
       console.error('Failed to fetch bills:', error);
       toast.error(error.message || 'Failed to load bills');
     } finally {
       setLoading(false);
     }
-  }, [filter, searchTerm, pagination.page, pagination.limit]);
+  }, [filter, searchTerm, pagination.page, pagination.limit, locationIdForApi]);
 
   // ─── Fetch Suppliers ─────────────────────────────────────────
 
@@ -154,12 +155,14 @@ export default function AccountsPayablePage() {
 
   const fetchSummary = useCallback(async () => {
     try {
-      const data = await accountsPayableService.getSummary();
+      const data = await accountsPayableService.getSummary({
+        locationId: locationIdForApi || undefined,
+      });
       setSummary(data);
     } catch (error) {
       console.error('Failed to fetch summary:', error);
     }
-  }, []);
+  }, [locationIdForApi]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -172,7 +175,8 @@ export default function AccountsPayablePage() {
         page: nextPage,
         limit: pagination.limit,
         search: searchTerm || undefined,
-        status: filter.status !== 'All' ? filter.status : undefined
+        status: filter.status !== 'All' ? filter.status : undefined,
+        locationId: locationIdForApi || undefined,
       });
 
       const newBills = (response.data || []).map(b => ({
@@ -188,7 +192,7 @@ export default function AccountsPayablePage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm, locationIdForApi]);
 
   // ─── Initial Fetch ──────────────────────────────────────────
 
@@ -197,7 +201,7 @@ export default function AccountsPayablePage() {
     fetchBankAccounts();
     fetchSummary();
     fetchBills(true);
-  }, []);
+  }, [locationIdForApi]);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -221,6 +225,12 @@ export default function AccountsPayablePage() {
   const handleRefresh = () => {
     fetchSummary();
     fetchBills(true);
+  };
+
+  const openPayForm = (bill: Bill, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedBill({ ...bill, items: bill.items || [] });
+    setShowPaymentForm(true);
   };
 
   const handlePageChange = (page: number) => {
@@ -359,7 +369,7 @@ export default function AccountsPayablePage() {
                 <Receipt className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
                 Accounts Payable
                 <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
-                  ({pagination.total} bills)
+                  ({summary.totalBills || pagination.total} payables)
                 </span>
               </h2>
             </div>
@@ -372,16 +382,12 @@ export default function AccountsPayablePage() {
               >
                 <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
               </button>
-              <button
-                onClick={() => setShowAddBillForm(true)}
-                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Add Bill</span>
-                <span className="sm:hidden">Add</span>
-              </button>
             </div>
           </div>
+
+          <p className="text-xs md:text-sm text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+            Payables from <strong>Supplier Credit stock-in</strong> and purchase invoices appear here. Pay directly — no separate bill entry needed.
+          </p>
 
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
@@ -491,9 +497,20 @@ export default function AccountsPayablePage() {
                             <span className="text-[10px] md:text-xs text-gray-400">{bill.items?.length || 0} items</span>
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-sm md:text-base font-bold text-red-600">{formatCurrency(bill.outstanding)}</p>
-                          <p className="text-[10px] md:text-xs text-gray-400">Outstanding</p>
+                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
+                          <div>
+                            <p className="text-sm md:text-base font-bold text-red-600">{formatCurrency(bill.outstanding)}</p>
+                            <p className="text-[10px] md:text-xs text-gray-400">Outstanding</p>
+                          </div>
+                          {bill.status !== 'Paid' && bill.outstanding > 0 && (
+                            <button
+                              type="button"
+                              onClick={(e) => openPayForm(bill, e)}
+                              className="px-2.5 py-1 text-[10px] md:text-xs font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700"
+                            >
+                              Pay & Clear
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -934,7 +951,7 @@ function PaymentForm({
       <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2 md:gap-3">
           <CreditCard className="w-4 h-4 md:w-5 md:h-5 text-[#014582]" />
-          <h2 className="text-base md:text-lg font-bold text-gray-800">Record Payment</h2>
+          <h2 className="text-base md:text-lg font-bold text-gray-800">Pay & Clear Payable</h2>
         </div>
         <button onClick={onCancel} className="p-1.5 md:p-2 hover:bg-gray-200 rounded-lg transition-all">
           <X className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
@@ -1010,9 +1027,9 @@ function PaymentForm({
                 className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
                 <option value="">Select bank account...</option>
-                {bankAccounts.map((acc: any) => (
+                {bankAccounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>
-                    {acc.name} - {acc.accountNumber}
+                    {acc.name} — {acc.bankName} ({acc.accountNumber})
                   </option>
                 ))}
               </select>
@@ -1055,7 +1072,7 @@ function PaymentForm({
               className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-green-500 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : <Save className="w-3.5 h-3.5 md:w-4 md:h-4" />}
-              Pay Now
+              Pay & Clear
             </button>
           </div>
         </form>

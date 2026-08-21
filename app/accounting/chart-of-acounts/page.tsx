@@ -113,7 +113,7 @@ export default function ChartOfAccountsPage() {
       const pageAccounts = response.data ?? [];
       const responsePagination = response.pagination;
       const total = responsePagination?.total ?? pageAccounts.length;
-      const pages = Math.max(1, responsePagination?.pages ?? Math.ceil(total / limit) || 1);
+      const pages = Math.max(1, responsePagination?.pages ?? (Math.ceil(total / limit) || 1));
       const currentPage = responsePagination?.page ?? page;
 
       setAccounts(pageAccounts);

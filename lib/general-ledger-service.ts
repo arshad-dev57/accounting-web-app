@@ -55,11 +55,13 @@ export const generalLedgerService = {
     startDate?: string;
     endDate?: string;
     fiscalYearId?: string;
+    locationId?: string;
   }): Promise<AccountSummary[]> => {
     const query = new URLSearchParams();
     if (params?.startDate) query.append('startDate', params.startDate);
     if (params?.endDate) query.append('endDate', params.endDate);
     if (params?.fiscalYearId) query.append('fiscalYearId', params.fiscalYearId);
+    if (params?.locationId) query.append('locationId', params.locationId);
 
     const url = `/api/general-ledger/accounts${query.toString() ? `?${query.toString()}` : ''}`;
 
@@ -88,6 +90,7 @@ export const generalLedgerService = {
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
     fiscalYearId?: string;
+    locationId?: string;
   } = {}): Promise<LedgerListResponse> => {
     const query = new URLSearchParams();
     const page = params.page && params.page > 0 ? params.page : 1;
@@ -127,7 +130,8 @@ export const generalLedgerService = {
       const currentPage = Number(paginationSource.page ?? page);
       const pageSize = Number(paginationSource.limit ?? limit);
       const pages = Number(
-        paginationSource.pages ?? Math.max(total === 0 ? 0 : 1, Math.ceil(total / pageSize) || 0)
+        paginationSource.pages ??
+          Math.max(total === 0 ? 0 : 1, Math.ceil(total / pageSize) || 0)
       );
 
       return {

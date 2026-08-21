@@ -16,17 +16,18 @@ import {
 } from '../../../lib/pos-scanner';
 
 const card = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.09)',
+  background: '#ffffff',
+  border: '1px solid #e5e7eb',
   borderRadius: '16px',
   padding: '20px',
+  boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
 };
 const input = {
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.12)',
+  background: '#ffffff',
+  border: '1px solid #e5e7eb',
   borderRadius: '10px',
   padding: '9px 14px',
-  color: '#fff',
+  color: '#0f172a',
   fontSize: '14px',
   outline: 'none',
   width: '100%',
@@ -63,14 +64,14 @@ function Toggle({
         justifyContent: 'space-between',
         gap: 16,
         padding: '12px 0',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        borderBottom: '1px solid #e5e7eb',
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.5 : 1,
       }}
     >
       <span>
-        <span style={{ display: 'block', fontSize: 14, color: '#fff' }}>{label}</span>
-        {hint ? <span style={{ display: 'block', fontSize: 12, color: '#8b8fa8', marginTop: 4 }}>{hint}</span> : null}
+        <span style={{ display: 'block', fontSize: 14, color: '#0f172a' }}>{label}</span>
+        {hint ? <span style={{ display: 'block', fontSize: 12, color: '#64748b', marginTop: 4 }}>{hint}</span> : null}
       </span>
       <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
     </label>
@@ -122,7 +123,7 @@ export default function ScannerSettingsTab({ isAdmin }: { isAdmin: boolean }) {
     <div style={{ display: 'grid', gap: 18, maxWidth: 820 }}>
       <div style={card}>
         <h3 style={{ margin: '0 0 6px', fontSize: 18 }}>Hardware barcode scanner</h3>
-        <p style={{ margin: 0, color: '#8b8fa8', fontSize: 13, lineHeight: 1.5 }}>
+        <p style={{ margin: 0, color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>
           Plug in a USB barcode scanner (keyboard-wedge / HID). Scan a product barcode on the POS sell screen
           to add it to the cart. Serial/COM scanners can be paired below in Chrome or Edge.
         </p>
@@ -153,7 +154,7 @@ export default function ScannerSettingsTab({ isAdmin }: { isAdmin: boolean }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
           <div>
-            <label style={{ fontSize: 12, color: '#8b8fa8' }}>Scan suffix</label>
+            <label style={{ fontSize: 12, color: '#64748b' }}>Scan suffix</label>
             <select
               style={input}
               value={settings.scannerSuffix}
@@ -165,7 +166,7 @@ export default function ScannerSettingsTab({ isAdmin }: { isAdmin: boolean }) {
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: '#8b8fa8' }}>Minimum barcode length</label>
+            <label style={{ fontSize: 12, color: '#64748b' }}>Minimum barcode length</label>
             <input
               type="number"
               min={1}
@@ -177,7 +178,7 @@ export default function ScannerSettingsTab({ isAdmin }: { isAdmin: boolean }) {
             />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: '#8b8fa8' }}>Inter-key timeout (ms)</label>
+            <label style={{ fontSize: 12, color: '#64748b' }}>Inter-key timeout (ms)</label>
             <input
               type="number"
               min={20}
@@ -189,7 +190,7 @@ export default function ScannerSettingsTab({ isAdmin }: { isAdmin: boolean }) {
             />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: '#8b8fa8' }}>Optional prefix to strip</label>
+            <label style={{ fontSize: 12, color: '#64748b' }}>Optional prefix to strip</label>
             <input
               style={input}
               disabled={!isAdmin}
@@ -203,7 +204,7 @@ export default function ScannerSettingsTab({ isAdmin }: { isAdmin: boolean }) {
 
       <div style={card}>
         <h3 style={{ margin: '0 0 6px', fontSize: 18 }}>Connect serial / COM scanner</h3>
-        <p style={{ margin: '0 0 14px', color: '#8b8fa8', fontSize: 13, lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 14px', color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>
           Most handheld USB scanners need no pairing — they type the barcode like a keyboard.
           Use this only if your device is a serial scanner (COM port).
         </p>
@@ -212,7 +213,7 @@ export default function ScannerSettingsTab({ isAdmin }: { isAdmin: boolean }) {
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 12, alignItems: 'end' }}>
           <div>
-            <label style={{ fontSize: 12, color: '#8b8fa8' }}>Baud rate</label>
+            <label style={{ fontSize: 12, color: '#64748b' }}>Baud rate</label>
             <input
               type="number"
               style={input}
@@ -225,7 +226,7 @@ export default function ScannerSettingsTab({ isAdmin }: { isAdmin: boolean }) {
             <button
               type="button"
               disabled={!isAdmin || !serialOk || serialOn}
-              style={btn(serialOn ? 'rgba(74,222,128,0.25)' : 'linear-gradient(135deg,#014582,#448aff)')}
+              style={btn(serialOn ? 'rgba(74,222,128,0.25)' : '#014582')}
               onClick={connect}
             >
               {serialOn ? 'Connected' : 'Connect device'}
@@ -235,12 +236,12 @@ export default function ScannerSettingsTab({ isAdmin }: { isAdmin: boolean }) {
             </button>
           </div>
         </div>
-        {serialError ? <p style={{ color: '#f87171', fontSize: 13 }}>{serialError}</p> : null}
+        {serialError ? <p style={{ color: '#dc2626', fontSize: 13 }}>{serialError}</p> : null}
       </div>
 
       <div style={card}>
         <h3 style={{ margin: '0 0 6px', fontSize: 18 }}>Test scan</h3>
-        <p style={{ margin: '0 0 12px', color: '#8b8fa8', fontSize: 13 }}>
+        <p style={{ margin: '0 0 12px', color: '#64748b', fontSize: 13 }}>
           Click the box and scan any barcode. The value should appear instantly.
         </p>
         <input
@@ -251,7 +252,7 @@ export default function ScannerSettingsTab({ isAdmin }: { isAdmin: boolean }) {
           onChange={(e) => setTestField(e.target.value)}
         />
         {lastTest ? (
-          <p style={{ color: '#4ade80', fontSize: 13, marginBottom: 0 }}>Last scan: {lastTest}</p>
+          <p style={{ color: '#059669', fontSize: 13, marginBottom: 0 }}>Last scan: {lastTest}</p>
         ) : null}
       </div>
     </div>

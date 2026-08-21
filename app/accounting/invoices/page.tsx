@@ -36,6 +36,7 @@ import {
 import { invoicesService, Invoice, InvoiceItem, Customer, BankAccount } from '../../api/invoices/route';
 import TaxRateSelect from '../../../components/TaxRateSelect';
 import { toast } from 'react-hot-toast';
+import { useLocation } from '../../../lib/location-context';
 
 const PAGE_LIMIT = 10;
 
@@ -44,6 +45,7 @@ const PAGE_LIMIT = 10;
 interface FilterState {
   status: string;
   customerId: string;
+  invoiceType: 'all' | 'sales' | 'purchase';
 }
 
 interface InvoiceFormItem {
@@ -56,6 +58,7 @@ interface InvoiceFormItem {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export default function InvoicesPage() {
+  const { locationIdForApi } = useLocation();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -78,7 +81,8 @@ export default function InvoicesPage() {
   });
   const [filter, setFilter] = useState<FilterState>({
     status: 'All',
-    customerId: ''
+    customerId: '',
+    invoiceType: 'all',
   });
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -91,6 +95,11 @@ export default function InvoicesPage() {
   const latestRequestRef = useRef(0);
 
   const statusOptions = ['All', 'Unpaid', 'Paid', 'Overdue', 'Partial'];
+  const invoiceTypeOptions: { value: FilterState['invoiceType']; label: string }[] = [
+    { value: 'all', label: 'All Types' },
+    { value: 'sales', label: 'Sales' },
+    { value: 'purchase', label: 'Purchase' },
+  ];
 
   // ─── Get Currency Symbol from Local Storage ──────────────────
 
@@ -123,6 +132,8 @@ export default function InvoicesPage() {
       search: debouncedSearch.trim() || undefined,
       status: filter.status !== 'All' ? filter.status : undefined,
       customerId: filter.customerId || undefined,
+      invoiceType: filter.invoiceType || 'all',
+      locationId: locationIdForApi || undefined,
     }).then((response) => {
       if (requestId !== latestRequestRef.current) return;
       const pages = Math.max(1, response.pagination?.pages ?? 1);
@@ -145,7 +156,7 @@ export default function InvoicesPage() {
     }).finally(() => {
       if (requestId === latestRequestRef.current) setLoading(false);
     });
-  }, [debouncedSearch, filter.status, filter.customerId, currentPage, refreshTick]);
+  }, [debouncedSearch, filter.status, filter.customerId, filter.invoiceType, currentPage, refreshTick, locationIdForApi]);
 
   // ─── Fetch Customers ─────────────────────────────────────────
 
@@ -202,6 +213,11 @@ export default function InvoicesPage() {
 
   const handleStatusChange = (status: string) => {
     setFilter(prev => ({ ...prev, status }));
+    setCurrentPage(1);
+  };
+
+  const handleInvoiceTypeChange = (invoiceType: FilterState['invoiceType']) => {
+    setFilter(prev => ({ ...prev, invoiceType }));
     setCurrentPage(1);
   };
 
@@ -402,6 +418,21 @@ export default function InvoicesPage() {
               <div className="flex flex-wrap items-center gap-2 md:gap-3">
                 <div className="relative flex-1 sm:flex-none min-w-[100px]">
                   <select
+                    value={filter.invoiceType}
+                    onChange={(e) =>
+                      handleInvoiceTypeChange(e.target.value as FilterState['invoiceType'])
+                    }
+                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+                  >
+                    {invoiceTypeOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 pointer-events-none" />
+                </div>
+
+                <div className="relative flex-1 sm:flex-none min-w-[100px]">
+                  <select
                     value={filter.status}
                     onChange={(e) => handleStatusChange(e.target.value)}
                     className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
@@ -463,6 +494,15 @@ export default function InvoicesPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-semibold text-gray-800 text-sm md:text-base truncate">{invoice.invoiceNumber}</p>
+                            <span
+                              className={`text-[10px] md:text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full ${
+                                invoice.invoiceType === 'purchase'
+                                  ? 'bg-orange-100 text-orange-700'
+                                  : 'bg-blue-100 text-blue-700'
+                              }`}
+                            >
+                              {invoice.invoiceType === 'purchase' ? 'Purchase' : 'Sales'}
+                            </span>
                             <span className={`text-[10px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full flex items-center gap-1 ${statusColor}`}>
                               {statusIcon}
                               <span className="hidden xs:inline">{invoice.status}</span>
