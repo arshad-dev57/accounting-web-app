@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { LOGGED_IN_COOKIE, clearCookieOptions } from '@/lib/auth-cookies';
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const response = NextResponse.json({
       success: true,
-      message: 'Logged out successfully'
+      message: 'Logged out successfully',
     });
 
-    // Sab cookies delete karo
-    response.cookies.delete('auth_token');
-    response.cookies.delete('refresh_token');
-    response.cookies.delete('user_data');
+    response.cookies.set('auth_token', '', clearCookieOptions(true));
+    response.cookies.set('refresh_token', '', clearCookieOptions(true));
+    response.cookies.set('user_data', '', clearCookieOptions(true));
+    response.cookies.set('subscription_access', '', clearCookieOptions(false));
+    response.cookies.set(LOGGED_IN_COOKIE, '', clearCookieOptions(false));
 
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Logout failed';
     return NextResponse.json(
-      { success: false, message: error.message || 'Logout failed' },
+      { success: false, message },
       { status: 500 }
     );
   }

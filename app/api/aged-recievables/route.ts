@@ -46,10 +46,20 @@ export interface AgedReceivablesResponse {
 
 export const agedReceivablesService = {
   // ─── Get Aged Receivables ───────────────────────────────────
-  getAgedReceivables: async (): Promise<AgedReceivablesResponse> => {
+  getAgedReceivables: async (params: {
+    fiscalYearId?: string;
+    locationId?: string;
+  } = {}): Promise<AgedReceivablesResponse> => {
     try {
       console.log('🔍 [Aged Receivables] Fetching aged receivables data...');
-      const response = await apiClient.get('/api/accounts-receivable/aged');
+      const query = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          query.append(key, String(value));
+        }
+      });
+      const url = `/api/accounts-receivable/aged${query.toString() ? `?${query.toString()}` : ''}`;
+      const response = await apiClient.get(url);
       
       console.log('📊 [Aged Receivables] API Response:', JSON.stringify(response, null, 2));
       console.log('📊 [Aged Receivables] Response success:', response.success);

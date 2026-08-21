@@ -21,16 +21,52 @@ export interface Category {
 
 export const categoryService = {
   // Get all categories (flat or tree)
-  getCategories: async (params?: { tree?: boolean; includeInactive?: boolean }): Promise<Category[]> => {
+  getCategories: async (params?: {
+    tree?: boolean;
+    includeInactive?: boolean;
+    parentId?: string;
+  }): Promise<Category[]> => {
     const query = new URLSearchParams();
     if (params?.tree) query.append('tree', 'true');
     if (params?.includeInactive) query.append('includeInactive', 'true');
+    if (params?.parentId) query.append('parentId', params.parentId);
     const url = `/api/warehouse/categories${query.toString() ? `?${query.toString()}` : ''}`;
     const response = await apiClient.get(url);
     if (!response.success) {
       throw new Error(response.message || 'Failed to fetch categories');
     }
-    return response.data.data || [];
+    const raw = response.data?.data ?? response.data ?? [];
+    return Array.isArray(raw) ? raw : [];
+  },
+
+  // ✅ Get subcategories for a specific parent category
+  getSubCategories: async (parentId: string): Promise<Category[]> => {
+    try {
+      // Prefer direct parentId filter (flat, reliable)
+      const children = await categoryService.getCategories({ parentId });
+      if (children.length > 0) {
+        return children.map((c) => ({
+          ...c,
+          id: c.id || (c as any)._id || '',
+        })).filter((c) => !!c.id);
+      }
+
+      // Fallback: tree walk
+      const allCategories = await categoryService.getCategories({ tree: true });
+      const parent = allCategories.find(
+        (c) => c._id === parentId || c.id === parentId
+      );
+      if (parent) {
+        return (parent.children || parent.subCategories || []).map((c) => ({
+          ...c,
+          id: c.id || (c as any)._id || '',
+        })).filter((c) => !!c.id);
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching subcategories:', error);
+      return [];
+    }
   },
 
   // Get single category
@@ -40,27 +76,6 @@ export const categoryService = {
       throw new Error(response.message || 'Failed to fetch category');
     }
     return response.data.data;
-  },
-
-  // ✅ Get subcategories for a specific parent category
-  getSubCategories: async (parentId: string): Promise<Category[]> => {
-    try {
-      // First try: Fetch all categories with tree structure and filter by parent
-      const allCategories = await categoryService.getCategories({ tree: true });
-      
-      // Find the parent category
-      const parent = allCategories.find(c => c._id === parentId || c.id === parentId);
-      
-      // If parent found, return its children/subCategories
-      if (parent) {
-        return parent.children || parent.subCategories || [];
-      }
-      
-      return [];
-    } catch (error) {
-      console.error('Error fetching subcategories:', error);
-      return [];
-    }
   },
 
   // Create category

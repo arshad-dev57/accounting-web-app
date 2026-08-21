@@ -37,6 +37,7 @@ export const cashFlowService = {
     startDate?: string;
     endDate?: string;
     fiscalYearId?: string;
+    locationId?: string;
   } = {}): Promise<CashFlowData> => {
     const query = new URLSearchParams();
     
@@ -91,28 +92,24 @@ export const cashFlowService = {
   // ─── Export to PDF ──────────────────────────────────────────
   exportToPdf: async (data: CashFlowData, formatCurrency: (amount: number) => string, period: string): Promise<void> => {
     try {
-      const { default: jsPDF } = await import('jspdf');
       const autoTable = (await import('jspdf-autotable')).default;
+      const { createBrandedReport } = await import('../../../lib/pdf-branding');
 
-      const doc = new jsPDF('portrait', 'mm', 'a4');
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 14;
-      let y = 20;
+      const {
+        doc,
+        margin,
+        pageWidth,
+        startY,
+        accentHex,
+        finalize,
+      } = await createBrandedReport({ reportTitle: 'Cash Flow Statement' });
 
-      // Header
-      doc.setFontSize(18);
-      doc.setTextColor('#7c4dff');
-      doc.text('Cash Flow Statement', pageWidth / 2, y, { align: 'center' });
-      y += 8;
-
+      let y = startY;
       doc.setFontSize(10);
       doc.setTextColor('#666666');
-      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, y, { align: 'center' });
-      y += 6;
       doc.text(`Period: ${data.periodText}`, pageWidth / 2, y, { align: 'center' });
-      y += 10;
+      y += 8;
 
-      // Summary
       doc.setFontSize(11);
       doc.setTextColor('#333333');
       doc.text('Summary', margin, y);
@@ -130,7 +127,7 @@ export const cashFlowService = {
         head: [['Metric', 'Amount']],
         body: summaryData,
         theme: 'striped',
-        headStyles: { fillColor: '#7c4dff', textColor: '#ffffff' },
+        headStyles: { fillColor: accentHex, textColor: '#ffffff' },
         styles: { fontSize: 9 },
         columnStyles: {
           0: { cellWidth: 80 },
@@ -141,8 +138,7 @@ export const cashFlowService = {
 
       y = (doc as any).lastAutoTable.finalY + 10;
 
-      // Helper to render activity sections
-      const renderActivitySection = (title: string, items: CashFlowItem[], total: number, color: string) => {
+      const renderActivitySection = (title: string, items: CashFlowItem[], total: number) => {
         if (!items || items.length === 0) return;
 
         doc.setFontSize(12);
@@ -166,7 +162,7 @@ export const cashFlowService = {
             head: [['Description', 'Amount']],
             body: rows,
             theme: 'plain',
-            headStyles: { fillColor: '#F5F5F5', textColor: '#333333' },
+            headStyles: { fillColor: accentHex, textColor: '#ffffff' },
             styles: { fontSize: 9 },
             columnStyles: {
               0: { cellWidth: 80 },
@@ -178,7 +174,6 @@ export const cashFlowService = {
           y = (doc as any).lastAutoTable.finalY + 4;
         }
 
-        // Total
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         const isTotalPositive = total >= 0;
@@ -189,16 +184,10 @@ export const cashFlowService = {
         doc.setTextColor('#333333');
       };
 
-      // Operating Activities
-      renderActivitySection('Cash Flow from Operating Activities', data.operatingItems, data.cashFlowFromOperations, 'green');
+      renderActivitySection('Cash Flow from Operating Activities', data.operatingItems, data.cashFlowFromOperations);
+      renderActivitySection('Cash Flow from Investing Activities', data.investingItems, data.cashFlowFromInvesting);
+      renderActivitySection('Cash Flow from Financing Activities', data.financingItems, data.cashFlowFromFinancing);
 
-      // Investing Activities
-      renderActivitySection('Cash Flow from Investing Activities', data.investingItems, data.cashFlowFromInvesting, 'orange');
-
-      // Financing Activities
-      renderActivitySection('Cash Flow from Financing Activities', data.financingItems, data.cashFlowFromFinancing, 'red');
-
-      // Net Cash Flow
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       const isNetPositive = data.netCashFlow >= 0;
@@ -211,7 +200,6 @@ export const cashFlowService = {
       doc.text(`Net Cash Flow Change: ${data.netCashFlowPercentage.toFixed(1)}%`, margin, y);
       y += 12;
 
-      // Reconciliation
       doc.setFontSize(11);
       doc.setTextColor('#333333');
       doc.setFont('helvetica', 'bold');
@@ -229,6 +217,7 @@ export const cashFlowService = {
         head: [['', '']],
         body: reconData,
         theme: 'striped',
+        headStyles: { fillColor: accentHex, textColor: '#ffffff' },
         styles: { fontSize: 9 },
         columnStyles: {
           0: { cellWidth: 80 },
@@ -237,14 +226,9 @@ export const cashFlowService = {
         margin: { left: margin, right: margin },
       });
 
-      // Footer
-      y = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(8);
-      doc.setTextColor('#999999');
-      doc.text('Confidential - For Internal Use Only', margin, doc.internal.pageSize.getHeight() - 10);
-      doc.text('Page 1 of 1', pageWidth - margin, doc.internal.pageSize.getHeight() - 10, { align: 'right' });
-
-      doc.save(`cash_flow_${new Date().toISOString().split('T')[0]}.pdf`);
+      finalize({
+        filename: `cash_flow_${new Date().toISOString().split('T')[0]}.pdf`,
+      });
     } catch (error) {
       console.error('Export PDF error:', error);
       throw new Error('Failed to export PDF');

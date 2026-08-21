@@ -25,7 +25,6 @@ const productSettingCategories = [
   { id: 'size', label: 'Sizes', icon: Tag, description: 'Manage product sizes (S, M, L, XL)' },
   { id: 'shippingClass', label: 'Shipping Classes', icon: Truck, description: 'Manage shipping classes' },
   { id: 'stockUnit', label: 'Stock Units', icon: Box, description: 'Manage stock units (Pcs, KG, Meter)' },
-  { id: 'taxType', label: 'Tax Types', icon: FileText, description: 'Manage tax types (Inclusive, Exclusive, Zero Rated, Exempt)' },
 ];
 
 const orderSettingCategories = [
@@ -76,8 +75,8 @@ function SettingsList({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-[#7c4dff]/10 rounded-lg">
-            <Icon className="w-5 h-5 text-[#7c4dff]" />
+          <div className="p-2 bg-[#014582]/10 rounded-lg">
+            <Icon className="w-5 h-5 text-[#014582]" />
           </div>
           <div>
             <h3 className="text-lg font-bold text-gray-800">{categoryInfo?.label}</h3>
@@ -86,7 +85,7 @@ function SettingsList({
         </div>
         <button
           onClick={onAdd}
-          className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+          className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
         >
           <Plus className="w-4 h-4" />
           Add New
@@ -100,7 +99,7 @@ function SettingsList({
           placeholder={`Search ${categoryInfo?.label?.toLowerCase()}...`}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+          className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
         />
       </div>
 
@@ -121,7 +120,7 @@ function SettingsList({
               {loading ? (
                 <tr>
                   <td colSpan={6} className="text-center py-12">
-                    <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+                    <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
                     <p className="mt-2 text-gray-500">Loading...</p>
                   </td>
                 </tr>
@@ -235,8 +234,8 @@ function SettingsFormModal({
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-[#7c4dff]/10 rounded-lg">
-              <Icon className="w-5 h-5 text-[#7c4dff]" />
+            <div className="p-2 bg-[#014582]/10 rounded-lg">
+              <Icon className="w-5 h-5 text-[#014582]" />
             </div>
             <h3 className="text-lg font-bold text-gray-800">
               {isEditing ? 'Edit' : 'Add'} {categoryInfo?.label?.slice(0, -1)}
@@ -257,7 +256,7 @@ function SettingsFormModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={`Enter ${categoryInfo?.label?.slice(0, -1).toLowerCase()} name...`}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               required
             />
           </div>
@@ -266,11 +265,11 @@ function SettingsFormModal({
             <>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Symbol</label>
-                <input type="text" value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder="e.g., $, €, £" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder="e.g., $, €, £" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Code</label>
-                <input type="text" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g., PKR, USD" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g., PKR, USD" className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </>
           )}
@@ -278,7 +277,7 @@ function SettingsFormModal({
           {isRackLocation && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Zone</label>
-              <select value={zone} onChange={(e) => setZone(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+              <select value={zone} onChange={(e) => setZone(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                 <option value="">Select zone...</option>
                 <option value="Receiving">Receiving</option>
                 <option value="Storage">Storage</option>
@@ -295,7 +294,7 @@ function SettingsFormModal({
               type="checkbox"
               checked={isDefault}
               onChange={(e) => setIsDefault(e.target.checked)}
-              className="w-4 h-4 text-[#7c4dff] rounded border-gray-300"
+              className="w-4 h-4 text-[#014582] rounded border-gray-300"
             />
             <label className="text-sm font-medium text-gray-700">Set as Default</label>
           </div>
@@ -304,7 +303,7 @@ function SettingsFormModal({
             <button type="button" onClick={onCancel} className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
               Cancel
             </button>
-            <button type="submit" disabled={saving} className="px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="submit" disabled={saving} className="px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {isEditing ? 'Update' : 'Add'}
             </button>
@@ -409,12 +408,20 @@ export default function ProductSettingsPage() {
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </Link>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Settings className="w-6 h-6 text-[#7c4dff]" />
+            <Settings className="w-6 h-6 text-[#014582]" />
             Settings
           </h2>
         </div>
         <span className="text-sm text-gray-400">Manage dropdown values</span>
       </div>
+
+      <Link href="/tax" className="flex items-start gap-3 p-4 rounded-xl border border-[#014582]/20 bg-[#014582]/5 hover:bg-[#014582]/10 transition-all">
+        <FileText className="w-5 h-5 text-[#014582] mt-0.5" />
+        <div>
+          <p className="font-semibold text-gray-800">Tax types & rates</p>
+          <p className="text-sm text-gray-500">VAT, GST, sales tax, inclusive/exclusive and exemptions are managed in Tax Compliance — not here.</p>
+        </div>
+      </Link>
 
       {/* Messages */}
       {successMessage && (
@@ -434,7 +441,7 @@ export default function ProductSettingsPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
           <div className="flex items-center gap-2">
-            <Package className="w-5 h-5 text-[#7c4dff]" />
+            <Package className="w-5 h-5 text-[#014582]" />
             <h3 className="text-lg font-bold text-gray-800">Product Settings</h3>
             <span className="text-xs text-gray-400 ml-2">Manage product dropdown values</span>
           </div>
@@ -449,7 +456,7 @@ export default function ProductSettingsPage() {
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap
-                    ${isActive ? 'bg-[#7c4dff] text-white shadow-lg shadow-purple-500/25' : 'text-gray-600 hover:bg-gray-100'}`}
+                    ${isActive ? 'bg-[#014582] text-white shadow-lg shadow-[#014582]/25' : 'text-gray-600 hover:bg-gray-100'}`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-gray-400'}`} />
                   {cat.label}
@@ -464,7 +471,7 @@ export default function ProductSettingsPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
           <div className="flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-[#7c4dff]" />
+            <ShoppingCart className="w-5 h-5 text-[#014582]" />
             <h3 className="text-lg font-bold text-gray-800">Order Settings</h3>
             <span className="text-xs text-gray-400 ml-2">Manage order dropdown values</span>
           </div>
@@ -479,7 +486,7 @@ export default function ProductSettingsPage() {
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap
-                    ${isActive ? 'bg-[#7c4dff] text-white shadow-lg shadow-purple-500/25' : 'text-gray-600 hover:bg-gray-100'}`}
+                    ${isActive ? 'bg-[#014582] text-white shadow-lg shadow-[#014582]/25' : 'text-gray-600 hover:bg-gray-100'}`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-gray-400'}`} />
                   {cat.label}

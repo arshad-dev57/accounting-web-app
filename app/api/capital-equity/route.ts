@@ -23,13 +23,16 @@ export interface EquitySummary {
 
 export interface OwnerTransaction {
   id: string;
-  accountId: string;
-  transactionType: 'Additional Capital' | 'Drawings' | 'Reserve Transfer';
+  accountId?: string;
+  accountName?: string;
+  transactionType: string;
+  type?: string;
   amount: number;
   description: string;
   reference?: string;
-  transactionDate: string;
-  createdAt: string;
+  transactionDate?: string;
+  date?: string;
+  createdAt?: string;
 }
 
 export interface EquityListResponse {
@@ -46,53 +49,117 @@ export interface EquityListResponse {
   };
 }
 
+function deriveAccountType(
+  name: string,
+  subType?: string
+): EquityAccount['accountType'] {
+  const fromSub = (subType || '').toLowerCase();
+  if (fromSub.includes('drawing')) return 'Drawings';
+  if (fromSub.includes('retained') || fromSub.includes('retention')) return 'Retained Earnings';
+  if (fromSub.includes('reserve')) return 'Reserves';
+  if (fromSub.includes('capital') || fromSub.includes('share')) return 'Capital';
+
+  const n = (name || '').toLowerCase();
+  if (n.includes('drawing')) return 'Drawings';
+  if (n.includes('retained') || n.includes('retention')) return 'Retained Earnings';
+  if (n.includes('reserve')) return 'Reserves';
+  return 'Capital';
+}
+
+export function mapChartAccountToEquity(account: any): EquityAccount {
+  return {
+    id: account.id,
+    accountName: account.name || account.accountName || '',
+    accountCode: account.code || account.accountCode || '',
+    accountType: deriveAccountType(account.name || '', account.subType || account.accountType),
+    currentBalance: Number(account.currentBalance ?? account.balance ?? account.openingBalance ?? 0),
+    openingBalance: Number(account.openingBalance ?? 0),
+    lastUpdated: account.updatedAt || new Date().toISOString(),
+    description: account.description || account.notes || '',
+  };
+}
+
+export function buildEquitySummary(accounts: EquityAccount[]): EquitySummary {
+  const totalCapital = accounts
+    .filter((a) => a.accountType === 'Capital')
+    .reduce((sum, a) => sum + a.currentBalance, 0);
+  const totalRetainedEarnings = accounts
+    .filter((a) => a.accountType === 'Retained Earnings')
+    .reduce((sum, a) => sum + a.currentBalance, 0);
+  const totalReserves = accounts
+    .filter((a) => a.accountType === 'Reserves')
+    .reduce((sum, a) => sum + a.currentBalance, 0);
+  const totalDrawings = accounts
+    .filter((a) => a.accountType === 'Drawings')
+    .reduce((sum, a) => sum + a.currentBalance, 0);
+
+  return {
+    totalCapital,
+    totalRetainedEarnings,
+    totalReserves,
+    totalDrawings,
+    totalEquity: totalCapital + totalRetainedEarnings + totalReserves - totalDrawings,
+  };
+}
+
 // ─── SERVICE ──────────────────────────────────────────────────
 
 export const equityService = {
-  // ─── Get equity accounts with pagination and filters ───────────
+  getBankAccounts: async (): Promise<{ id: string; accountName: string }[]> => {
+    try {
+      const response = await apiClient.get('/api/bank-accounts');
+      if (!response.success) return [];
+      return response.data?.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  // Same source as Flutter: Chart of Accounts filtered to Equity
   getEquityAccounts: async (params: {
     page?: number;
     limit?: number;
     search?: string;
-    type?: string;
+    accountType?: string;
   } = {}): Promise<EquityListResponse> => {
     const query = new URLSearchParams();
-    
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        query.append(key, String(value));
-      }
-    });
+    query.set('type', 'Equity');
 
-    const url = `/api/equity${query.toString() ? `?${query.toString()}` : ''}`;
-    
+    if (params.page) query.set('page', String(params.page));
+    if (params.limit) query.set('limit', String(params.limit));
+    if (params.search) query.set('search', params.search);
+
+    const url = `/api/chart-of-accounts?${query.toString()}`;
+
     try {
       const response = await apiClient.get(url);
-      
+
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch equity accounts');
       }
-      
-      const data = response.data || {};
-      
+
+      const payload = response.data || {};
+      let accounts = (payload.data || []).map(mapChartAccountToEquity);
+
+      if (params.accountType && params.accountType !== 'All') {
+        accounts = accounts.filter((a: EquityAccount) => a.accountType === params.accountType);
+      }
+
+      const pagination = payload.pagination || {};
+      const summary = buildEquitySummary(accounts);
+
       return {
-        success: response.success,
-        data: data.data || [],
-        summary: data.summary || {
-          totalCapital: 0,
-          totalRetainedEarnings: 0,
-          totalReserves: 0,
-          totalDrawings: 0,
-          totalEquity: 0
+        success: true,
+        data: accounts,
+        summary,
+        pagination: {
+          page: pagination.page || params.page || 1,
+          limit: pagination.limit || params.limit || 20,
+          total: pagination.total ?? accounts.length,
+          pages: pagination.pages ?? 1,
+          hasNext: pagination.hasNext ?? false,
+          hasPrev: pagination.hasPrev ?? false,
         },
-        pagination: data.pagination || {
-          page: params.page || 1,
-          limit: params.limit || 10,
-          total: 0,
-          pages: 0,
-          hasNext: false,
-          hasPrev: false
-        }
       };
     } catch (error: any) {
       console.error('Get equity accounts error:', error);
@@ -100,46 +167,60 @@ export const equityService = {
     }
   },
 
-  // ─── Get summary ──────────────────────────────────────────────
   getSummary: async (): Promise<EquitySummary> => {
     try {
       const response = await apiClient.get('/api/equity/summary');
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch summary');
       }
-      return response.data?.data || {
-        totalCapital: 0,
-        totalRetainedEarnings: 0,
-        totalReserves: 0,
-        totalDrawings: 0,
-        totalEquity: 0
-      };
+      return (
+        response.data?.data || {
+          totalCapital: 0,
+          totalRetainedEarnings: 0,
+          totalReserves: 0,
+          totalDrawings: 0,
+          totalEquity: 0,
+        }
+      );
     } catch (error: any) {
       console.error('Get summary error:', error);
       throw new Error(error.message || 'Failed to fetch summary');
     }
   },
 
-  // ─── Get transactions ───────────────────────────────────────────
   getTransactions: async (): Promise<OwnerTransaction[]> => {
     try {
       const response = await apiClient.get('/api/equity/transactions');
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch transactions');
       }
-      return response.data?.data || [];
+      const rows = response.data?.data || [];
+      return rows.map((txn: any) => ({
+        id: txn.id,
+        accountId: txn.accountId,
+        accountName: txn.accountName || txn.account?.accountName,
+        transactionType: txn.type || txn.transactionType || 'Additional Capital',
+        type: txn.type || txn.transactionType,
+        amount: Number(txn.amount || 0),
+        description: txn.description || '',
+        reference: txn.reference || '',
+        transactionDate: txn.date || txn.transactionDate,
+        date: txn.date || txn.transactionDate,
+        createdAt: txn.createdAt,
+      }));
     } catch (error: any) {
       console.error('Get transactions error:', error);
       throw new Error(error.message || 'Failed to fetch transactions');
     }
   },
 
-  // ─── Add capital ───────────────────────────────────────────────
   addCapital: async (data: {
     accountId: string;
     amount: number;
     description: string;
     reference?: string;
+    paymentMethod?: string;
+    bankAccountId?: string | null;
   }): Promise<any> => {
     try {
       const response = await apiClient.post('/api/equity/add-capital', data);
@@ -153,12 +234,13 @@ export const equityService = {
     }
   },
 
-  // ─── Record drawings ────────────────────────────────────────────
   recordDrawings: async (data: {
     accountId: string;
     amount: number;
     description: string;
     reference?: string;
+    paymentMethod?: string;
+    bankAccountId?: string | null;
   }): Promise<any> => {
     try {
       const response = await apiClient.post('/api/equity/record-drawings', data);
@@ -172,7 +254,6 @@ export const equityService = {
     }
   },
 
-  // ─── Transfer to retained earnings ─────────────────────────────
   transferToRetainedEarnings: async (data: {
     amount: number;
     description: string;
@@ -187,5 +268,5 @@ export const equityService = {
       console.error('Transfer error:', error);
       throw new Error(error.message || 'Failed to transfer');
     }
-  }
+  },
 };

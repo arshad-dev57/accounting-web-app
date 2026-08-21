@@ -7,7 +7,7 @@ export async function PATCH(request, { params }) {
     const { id } = params;
     const body = await request.json();
 
-    const response = await apiClient.patch(`/orders/${id}/status`, body, true);
+    const response = await apiClient.patch(`/api/orders/${id}/status`, body, true);
 
     return NextResponse.json(response);
   } catch (error) {

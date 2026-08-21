@@ -11,9 +11,10 @@ import {
   Check, AlertTriangle,
   Ban, Filter, CircleCheck, CircleX,
   Receipt, ShoppingCart, Banknote, CreditCard,
-  Building2, User, Phone, Mail
+  Building2, User, Phone, Mail, MapPin
 } from 'lucide-react';
 import { salesRefundService, RefundModel, RefundStats, OrderModel } from '../../api/salesrefunds/route';
+import { useLocation } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ interface CreateFormState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export default function SalesRefundsPage() {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [refunds, setRefunds] = useState<RefundModel[]>([]);
   const [filteredRefunds, setFilteredRefunds] = useState<RefundModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +66,9 @@ export default function SalesRefundsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [viewingRefund, setViewingRefund] = useState<RefundModel | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [refundToActOn, setRefundToActOn] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
 
   // ─── Create Form State ──────────────────────────────────────
   const [formState, setFormState] = useState<CreateFormState>({
@@ -98,7 +102,8 @@ export default function SalesRefundsPage() {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         method: methodFilter !== 'all' ? methodFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setRefunds(response.data || []);
@@ -113,7 +118,7 @@ export default function SalesRefundsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, methodFilter, fromDate, toDate, pagination.page, pagination.limit]);
+  }, [searchTerm, statusFilter, methodFilter, fromDate, toDate, pagination.page, pagination.limit, selectedLocationId]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -129,7 +134,8 @@ export default function SalesRefundsPage() {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         method: methodFilter !== 'all' ? methodFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setRefunds(prev => [...prev, ...(response.data || [])]);
@@ -140,7 +146,7 @@ export default function SalesRefundsPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, methodFilter, fromDate, toDate]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, methodFilter, fromDate, toDate, selectedLocationId]);
 
   // ─── Apply Local Filters ────────────────────────────────────
 
@@ -166,6 +172,11 @@ export default function SalesRefundsPage() {
   useEffect(() => {
     fetchRefunds(true);
   }, []);
+
+  useEffect(() => {
+    fetchRefunds(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLocationId]);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -243,7 +254,7 @@ export default function SalesRefundsPage() {
     }
     setFormState(prev => ({ ...prev, isSearchingOrders: true }));
     try {
-      const results = await salesRefundService.searchOrders(query);
+      const results = await salesRefundService.searchOrders(query, 10, selectedLocationId || undefined);
       setFormState(prev => ({ ...prev, orderSearchResults: results }));
     } catch (error) {
       console.error('Failed to search orders:', error);
@@ -346,6 +357,24 @@ export default function SalesRefundsPage() {
     }
   };
 
+  const handleCancelRefund = async () => {
+    if (!refundToActOn) return;
+    setSubmitting(true);
+    try {
+      await salesRefundService.cancelRefund(refundToActOn, cancelReason || 'Cancelled by user');
+      setShowCancelConfirm(false);
+      setRefundToActOn(null);
+      setCancelReason('');
+      setViewingRefund(null);
+      fetchRefunds(true);
+    } catch (error: any) {
+      console.error('Failed to cancel refund:', error);
+      alert(error.message || 'Failed to cancel refund');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleDeleteRefund = async () => {
     if (!refundToActOn) return;
     setSubmitting(true);
@@ -433,7 +462,7 @@ export default function SalesRefundsPage() {
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <DollarSign className="w-6 h-6 text-[#7c4dff]" />
+                <DollarSign className="w-6 h-6 text-[#014582]" />
                 Sales Refunds
                 <span className="text-sm font-normal text-gray-400 ml-2">
                   ({pagination.total} refunds)
@@ -443,7 +472,7 @@ export default function SalesRefundsPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleRefresh}
-                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
                 title="Refresh"
                 disabled={loading}
               >
@@ -451,13 +480,26 @@ export default function SalesRefundsPage() {
               </button>
               <button
                 onClick={openCreateForm}
-                className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+                className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
               >
                 <Plus className="w-4 h-4" />
                 Create Refund
               </button>
             </div>
           </div>
+
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            <strong>Flow:</strong> Create refund as Pending → <strong>Complete</strong> to post cash refund (Dr AR / Cr Bank).
+            Stock is restored when the linked return is completed, not here.
+          </div>
+
+          {selectedLocation && (
+            <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+              <MapPin className="w-4 h-4 flex-shrink-0" />
+              Showing refunds for <strong>{selectedLocation.name}</strong>
+              <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+            </div>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
@@ -495,7 +537,7 @@ export default function SalesRefundsPage() {
                   placeholder="Search refunds..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
                 {searchTerm && (
                   <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -508,7 +550,7 @@ export default function SalesRefundsPage() {
                 <select
                   value={statusFilter}
                   onChange={(e) => handleStatusFilterChange(e.target.value)}
-                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {statusOptions.map((status) => (
                     <option key={status} value={status}>
@@ -523,7 +565,7 @@ export default function SalesRefundsPage() {
                 <select
                   value={methodFilter}
                   onChange={(e) => handleMethodFilterChange(e.target.value)}
-                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {methodOptions.map((method) => (
                     <option key={method} value={method}>
@@ -539,18 +581,18 @@ export default function SalesRefundsPage() {
                   type="date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
                 <span className="text-gray-400 text-sm">to</span>
                 <input
                   type="date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
                 <button
                   onClick={handleDateFilter}
-                  className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] rounded-lg text-sm font-semibold hover:bg-[#7c4dff]/20 transition-all"
+                  className="px-4 py-2 bg-[#014582]/10 text-[#014582] rounded-lg text-sm font-semibold hover:bg-[#014582]/20 transition-all"
                 >
                   Apply
                 </button>
@@ -566,7 +608,7 @@ export default function SalesRefundsPage() {
                 onClick={() => handleFilterChange(filter)}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
                   selectedFilter === filter
-                    ? 'bg-[#7c4dff] text-white'
+                    ? 'bg-[#014582] text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -594,7 +636,7 @@ export default function SalesRefundsPage() {
                   {loading && refunds.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="text-center py-12">
-                        <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+                        <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
                         <p className="mt-2 text-gray-500">Loading refunds...</p>
                       </td>
                     </tr>
@@ -611,7 +653,7 @@ export default function SalesRefundsPage() {
                       <tr key={refund.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-3">
                           <div>
-                            <p className="font-medium text-[#7c4dff]">{refund.refundNumber}</p>
+                            <p className="font-medium text-[#014582]">{refund.refundNumber}</p>
                             <p className="text-xs text-gray-400">{formatDate(refund.refundDate)}</p>
                           </div>
                         </td>
@@ -662,6 +704,18 @@ export default function SalesRefundsPage() {
                                 <CheckCircle className="w-4 h-4" />
                               </button>
                             )}
+                            {(refund.refundStatus === 'Pending' || refund.refundStatus === 'Processing') && (
+                              <button
+                                onClick={() => {
+                                  setRefundToActOn(refund.id);
+                                  setShowCancelConfirm(true);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                title="Cancel"
+                              >
+                                <Ban className="w-4 h-4" />
+                              </button>
+                            )}
                             {(refund.refundStatus === 'Failed' || refund.refundStatus === 'Cancelled') && (
                               <button
                                 onClick={() => {
@@ -689,7 +743,7 @@ export default function SalesRefundsPage() {
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="px-6 py-2 text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50"
+                  className="px-6 py-2 text-sm font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all disabled:opacity-50"
                 >
                   {loadingMore ? (
                     <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -716,7 +770,7 @@ export default function SalesRefundsPage() {
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg">
+                <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg">
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
@@ -739,6 +793,11 @@ export default function SalesRefundsPage() {
           onClose={() => setViewingRefund(null)}
           onProcess={handleProcessRefund}
           onComplete={handleCompleteRefund}
+          onCancelRefund={(id: string) => {
+            setRefundToActOn(id);
+            setShowCancelConfirm(true);
+            setViewingRefund(null);
+          }}
           onDelete={(id) => {
             setRefundToActOn(id);
             setShowDeleteConfirm(true);
@@ -749,6 +808,35 @@ export default function SalesRefundsPage() {
           getStatusColor={getStatusColor}
           getStatusIcon={getStatusIcon}
           submitting={submitting}
+        />
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <ConfirmationModal
+          title="Cancel Refund"
+          message="Are you sure you want to cancel this refund? This action cannot be undone."
+          confirmLabel="Cancel Refund"
+          confirmColor="bg-red-500 hover:bg-red-600"
+          onConfirm={handleCancelRefund}
+          onCancel={() => {
+            setShowCancelConfirm(false);
+            setRefundToActOn(null);
+            setCancelReason('');
+          }}
+          loading={submitting}
+          extraContent={
+            <div className="mt-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Reason (Optional)</label>
+              <input
+                type="text"
+                placeholder="Enter reason for cancellation"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
+              />
+            </div>
+          }
         />
       )}
 
@@ -802,7 +890,7 @@ function CreateRefundForm({
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </button>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <DollarSign className="w-6 h-6 text-[#7c4dff]" />
+            <DollarSign className="w-6 h-6 text-[#014582]" />
             Create Refund
           </h2>
         </div>
@@ -824,13 +912,13 @@ function CreateRefundForm({
                   placeholder="Search order number or customer name..."
                   value={orderSearchQuery}
                   onChange={(e) => handleSearchOrders(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
 
               {formState.isSearchingOrders && (
                 <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 p-4">
-                  <Loader2 className="w-6 h-6 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-6 h-6 mx-auto text-[#014582] animate-spin" />
                 </div>
               )}
 
@@ -842,7 +930,7 @@ function CreateRefundForm({
                       onClick={() => selectOrder(order)}
                       className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-none transition-colors"
                     >
-                      <p className="font-medium text-[#7c4dff]">{order.orderNumber}</p>
+                      <p className="font-medium text-[#014582]">{order.orderNumber}</p>
                       <p className="text-sm text-gray-600">{order.customerName}</p>
                       <p className="text-xs text-gray-400">Total: {formatCurrency(order.grandTotal)}</p>
                     </button>
@@ -852,10 +940,10 @@ function CreateRefundForm({
             </div>
 
             {formState.selectedOrder && (
-              <div className="mt-3 p-3 bg-[#7c4dff]/5 border border-[#7c4dff]/20 rounded-lg">
+              <div className="mt-3 p-3 bg-[#014582]/5 border border-[#014582]/20 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-[#7c4dff]">{formState.selectedOrder.orderNumber}</p>
+                    <p className="font-semibold text-[#014582]">{formState.selectedOrder.orderNumber}</p>
                     <p className="text-sm text-gray-600">{formState.selectedOrder.customerName}</p>
                     <p className="text-xs text-gray-400">Total: {formatCurrency(formState.selectedOrder.grandTotal)}</p>
                   </div>
@@ -888,7 +976,7 @@ function CreateRefundForm({
                     min="0"
                     value={formState.amount}
                     onChange={(e) => setFormState(prev => ({ ...prev, amount: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                     placeholder="0.00"
                   />
                 </div>
@@ -900,7 +988,7 @@ function CreateRefundForm({
                 <select
                   value={formState.refundMethod}
                   onChange={(e) => setFormState(prev => ({ ...prev, refundMethod: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {methodOptions.map((method: string) => (
                     <option key={method} value={method}>{method}</option>
@@ -919,7 +1007,7 @@ function CreateRefundForm({
                       placeholder="Enter bank name"
                       value={formState.bankName}
                       onChange={(e) => setFormState(prev => ({ ...prev, bankName: e.target.value }))}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                     />
                   </div>
                   <div>
@@ -929,7 +1017,7 @@ function CreateRefundForm({
                       placeholder="Enter account number"
                       value={formState.accountNumber}
                       onChange={(e) => setFormState(prev => ({ ...prev, accountNumber: e.target.value }))}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                     />
                   </div>
                   <div>
@@ -939,7 +1027,7 @@ function CreateRefundForm({
                       placeholder="Enter account holder name"
                       value={formState.accountHolderName}
                       onChange={(e) => setFormState(prev => ({ ...prev, accountHolderName: e.target.value }))}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                     />
                   </div>
                 </div>
@@ -953,7 +1041,7 @@ function CreateRefundForm({
                   placeholder="Enter reason for refund..."
                   value={formState.reason}
                   onChange={(e) => setFormState(prev => ({ ...prev, reason: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none resize-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none resize-none"
                 />
               </div>
 
@@ -965,7 +1053,7 @@ function CreateRefundForm({
                   placeholder="Additional notes..."
                   value={formState.notes}
                   onChange={(e) => setFormState(prev => ({ ...prev, notes: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none resize-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none resize-none"
                 />
               </div>
 
@@ -977,7 +1065,7 @@ function CreateRefundForm({
                   placeholder="Enter reference number"
                   value={formState.referenceNumber}
                   onChange={(e) => setFormState(prev => ({ ...prev, referenceNumber: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
             </div>
@@ -994,7 +1082,7 @@ function CreateRefundForm({
             <button
               onClick={handleCreateRefund}
               disabled={!formState.selectedOrder || submitting}
-              className="flex-1 px-4 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1019,6 +1107,7 @@ function RefundDetailModal({
   onClose,
   onProcess,
   onComplete,
+  onCancelRefund,
   onDelete,
   formatCurrency,
   formatDate,
@@ -1029,10 +1118,10 @@ function RefundDetailModal({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-[#7c4dff]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <DollarSign className="w-6 h-6 text-[#7c4dff]" />
+            <div className="w-12 h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <DollarSign className="w-6 h-6 text-[#014582]" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">{refund.refundNumber}</h2>
@@ -1055,7 +1144,7 @@ function RefundDetailModal({
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <p className="text-xs text-gray-400 font-medium">Order</p>
-              <p className="text-sm font-semibold text-[#7c4dff] mt-1">{refund.orderNumber}</p>
+              <p className="text-sm font-semibold text-[#014582] mt-1">{refund.orderNumber}</p>
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Customer</p>
@@ -1063,7 +1152,7 @@ function RefundDetailModal({
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Amount</p>
-              <p className="text-lg font-bold text-[#7c4dff] mt-1">{formatCurrency(refund.amount)}</p>
+              <p className="text-lg font-bold text-[#014582] mt-1">{formatCurrency(refund.amount)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Method</p>
@@ -1119,25 +1208,39 @@ function RefundDetailModal({
 
           {/* Action Buttons */}
           {refund.refundStatus === 'Pending' && (
-            <div className="border-t border-gray-100 pt-4 mt-4">
+            <div className="border-t border-gray-100 pt-4 mt-4 flex gap-3">
               <button
                 onClick={() => onProcess(refund.id)}
                 disabled={submitting}
-                className="w-full px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-all disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-all disabled:opacity-50"
               >
                 Process Refund
+              </button>
+              <button
+                onClick={() => onCancelRefund(refund.id)}
+                disabled={submitting}
+                className="flex-1 px-4 py-2.5 border border-red-500 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
+              >
+                Cancel
               </button>
             </div>
           )}
 
           {refund.refundStatus === 'Processing' && (
-            <div className="border-t border-gray-100 pt-4 mt-4">
+            <div className="border-t border-gray-100 pt-4 mt-4 flex gap-3">
               <button
                 onClick={() => onComplete(refund.id)}
                 disabled={submitting}
-                className="w-full px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-all disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-all disabled:opacity-50"
               >
                 Complete Refund
+              </button>
+              <button
+                onClick={() => onCancelRefund(refund.id)}
+                disabled={submitting}
+                className="flex-1 px-4 py-2.5 border border-red-500 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
+              >
+                Cancel
               </button>
             </div>
           )}

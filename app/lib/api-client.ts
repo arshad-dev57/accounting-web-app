@@ -1,5 +1,9 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { API_BASE_URL } from './constants';
+import {
+  getStoredFiscalYearId,
+  shouldAttachFiscalYear,
+} from '../../lib/fiscal-year-service';
 
 interface ApiResponse {
   statusCode: number;
@@ -37,6 +41,31 @@ class ApiClient {
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+        // FormData must use multipart boundary — do not force JSON content-type
+        if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+          const headers: any = config.headers;
+          if (headers && typeof headers.delete === 'function') {
+            headers.delete('Content-Type');
+          } else if (headers) {
+            delete headers['Content-Type'];
+            delete headers['content-type'];
+          }
+        }
+
+        // Attach selected fiscal year to accounting/report list GETs
+        const method = (config.method || 'get').toLowerCase();
+        if (method === 'get' && shouldAttachFiscalYear(config.url)) {
+          const fyId = getStoredFiscalYearId();
+          if (fyId) {
+            const url = config.url || '';
+            if (!/[?&]fiscalYearId=/.test(url)) {
+              config.params = {
+                ...(config.params || {}),
+                fiscalYearId: config.params?.fiscalYearId || fyId,
+              };
+            }
+          }
+        }
         return config;
       },
       (error) => Promise.reject(error)
@@ -48,6 +77,29 @@ class ApiClient {
       async (error) => {
         const originalRequest = error.config;
         
+        // Subscription expired / required — send user to pricing
+        if (
+          error.response?.status === 403 &&
+          (error.response?.data?.code === 'SUBSCRIPTION_REQUIRED' ||
+            String(error.response?.data?.message || '')
+              .toLowerCase()
+              .includes('subscription'))
+        ) {
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('has_active_subscription', '0');
+              document.cookie =
+                'subscription_access=0; path=/; SameSite=Lax; max-age=604800';
+            } catch {
+              /* ignore */
+            }
+            if (!window.location.pathname.startsWith('/plans')) {
+              window.location.href = '/plans';
+            }
+          }
+          return Promise.reject(error);
+        }
+
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
           
@@ -119,8 +171,10 @@ class ApiClient {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('userProfile');
+      localStorage.removeItem('bisonstechs_company_branding');
     }
-    console.log('🔵 Tokens cleared');
   }
 
   loadTokens() {
@@ -170,10 +224,15 @@ class ApiClient {
       const config: any = {
         method,
         url: endpoint,
+        headers: {},
       };
 
       if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
         config.data = body;
+        // Let the browser/axios set multipart boundary for FormData
+        if (typeof FormData !== 'undefined' && body instanceof FormData) {
+          config.headers['Content-Type'] = undefined;
+        }
       }
 
       if (!requiresAuth) {

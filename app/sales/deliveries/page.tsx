@@ -3,10 +3,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import { 
   Plus, Search, RefreshCw, Truck, Clock, 
-  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2 
+  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, MapPin
 } from 'lucide-react';
 import { Delivery, DeliveryStats } from '@/types/delivery';
 import CreateDeliveryWizard from '@/components/deliveries/CreateDeliveryWizard';
+import { useLocation } from '@/lib/location-context';
 
 const STATUS_COLORS: Record<string, string> = {
   'Pending': 'bg-orange-100 text-orange-700',
@@ -27,6 +28,7 @@ const pill = (map: Record<string, string>, val: string) =>
 const STATUS_OPTIONS = ['all', 'Pending', 'Partially Delivered', 'Delivered'];
 
 export default function DeliveriesPage() {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
@@ -60,6 +62,7 @@ export default function DeliveriesPage() {
 
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (selectedLocationId) params.append('locationId', selectedLocationId);
 
       const token = localStorage.getItem('auth_token');
       const headers: HeadersInit = {
@@ -91,7 +94,11 @@ export default function DeliveriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchTerm, statusFilter]);
+  }, [currentPage, searchTerm, statusFilter, selectedLocationId]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLocationId]);
 
   const handleDeliveryClick = (delivery: Delivery) => {
     setSelectedDelivery(delivery);
@@ -179,12 +186,25 @@ export default function DeliveriesPage() {
           </div>
           <button
             onClick={() => setShowCreateWizard(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#7c4dff]/90 transition-all font-semibold"
+            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#014582]/90 transition-all font-semibold"
           >
             <Plus size={18} />
             Create Delivery
           </button>
         </div>
+
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          <strong>Flow:</strong> Create delivery as Pending → <strong>Confirm</strong> to deduct stock from warehouse.
+          Invoice posting records revenue and COGS separately.
+        </div>
+
+        {selectedLocation && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+            <MapPin className="w-4 h-4 flex-shrink-0" />
+            Showing deliveries for <strong>{selectedLocation.name}</strong>
+            <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+          </div>
+        )}
 
         {/* KPI Cards */}
         <div className="grid grid-cols-3 gap-4 mb-4">
@@ -226,7 +246,7 @@ export default function DeliveriesPage() {
               placeholder="Search deliveries..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] focus:border-transparent"
             />
             {searchTerm && (
               <button
@@ -240,7 +260,7 @@ export default function DeliveriesPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] focus:border-transparent"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option} value={option}>
@@ -292,7 +312,7 @@ export default function DeliveriesPage() {
             {loading ? (
               <tr>
                 <td colSpan={7} className="px-6 py-12 text-center">
-                  <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#7c4dff]" />
+                  <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#014582]" />
                 </td>
               </tr>
             ) : deliveries.length === 0 ? (
@@ -311,7 +331,7 @@ export default function DeliveriesPage() {
                 return (
                   <tr key={delivery.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="font-semibold text-[#7c4dff]">{delivery.deliveryNumber}</span>
+                      <span className="font-semibold text-[#014582]">{delivery.deliveryNumber}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {delivery.salesOrderNumber}
@@ -340,7 +360,7 @@ export default function DeliveriesPage() {
                       <div className="flex items-center gap-2">
                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-[#7c4dff] transition-all"
+                            className="h-full bg-[#014582] transition-all"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
@@ -351,7 +371,7 @@ export default function DeliveriesPage() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleDeliveryClick(delivery)}
-                          className="p-1.5 text-gray-600 hover:text-[#7c4dff] hover:bg-gray-100 rounded transition-colors"
+                          className="p-1.5 text-gray-600 hover:text-[#014582] hover:bg-gray-100 rounded transition-colors"
                           title="View Details"
                         >
                           <Eye size={16} />
@@ -440,7 +460,7 @@ export default function DeliveriesPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Delivery Number</p>
-                    <p className="font-semibold text-[#7c4dff]">{selectedDelivery.deliveryNumber}</p>
+                    <p className="font-semibold text-[#014582]">{selectedDelivery.deliveryNumber}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Order Number</p>

@@ -104,6 +104,7 @@ export const salesRefundService = {
     toDate?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    locationId?: string;
   } = {}): Promise<RefundListResponse> => {
     const query = new URLSearchParams();
     
@@ -151,10 +152,17 @@ export const salesRefundService = {
   },
 
   // ─── Search orders for refund ──────────────────────────────
-  searchOrders: async (query: string, limit: number = 10): Promise<OrderModel[]> => {
+  searchOrders: async (query: string, limit: number = 10, locationId?: string): Promise<OrderModel[]> => {
     try {
+      const params = new URLSearchParams({
+        search: query,
+        orderType: 'Sales Order',
+        limit: String(limit),
+      });
+      if (locationId) params.append('locationId', locationId);
+
       const response = await apiClient.get(
-        `/api/orders/sales?search=${encodeURIComponent(query)}&limit=${limit}`
+        `/api/orders/sales?${params.toString()}`
       );
       if (!response.success) {
         throw new Error(response.message || 'Failed to search orders');
@@ -169,7 +177,7 @@ export const salesRefundService = {
   // ─── Get order details ──────────────────────────────────────
   getOrderById: async (orderId: string): Promise<OrderModel> => {
     try {
-      const response = await apiClient.get(`/api/orders/sales/${orderId}`);
+      const response = await apiClient.get(`/api/orders/${orderId}`);
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch order');
       }

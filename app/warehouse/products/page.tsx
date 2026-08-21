@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Plus, Search, Edit, Trash2, Eye, Package, ChevronDown,
@@ -13,10 +13,13 @@ import {
   Thermometer, Package2, ShoppingCart, RotateCcw, Star,
   Globe, AlertTriangle, Archive, Boxes
 } from 'lucide-react';
-import { productService, Product } from '../../api/product/route';
+import { productService, Product, getProductId } from '../../api/product/route';
 import { categoryService, Category } from '../../api/category/route';
 import { supplierService, Supplier } from '../../api/supplier/route';
 import { settingService } from '../../api/settings/route';
+import { ProductTaxFields } from '../../../components/TaxRateSelect';
+import QuickAddSelect from '../../../components/QuickAddSelect';
+import { useLocation } from '@/lib/location-context';
 
 // ============================================================
 // BARCODE DISPLAY COMPONENT
@@ -86,10 +89,10 @@ function BarcodeDisplay({ value, productName }: { value: string; productName: st
         <canvas ref={canvasRef} className="rounded-lg border border-gray-100" />
       )}
       <div className="flex gap-2">
-        <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all text-gray-600">
+        <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all text-gray-600">
           <Download className="w-3.5 h-3.5" /> Download
         </button>
-        <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all text-gray-600">
+        <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all text-gray-600">
           <Printer className="w-3.5 h-3.5" /> Print
         </button>
       </div>
@@ -154,7 +157,7 @@ function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; 
       <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <Camera className="w-5 h-5 text-[#7c4dff]" />
+            <Camera className="w-5 h-5 text-[#014582]" />
             <h3 className="text-base font-bold text-gray-800">Scan Barcode</h3>
           </div>
           <button onClick={() => { stopRef.current?.(); onClose(); }} className="p-1.5 hover:bg-gray-100 rounded-lg">
@@ -171,7 +174,7 @@ function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; 
             <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
               <video ref={videoRef} className="w-full h-full object-cover" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-48 h-24 border-2 border-[#7c4dff] rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+                <div className="w-48 h-24 border-2 border-[#014582] rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
               </div>
               {scanning && (
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full">
@@ -191,9 +194,9 @@ function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; 
               value={manualInput}
               onChange={(e) => setManualInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
             />
-            <button onClick={handleManualSubmit} className="px-4 py-2 bg-[#7c4dff] text-white text-sm font-medium rounded-lg hover:bg-[#6c3fe0] transition-all">
+            <button onClick={handleManualSubmit} className="px-4 py-2 bg-[#014582] text-white text-sm font-medium rounded-lg hover:bg-[#01366a] transition-all">
               Search
             </button>
           </div>
@@ -255,15 +258,15 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-start justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl w-full max-w-4xl my-4 shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-[#7c4dff]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Package className="w-6 h-6 text-[#7c4dff]" />
+            <div className="w-12 h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Package className="w-6 h-6 text-[#014582]" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">{product.name}</h2>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="font-mono text-xs font-bold text-[#7c4dff] bg-[#7c4dff]/10 px-2 py-0.5 rounded">{product.sku}</span>
+                <span className="font-mono text-xs font-bold text-[#014582] bg-[#014582]/10 px-2 py-0.5 rounded">{product.sku}</span>
                 <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${stockStatus.cls}`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${stockStatus.dot}`} />
                   {stockStatus.label}
@@ -273,7 +276,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={onEdit} className="flex items-center gap-1.5 px-4 py-2 bg-[#7c4dff] text-white text-sm font-semibold rounded-lg hover:bg-[#6c3fe0] transition-all">
+            <button onClick={onEdit} className="flex items-center gap-1.5 px-4 py-2 bg-[#014582] text-white text-sm font-semibold rounded-lg hover:bg-[#01366a] transition-all">
               <Edit className="w-3.5 h-3.5" /> Edit
             </button>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-all">
@@ -308,8 +311,8 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
             return (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap
-                  ${isActive ? 'border-[#7c4dff] text-[#7c4dff]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
-                <Icon className={`w-4 h-4 ${isActive ? 'text-[#7c4dff]' : 'text-gray-400'}`} />
+                  ${isActive ? 'border-[#014582] text-[#014582]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                <Icon className={`w-4 h-4 ${isActive ? 'text-[#014582]' : 'text-gray-400'}`} />
                 {tab.label}
               </button>
             );
@@ -344,7 +347,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
                     <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Tags</h4>
                     <div className="flex flex-wrap gap-1.5">
                       {(Array.isArray(product.tags) ? product.tags : (product.tags ? String(product.tags).split(',') : [])).map((tag: string, i: number) => (
-                        <span key={i} className="text-xs bg-[#7c4dff]/10 text-[#7c4dff] font-medium px-2 py-0.5 rounded-full">{tag.trim()}</span>
+                        <span key={i} className="text-xs bg-[#014582]/10 text-[#014582] font-medium px-2 py-0.5 rounded-full">{tag.trim()}</span>
                       ))}
                     </div>
                   </div>
@@ -528,11 +531,11 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
               <div className="w-full max-w-sm">
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 text-center">Barcode</h4>
                 <BarcodeDisplay
-                  value={product.barcode?.number || product.sku}
+                  value={product.barcode?.number || product.barcodeNumber || product.sku}
                   productName={product.name}
                 />
                 <div className="mt-4 space-y-1">
-                  <DetailRow label="Barcode No." value={product.barcode?.number || product.sku} mono />
+                  <DetailRow label="Barcode No." value={product.barcode?.number || product.barcodeNumber || product.sku} mono />
                   <DetailRow label="Format" value="CODE128" />
                   <DetailRow label="SKU" value={product.sku} mono />
                 </div>
@@ -572,25 +575,29 @@ function ProductList({
   onScanClick: () => void;
   categories: Category[];
 }) {
-  const catOptions = ['All', ...categories.map(c => c.name)];
-  const statusOptions = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
+  const statusOptions = [
+    { label: 'All Products', value: 'all' },
+    { label: 'In Stock (here)', value: 'in' },
+    { label: 'Out of Stock (here)', value: 'out' },
+    { label: 'Low Stock (here)', value: 'low' },
+  ];
 
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Package className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+          <Package className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
           Products
           <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">({pagination.total} items)</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2 md:gap-3">
-          <button onClick={onScanClick} className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all">
+          <button onClick={onScanClick} className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all">
             <Camera className="w-3.5 h-3.5 md:w-4 md:h-4" /> Scan
           </button>
-          <Link href="/warehouse/product-settings" className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all">
+          <Link href="/warehouse/product-settings" className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all">
             <Settings className="w-3.5 h-3.5 md:w-4 md:h-4" /> Settings
           </Link>
-          <button onClick={onAddClick} className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25">
+          <button onClick={onAddClick} className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25">
             <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" /> Add Product
           </button>
         </div>
@@ -602,22 +609,41 @@ function ProductList({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
             <input type="text" placeholder="Search products..." value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none" />
+              className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none" />
           </div>
           <div className="relative flex-1 sm:flex-none min-w-[120px]">
-            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}
-              className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
-              {catOptions.map((cat) => (
-                <option key={cat} value={cat === 'All' ? 'all' : cat}>{cat}</option>
-              ))}
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+            >
+              <option value="all">All Categories</option>
+              {categories
+                .filter((cat) => {
+                  const parent = cat.parentId;
+                  return parent == null || parent === '';
+                })
+                .map((cat) => {
+                const id = cat.id || (cat as any)._id || '';
+                return (
+                  <option key={id || cat.name} value={id}>
+                    {cat.name}
+                  </option>
+                );
+              })}
             </select>
             <ChevronDown className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 pointer-events-none" />
           </div>
           <div className="relative flex-1 sm:flex-none min-w-[100px]">
-            <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}
-              className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+            >
               {statusOptions.map((status) => (
-                <option key={status} value={status === 'All' ? 'all' : status.toLowerCase().replace(' ', '-')}>{status}</option>
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
               ))}
             </select>
             <ChevronDown className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 pointer-events-none" />
@@ -635,7 +661,7 @@ function ProductList({
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Category</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Supplier</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Stock</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Stock (location)</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
@@ -643,7 +669,7 @@ function ProductList({
             <tbody>
               {loading ? (
                 <tr><td colSpan={8} className="text-center py-8 md:py-12">
-                  <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                   <p className="mt-2 text-xs md:text-sm text-gray-500">Loading...</p>
                 </td></tr>
               ) : products.length === 0 ? (
@@ -711,7 +737,7 @@ function ProductList({
             <button onClick={() => onPageChange(pagination.page - 1)} disabled={!pagination.hasPrev} className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
               <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
             </button>
-            <span className="px-2 md:px-4 py-1 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg text-xs md:text-sm">
+            <span className="px-2 md:px-4 py-1 md:py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg text-xs md:text-sm">
               {pagination.page} / {pagination.pages}
             </span>
             <button onClick={() => onPageChange(pagination.page + 1)} disabled={!pagination.hasNext} className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -729,6 +755,10 @@ function ProductList({
 // ============================================================
 function ProductForm({
   editingProduct, onCancel, onSuccess, categories, suppliers, settingsData, loadingSettings,
+  locationId,
+  onCategoryCreated,
+  onSupplierCreated,
+  onSettingCreated,
 }: {
   editingProduct?: Product | null;
   onCancel: () => void;
@@ -737,86 +767,125 @@ function ProductForm({
   suppliers: Supplier[];
   settingsData: Record<string, any[]>;
   loadingSettings: boolean;
+  locationId?: string;
+  onCategoryCreated?: (cat: Category) => void;
+  onSupplierCreated?: (sup: Supplier) => void;
+  onSettingCreated?: (settingCategory: string, item: any) => void;
 }) {
-  const categoryList = Array.isArray(categories) ? categories : [];
+  const categoryList = Array.isArray(categories)
+    ? categories.filter((c) => {
+        const parent = c.parentId;
+        return parent == null || parent === '' || parent === undefined;
+      })
+    : [];
   const supplierList = Array.isArray(suppliers) ? suppliers : [];
   const isEditing = !!editingProduct;
 
   const [activeTab, setActiveTab] = useState('basic');
+  const [loadingSubs, setLoadingSubs] = useState(false);
   const [formData, setFormData] = useState({
     name: editingProduct?.name || '',
     sku: editingProduct?.sku || '',
-    barcode: editingProduct?.barcode?.number || '',
+    barcode: editingProduct?.barcode?.number || editingProduct?.barcodeNumber || '',
     productType: editingProduct?.productType || '',
     description: editingProduct?.description || '',
-    tags: '',
+    tags: Array.isArray(editingProduct?.tags) ? editingProduct!.tags!.join(', ') : (editingProduct?.tags ? String(editingProduct.tags) : ''),
     costPrice: editingProduct?.costPrice || '',
     sellingPrice: editingProduct?.sellingPrice || '',
-    landingCost: '',
-    currency: 'PKR',
-    taxRate: '',
-    taxType: '',
-    stockUnit: '',
+    landingCost: editingProduct?.landingCost || '',
+    currency: editingProduct?.currency || editingProduct?.currencyCode || 'PKR',
+    taxRate: editingProduct?.taxRate || '',
+    taxType: editingProduct?.taxType || editingProduct?.taxTypeName || '',
+    stockUnit: editingProduct?.stockUnit || editingProduct?.stockUnitName || '',
     currentStock: editingProduct?.currentStock || '',
     minimumStock: editingProduct?.minimumStock || '',
     maximumStock: editingProduct?.maximumStock || '',
     category: editingProduct?.categoryId || '',
     subCategory: '',
-    brand: '',
-    modelNumber: '',
+    brand: editingProduct?.brand || editingProduct?.brandName || '',
+    modelNumber: editingProduct?.modelNumber || '',
     supplier: editingProduct?.supplierId || '',
-    supplierSku: '',
-    leadTime: '',
-    reorderPoint: '',
-    rackLocation: '',
-    zone: '',
-    palletNumber: '',
-    shelfNumber: '',
-    storageCondition: '',
-    tempMin: '',
-    tempMax: '',
-    weight: '',
-    weightUnit: '',
-    length: '',
-    width: '',
-    height: '',
-    dimensionUnit: '',
-    color: '',
-    size: '',
-    material: '',
-    finish: '',
-    hasExpiry: false,
-    isBatchManaged: false,
-    isSerialManaged: false,
-    isExpiryManaged: false,
-    expiryDate: '',
-    manufacturingDate: '',
-    batchNumber: '',
-    shelfLife: '',
-    hsCode: '',
-    countryOfOrigin: 'Pakistan',
-    shippingClass: '',
-    freightClass: '',
-    stackingLimit: '',
-    dangerousGoods: false,
-    unNumber: '',
-    handlingInstructions: '',
-    warrantyPeriod: '',
-    warrantyUnit: 'Months',
-    isReturnable: true,
-    returnDays: '7',
-    isBulkManaged: false,
-    hasIndividualTracking: false,
-    bulkUnit: 'Bale',
-    defaultBatchQuantity: '',
-    videoUrl: '',
+    supplierSku: editingProduct?.supplierSku || '',
+    leadTime: editingProduct?.leadTime ?? editingProduct?.leadTimeDays ?? '',
+    reorderPoint: editingProduct?.reorderPoint || '',
+    rackLocation: editingProduct?.rackLocation || editingProduct?.location || '',
+    zone: editingProduct?.zone || editingProduct?.zoneName || '',
+    palletNumber: editingProduct?.palletNumber || '',
+    shelfNumber: editingProduct?.shelfNumber || '',
+    storageCondition: editingProduct?.storageCondition || editingProduct?.storageConditionName || '',
+    tempMin: editingProduct?.tempMin ?? editingProduct?.temperatureMin ?? '',
+    tempMax: editingProduct?.tempMax ?? editingProduct?.temperatureMax ?? '',
+    weight: editingProduct?.weight || '',
+    weightUnit: editingProduct?.weightUnit || editingProduct?.weightUnitName || '',
+    length: editingProduct?.length || '',
+    width: editingProduct?.width || '',
+    height: editingProduct?.height || '',
+    dimensionUnit: editingProduct?.dimensionUnit || editingProduct?.dimensionUnitName || '',
+    color: editingProduct?.color || '',
+    size: editingProduct?.size || '',
+    material: editingProduct?.material || '',
+    finish: editingProduct?.finish || '',
+    hasExpiry: !!editingProduct?.hasExpiry,
+    isBatchManaged: !!editingProduct?.isBatchManaged,
+    isSerialManaged: !!editingProduct?.isSerialManaged,
+    isExpiryManaged: !!editingProduct?.isExpiryManaged,
+    expiryDate: editingProduct?.expiryDate ? String(editingProduct.expiryDate).slice(0, 10) : '',
+    manufacturingDate: editingProduct?.manufacturingDate ? String(editingProduct.manufacturingDate).slice(0, 10) : '',
+    batchNumber: editingProduct?.batchNumber || '',
+    shelfLife: editingProduct?.shelfLife ?? editingProduct?.shelfLifeDays ?? '',
+    hsCode: editingProduct?.hsCode || '',
+    countryOfOrigin: editingProduct?.countryOfOrigin || editingProduct?.countryOfOriginName || 'Pakistan',
+    shippingClass: editingProduct?.shippingClass || '',
+    freightClass: editingProduct?.freightClass || '',
+    stackingLimit: editingProduct?.stackingLimit || '',
+    dangerousGoods: !!editingProduct?.dangerousGoods,
+    unNumber: editingProduct?.unNumber || '',
+    handlingInstructions: editingProduct?.handlingInstructions || '',
+    warrantyPeriod: editingProduct?.warrantyPeriod || '',
+    warrantyUnit: editingProduct?.warrantyUnit || 'Months',
+    isReturnable: editingProduct?.isReturnable !== false,
+    returnDays: editingProduct?.returnDays ?? '7',
+    isBulkManaged: !!editingProduct?.isBulkManaged,
+    hasIndividualTracking: !!editingProduct?.hasIndividualTracking,
+    bulkUnit: editingProduct?.bulkUnit || 'Bale',
+    defaultBatchQuantity: editingProduct?.defaultBatchQuantity ?? editingProduct?.defaultQuantityPerBatch ?? '',
+    videoUrl: editingProduct?.videoUrl || '',
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [barcodeImageFile, setBarcodeImageFile] = useState<File | null>(null);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>(
+    () => editingProduct?.images || (editingProduct?.mainImage ? [editingProduct.mainImage] : [])
+  );
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [subCategories, setSubCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    setExistingImages(editingProduct?.images || (editingProduct?.mainImage ? [editingProduct.mainImage] : []));
+    setImageFiles([]);
+  }, [editingProduct]);
+
+  useEffect(() => {
+    const urls = imageFiles.map((f) => URL.createObjectURL(f));
+    setImagePreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [imageFiles]);
+
+  const totalImageCount = existingImages.length + imageFiles.length;
+  const remainingImageSlots = Math.max(0, 5 - totalImageCount);
+
+  const handleAddImageFiles = (fileList: FileList | null) => {
+    if (!fileList || remainingImageSlots <= 0) return;
+    const incoming = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
+    if (!incoming.length) return;
+    setImageFiles((prev) => {
+      const slots = Math.max(0, 5 - existingImages.length - prev.length);
+      return [...prev, ...incoming.slice(0, slots)];
+    });
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
 
   const productTypes = settingsData.productType || [];
   const stockUnits = settingsData.stockUnit || [];
@@ -843,16 +912,51 @@ function ProductForm({
 
   const handleInputChange = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
 
-  const handleCategoryChange = (categoryId: string) => {
+  const handleCategoryChange = async (categoryId: string) => {
     handleInputChange('category', categoryId);
     handleInputChange('subCategory', '');
-    
-    if (categoryId) {
-      const selectedCategory = categories.find(c => c.id === categoryId);
-      const subCats = selectedCategory?.subCategories || selectedCategory?.children || [];
-      setSubCategories(subCats);
-    } else {
+    setSubCategories([]);
+
+    if (!categoryId) return;
+
+    // 1) Instant from flat list (parentId match)
+    const fromFlat = (Array.isArray(categories) ? categories : [])
+      .filter((c) => String(c.parentId || '') === String(categoryId))
+      .map((c) => ({ ...c, id: c.id || (c as any)._id || '' }))
+      .filter((c) => !!c.id);
+
+    if (fromFlat.length > 0) {
+      setSubCategories(fromFlat);
+      return;
+    }
+
+    // 2) From nested children if tree was loaded
+    const selectedCategory = categories.find(
+      (c) => String(c.id || (c as any)._id) === String(categoryId)
+    );
+    const nested = (
+      selectedCategory?.children ||
+      selectedCategory?.subCategories ||
+      []
+    )
+      .map((s) => ({ ...s, id: s.id || (s as any)._id || '' }))
+      .filter((s) => !!s.id);
+
+    if (nested.length > 0) {
+      setSubCategories(nested);
+      return;
+    }
+
+    // 3) API fetch by parentId
+    setLoadingSubs(true);
+    try {
+      const subs = await categoryService.getSubCategories(categoryId);
+      setSubCategories(subs);
+    } catch (err) {
+      console.error('Failed to load subcategories:', err);
       setSubCategories([]);
+    } finally {
+      setLoadingSubs(false);
     }
   };
 
@@ -870,7 +974,6 @@ function ProductForm({
         description: 'description',
         costPrice: 'costPrice',
         sellingPrice: 'sellingPrice',
-        currentStock: 'currentStock',
         minimumStock: 'minimumStock',
         maximumStock: 'maximumStock',
         category: 'categoryId',
@@ -914,7 +1017,6 @@ function ProductForm({
         hasIndividualTracking: 'hasIndividualTracking',
         bulkUnit: 'bulkUnit',
         defaultBatchQuantity: 'defaultBatchQuantity',
-        videoUrl: 'videoUrl',
         palletNumber: 'palletNumber',
         shelfNumber: 'shelfNumber',
         tempMin: 'tempMin',
@@ -931,6 +1033,7 @@ function ProductForm({
       };
 
       Object.entries(fieldMapping).forEach(([frontField, backField]) => {
+        if (frontField === 'category') return; // handled below with subcategory preference
         const value = formData[frontField as keyof typeof formData];
         if (value !== undefined && value !== null && value !== '') {
           if (typeof value === 'boolean') {
@@ -941,23 +1044,26 @@ function ProductForm({
         }
       });
 
+      const categoryId = formData.subCategory || formData.category;
+      if (categoryId) payload.append('categoryId', String(categoryId));
+      if (locationId && !isEditing) {
+        payload.append('locationId', locationId);
+      }
+
       if (formData.tags) {
         const tags = formData.tags.split(',').map(t => t.trim());
         payload.append('tags', JSON.stringify(tags));
       }
 
+      payload.append('existingImages', JSON.stringify(existingImages));
       for (const file of imageFiles) {
         payload.append('images', file);
       }
-      if (barcodeImageFile) {
-        payload.append('barcodeImage', barcodeImageFile);
-      }
 
-      if (isEditing && editingProduct?.id) {
-        console.log('🔵 [ProductForm] Updating existing product ID:', editingProduct.id);
-        await productService.updateProduct(editingProduct.id, payload);
+      const editId = getProductId(editingProduct);
+      if (isEditing && editId) {
+        await productService.updateProduct(editId, payload);
       } else {
-        console.log('🔵 [ProductForm] Creating new product');
         await productService.createProduct(payload);
       }
       console.log('✅ [ProductForm] Product saved successfully');
@@ -974,11 +1080,11 @@ function ProductForm({
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2 md:gap-3">
-          <Package className="w-4 h-4 md:w-5 md:h-5 text-[#7c4dff]" />
+          <Package className="w-4 h-4 md:w-5 md:h-5 text-[#014582]" />
           <h2 className="text-base md:text-lg font-bold text-gray-800">{isEditing ? 'Edit Product' : 'Create New Product'}</h2>
         </div>
         <div className="flex items-center gap-2 md:gap-3">
-          <Link href="/warehouse/product-settings" className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 border border-gray-200 rounded-lg text-[10px] md:text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all">
+          <Link href="/warehouse/product-settings" className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 border border-gray-200 rounded-lg text-[10px] md:text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all">
             <Settings className="w-3 h-3 md:w-3.5 md:h-3.5" /> Settings
           </Link>
           <button onClick={onCancel} className="p-1.5 md:p-2 hover:bg-gray-200 rounded-lg transition-all">
@@ -994,8 +1100,8 @@ function ProductForm({
           return (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 md:py-3 text-[10px] md:text-sm font-medium border-b-2 transition-all whitespace-nowrap
-                ${isActive ? 'border-[#7c4dff] text-[#7c4dff]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
-              <Icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${isActive ? 'text-[#7c4dff]' : 'text-gray-400'}`} />
+                ${isActive ? 'border-[#014582] text-[#014582]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+              <Icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${isActive ? 'text-[#014582]' : 'text-gray-400'}`} />
               <span className="hidden xs:inline">{tab.label}</span>
             </button>
           );
@@ -1013,46 +1119,52 @@ function ProductForm({
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Product Name *</label>
                 <div className="relative">
                   <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="text" placeholder="e.g., Cotton - Grade A" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <input type="text" placeholder="e.g., Cotton - Grade A" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" required />
                 </div>
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">SKU *</label>
                 <div className="relative">
                   <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="text" placeholder="e.g., COT-001" value={formData.sku} onChange={(e) => handleInputChange('sku', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <input type="text" placeholder="e.g., COT-001" value={formData.sku} onChange={(e) => handleInputChange('sku', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" required />
                 </div>
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Barcode</label>
                 <div className="relative">
                   <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="text" placeholder="Enter barcode or leave blank to use SKU" value={formData.barcode} onChange={(e) => handleInputChange('barcode', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="text" placeholder="Enter barcode or leave blank to use SKU" value={formData.barcode} onChange={(e) => handleInputChange('barcode', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
                 <p className="text-[10px] md:text-xs text-gray-400 mt-1">Leave blank — SKU will be used as barcode automatically</p>
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Product Type</label>
-                <div className="flex gap-2">
-                  <select value={formData.productType} onChange={(e) => handleInputChange('productType', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select type...</option>
-                    {productTypes.map((type) => <option key={type._id} value={type.name}>{type.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="productType"
+                  title="Add product type"
+                  value={formData.productType}
+                  onChange={(v) => handleInputChange('productType', v)}
+                  placeholder="Select type..."
+                  options={productTypes.map((type) => ({
+                    value: type.name,
+                    label: type.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('productType', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Description</label>
                 <div className="relative">
                   <AlignLeft className="absolute left-3 top-2.5 md:top-3 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <textarea placeholder="Enter product description..." rows={3} value={formData.description} onChange={(e) => handleInputChange('description', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none" />
+                  <textarea placeholder="Enter product description..." rows={3} value={formData.description} onChange={(e) => handleInputChange('description', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none" />
                 </div>
               </div>
               <div className="col-span-2">
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Tags</label>
-                <input type="text" placeholder="e.g., cotton, grade-a, raw-material" value={formData.tags} onChange={(e) => handleInputChange('tags', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="e.g., cotton, grade-a, raw-material" value={formData.tags} onChange={(e) => handleInputChange('tags', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           )}
@@ -1064,76 +1176,104 @@ function ProductForm({
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Cost Price *</label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="number" step="0.01" placeholder="0.00" value={formData.costPrice} onChange={(e) => handleInputChange('costPrice', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <input type="number" step="0.01" placeholder="0.00" value={formData.costPrice} onChange={(e) => handleInputChange('costPrice', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" required />
                 </div>
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Selling Price *</label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="number" step="0.01" placeholder="0.00" value={formData.sellingPrice} onChange={(e) => handleInputChange('sellingPrice', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <input type="number" step="0.01" placeholder="0.00" value={formData.sellingPrice} onChange={(e) => handleInputChange('sellingPrice', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" required />
                 </div>
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Landing Cost</label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="number" step="0.01" placeholder="0.00" value={formData.landingCost} onChange={(e) => handleInputChange('landingCost', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="number" step="0.01" placeholder="0.00" value={formData.landingCost} onChange={(e) => handleInputChange('landingCost', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Currency *</label>
-                <div className="flex gap-2">
-                  <select value={formData.currency} onChange={(e) => handleInputChange('currency', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
-                    <option>PKR</option><option>USD</option><option>EUR</option><option>GBP</option><option>AUD</option>
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="local"
+                  title="Add currency"
+                  value={formData.currency}
+                  onChange={(v) => handleInputChange('currency', v)}
+                  placeholder="Select currency..."
+                  required
+                  options={[
+                    ...['PKR', 'USD', 'EUR', 'GBP', 'AUD']
+                      .concat(
+                        formData.currency &&
+                          !['PKR', 'USD', 'EUR', 'GBP', 'AUD'].includes(formData.currency)
+                          ? [formData.currency]
+                          : []
+                      )
+                      .filter((v, i, arr) => arr.indexOf(v) === i)
+                      .map((c) => ({ value: c, label: c })),
+                  ]}
+                />
               </div>
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Tax Rate (%)</label>
-                <input type="number" step="0.01" placeholder="0" value={formData.taxRate} onChange={(e) => handleInputChange('taxRate', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Tax Type</label>
-                <div className="flex gap-2">
-                  <select value={formData.taxType} onChange={(e) => handleInputChange('taxType', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select tax type...</option>
-                    {taxTypes.map((tax) => <option key={tax._id} value={tax.name}>{tax.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+              <div className="md:col-span-2">
+                <ProductTaxFields
+                  taxRate={formData.taxRate}
+                  taxType={formData.taxType}
+                  onChange={({ taxRate, taxType }) => {
+                    handleInputChange('taxRate', taxRate);
+                    handleInputChange('taxType', taxType);
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Stock Unit</label>
-                <div className="flex gap-2">
-                  <select value={formData.stockUnit} onChange={(e) => handleInputChange('stockUnit', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select unit...</option>
-                    {stockUnits.map((unit) => <option key={unit._id} value={unit.name}>{unit.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="stockUnit"
+                  title="Add stock unit"
+                  value={formData.stockUnit}
+                  onChange={(v) => handleInputChange('stockUnit', v)}
+                  placeholder="Select unit..."
+                  options={stockUnits.map((unit) => ({
+                    value: unit.name,
+                    label: unit.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('stockUnit', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Current Stock *</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+                  {editingProduct ? 'Current Stock (read-only)' : 'Opening Stock'}
+                </label>
                 <div className="relative">
                   <Box className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="number" placeholder="0" value={formData.currentStock} onChange={(e) => handleInputChange('currentStock', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <input
+                    type="number"
+                    value={editingProduct ? (editingProduct.currentStock ?? 0) : 0}
+                    readOnly
+                    disabled
+                    className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm bg-gray-100 text-gray-600 cursor-not-allowed"
+                  />
                 </div>
+                {!editingProduct && (
+                  <p className="text-[10px] md:text-xs text-blue-700 mt-1">
+                    Add opening stock via{' '}
+                    <Link href="/warehouse/stock-movement" className="underline font-semibold">
+                      Stock Movement → Opening Stock
+                    </Link>{' '}
+                    (posts accounting entry).
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Minimum Stock</label>
-                <input type="number" placeholder="5" value={formData.minimumStock} onChange={(e) => handleInputChange('minimumStock', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="number" placeholder="5" value={formData.minimumStock} onChange={(e) => handleInputChange('minimumStock', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Maximum Stock</label>
-                <input type="number" placeholder="100" value={formData.maximumStock} onChange={(e) => handleInputChange('maximumStock', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="number" placeholder="100" value={formData.maximumStock} onChange={(e) => handleInputChange('maximumStock', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           )}
@@ -1143,48 +1283,62 @@ function ProductForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Category *</label>
-                <div className="flex gap-2">
-                  <select 
-                    value={formData.category} 
-                    onChange={(e) => handleCategoryChange(e.target.value)} 
-                    className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
-                    required
-                  >
-                    <option value="">Select category...</option>
-                    {categoryList.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                  <Link href="/warehouse/categories" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="category"
+                  title="Add category"
+                  value={formData.category}
+                  onChange={(v) => handleCategoryChange(v)}
+                  placeholder="Select category..."
+                  required
+                  options={categoryList.map((cat) => ({
+                    value: String(cat.id || ''),
+                    label: cat.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    const cat = {
+                      ...(raw as Category),
+                      id: opt.value,
+                      name: opt.label,
+                      parentId: null,
+                    };
+                    onCategoryCreated?.(cat);
+                  }}
+                />
               </div>
               
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Sub-Category</label>
-                <div className="flex gap-2">
-                  <select 
-                    value={formData.subCategory} 
-                    onChange={(e) => handleInputChange('subCategory', e.target.value)} 
-                    className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
-                    disabled={subCategories.length === 0}
-                  >
-                    <option value="">
-                      {subCategories.length === 0 ? 'No sub-categories available' : 'Select sub-category...'}
-                    </option>
-                    {subCategories.map((sub) => (
-                      <option key={sub.id} value={sub.id}>
-                        {sub.name}
-                      </option>
-                    ))}
-                  </select>
-                  <Link href="/warehouse/categories" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="subcategory"
+                  title="Add sub-category"
+                  parentCategoryId={formData.category || undefined}
+                  value={formData.subCategory}
+                  onChange={(v) => handleInputChange('subCategory', v)}
+                  placeholder={
+                    loadingSubs
+                      ? 'Loading sub-categories...'
+                      : !formData.category
+                        ? 'Select category first'
+                        : subCategories.length === 0
+                          ? 'No sub-categories — click + to add'
+                          : 'Select sub-category...'
+                  }
+                  disabled={loadingSubs || !formData.category}
+                  options={subCategories.map((sub) => ({
+                    value: String(sub.id || ''),
+                    label: sub.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    const cat = {
+                      ...(raw as Category),
+                      id: opt.value,
+                      name: opt.label,
+                      parentId: formData.category,
+                    };
+                    setSubCategories((prev) => [...prev, cat]);
+                    onCategoryCreated?.(cat);
+                  }}
+                />
               </div>
               
               <div>
@@ -1194,7 +1348,7 @@ function ProductForm({
                   placeholder="Brand name" 
                   value={formData.brand} 
                   onChange={(e) => handleInputChange('brand', e.target.value)} 
-                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
                 />
               </div>
               
@@ -1205,30 +1359,32 @@ function ProductForm({
                   placeholder="Model #" 
                   value={formData.modelNumber} 
                   onChange={(e) => handleInputChange('modelNumber', e.target.value)} 
-                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
                 />
               </div>
               
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Supplier *</label>
-                <div className="flex gap-2">
-                  <select 
-                    value={formData.supplier} 
-                    onChange={(e) => handleInputChange('supplier', e.target.value)} 
-                    className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
-                    required
-                  >
-                    <option value="">Select supplier...</option>
-                    {supplierList.map((sup) => (
-                      <option key={sup.id} value={sup.id}>
-                        {sup.name}
-                      </option>
-                    ))}
-                  </select>
-                  <Link href="/warehouse/suppliers" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="supplier"
+                  title="Add supplier"
+                  value={formData.supplier}
+                  onChange={(v) => handleInputChange('supplier', v)}
+                  placeholder="Select supplier..."
+                  required
+                  options={supplierList.map((sup) => {
+                    const id = String((sup as any).id || (sup as any)._id || '');
+                    return { value: id, label: sup.name };
+                  }).filter((o) => !!o.value)}
+                  onCreated={(opt, raw) => {
+                    const data = (raw as any)?.data || raw;
+                    onSupplierCreated?.({
+                      ...(data as Supplier),
+                      id: opt.value,
+                      name: opt.label,
+                    } as Supplier);
+                  }}
+                />
               </div>
               
               <div>
@@ -1238,7 +1394,7 @@ function ProductForm({
                   placeholder="Supplier SKU" 
                   value={formData.supplierSku} 
                   onChange={(e) => handleInputChange('supplierSku', e.target.value)} 
-                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
                 />
               </div>
               
@@ -1249,7 +1405,7 @@ function ProductForm({
                   placeholder="7" 
                   value={formData.leadTime} 
                   onChange={(e) => handleInputChange('leadTime', e.target.value)} 
-                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
                 />
               </div>
               
@@ -1260,7 +1416,7 @@ function ProductForm({
                   placeholder="100" 
                   value={formData.reorderPoint} 
                   onChange={(e) => handleInputChange('reorderPoint', e.target.value)} 
-                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
                 />
               </div>
             </div>
@@ -1271,56 +1427,74 @@ function ProductForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Rack Location</label>
-                <div className="flex gap-2">
-                  <select value={formData.rackLocation} onChange={(e) => handleInputChange('rackLocation', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select rack...</option>
-                    {rackLocations.map((rack) => <option key={rack._id} value={rack.name}>{rack.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="rackLocation"
+                  title="Add rack location"
+                  value={formData.rackLocation}
+                  onChange={(v) => handleInputChange('rackLocation', v)}
+                  placeholder="Select rack..."
+                  options={rackLocations.map((rack) => ({
+                    value: rack.name,
+                    label: rack.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('rackLocation', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Zone</label>
-                <div className="flex gap-2">
-                  <select value={formData.zone} onChange={(e) => handleInputChange('zone', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select zone...</option>
-                    {zones.map((zone) => <option key={zone._id} value={zone.name}>{zone.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="zone"
+                  title="Add zone"
+                  value={formData.zone}
+                  onChange={(v) => handleInputChange('zone', v)}
+                  placeholder="Select zone..."
+                  options={zones.map((zone) => ({
+                    value: zone.name,
+                    label: zone.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('zone', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Pallet Number</label>
-                <input type="text" placeholder="Pallet #" value={formData.palletNumber} onChange={(e) => handleInputChange('palletNumber', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="Pallet #" value={formData.palletNumber} onChange={(e) => handleInputChange('palletNumber', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Shelf Number</label>
-                <input type="text" placeholder="Shelf #" value={formData.shelfNumber} onChange={(e) => handleInputChange('shelfNumber', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="Shelf #" value={formData.shelfNumber} onChange={(e) => handleInputChange('shelfNumber', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Storage Condition</label>
-                <div className="flex gap-2">
-                  <select value={formData.storageCondition} onChange={(e) => handleInputChange('storageCondition', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select condition...</option>
-                    {storageConditions.map((cond) => <option key={cond._id} value={cond.name}>{cond.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="storageCondition"
+                  title="Add storage condition"
+                  value={formData.storageCondition}
+                  onChange={(v) => handleInputChange('storageCondition', v)}
+                  placeholder="Select condition..."
+                  options={storageConditions.map((cond) => ({
+                    value: cond.name,
+                    label: cond.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('storageCondition', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Temp Min (°C)</label>
-                  <input type="number" placeholder="0" value={formData.tempMin} onChange={(e) => handleInputChange('tempMin', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="number" placeholder="0" value={formData.tempMin} onChange={(e) => handleInputChange('tempMin', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
                 <div>
                   <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Temp Max (°C)</label>
-                  <input type="number" placeholder="40" value={formData.tempMax} onChange={(e) => handleInputChange('tempMax', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="number" placeholder="40" value={formData.tempMax} onChange={(e) => handleInputChange('tempMax', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
             </div>
@@ -1331,68 +1505,92 @@ function ProductForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Weight</label>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-start">
                   <div className="relative flex-1">
                     <Scale className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                    <input type="number" step="0.01" placeholder="0.00" value={formData.weight} onChange={(e) => handleInputChange('weight', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    <input type="number" step="0.01" placeholder="0.00" value={formData.weight} onChange={(e) => handleInputChange('weight', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                   </div>
-                  <select value={formData.weightUnit} onChange={(e) => handleInputChange('weightUnit', e.target.value)} className="w-20 md:w-24 px-2 md:px-3 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
-                    {weightUnits.map((unit) => <option key={unit._id} value={unit.name}>{unit.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
+                  <div className="w-36 md:w-40 flex-shrink-0">
+                    <QuickAddSelect
+                      kind="setting"
+                      settingCategory="weightUnit"
+                      title="Add weight unit"
+                      value={formData.weightUnit}
+                      onChange={(v) => handleInputChange('weightUnit', v)}
+                      placeholder="Unit"
+                      options={weightUnits.map((unit) => ({
+                        value: unit.name,
+                        label: unit.name,
+                      }))}
+                      onCreated={(opt, raw) => {
+                        onSettingCreated?.('weightUnit', raw || { name: opt.label });
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Dimension Unit</label>
-                <div className="flex gap-2">
-                  <select value={formData.dimensionUnit} onChange={(e) => handleInputChange('dimensionUnit', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
-                    {dimensionUnits.map((unit) => <option key={unit._id} value={unit.name}>{unit.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="dimensionUnit"
+                  title="Add dimension unit"
+                  value={formData.dimensionUnit}
+                  onChange={(v) => handleInputChange('dimensionUnit', v)}
+                  placeholder="Select unit..."
+                  options={dimensionUnits.map((unit) => ({
+                    value: unit.name,
+                    label: unit.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('dimensionUnit', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Length</label>
                 <div className="relative">
                   <Ruler className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="number" placeholder="0" value={formData.length} onChange={(e) => handleInputChange('length', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="number" placeholder="0" value={formData.length} onChange={(e) => handleInputChange('length', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Width</label>
-                <input type="number" placeholder="0" value={formData.width} onChange={(e) => handleInputChange('width', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="number" placeholder="0" value={formData.width} onChange={(e) => handleInputChange('width', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Height</label>
-                <input type="number" placeholder="0" value={formData.height} onChange={(e) => handleInputChange('height', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="number" placeholder="0" value={formData.height} onChange={(e) => handleInputChange('height', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Color</label>
-                <input type="text" placeholder="e.g., White" value={formData.color} onChange={(e) => handleInputChange('color', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="e.g., White" value={formData.color} onChange={(e) => handleInputChange('color', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Size</label>
-                <div className="flex gap-2">
-                  <select value={formData.size} onChange={(e) => handleInputChange('size', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select size...</option>
-                    {sizes.map((size) => <option key={size._id} value={size.name}>{size.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="size"
+                  title="Add size"
+                  value={formData.size}
+                  onChange={(v) => handleInputChange('size', v)}
+                  placeholder="Select size..."
+                  options={sizes.map((size) => ({
+                    value: size.name,
+                    label: size.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('size', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Material</label>
-                <input type="text" placeholder="e.g., 100% Cotton" value={formData.material} onChange={(e) => handleInputChange('material', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="e.g., 100% Cotton" value={formData.material} onChange={(e) => handleInputChange('material', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Finish</label>
-                <input type="text" placeholder="e.g., Matte, Glossy" value={formData.finish} onChange={(e) => handleInputChange('finish', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="e.g., Matte, Glossy" value={formData.finish} onChange={(e) => handleInputChange('finish', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           )}
@@ -1407,7 +1605,7 @@ function ProductForm({
                 { key: 'isExpiryManaged', label: 'Expiry Managed' },
               ].map(({ key, label }) => (
                 <div key={key} className="flex items-center gap-3">
-                  <input type="checkbox" checked={formData[key as keyof typeof formData] as boolean} onChange={(e) => handleInputChange(key, e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
+                  <input type="checkbox" checked={formData[key as keyof typeof formData] as boolean} onChange={(e) => handleInputChange(key, e.target.checked)} className="w-4 h-4 text-[#014582] rounded border-gray-300" />
                   <label className="text-xs md:text-sm font-medium text-gray-700">{label}</label>
                 </div>
               ))}
@@ -1415,44 +1613,44 @@ function ProductForm({
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Expiry Date</label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="date" value={formData.expiryDate} onChange={(e) => handleInputChange('expiryDate', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="date" value={formData.expiryDate} onChange={(e) => handleInputChange('expiryDate', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Manufacturing Date</label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="date" value={formData.manufacturingDate} onChange={(e) => handleInputChange('manufacturingDate', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="date" value={formData.manufacturingDate} onChange={(e) => handleInputChange('manufacturingDate', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Batch Number</label>
-                <input type="text" placeholder="BATCH-001" value={formData.batchNumber} onChange={(e) => handleInputChange('batchNumber', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="BATCH-001" value={formData.batchNumber} onChange={(e) => handleInputChange('batchNumber', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Shelf Life (Days)</label>
-                <input type="number" placeholder="365" value={formData.shelfLife} onChange={(e) => handleInputChange('shelfLife', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="number" placeholder="365" value={formData.shelfLife} onChange={(e) => handleInputChange('shelfLife', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div className="col-span-2 border-t border-gray-100 pt-3 md:pt-4 mt-2">
                 <h4 className="text-xs md:text-sm font-semibold text-gray-700 mb-2 md:mb-3">Bulk Management (Cotton/Fabric)</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked={formData.isBulkManaged} onChange={(e) => handleInputChange('isBulkManaged', e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
+                    <input type="checkbox" checked={formData.isBulkManaged} onChange={(e) => handleInputChange('isBulkManaged', e.target.checked)} className="w-4 h-4 text-[#014582] rounded border-gray-300" />
                     <label className="text-xs md:text-sm font-medium text-gray-700">Bulk Managed</label>
                   </div>
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked={formData.hasIndividualTracking} onChange={(e) => handleInputChange('hasIndividualTracking', e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
+                    <input type="checkbox" checked={formData.hasIndividualTracking} onChange={(e) => handleInputChange('hasIndividualTracking', e.target.checked)} className="w-4 h-4 text-[#014582] rounded border-gray-300" />
                     <label className="text-xs md:text-sm font-medium text-gray-700">Individual Tracking</label>
                   </div>
                   <div>
                     <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Bulk Unit</label>
-                    <select value={formData.bulkUnit} onChange={(e) => handleInputChange('bulkUnit', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                    <select value={formData.bulkUnit} onChange={(e) => handleInputChange('bulkUnit', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                       <option>Bale</option><option>Box</option><option>Roll</option><option>Pallet</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Default Batch Quantity</label>
-                    <input type="number" placeholder="50" value={formData.defaultBatchQuantity} onChange={(e) => handleInputChange('defaultBatchQuantity', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    <input type="number" placeholder="50" value={formData.defaultBatchQuantity} onChange={(e) => handleInputChange('defaultBatchQuantity', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                   </div>
                 </div>
               </div>
@@ -1464,76 +1662,118 @@ function ProductForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">HS Code</label>
-                <input type="text" placeholder="e.g., 5201.00.00" value={formData.hsCode} onChange={(e) => handleInputChange('hsCode', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="e.g., 5201.00.00" value={formData.hsCode} onChange={(e) => handleInputChange('hsCode', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Country of Origin</label>
-                <select value={formData.countryOfOrigin} onChange={(e) => handleInputChange('countryOfOrigin', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                <select value={formData.countryOfOrigin} onChange={(e) => handleInputChange('countryOfOrigin', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                   <option>Pakistan</option><option>China</option><option>USA</option><option>Turkey</option><option>India</option>
                 </select>
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Shipping Class</label>
-                <div className="flex gap-2">
-                  <select value={formData.shippingClass} onChange={(e) => handleInputChange('shippingClass', e.target.value)} className="flex-1 px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select class...</option>
-                    {shippingClasses.map((cls) => <option key={cls._id} value={cls.name}>{cls.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2 md:p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="shippingClass"
+                  title="Add shipping class"
+                  value={formData.shippingClass}
+                  onChange={(v) => handleInputChange('shippingClass', v)}
+                  placeholder="Select class..."
+                  options={shippingClasses.map((cls) => ({
+                    value: cls.name,
+                    label: cls.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('shippingClass', raw || { name: opt.label });
+                  }}
+                />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Freight Class</label>
-                <input type="text" placeholder="Freight class" value={formData.freightClass} onChange={(e) => handleInputChange('freightClass', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="Freight class" value={formData.freightClass} onChange={(e) => handleInputChange('freightClass', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Stacking Limit</label>
-                <input type="number" placeholder="5" value={formData.stackingLimit} onChange={(e) => handleInputChange('stackingLimit', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="number" placeholder="5" value={formData.stackingLimit} onChange={(e) => handleInputChange('stackingLimit', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div className="flex items-center gap-3 mt-1 md:mt-2">
-                <input type="checkbox" checked={formData.dangerousGoods} onChange={(e) => handleInputChange('dangerousGoods', e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
+                <input type="checkbox" checked={formData.dangerousGoods} onChange={(e) => handleInputChange('dangerousGoods', e.target.checked)} className="w-4 h-4 text-[#014582] rounded border-gray-300" />
                 <label className="text-xs md:text-sm font-medium text-gray-700">Dangerous Goods</label>
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">UN Number</label>
-                <input type="text" placeholder="UN #" value={formData.unNumber} onChange={(e) => handleInputChange('unNumber', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="UN #" value={formData.unNumber} onChange={(e) => handleInputChange('unNumber', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Handling Instructions</label>
-                <input type="text" placeholder="Special handling instructions..." value={formData.handlingInstructions} onChange={(e) => handleInputChange('handlingInstructions', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="Special handling instructions..." value={formData.handlingInstructions} onChange={(e) => handleInputChange('handlingInstructions', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           )}
 
           {/* MEDIA */}
           {activeTab === 'media' && (
-            <div className="grid grid-cols-1 gap-3 md:gap-4">
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Main Images</label>
-                <input type="file" multiple accept="image/*" onChange={(e) => { if (e.target.files) setImageFiles(Array.from(e.target.files)); }} className="w-full p-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
-                {imageFiles.length > 0 && <p className="mt-1 text-[10px] md:text-xs text-gray-500">{imageFiles.length} files selected</p>}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs md:text-sm font-semibold text-gray-700">Product Images</label>
+                <span className="text-[10px] md:text-xs font-medium text-gray-500">{totalImageCount} / 5</span>
               </div>
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Barcode Image</label>
-                <input type="file" accept="image/*" onChange={(e) => { if (e.target.files?.[0]) setBarcodeImageFile(e.target.files[0]); }} className="w-full p-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
-                {barcodeImageFile && <p className="mt-1 text-[10px] md:text-xs text-gray-500">Selected: {barcodeImageFile.name}</p>}
+              <p className="text-[10px] md:text-xs text-gray-400 mb-3">
+                Select multiple images (Ctrl/Cmd). First image is main. You can add more in batches.
+              </p>
+              <div className="flex flex-wrap gap-2 md:gap-3 mb-3">
+                {existingImages.map((url, idx) => (
+                  <div key={`existing-${url}`} className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                    <img src={url} alt={`Product ${idx + 1}`} className="w-full h-full object-cover" />
+                    {idx === 0 && imageFiles.length === 0 && (
+                      <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-[#014582] text-white px-1.5 py-0.5 rounded">Main</span>
+                    )}
+                    <button type="button" onClick={() => setExistingImages((prev) => prev.filter((u) => u !== url))} className="absolute top-0.5 right-0.5 p-0.5 bg-red-500 text-white rounded">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                {imagePreviews.map((url, idx) => (
+                  <div key={`new-${url}`} className="relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border-2 border-[#014582]/40 bg-gray-50">
+                    <img src={url} alt={`New ${idx + 1}`} className="w-full h-full object-cover" />
+                    {existingImages.length === 0 && idx === 0 && (
+                      <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-[#014582] text-white px-1.5 py-0.5 rounded">Main</span>
+                    )}
+                    <button type="button" onClick={() => setImageFiles((prev) => prev.filter((_, i) => i !== idx))} className="absolute top-0.5 right-0.5 p-0.5 bg-red-500 text-white rounded">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                {remainingImageSlots > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="w-20 h-20 md:w-24 md:h-24 rounded-xl border-2 border-dashed border-gray-300 hover:border-[#014582] hover:bg-[#014582]/5 transition-all flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-[#014582]"
+                  >
+                    <ImageIcon className="w-5 h-5 md:w-6 md:h-6" />
+                    <span className="text-[9px] md:text-[10px] font-semibold">Add images</span>
+                    <span className="text-[9px]">{remainingImageSlots} left</span>
+                  </button>
+                )}
               </div>
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Video URL</label>
-                <div className="relative">
-                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="url" placeholder="https://youtube.com/..." value={formData.videoUrl} onChange={(e) => handleInputChange('videoUrl', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Specification Sheet (PDF)</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 md:p-4 text-center hover:border-[#7c4dff] transition-all cursor-pointer">
-                  <FileText className="w-5 h-5 md:w-6 md:h-6 text-gray-400 mx-auto mb-1" />
-                  <p className="text-xs md:text-sm text-gray-500">Upload PDF</p>
-                </div>
-              </div>
+              <input
+                ref={imageInputRef}
+                type="file"
+                multiple
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                className="hidden"
+                onChange={(e) => handleAddImageFiles(e.target.files)}
+              />
+              {remainingImageSlots > 0 && (
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm font-medium text-gray-700 hover:border-[#014582] hover:text-[#014582] transition-all"
+                >
+                  <Upload className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  Choose multiple images
+                </button>
+              )}
             </div>
           )}
 
@@ -1543,11 +1783,11 @@ function ProductForm({
               <div className="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-200">
                 <div className="flex items-center justify-between mb-2 md:mb-3">
                   <h4 className="text-xs md:text-sm font-semibold text-gray-700">Custom Attributes</h4>
-                  <button type="button" className="text-xs md:text-sm text-[#7c4dff] font-semibold hover:text-[#6c3fe0]">+ Add Field</button>
+                  <button type="button" className="text-xs md:text-sm text-[#014582] font-semibold hover:text-[#01366a]">+ Add Field</button>
                 </div>
                 <div className="grid grid-cols-2 gap-2 md:gap-3">
-                  <input type="text" placeholder="Attribute Name" className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white" />
-                  <input type="text" placeholder="Value" className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white" />
+                  <input type="text" placeholder="Attribute Name" className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white" />
+                  <input type="text" placeholder="Value" className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white" />
                 </div>
               </div>
               <div className="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-200">
@@ -1555,27 +1795,27 @@ function ProductForm({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                   <div>
                     <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Warranty Period</label>
-                    <input type="number" placeholder="12" value={formData.warrantyPeriod} onChange={(e) => handleInputChange('warrantyPeriod', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    <input type="number" placeholder="12" value={formData.warrantyPeriod} onChange={(e) => handleInputChange('warrantyPeriod', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                   </div>
                   <div>
                     <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Warranty Unit</label>
-                    <select value={formData.warrantyUnit} onChange={(e) => handleInputChange('warrantyUnit', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                    <select value={formData.warrantyUnit} onChange={(e) => handleInputChange('warrantyUnit', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                       <option>Days</option><option>Months</option><option>Years</option>
                     </select>
                   </div>
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked={formData.isReturnable} onChange={(e) => handleInputChange('isReturnable', e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
+                    <input type="checkbox" checked={formData.isReturnable} onChange={(e) => handleInputChange('isReturnable', e.target.checked)} className="w-4 h-4 text-[#014582] rounded border-gray-300" />
                     <label className="text-xs md:text-sm font-medium text-gray-700">Is Returnable</label>
                   </div>
                   <div>
                     <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Return Days</label>
-                    <input type="number" placeholder="7" value={formData.returnDays} onChange={(e) => handleInputChange('returnDays', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    <input type="number" placeholder="7" value={formData.returnDays} onChange={(e) => handleInputChange('returnDays', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                   </div>
                 </div>
               </div>
               <div className="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-200">
                 <h4 className="text-xs md:text-sm font-semibold text-gray-700 mb-2 md:mb-3">Additional Notes</h4>
-                <textarea placeholder="Enter any additional notes..." rows={3} className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white resize-none" />
+                <textarea placeholder="Enter any additional notes..." rows={3} className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white resize-none" />
               </div>
             </div>
           )}
@@ -1585,7 +1825,7 @@ function ProductForm({
             <button type="button" onClick={onCancel} className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
               Cancel
             </button>
-            <button type="submit" disabled={loading} className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="submit" disabled={loading} className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : <Save className="w-3.5 h-3.5 md:w-4 md:h-4" />}
               {isEditing ? 'Update Product' : 'Save Product'}
             </button>
@@ -1600,14 +1840,15 @@ function ProductForm({
 // MAIN PAGE
 // ============================================================
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const { selectedLocationId, selectedLocation } = useLocation();
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
     page: 1, limit: 20, total: 0, pages: 0, hasNext: false, hasPrev: false,
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all'); // full catalog; stock qty is per location
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
@@ -1636,10 +1877,20 @@ export default function ProductsPage() {
     const fetchDropdowns = async () => {
       try {
         const [cats, supps] = await Promise.all([
-          categoryService.getCategories({ tree: true }),
-          supplierService.getSuppliers({ limit: 100 })
+          // Flat list: parents + children with parentId (needed for subcategory filter)
+          categoryService.getCategories({ tree: false }),
+          supplierService.getSuppliers({ limit: 100 }),
         ]);
-        setCategories(Array.isArray(cats) ? cats : []);
+
+        const flat = (Array.isArray(cats) ? cats : [])
+          .map((c) => ({
+            ...c,
+            id: c.id || (c as any)._id || '',
+            parentId: c.parentId ?? null,
+          }))
+          .filter((c) => !!c.id);
+
+        setCategories(flat);
         setSuppliers(supps?.data || []);
       } catch (err) {
         console.error('Failed to fetch dropdowns:', err);
@@ -1650,38 +1901,101 @@ export default function ProductsPage() {
   }, [fetchSettings]);
 
   const fetchProducts = useCallback(async () => {
-    console.log('🔵 [fetchProducts] Starting fetch');
+    if (!selectedLocationId) return;
+    console.log('🔵 [fetchProducts] Starting fetch', {
+      selectedLocationId,
+      searchTerm,
+    });
     setLoading(true);
     try {
+      // Load location stock for all products; category/status filtered client-side
       const result = await productService.getProducts({
-        page: pagination.page,
-        limit: pagination.limit,
-        search: searchTerm,
-        categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
-        stockStatus: selectedStatus !== 'all' ? selectedStatus as any : undefined,
+        page: 1,
+        limit: 500,
+        search: searchTerm || undefined,
+        locationId: selectedLocationId,
       });
       console.log('🔵 [fetchProducts] Received', result.data.length, 'products');
-      if (result.data.length > 0) {
-        console.log('🔵 [fetchProducts] First product:', result.data[0]);
-        console.log('🔵 [fetchProducts] First product ID:', result.data[0].id);
-      }
-      setProducts(result.data);
-      setPagination(result.pagination);
+      setAllProducts(result.data);
     } catch (error: any) {
       console.error('❌ [fetchProducts] Failed to fetch products:', error);
       alert(error.message || 'Failed to load products');
+      setAllProducts([]);
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, searchTerm, selectedCategory, selectedStatus]);
+  }, [searchTerm, selectedLocationId]);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // Client-side category + status filter (reliable; uses location-overlaid stock)
+  const filteredProducts = useMemo(() => {
+    let list = allProducts;
+
+    if (selectedCategory !== 'all') {
+      const childIds = categories
+        .filter((c) => String(c.parentId || '') === String(selectedCategory))
+        .map((c) => String(c.id || ''));
+      const allowed = new Set(
+        [String(selectedCategory), ...childIds].filter(Boolean)
+      );
+      list = list.filter((p) => allowed.has(String(p.categoryId || '')));
+    }
+
+    if (selectedStatus === 'in') {
+      list = list.filter((p) => Number(p.currentStock || 0) > 0);
+    } else if (selectedStatus === 'out') {
+      list = list.filter((p) => Number(p.currentStock || 0) === 0);
+    } else if (selectedStatus === 'low') {
+      list = list.filter((p) => {
+        const qty = Number(p.currentStock || 0);
+        const min = Number(p.minimumStock || 5);
+        return qty > 0 && qty <= min;
+      });
+    }
+
+    return list;
+  }, [allProducts, selectedCategory, selectedStatus, categories]);
+
+  const pageSize = 20;
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const currentPage = Math.min(pagination.page, totalPages);
+  const pagedProducts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredProducts.slice(start, start + pageSize);
+  }, [filteredProducts, currentPage]);
+
+  const listPagination = useMemo(
+    () => ({
+      page: currentPage,
+      limit: pageSize,
+      total: filteredProducts.length,
+      pages: totalPages,
+      hasNext: currentPage < totalPages,
+      hasPrev: currentPage > 1,
+    }),
+    [currentPage, filteredProducts.length, totalPages]
+  );
+
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  }, [selectedLocationId]);
+
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  }, [selectedCategory, selectedStatus, searchTerm]);
 
   const handleBarcodeScan = useCallback(async (scannedValue: string) => {
     setShowScanner(false);
     setLoading(true);
     try {
-      const result = await productService.getProducts({ search: scannedValue, limit: 1 });
+      const result = await productService.getProducts({
+        search: scannedValue,
+        limit: 1,
+        locationId: selectedLocationId || undefined,
+      });
       if (result.data.length > 0) {
         setViewingProduct(result.data[0]);
       } else {
@@ -1692,15 +2006,50 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedLocationId]);
 
-  const handlePageChange = (page: number) => setPagination(prev => ({ ...prev, page }));
-  const handleSearch = (val: string) => { setSearchTerm(val); setPagination(prev => ({ ...prev, page: 1 })); };
-  const handleCategoryChange = (val: string) => { setSelectedCategory(val); setPagination(prev => ({ ...prev, page: 1 })); };
-  const handleStatusChange = (val: string) => { setSelectedStatus(val); setPagination(prev => ({ ...prev, page: 1 })); };
+  const handlePageChange = (page: number) =>
+    setPagination((prev) => ({ ...prev, page }));
+  const handleSearch = (val: string) => {
+    setSearchTerm(val);
+  };
+  const handleCategoryChange = (val: string) => {
+    setSelectedCategory(val);
+  };
+  const handleStatusChange = (val: string) => {
+    setSelectedStatus(val);
+  };
 
   const handleAddClick = () => { setEditingProduct(null); setShowCreateForm(true); };
-  const handleEditClick = (product: Product) => { setEditingProduct(product); setViewingProduct(null); setShowCreateForm(true); };
+
+  const handleViewClick = async (product: Product) => {
+    const id = getProductId(product);
+    if (!id) {
+      setViewingProduct(product);
+      return;
+    }
+    try {
+      setViewingProduct(await productService.getProductById(id));
+    } catch {
+      setViewingProduct(product);
+    }
+  };
+
+  const handleEditClick = async (product: Product) => {
+    setViewingProduct(null);
+    const id = getProductId(product);
+    if (!id) {
+      setEditingProduct(product);
+      setShowCreateForm(true);
+      return;
+    }
+    try {
+      setEditingProduct(await productService.getProductById(id));
+    } catch {
+      setEditingProduct(product);
+    }
+    setShowCreateForm(true);
+  };
   const handleDeleteClick = async (id: string) => {
     console.log('🔵 [handleDeleteClick] Starting delete for product ID:', id);
     if (!confirm('Delete this product?')) {
@@ -1718,10 +2067,33 @@ export default function ProductsPage() {
       alert(error.message || 'Failed to delete product');
     }
   };
-  const handleFormSuccess = () => { setShowCreateForm(false); setEditingProduct(null); fetchProducts(); };
+  const handleFormSuccess = () => {
+    setShowCreateForm(false);
+    setEditingProduct(null);
+    setSelectedStatus('all'); // new product has 0 stock — must show in catalog
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    fetchProducts();
+  };
 
   return (
     <div className="space-y-4 md:space-y-6">
+      {selectedLocation && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2 rounded-lg bg-sky-50 border border-sky-100 text-sm text-sky-800">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 flex-shrink-0" />
+            <span>
+              Products for <strong>{selectedLocation.name}</strong>
+              <span className="text-sky-600 font-mono text-xs ml-1">({selectedLocation.code})</span>
+              {' · '}
+              only products assigned to this location
+              {selectedStatus === 'in' ? ' · In Stock' : ''}
+              {selectedStatus === 'out' ? ' · Out of Stock' : ''}
+              {selectedStatus === 'low' ? ' · Low Stock' : ''}
+            </span>
+          </div>
+        </div>
+      )}
+
       {showScanner && (
         <BarcodeScanner
           onScan={handleBarcodeScan}
@@ -1746,12 +2118,36 @@ export default function ProductsPage() {
           suppliers={suppliers}
           settingsData={settingsData}
           loadingSettings={loadingSettings}
+          locationId={selectedLocationId}
+          onCategoryCreated={(cat) => {
+            setCategories((prev) => {
+              if (prev.some((c) => String(c.id) === String(cat.id))) return prev;
+              return [...prev, cat];
+            });
+          }}
+          onSupplierCreated={(sup) => {
+            setSuppliers((prev) => {
+              const id = String((sup as any).id || (sup as any)._id || '');
+              if (prev.some((s) => String((s as any).id || (s as any)._id) === id)) {
+                return prev;
+              }
+              return [...prev, sup];
+            });
+          }}
+          onSettingCreated={(cat, item) => {
+            setSettingsData((prev) => {
+              const list = prev[cat] || [];
+              const name = item?.name;
+              if (name && list.some((x) => x.name === name)) return prev;
+              return { ...prev, [cat]: [...list, item] };
+            });
+          }}
         />
       ) : (
         <ProductList
-          products={products}
+          products={pagedProducts}
           loading={loading}
-          pagination={pagination}
+          pagination={listPagination}
           searchTerm={searchTerm}
           setSearchTerm={handleSearch}
           selectedCategory={selectedCategory}
@@ -1762,7 +2158,7 @@ export default function ProductsPage() {
           onAddClick={handleAddClick}
           onEditClick={handleEditClick}
           onDeleteClick={handleDeleteClick}
-          onViewClick={setViewingProduct}
+          onViewClick={handleViewClick}
           onScanClick={() => setShowScanner(true)}
           categories={categories}
         />

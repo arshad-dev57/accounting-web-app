@@ -486,7 +486,7 @@ export default function PurchasePaymentsPage() {
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+                <CreditCard className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
                 Purchase Payments
                 <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
                   ({pagination.total} payments)
@@ -496,7 +496,7 @@ export default function PurchasePaymentsPage() {
             <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={handleRefresh}
-                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
                 title="Refresh"
                 disabled={loading}
               >
@@ -504,7 +504,7 @@ export default function PurchasePaymentsPage() {
               </button>
               <button
                 onClick={openCreateForm}
-                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
               >
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Make Payment</span>
@@ -550,7 +550,7 @@ export default function PurchasePaymentsPage() {
                   placeholder="Search payments..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
                 {searchTerm && (
                   <button onClick={clearSearch} className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2">
@@ -564,7 +564,7 @@ export default function PurchasePaymentsPage() {
                   <select
                     value={selectedFilter}
                     onChange={(e) => handleFilterChange(e.target.value)}
-                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   >
                     {filters.map((filter) => (
                       <option key={filter} value={filter}>
@@ -580,18 +580,18 @@ export default function PurchasePaymentsPage() {
                     type="date"
                     value={fromDate}
                     onChange={(e) => setFromDate(e.target.value)}
-                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
+                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
                   />
                   <span className="text-gray-400 text-xs md:text-sm hidden xs:inline">to</span>
                   <input
                     type="date"
                     value={toDate}
                     onChange={(e) => setToDate(e.target.value)}
-                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
+                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
                   />
                   <button
                     onClick={handleDateFilter}
-                    className="px-3 md:px-4 py-1.5 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] rounded-lg text-xs md:text-sm font-semibold hover:bg-[#7c4dff]/20 transition-all"
+                    className="px-3 md:px-4 py-1.5 md:py-2 bg-[#014582]/10 text-[#014582] rounded-lg text-xs md:text-sm font-semibold hover:bg-[#014582]/20 transition-all"
                   >
                     Apply
                   </button>
@@ -608,7 +608,7 @@ export default function PurchasePaymentsPage() {
                 onClick={() => handleFilterChange(filter)}
                 className={`px-2.5 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-all ${
                   selectedFilter === filter
-                    ? 'bg-[#7c4dff] text-white'
+                    ? 'bg-[#014582] text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -636,7 +636,7 @@ export default function PurchasePaymentsPage() {
                   {loading && payments.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="text-center py-8 md:py-12">
-                        <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#7c4dff] animate-spin" />
+                        <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                         <p className="mt-2 text-xs md:text-sm text-gray-500">Loading payments...</p>
                       </td>
                     </tr>
@@ -653,7 +653,7 @@ export default function PurchasePaymentsPage() {
                       <tr key={payment.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                         <td className="px-3 md:px-6 py-2 md:py-3">
                           <div>
-                            <p className="font-medium text-[#7c4dff] text-xs md:text-sm">{payment.paymentNumber}</p>
+                            <p className="font-medium text-[#014582] text-xs md:text-sm">{payment.paymentNumber}</p>
                             <p className="text-[10px] md:text-xs text-gray-400 sm:hidden">{payment.supplierName}</p>
                           </div>
                         </td>
@@ -725,7 +725,7 @@ export default function PurchasePaymentsPage() {
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50"
+                  className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all disabled:opacity-50"
                 >
                   {loadingMore ? (
                     <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -752,7 +752,7 @@ export default function PurchasePaymentsPage() {
                 >
                   <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
-                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg text-xs md:text-sm">
+                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg text-xs md:text-sm">
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
@@ -813,7 +813,7 @@ export default function PurchasePaymentsPage() {
                 placeholder="Enter reason for cancellation"
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
               />
             </div>
           }
@@ -880,7 +880,7 @@ function CreatePaymentForm({
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </button>
           <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <CreditCard className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+            <CreditCard className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
             Make Payment
           </h2>
         </div>
@@ -903,13 +903,13 @@ function CreatePaymentForm({
                   placeholder="Search supplier by name, email, phone..."
                   value={supplierSearchQuery}
                   onChange={(e) => handleSearchSuppliers(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
 
               {formState.isSearchingSuppliers && (
                 <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 p-4">
-                  <Loader2 className="w-6 h-6 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-6 h-6 mx-auto text-[#014582] animate-spin" />
                 </div>
               )}
 
@@ -932,7 +932,7 @@ function CreatePaymentForm({
             </div>
 
             {formState.selectedSupplier && (
-              <div className="mt-3 p-3 bg-[#7c4dff]/5 border border-[#7c4dff]/20 rounded-lg">
+              <div className="mt-3 p-3 bg-[#014582]/5 border border-[#014582]/20 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-gray-800 text-sm">{formState.selectedSupplier.name}</p>
@@ -974,7 +974,7 @@ function CreatePaymentForm({
 
               {formState.isLoadingInvoices ? (
                 <div className="text-center py-8">
-                  <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
                   <p className="mt-2 text-xs md:text-sm text-gray-400">Loading invoices...</p>
                 </div>
               ) : formState.availableInvoices.length === 0 ? (
@@ -992,7 +992,7 @@ function CreatePaymentForm({
                         key={invoice.id}
                         className={`p-3 border rounded-lg transition-all cursor-pointer ${
                           isSelected
-                            ? 'border-[#7c4dff] bg-[#7c4dff]/5'
+                            ? 'border-[#014582] bg-[#014582]/5'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                         onClick={() => toggleInvoiceSelection(invoice)}
@@ -1003,13 +1003,13 @@ function CreatePaymentForm({
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => toggleInvoiceSelection(invoice)}
-                              className="w-4 h-4 text-[#7c4dff] rounded border-gray-300 focus:ring-[#7c4dff] cursor-pointer"
+                              className="w-4 h-4 text-[#014582] rounded border-gray-300 focus:ring-[#014582] cursor-pointer"
                             />
                           </div>
                           <div className="flex-1">
                             <div className="flex items-start justify-between">
                               <div>
-                                <p className="font-medium text-[#7c4dff] text-sm">{invoice.invoiceNumber}</p>
+                                <p className="font-medium text-[#014582] text-sm">{invoice.invoiceNumber}</p>
                                 {invoice.supplierInvoiceNo && (
                                   <p className="text-[10px] md:text-xs text-gray-400">
                                     Supplier Inv: {invoice.supplierInvoiceNo}
@@ -1040,12 +1040,12 @@ function CreatePaymentForm({
                                     max={invoice.outstanding}
                                     value={invoice.amountToPay}
                                     onChange={(e) => updateInvoiceAmount(invoice.id, parseFloat(e.target.value) || 0)}
-                                    className="w-full px-2 md:px-3 py-1 md:py-1.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                                    className="w-full px-2 md:px-3 py-1 md:py-1.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                                   />
                                 </div>
                                 <button
                                   onClick={() => updateInvoiceAmount(invoice.id, invoice.outstanding)}
-                                  className="px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all"
+                                  className="px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all"
                                 >
                                   Full
                                 </button>
@@ -1075,7 +1075,7 @@ function CreatePaymentForm({
                   type="date"
                   value={formState.paymentDate}
                   onChange={(e) => setFormState((prev: CreateFormState) => ({ ...prev, paymentDate: e.target.value }))}
-                  className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
 
@@ -1085,7 +1085,7 @@ function CreatePaymentForm({
                 <select
                   value={formState.paymentMethod}
                   onChange={(e) => setFormState((prev: CreateFormState) => ({ ...prev, paymentMethod: e.target.value }))}
-                  className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {paymentMethods.map((method: string) => (
                     <option key={method} value={method}>{method}</option>
@@ -1103,7 +1103,7 @@ function CreatePaymentForm({
                       const account = formState.bankAccounts.find((acc: any) => acc.id === e.target.value);
                       setFormState((prev: CreateFormState) => ({ ...prev, selectedBankAccount: account || null }));
                     }}
-                    className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   >
                     <option value="">Select Bank Account</option>
                     {formState.bankAccounts.map((account: any) => (
@@ -1126,7 +1126,7 @@ function CreatePaymentForm({
                     min="0"
                     value={formState.paymentAmount}
                     onChange={(e) => setFormState((prev: CreateFormState) => ({ ...prev, paymentAmount: e.target.value }))}
-                    className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                    className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                     placeholder="0.00"
                   />
                 </div>
@@ -1140,7 +1140,7 @@ function CreatePaymentForm({
                   placeholder="Enter reference"
                   value={formState.paymentReference}
                   onChange={(e) => setFormState((prev: CreateFormState) => ({ ...prev, paymentReference: e.target.value }))}
-                  className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
 
@@ -1152,7 +1152,7 @@ function CreatePaymentForm({
                   placeholder="Enter notes"
                   value={formState.paymentNotes}
                   onChange={(e) => setFormState((prev: CreateFormState) => ({ ...prev, paymentNotes: e.target.value }))}
-                  className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none resize-none"
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none resize-none"
                 />
               </div>
             </div>
@@ -1160,7 +1160,7 @@ function CreatePaymentForm({
 
           {/* Summary */}
           {formState.selectedInvoices.length > 0 && (
-            <div className="bg-[#7c4dff]/5 border border-[#7c4dff]/20 rounded-xl p-3 md:p-4">
+            <div className="bg-[#014582]/5 border border-[#014582]/20 rounded-xl p-3 md:p-4">
               <div className="space-y-1 md:space-y-2 text-xs md:text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Supplier</span>
@@ -1177,7 +1177,7 @@ function CreatePaymentForm({
                 <hr className="border-gray-200" />
                 <div className="flex justify-between text-sm md:text-base">
                   <span className="font-bold text-gray-800">Total Amount</span>
-                  <span className="font-bold text-[#7c4dff]">{formatCurrency(selectedTotalAmount)}</span>
+                  <span className="font-bold text-[#014582]">{formatCurrency(selectedTotalAmount)}</span>
                 </div>
               </div>
             </div>
@@ -1194,7 +1194,7 @@ function CreatePaymentForm({
             <button
               onClick={handleMakePayment}
               disabled={!canMakePayment || submitting}
-              className="flex-1 px-3 md:px-4 py-2 md:py-2.5 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 md:gap-2"
+              className="flex-1 px-3 md:px-4 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 md:gap-2"
             >
               {submitting ? (
                 <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" />
@@ -1228,10 +1228,10 @@ function PaymentDetailModal({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-3 md:gap-4">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-[#7c4dff]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <CreditCard className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <CreditCard className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
             </div>
             <div>
               <h2 className="text-lg md:text-xl font-bold text-gray-900">{payment.paymentNumber}</h2>
@@ -1258,7 +1258,7 @@ function PaymentDetailModal({
             </div>
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Amount</p>
-              <p className="text-lg md:text-xl font-bold text-[#7c4dff] mt-1">{formatCurrency(payment.amount)}</p>
+              <p className="text-lg md:text-xl font-bold text-[#014582] mt-1">{formatCurrency(payment.amount)}</p>
             </div>
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Payment Method</p>
@@ -1300,7 +1300,7 @@ function PaymentDetailModal({
               {payment.invoicePayments?.map((inv: any) => (
                 <div key={inv.id} className="flex items-center justify-between py-1.5 md:py-2 border-b border-gray-50">
                   <div>
-                    <p className="text-xs md:text-sm font-medium text-[#7c4dff]">{inv.invoiceNumber}</p>
+                    <p className="text-xs md:text-sm font-medium text-[#014582]">{inv.invoiceNumber}</p>
                     {inv.invoice && (
                       <p className="text-[10px] md:text-xs text-gray-400">Total: {formatCurrency(inv.invoice.grandTotal)}</p>
                     )}

@@ -2,6 +2,7 @@
 
 import { X, ChevronRight, Search, Loader2 } from 'lucide-react';
 import { GRNSource, POSource, PurchaseInvoiceLineDraft } from '../../api/purchaseinvoice/route';
+import TaxRateSelect from '../../../components/TaxRateSelect';
 
 interface CreateInvoiceWizardProps {
   wizardState: {
@@ -101,7 +102,7 @@ export default function CreateInvoiceWizard({
               <div
                 key={i}
                 className={`flex-1 h-1.5 rounded-full transition-all ${
-                  wizardState.step >= i ? 'bg-[#7c4dff]' : 'bg-gray-200'
+                  wizardState.step >= i ? 'bg-[#014582]' : 'bg-gray-200'
                 }`}
               />
             ))}
@@ -121,7 +122,7 @@ export default function CreateInvoiceWizard({
                   onClick={() => setSourceType('grn')}
                   className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
                     wizardState.sourceType === 'grn'
-                      ? 'bg-[#7c4dff] text-white'
+                      ? 'bg-[#014582] text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -131,7 +132,7 @@ export default function CreateInvoiceWizard({
                   onClick={() => setSourceType('po')}
                   className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
                     wizardState.sourceType === 'po'
-                      ? 'bg-[#7c4dff] text-white'
+                      ? 'bg-[#014582] text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -146,10 +147,10 @@ export default function CreateInvoiceWizard({
                   type="text"
                   placeholder={`Search ${wizardState.sourceType === 'grn' ? 'GRN' : 'PO'} # or supplier...`}
                   onChange={(e) => searchSource(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                 />
                 {wizardState.isSearchingSource && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7c4dff] animate-spin" />
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#014582] animate-spin" />
                 )}
               </div>
 
@@ -176,8 +177,8 @@ export default function CreateInvoiceWizard({
 
               {/* Selected Source */}
               {wizardState.selectedSource && (
-                <div className="p-4 bg-[#7c4dff]/10 border border-[#7c4dff]/30 rounded-lg">
-                  <p className="font-semibold text-[#7c4dff] text-sm md:text-base">
+                <div className="p-4 bg-[#014582]/10 border border-[#014582]/30 rounded-lg">
+                  <p className="font-semibold text-[#014582] text-sm md:text-base">
                     {wizardState.sourceType === 'grn' 
                       ? (wizardState.selectedSource as GRNSource).grnNumber
                       : (wizardState.selectedSource as POSource).orderNumber}
@@ -221,7 +222,7 @@ export default function CreateInvoiceWizard({
                           step="0.01"
                           value={line.quantity}
                           onChange={(e) => updateLineDraft(index, 'quantity', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#7c4dff] text-sm"
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#014582] text-sm"
                         />
                       </div>
                       <div>
@@ -232,7 +233,7 @@ export default function CreateInvoiceWizard({
                           step="0.01"
                           value={line.unitPrice}
                           onChange={(e) => updateLineDraft(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#7c4dff] text-sm"
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#014582] text-sm"
                         />
                       </div>
                       <div>
@@ -244,19 +245,15 @@ export default function CreateInvoiceWizard({
                           step="0.01"
                           value={line.discount}
                           onChange={(e) => updateLineDraft(index, 'discount', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#7c4dff] text-sm"
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#014582] text-sm"
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-600">Tax%</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
+                        <label className="text-xs text-gray-600">Tax</label>
+                        <TaxRateSelect
                           value={line.taxRate}
-                          onChange={(e) => updateLineDraft(index, 'taxRate', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#7c4dff] text-sm"
+                          onChange={(rate) => updateLineDraft(index, 'taxRate', rate)}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#014582] text-sm"
                         />
                       </div>
                     </div>
@@ -288,7 +285,7 @@ export default function CreateInvoiceWizard({
                   </div>
                   <div className="border-t pt-2 flex justify-between font-bold">
                     <span>Grand Total</span>
-                    <span className="text-[#7c4dff]">{formatCurrency(selectedGrandTotal)}</span>
+                    <span className="text-[#014582]">{formatCurrency(selectedGrandTotal)}</span>
                   </div>
                 </div>
               )}
@@ -307,7 +304,7 @@ export default function CreateInvoiceWizard({
                     type="text"
                     value={wizardState.supplierInvoiceNo}
                     onChange={(e) => setWizardState((prev: any) => ({ ...prev, supplierInvoiceNo: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                     placeholder="Optional"
                   />
                 </div>
@@ -317,7 +314,7 @@ export default function CreateInvoiceWizard({
                     type="text"
                     value={wizardState.paymentTerms}
                     onChange={(e) => setWizardState((prev: any) => ({ ...prev, paymentTerms: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                   />
                 </div>
               </div>
@@ -329,7 +326,7 @@ export default function CreateInvoiceWizard({
                     type="date"
                     value={wizardState.invoiceDate}
                     onChange={(e) => setWizardState((prev: any) => ({ ...prev, invoiceDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                   />
                 </div>
                 <div>
@@ -338,7 +335,7 @@ export default function CreateInvoiceWizard({
                     type="date"
                     value={wizardState.dueDate}
                     onChange={(e) => setWizardState((prev: any) => ({ ...prev, dueDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                   />
                 </div>
               </div>
@@ -349,12 +346,12 @@ export default function CreateInvoiceWizard({
                   value={wizardState.notes}
                   onChange={(e) => setWizardState((prev: any) => ({ ...prev, notes: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                   placeholder="Add any notes..."
                 />
               </div>
 
-              <div className="p-4 bg-[#7c4dff]/10 rounded-lg space-y-2">
+              <div className="p-4 bg-[#014582]/10 rounded-lg space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Supplier</span>
                   <span className="font-semibold">{wizardState.selectedSource?.supplierName || ''}</span>
@@ -373,7 +370,7 @@ export default function CreateInvoiceWizard({
                 </div>
                 <div className="flex justify-between font-bold">
                   <span>Grand Total</span>
-                  <span className="text-[#7c4dff]">{formatCurrency(selectedGrandTotal)}</span>
+                  <span className="text-[#014582]">{formatCurrency(selectedGrandTotal)}</span>
                 </div>
               </div>
             </div>
@@ -395,7 +392,7 @@ export default function CreateInvoiceWizard({
             <button
               onClick={nextStep}
               disabled={!canGoToStep2 && wizardState.step === 0}
-              className="px-4 md:px-6 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#6b4dff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+              className="px-4 md:px-6 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6b4dff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
             >
               Next
             </button>
@@ -403,7 +400,7 @@ export default function CreateInvoiceWizard({
             <button
               onClick={handleCreateInvoice}
               disabled={submitting || !canGoToStep3}
-              className="px-4 md:px-6 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#6b4dff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+              className="px-4 md:px-6 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6b4dff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
             >
               {submitting ? 'Creating...' : 'Create Invoice'}
             </button>

@@ -92,13 +92,86 @@ export interface RecordPaymentRequest {
   notes?: string;
 }
 
+function num(value: unknown): number {
+  if (value == null) return 0;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return parseFloat(value) || 0;
+  return 0;
+}
+
+function str(value: unknown): string {
+  if (value == null) return '';
+  return String(value);
+}
+
+function normalizeBill(raw: any): Bill {
+  const vendor = raw?.vendor;
+  let supplierId = str(raw?.supplierId || raw?.vendorId);
+  let supplierName = str(raw?.supplierName || raw?.vendorName);
+
+  if (vendor && typeof vendor === 'object') {
+    supplierId = str(vendor.id || vendor._id || supplierId);
+    if (!supplierName) supplierName = str(vendor.name);
+  }
+
+  const totalAmount = num(raw?.totalAmount);
+  const paidAmount = num(raw?.paidAmount);
+  const outstanding =
+    raw?.outstanding != null ? num(raw.outstanding) : totalAmount - paidAmount;
+
+  return {
+    id: str(raw?.id || raw?._id),
+    billNumber: str(raw?.billNumber),
+    date: raw?.date ? String(raw.date) : new Date().toISOString(),
+    dueDate: raw?.dueDate ? String(raw.dueDate) : new Date().toISOString(),
+    supplierId,
+    supplierName,
+    items: Array.isArray(raw?.items)
+      ? raw.items.map((item: any) => ({
+          description: str(item.description),
+          quantity: num(item.quantity),
+          unitPrice: num(item.unitPrice),
+          amount: num(item.amount ?? item.quantity * item.unitPrice),
+        }))
+      : [],
+    subtotal: num(raw?.subtotal),
+    taxRate: num(raw?.taxRate),
+    taxAmount: num(raw?.taxAmount ?? raw?.taxTotal),
+    discount: num(raw?.discount),
+    totalAmount,
+    paidAmount,
+    outstanding,
+    status: (raw?.status || 'Unpaid') as Bill['status'],
+    reference: str(raw?.reference),
+    description: str(raw?.description || raw?.notes),
+    createdAt: str(raw?.createdAt),
+    updatedAt: str(raw?.updatedAt),
+  };
+}
+
+function normalizeBankAccount(raw: any): BankAccount {
+  return {
+    id: str(raw?.id || raw?._id),
+    name: str(raw?.accountName || raw?.name),
+    accountNumber: str(raw?.accountNumber),
+    bankName: str(raw?.bankName),
+  };
+}
+
 // ─── SERVICE ──────────────────────────────────────────────────
 
 export const accountsPayableService = {
   // ─── Get summary ──────────────────────────────────────────────
-  getSummary: async (): Promise<Summary> => {
+  getSummary: async (params: { locationId?: string; fiscalYearId?: string } = {}): Promise<Summary> => {
     try {
-      const response = await apiClient.get('/api/accounts-payable/summary');
+      const query = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          query.append(key, String(value));
+        }
+      });
+      const url = `/api/accounts-payable/summary${query.toString() ? `?${query.toString()}` : ''}`;
+      const response = await apiClient.get(url);
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch summary');
       }
@@ -121,6 +194,8 @@ export const accountsPayableService = {
     limit?: number;
     search?: string;
     status?: string;
+    locationId?: string;
+    fiscalYearId?: string;
   } = {}): Promise<BillListResponse> => {
     const query = new URLSearchParams();
     
@@ -140,22 +215,17 @@ export const accountsPayableService = {
       }
       
       const data = response.data || {};
-      
+      const bills = (data.data || []).map(normalizeBill);
+
       return {
         success: response.success,
-        data: data.data || [],
-        summary: data.summary || {
-          totalOutstanding: 0,
-          overdue: 0,
-          dueThisWeek: 0,
-          dueThisMonth: 0,
-          totalBills: 0
-        },
+        data: bills,
+        summary: data.summary,
         pagination: data.pagination || {
           page: params.page || 1,
           limit: params.limit || 10,
-          total: 0,
-          pages: 0,
+          total: data.count ?? bills.length,
+          pages: Math.max(1, Math.ceil((data.count ?? bills.length) / (params.limit || 10))),
           hasNext: false,
           hasPrev: false
         }
@@ -187,7 +257,7 @@ export const accountsPayableService = {
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch bank accounts');
       }
-      return response.data?.data || [];
+      return (response.data?.data || []).map(normalizeBankAccount);
     } catch (error: any) {
       console.error('Get bank accounts error:', error);
       return [];

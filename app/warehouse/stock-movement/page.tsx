@@ -8,11 +8,12 @@ import {
   User, FileText, CheckCircle, XCircle,
   AlertCircle, Loader2, ChevronDown, X,
   Layers, BarChart3, Filter, Download,
-  Printer, Eye, Edit, Trash2, RefreshCw
+  Printer, Eye, Edit, Trash2, RefreshCw, MapPin
 } from 'lucide-react';
 import { stockService, StockMovement } from '../../api/stock/routes';
 import { supplierService, Supplier } from '../../api/supplier/route';
 import { apiClient } from '@/lib/api-client';
+import { useLocation } from '@/lib/location-context';
 
 // ============================================================
 // PRODUCT SEARCH COMPONENT
@@ -20,11 +21,16 @@ import { apiClient } from '@/lib/api-client';
 function ProductSearch({ 
   onSelect, 
   selectedProduct,
-  excludeProductId 
+  excludeProductId,
+  locationId,
+  mode = 'all',
 }: { 
   onSelect: (product: any) => void;
   selectedProduct: any | null;
   excludeProductId?: string;
+  locationId?: string;
+  /** stock-in: company catalog with location qty; stock-out: only this location */
+  mode?: 'all' | 'stock-in' | 'stock-out';
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -37,6 +43,11 @@ function ProductSearch({
     }
   }, [selectedProduct]);
 
+  useEffect(() => {
+    setResults([]);
+    setIsOpen(false);
+  }, [locationId]);
+
   const handleSearch = useCallback(async (value: string) => {
     setSearchTerm(value);
     if (value.length < 2) {
@@ -45,11 +56,29 @@ function ProductSearch({
     }
     setLoading(true);
     try {
-      const response = await apiClient.get(`/api/warehouse/products?search=${value}&limit=10`);
+      const params = new URLSearchParams({
+        search: value,
+        limit: '10',
+      });
+      if (locationId) {
+        params.set('locationId', locationId);
+        // Stock-in can find company products not yet at this warehouse
+        if (mode === 'stock-in') params.set('scope', 'company');
+      }
+      const response = await apiClient.get(
+        `/api/warehouse/products?${params.toString()}`
+      );
       if (response.success) {
         let products = response.data.data || [];
         if (excludeProductId) {
-          products = products.filter((p: any) => p._id !== excludeProductId);
+          products = products.filter(
+            (p: any) => (p._id || p.id) !== excludeProductId
+          );
+        }
+        if (mode === 'stock-out') {
+          products = products.filter(
+            (p: any) => Number(p.currentStock || p.locationStock || 0) > 0
+          );
         }
         setResults(products);
         setIsOpen(true);
@@ -59,7 +88,7 @@ function ProductSearch({
     } finally {
       setLoading(false);
     }
-  }, [excludeProductId]);
+  }, [excludeProductId, locationId, mode]);
 
   const handleSelect = (product: any) => {
     setSearchTerm(product.name);
@@ -73,11 +102,15 @@ function ProductSearch({
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
           type="text"
-          placeholder="Search product by name or SKU..."
+          placeholder={
+            locationId
+              ? 'Search product at this warehouse...'
+              : 'Search product by name or SKU...'
+          }
           value={searchTerm}
           onChange={(e) => handleSearch(e.target.value)}
           onFocus={() => searchTerm.length >= 2 && setIsOpen(true)}
-          className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+          className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
         />
         {loading && (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
@@ -88,7 +121,8 @@ function ProductSearch({
         <div className="absolute z-50 w-full mt-1 bg-white rounded-xl shadow-lg border border-gray-200 max-h-60 overflow-y-auto">
           {results.map((product) => (
             <button
-              key={product._id}
+              key={product._id || product.id}
+              type="button"
               onClick={() => handleSelect(product)}
               className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors text-left"
             >
@@ -101,11 +135,19 @@ function ProductSearch({
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <p className="text-xs font-semibold text-gray-700">{product.currentStock} {product.stockUnit}</p>
-                <span className="text-xs text-gray-400">in stock</span>
+                <p className="text-xs font-semibold text-gray-700">
+                  {product.currentStock ?? product.locationStock ?? 0}{' '}
+                  {product.stockUnit || product.stockUnitName || ''}
+                </p>
+                <span className="text-xs text-gray-400">at location</span>
               </div>
             </button>
           ))}
+        </div>
+      )}
+      {isOpen && searchTerm.length >= 2 && !loading && results.length === 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-white rounded-xl shadow-lg border border-gray-200 px-4 py-3 text-sm text-gray-400">
+          No products found for this warehouse
         </div>
       )}
     </div>
@@ -118,34 +160,56 @@ function ProductSearch({
 // COMPLETE STOCK IN FORM - FIXED
 // ============================================================
 function StockInForm({ onSuccess }: { onSuccess: () => void }) {
+  const { selectedLocationId } = useLocation();
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const [stockType, setStockType] = useState<'bulk' | 'box'>('bulk');
   const [quantity, setQuantity] = useState('');
   const [boxCount, setBoxCount] = useState('');
   const [piecesPerBox, setPiecesPerBox] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState('');
+  const [stockSourceReason, setStockSourceReason] = useState('opening_stock');
+  const [unitCost, setUnitCost] = useState('');
+  const [bankAccountId, setBankAccountId] = useState('');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  const [stockInReasons, setStockInReasons] = useState<
+    Array<{ value: string; label: string; requiresSupplier?: boolean; requiresBankAccount?: boolean }>
+  >([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(false);
 
-  // ─── Fetch Suppliers ──────────────────────────────────────
+  const selectedReasonMeta = stockInReasons.find((r) => r.value === stockSourceReason);
+
   useEffect(() => {
-    const fetchSuppliers = async () => {
+    const loadMeta = async () => {
       setLoadingSuppliers(true);
       try {
-        const response = await supplierService.getSuppliers({ limit: 100 });
-        setSuppliers(response.data || []);
-      } catch (error) {
-        console.error('Failed to fetch suppliers:', error);
+        const [reasonsRes, supRes, bankRes] = await Promise.all([
+          stockService.getReasons(),
+          supplierService.getSuppliers({ limit: 100 }),
+          apiClient.get('/api/bank-accounts?limit=100&status=Active'),
+        ]);
+        setStockInReasons(reasonsRes.stockIn || []);
+        setSuppliers(supRes.data || []);
+        const banks = bankRes.data?.data || [];
+        setBankAccounts(Array.isArray(banks) ? banks : []);
+      } catch (e) {
+        console.error('Failed to load stock in metadata:', e);
       } finally {
         setLoadingSuppliers(false);
       }
     };
-    fetchSuppliers();
+    loadMeta();
   }, []);
+
+  useEffect(() => {
+    if (selectedProduct?.costPrice != null && !unitCost) {
+      setUnitCost(String(selectedProduct.costPrice));
+    }
+  }, [selectedProduct, unitCost]);
 
   const totalPieces = stockType === 'box' && boxCount && piecesPerBox
     ? parseInt(boxCount) * parseInt(piecesPerBox)
@@ -180,27 +244,37 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
       return;
     }
     
+    if (selectedReasonMeta?.requiresSupplier && !selectedSupplier) {
+      setError('Supplier is required for this stock source');
+      return;
+    }
+    if (selectedReasonMeta?.requiresBankAccount && !bankAccountId) {
+      setError('Bank account is required for cash / bank purchase');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      // ✅ Get the selected supplier object properly
       const selectedSupplierObj = suppliers.find(s => (s._id || s.id) === selectedSupplier);
       
-      // ✅ Build payload with correct product ID
       const payload: any = {
-        productId: productId,  // ✅ Use the extracted productId
+        productId: productId,
         stockType: stockType,
         quantity: stockType === 'box' ? parseInt(boxCount) : parseInt(quantity),
-        supplierName: selectedSupplierObj?.name || 'Walk-in',
+        stockSourceReason,
+        unitCost: unitCost ? parseFloat(unitCost) : undefined,
+        supplierName: selectedSupplierObj?.name || undefined,
         reference: reference || '',
         notes: notes || '',
+        locationId: selectedLocationId || undefined,
       };
 
-      // ✅ Only send supplierId if a valid supplier is selected
       if (selectedSupplier && selectedSupplierObj) {
         payload.supplierId = selectedSupplierObj._id || selectedSupplierObj.id;
       }
+      if (bankAccountId) payload.bankAccountId = bankAccountId;
 
       if (stockType === 'box') {
         payload.boxCount = parseInt(boxCount);
@@ -210,9 +284,12 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
       console.log('📦 Stock In Payload:', JSON.stringify(payload, null, 2));
 
       const response = await stockService.addStock(payload);
-      console.log('✅ Stock In Response:', response);
-      
-      alert('Stock added successfully!');
+      const je = (response as any)?.journalEntry;
+      alert(
+        je
+          ? `Stock added & posted to accounting (JE ${je.entryNumber})`
+          : 'Stock added successfully!'
+      );
       
       // Reset form
       setQuantity('');
@@ -256,6 +333,8 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
             setSelectedProduct(product);
           }} 
           selectedProduct={selectedProduct}
+          locationId={selectedLocationId}
+          mode="stock-in"
         />
         {selectedProduct && (
           <div className="mt-2 text-xs text-gray-500">
@@ -270,12 +349,12 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
           onClick={() => setStockType('bulk')}
           className={`p-4 rounded-xl border-2 text-left transition-all ${
             stockType === 'bulk'
-              ? 'border-[#7c4dff] bg-[#7c4dff]/5'
+              ? 'border-[#014582] bg-[#014582]/5'
               : 'border-gray-200 hover:border-gray-300'
           }`}
         >
           <div className="flex items-center gap-2 mb-1">
-            <BarChart3 className={`w-4 h-4 ${stockType === 'bulk' ? 'text-[#7c4dff]' : 'text-gray-400'}`} />
+            <BarChart3 className={`w-4 h-4 ${stockType === 'bulk' ? 'text-[#014582]' : 'text-gray-400'}`} />
             <span className="text-sm font-semibold text-gray-800">Bulk Quantity</span>
           </div>
           <p className="text-xs text-gray-500">Add stock as simple quantity</p>
@@ -285,12 +364,12 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
           onClick={() => setStockType('box')}
           className={`p-4 rounded-xl border-2 text-left transition-all ${
             stockType === 'box'
-              ? 'border-[#7c4dff] bg-[#7c4dff]/5'
+              ? 'border-[#014582] bg-[#014582]/5'
               : 'border-gray-200 hover:border-gray-300'
           }`}
         >
           <div className="flex items-center gap-2 mb-1">
-            <Box className={`w-4 h-4 ${stockType === 'box' ? 'text-[#7c4dff]' : 'text-gray-400'}`} />
+            <Box className={`w-4 h-4 ${stockType === 'box' ? 'text-[#014582]' : 'text-gray-400'}`} />
             <span className="text-sm font-semibold text-gray-800">Box / Case</span>
           </div>
           <p className="text-xs text-gray-500">Add stock with box & piece tracking</p>
@@ -309,7 +388,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
               placeholder="Enter quantity..."
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
         </div>
@@ -324,7 +403,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
               placeholder="e.g., 50"
               value={boxCount}
               onChange={(e) => setBoxCount(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
           <div>
@@ -336,7 +415,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
               placeholder="e.g., 12"
               value={piecesPerBox}
               onChange={(e) => setPiecesPerBox(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
         </div>
@@ -356,17 +435,72 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
       )}
 
+      <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800">
+        Choose <strong>why</strong> stock is arriving — accounting posts automatically (Dr Inventory).
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+            Stock Source *
+          </label>
+          <select
+            value={stockSourceReason}
+            onChange={(e) => setStockSourceReason(e.target.value)}
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50"
+          >
+            {stockInReasons.map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+            Unit Cost *
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={unitCost}
+            onChange={(e) => setUnitCost(e.target.value)}
+            placeholder="Cost per unit"
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50"
+          />
+        </div>
+      </div>
+
+      {selectedReasonMeta?.requiresBankAccount && (
+        <div className="mb-4">
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+            Pay From Bank Account *
+          </label>
+          <select
+            value={bankAccountId}
+            onChange={(e) => setBankAccountId(e.target.value)}
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50"
+          >
+            <option value="">Select bank account...</option>
+            {bankAccounts.map((b: any) => (
+              <option key={b.id || b._id} value={b.id || b._id}>
+                {b.accountName} — {b.bankName}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* ✅ COMPLETE SUPPLIER DROPDOWN - FIXED */}
       <div className="mb-4">
         <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-          Supplier
+          Supplier{selectedReasonMeta?.requiresSupplier ? ' *' : ''}
         </label>
         <div className="relative">
           <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <select
             value={selectedSupplier}
             onChange={(e) => setSelectedSupplier(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 appearance-none"
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 appearance-none"
             disabled={loadingSuppliers}
           >
             <option value="">Select supplier...</option>
@@ -395,7 +529,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
               placeholder="PO # or Invoice #"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
         </div>
@@ -408,7 +542,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
             placeholder="Additional notes..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
           />
         </div>
       </div>
@@ -433,14 +567,23 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
 // STOCK OUT FORM - COMPLETE
 // ============================================================
 function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
+  const { selectedLocationId } = useLocation();
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const [quantity, setQuantity] = useState('');
   const [customer, setCustomer] = useState('');
-  const [reason, setReason] = useState('');
+  const [stockOutReason, setStockOutReason] = useState('damage_expiry');
+  const [stockOutReasons, setStockOutReasons] = useState<Array<{ value: string; label: string }>>([]);
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    stockService.getReasons().then((r) => {
+      setStockOutReasons(r.stockOut || []);
+      if (r.stockOut?.[0]) setStockOutReason(r.stockOut[0].value);
+    }).catch(console.error);
+  }, []);
 
   const handleSubmit = async () => {
     if (!selectedProduct) {
@@ -455,24 +598,29 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
       setError(`Insufficient stock. Available: ${selectedProduct.currentStock}`);
       return;
     }
+    if (!stockOutReason) {
+      setError('Please select a stock out reason');
+      return;
+    }
 
     setLoading(true);
     setError('');
 
     try {
+      const productId = selectedProduct._id || selectedProduct.id;
       await stockService.removeStock({
-        productId: selectedProduct._id,
+        productId,
         quantity: parseInt(quantity),
-        reason: reason || 'Sales Order',
+        stockOutReason,
         customerName: customer || 'Walk-in Customer',
         reference: reference || '',
         notes: notes || '',
+        locationId: selectedLocationId || undefined,
       });
 
-      alert('Stock out confirmed!');
+      alert('Stock out confirmed & posted to accounting!');
       setQuantity('');
       setCustomer('');
-      setReason('');
       setReference('');
       setNotes('');
       setSelectedProduct(null);
@@ -506,6 +654,8 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
         <ProductSearch 
           onSelect={setSelectedProduct} 
           selectedProduct={selectedProduct}
+          locationId={selectedLocationId}
+          mode="stock-out"
         />
       </div>
 
@@ -520,7 +670,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
             placeholder="Enter quantity..."
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
           />
         </div>
       </div>
@@ -551,24 +701,24 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
               placeholder="Customer name..."
               value={customer}
               onChange={(e) => setCustomer(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
             />
           </div>
         </div>
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-            Reason *
+            Stock Out Reason *
           </label>
-          <div className="relative">
-            <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="e.g., Sales Order, Damaged"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
-            />
-          </div>
+          <select
+            value={stockOutReason}
+            onChange={(e) => setStockOutReason(e.target.value)}
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50"
+          >
+            {stockOutReasons.map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500 mt-1">Posts Dr expense / Cr Inventory automatically</p>
         </div>
       </div>
 
@@ -582,7 +732,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
             placeholder="SO # or Invoice #"
             value={reference}
             onChange={(e) => setReference(e.target.value)}
-            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
           />
         </div>
         <div>
@@ -594,7 +744,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
             placeholder="Additional notes..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
           />
         </div>
       </div>
@@ -657,7 +807,7 @@ function StockHistory({ movements, loading, onRefresh }: {
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
         <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Layers className="w-5 h-5 text-[#7c4dff]" />
+          <Layers className="w-5 h-5 text-[#014582]" />
           Stock Movement History
           <span className="text-xs font-normal text-gray-400 ml-2">
             ({movements.length} records)
@@ -671,7 +821,7 @@ function StockHistory({ movements, loading, onRefresh }: {
               placeholder="Search..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none w-36"
+              className="pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none w-36"
             />
           </div>
           <div className="flex gap-1 border border-gray-200 rounded-lg p-0.5">
@@ -683,7 +833,7 @@ function StockHistory({ movements, loading, onRefresh }: {
                   filterType === type
                     ? type === 'in' ? 'bg-green-100 text-green-700' :
                       type === 'out' ? 'bg-red-100 text-red-700' :
-                      'bg-[#7c4dff] text-white'
+                      'bg-[#014582] text-white'
                     : 'text-gray-500 hover:bg-gray-50'
                 }`}
               >
@@ -703,7 +853,7 @@ function StockHistory({ movements, loading, onRefresh }: {
 
       {loading ? (
         <div className="p-12 text-center">
-          <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+          <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
           <p className="mt-2 text-gray-500">Loading movements...</p>
         </div>
       ) : filteredMovements.length === 0 ? (
@@ -781,6 +931,7 @@ function StockHistory({ movements, loading, onRefresh }: {
 // MAIN PAGE
 // ============================================================
 export default function StockMovementPage() {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [activeTab, setActiveTab] = useState<'in' | 'out'>('in');
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -789,14 +940,17 @@ export default function StockMovementPage() {
   const fetchMovements = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await stockService.getMovements({ limit: 50 });
+      const response = await stockService.getMovements({
+        limit: 50,
+        locationId: selectedLocationId || undefined,
+      });
       setMovements(response.data || []);
     } catch (error) {
       console.error('Failed to fetch movements:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedLocationId]);
 
   useEffect(() => {
     fetchMovements();
@@ -808,6 +962,16 @@ export default function StockMovementPage() {
 
   return (
     <div className="space-y-6">
+      {selectedLocation && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-50 border border-sky-100 text-sm text-sky-800">
+          <MapPin className="w-4 h-4 flex-shrink-0" />
+          <span>
+            Stock movements for <strong>{selectedLocation.name}</strong>
+            <span className="text-sky-600 font-mono text-xs ml-1">({selectedLocation.code})</span>
+          </span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -815,13 +979,13 @@ export default function StockMovementPage() {
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </Link>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Layers className="w-6 h-6 text-[#7c4dff]" />
+            <Layers className="w-6 h-6 text-[#014582]" />
             Stock Movement
           </h2>
         </div>
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+          className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all"
         >
           <Printer className="w-4 h-4" /> Print
         </button>

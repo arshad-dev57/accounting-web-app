@@ -8,6 +8,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
     const limit = searchParams.get('limit') || '10';
+    const locationId = searchParams.get('locationId') || '';
 
     // Get token from request headers
     const authHeader = request.headers.get('authorization');
@@ -18,8 +19,11 @@ export async function GET(request) {
       headers['Authorization'] = authHeader;
     }
 
+    const params = new URLSearchParams({ q, limit });
+    if (locationId) params.append('locationId', locationId);
+
     const response = await axios.get(
-      `${API_BASE_URL}/api/warehouse/products/search?q=${encodeURIComponent(q)}&limit=${limit}`,
+      `${API_BASE_URL}/api/warehouse/products/search?${params.toString()}`,
       { headers }
     );
 

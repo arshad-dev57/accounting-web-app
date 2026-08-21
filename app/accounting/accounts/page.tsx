@@ -17,6 +17,7 @@ import {
   Edit, Archive, MoreVertical, Info, Layers
 } from 'lucide-react';
 import { chartOfAccountService, ChartOfAccount, ChartOfAccountStats } from '../../../lib/chart-of-accounts-service';
+import { TaxCodeSelect } from '../../../components/TaxRateSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -38,15 +39,15 @@ interface AccountTypeStats {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export default function ChartOfAccountsPage() {
+  const PAGE_SIZE = 10;
   const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 20,
+    limit: PAGE_SIZE,
     total: 0,
     pages: 0,
     hasNext: false,
@@ -70,22 +71,43 @@ export default function ChartOfAccountsPage() {
 
   const filters = ['All', 'Assets', 'Liabilities', 'Equity', 'Income', 'Expenses'];
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const latestRequestRef = useRef(0);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ─── Fetch Accounts ──────────────────────────────────────────
-
-  const fetchAccounts = useCallback(async (resetPage = true) => {
+  const fetchAccounts = useCallback(async (
+    page: number,
+    search: string,
+    filter: string
+  ) => {
+    const requestId = ++latestRequestRef.current;
     setLoading(true);
+
     try {
-      const page = resetPage ? 1 : pagination.page;
       const response = await chartOfAccountService.getAccounts({
         page,
-        limit: pagination.limit,
-        search: searchTerm || undefined,
-        type: selectedFilter !== 'All' ? selectedFilter : undefined
+        limit: PAGE_SIZE,
+        search: search.trim() || undefined,
+        type: filter !== 'All' ? filter : undefined,
+        sortBy: 'code',
+        sortOrder: 'asc'
       });
 
-      setAccounts(response.data || []);
-      setPagination(response.pagination);
+      if (requestId !== latestRequestRef.current) return;
+
+      const pageAccounts = response.data ?? [];
+      const pages = Math.max(1, response.pagination?.pages ?? 1);
+      const currentPage = response.pagination?.page ?? page;
+
+      setAccounts(pageAccounts);
+      setPagination({
+        page: currentPage,
+        limit: PAGE_SIZE,
+        total: response.pagination?.total ?? pageAccounts.length,
+        pages,
+        hasNext: response.pagination?.hasNext ?? currentPage < pages,
+        hasPrev: response.pagination?.hasPrev ?? currentPage > 1
+      });
+
       if (response.stats) {
         setStats(response.stats);
       }
@@ -93,68 +115,56 @@ export default function ChartOfAccountsPage() {
         setTypeStats(response.typeStats);
       }
     } catch (error: any) {
+      if (requestId !== latestRequestRef.current) return;
       console.error('Failed to fetch accounts:', error);
       alert(error.message || 'Failed to load accounts');
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) {
+        setLoading(false);
+      }
     }
-  }, [searchTerm, selectedFilter, pagination.page, pagination.limit]);
-
-  // ─── Load More ──────────────────────────────────────────────
-
-  const loadMore = useCallback(async () => {
-    if (!pagination.hasNext || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const nextPage = pagination.page + 1;
-      const response = await chartOfAccountService.getAccounts({
-        page: nextPage,
-        limit: pagination.limit,
-        search: searchTerm || undefined,
-        type: selectedFilter !== 'All' ? selectedFilter : undefined
-      });
-
-      setAccounts(prev => [...prev, ...(response.data || [])]);
-      setPagination(response.pagination);
-    } catch (error) {
-      console.error('Failed to load more accounts:', error);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, selectedFilter]);
-
-  // ─── Initial Fetch ──────────────────────────────────────────
-
-  useEffect(() => {
-    fetchAccounts(true);
   }, []);
 
-  // ─── Search ──────────────────────────────────────────────────
+  useEffect(() => {
+    fetchAccounts(1, '', 'All');
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [fetchAccounts]);
 
   const handleSearch = (query: string) => {
     setSearchTerm(query);
-    fetchAccounts(true);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      fetchAccounts(1, query, selectedFilter);
+    }, 300);
   };
 
   const clearSearch = () => {
     setSearchTerm('');
-    fetchAccounts(true);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    fetchAccounts(1, '', selectedFilter);
   };
-
-  // ─── Filter Change ──────────────────────────────────────────
 
   const handleFilterChange = (filter: string) => {
     setSelectedFilter(filter);
-    fetchAccounts(true);
+    fetchAccounts(1, searchTerm, filter);
   };
 
   const handleRefresh = () => {
-    fetchAccounts(true);
+    fetchAccounts(pagination.page, searchTerm, selectedFilter);
   };
 
   const handlePageChange = (page: number) => {
-    setPagination(prev => ({ ...prev, page }));
-    fetchAccounts(false);
+    if (
+      loading ||
+      page < 1 ||
+      page > pagination.pages ||
+      page === pagination.page
+    ) {
+      return;
+    }
+    fetchAccounts(page, searchTerm, selectedFilter);
   };
 
   // ─── Account Actions ─────────────────────────────────────────
@@ -164,7 +174,7 @@ export default function ChartOfAccountsPage() {
     try {
       await chartOfAccountService.createAccount(data);
       setShowCreateForm(false);
-      fetchAccounts(true);
+      fetchAccounts(1, searchTerm, selectedFilter);
     } catch (error: any) {
       console.error('Failed to create account:', error);
       alert(error.message || 'Failed to create account');
@@ -179,7 +189,7 @@ export default function ChartOfAccountsPage() {
       await chartOfAccountService.updateAccount(id, data);
       setEditingAccount(null);
       setViewingAccount(null);
-      fetchAccounts(true);
+      fetchAccounts(pagination.page, searchTerm, selectedFilter);
     } catch (error: any) {
       console.error('Failed to update account:', error);
       alert(error.message || 'Failed to update account');
@@ -196,7 +206,7 @@ export default function ChartOfAccountsPage() {
       setShowDeleteConfirm(false);
       setAccountToActOn(null);
       setViewingAccount(null);
-      fetchAccounts(true);
+      fetchAccounts(1, searchTerm, selectedFilter);
     } catch (error: any) {
       console.error('Failed to delete account:', error);
       alert(error.message || 'Failed to delete account');
@@ -209,7 +219,7 @@ export default function ChartOfAccountsPage() {
     setSubmitting(true);
     try {
       await chartOfAccountService.archiveAccount(id, isActive);
-      fetchAccounts(true);
+      fetchAccounts(pagination.page, searchTerm, selectedFilter);
     } catch (error: any) {
       console.error('Failed to archive account:', error);
       alert(error.message || 'Failed to archive account');
@@ -223,7 +233,7 @@ export default function ChartOfAccountsPage() {
     try {
       await chartOfAccountService.fixCashAccounts();
       setShowFixAccounts(false);
-      fetchAccounts(true);
+      fetchAccounts(1, searchTerm, selectedFilter);
     } catch (error: any) {
       console.error('Failed to fix cash accounts:', error);
       alert(error.message || 'Failed to fix cash accounts');
@@ -298,7 +308,7 @@ export default function ChartOfAccountsPage() {
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <Landmark className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+                <Landmark className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
                 Chart of Accounts
                 <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
                   ({pagination.total} accounts)
@@ -317,7 +327,7 @@ export default function ChartOfAccountsPage() {
               )}
               <button
                 onClick={handleRefresh}
-                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
                 title="Refresh"
                 disabled={loading}
               >
@@ -325,7 +335,7 @@ export default function ChartOfAccountsPage() {
               </button>
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
               >
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Add Account</span>
@@ -369,7 +379,7 @@ export default function ChartOfAccountsPage() {
                   placeholder="Search accounts..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
                 {searchTerm && (
                   <button onClick={clearSearch} className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2">
@@ -383,7 +393,7 @@ export default function ChartOfAccountsPage() {
                   <select
                     value={selectedFilter}
                     onChange={(e) => handleFilterChange(e.target.value)}
-                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   >
                     {filters.map((filter) => (
                       <option key={filter} value={filter}>
@@ -401,7 +411,7 @@ export default function ChartOfAccountsPage() {
           <div className="space-y-3 md:space-y-4">
             {loading && accounts.length === 0 ? (
               <div className="text-center py-8 md:py-12">
-                <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#7c4dff] animate-spin" />
+                <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                 <p className="mt-2 text-xs md:text-sm text-gray-500">Loading accounts...</p>
               </div>
             ) : accounts.length === 0 ? (
@@ -439,7 +449,7 @@ export default function ChartOfAccountsPage() {
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mt-0.5">
-                            <span className="text-[10px] md:text-xs font-mono font-semibold text-[#7c4dff] bg-[#7c4dff]/10 px-1.5 md:px-2 py-0.5 rounded">
+                            <span className="text-[10px] md:text-xs font-mono font-semibold text-[#014582] bg-[#014582]/10 px-1.5 md:px-2 py-0.5 rounded">
                               {account.code}
                             </span>
                             <span className={`text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 rounded-full ${getStatusColor(account.isActive)}`}>
@@ -463,48 +473,142 @@ export default function ChartOfAccountsPage() {
             )}
           </div>
 
-          {/* Load More */}
-          {pagination.hasNext && accounts.length > 0 && (
-            <div className="flex justify-center py-3 md:py-4">
-              <button
-                onClick={loadMore}
-                disabled={loadingMore}
-                className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50"
-              >
-                {loadingMore ? (
-                  <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-                ) : (
-                  'Load More'
-                )}
-              </button>
-            </div>
-          )}
+          {pagination.total > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-xs md:text-sm text-gray-500">
+                  Showing{' '}
+                  <span className="font-semibold text-gray-700">
+                    {pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1}
+                  </span>{' '}
+                  –{' '}
+                  <span className="font-semibold text-gray-700">
+                    {Math.min(pagination.page * pagination.limit, pagination.total)}
+                  </span>{' '}
+                  of{' '}
+                  <span className="font-semibold text-gray-700">{pagination.total}</span> accounts
+                </p>
 
-          {/* Pagination */}
-          {pagination.pages > 1 && (
-            <div className="flex flex-col xs:flex-row items-center justify-between gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
-              <p className="text-[10px] md:text-sm text-gray-500 text-center xs:text-left">
-                Showing {(pagination.page - 1) * pagination.limit + 1} –{' '}
-                {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
-              </p>
-              <div className="flex gap-1 md:gap-2">
-                <button
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  disabled={!pagination.hasPrev}
-                  className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                </button>
-                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg text-xs md:text-sm">
-                  {pagination.page} / {pagination.pages}
-                </span>
-                <button
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  disabled={!pagination.hasNext}
-                  className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                </button>
+                <div className="flex items-center gap-1 md:gap-2">
+                  <button
+                    onClick={() => handlePageChange(1)}
+                    disabled={pagination.page === 1 || loading}
+                    className="hidden sm:flex p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    title="First page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-4 h-4 -ml-3" />
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    disabled={!pagination.hasPrev || loading}
+                    className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    title="Previous page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pages = [];
+                      const maxVisible = 5;
+                      let startPage = Math.max(1, pagination.page - Math.floor(maxVisible / 2));
+                      let endPage = Math.min(pagination.pages, startPage + maxVisible - 1);
+
+                      if (endPage - startPage + 1 < maxVisible) {
+                        startPage = Math.max(1, endPage - maxVisible + 1);
+                      }
+
+                      if (startPage > 1) {
+                        pages.push(
+                          <button
+                            key={1}
+                            onClick={() => handlePageChange(1)}
+                            className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-xs md:text-sm font-medium transition-all"
+                          >
+                            1
+                          </button>
+                        );
+                        if (startPage > 2) {
+                          pages.push(
+                            <span key="start-ellipsis" className="px-2 text-gray-400">...</span>
+                          );
+                        }
+                      }
+
+                      for (let i = startPage; i <= endPage; i++) {
+                        pages.push(
+                          <button
+                            key={i}
+                            onClick={() => handlePageChange(i)}
+                            className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg text-xs md:text-sm font-medium transition-all ${
+                              i === pagination.page
+                                ? 'bg-[#014582] text-white border-[#014582] shadow-md shadow-[#014582]/25'
+                                : 'border border-gray-200 hover:bg-gray-50'
+                            }`}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+
+                      if (endPage < pagination.pages) {
+                        if (endPage < pagination.pages - 1) {
+                          pages.push(
+                            <span key="end-ellipsis" className="px-2 text-gray-400">...</span>
+                          );
+                        }
+                        pages.push(
+                          <button
+                            key={pagination.pages}
+                            onClick={() => handlePageChange(pagination.pages)}
+                            className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-xs md:text-sm font-medium transition-all"
+                          >
+                            {pagination.pages}
+                          </button>
+                        );
+                      }
+
+                      return pages;
+                    })()}
+                  </div>
+
+                  <button
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    disabled={!pagination.hasNext || loading}
+                    className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    title="Next page"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(pagination.pages)}
+                    disabled={pagination.page === pagination.pages || loading}
+                    className="hidden sm:flex p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    title="Last page"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-4 h-4 -ml-3" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs md:text-sm text-gray-500">Go to</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={pagination.pages}
+                    value={pagination.page}
+                    onChange={(e) => {
+                      const page = parseInt(e.target.value, 10);
+                      if (page >= 1 && page <= pagination.pages) {
+                        handlePageChange(page);
+                      }
+                    }}
+                    className="w-12 md:w-16 px-2 py-1.5 border border-gray-200 rounded-lg text-xs md:text-sm text-center focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
+                  />
+                  <span className="text-xs md:text-sm text-gray-500">of {pagination.pages}</span>
+                </div>
               </div>
             </div>
           )}
@@ -607,7 +711,6 @@ function AccountForm({
     'Revenue': ['Operating Income'],
     'Expense': ['Operating Expenses']
   };
-  const taxOptions = ['N/A', 'GST-13%', 'GST-5%', 'WHT-10%'];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -671,7 +774,7 @@ function AccountForm({
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2 md:gap-3">
-          <Landmark className="w-4 h-4 md:w-5 md:h-5 text-[#7c4dff]" />
+          <Landmark className="w-4 h-4 md:w-5 md:h-5 text-[#014582]" />
           <h2 className="text-base md:text-lg font-bold text-gray-800">
             {isEditing ? 'Edit Account' : 'Add New Account'}
           </h2>
@@ -707,7 +810,7 @@ function AccountForm({
                 placeholder="e.g., 1010"
                 value={formData.code}
                 onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
-                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               />
             </div>
@@ -720,7 +823,7 @@ function AccountForm({
                 placeholder="e.g., Cash in Hand"
                 value={formData.name}
                 onChange={(e) => handleNameChange(e.target.value)}
-                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               />
             </div>
@@ -734,7 +837,7 @@ function AccountForm({
               <select
                 value={formData.type}
                 onChange={(e) => handleTypeChange(e.target.value as 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense')}
-                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
                 {accountTypes.map((type) => (
                   <option key={type} value={type}>{type}</option>
@@ -748,7 +851,7 @@ function AccountForm({
               <select
                 value={formData.parentAccount || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, parentAccount: e.target.value }))}
-                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
                 <option value="">None</option>
                 {(parentAccountsMap[formData.type || 'Asset'] || []).map((parent) => (
@@ -770,7 +873,7 @@ function AccountForm({
                 placeholder="0.00"
                 value={formData.balance}
                 onChange={(e) => setFormData(prev => ({ ...prev, balance: parseFloat(e.target.value) || 0 }))}
-                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               />
             </div>
           </div>
@@ -779,15 +882,11 @@ function AccountForm({
             <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
               Tax Code
             </label>
-            <select
+            <TaxCodeSelect
               value={formData.taxCode || 'N/A'}
-              onChange={(e) => setFormData(prev => ({ ...prev, taxCode: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
-            >
-              {taxOptions.map((tax) => (
-                <option key={tax} value={tax}>{tax}</option>
-              ))}
-            </select>
+              onChange={(taxCode) => setFormData(prev => ({ ...prev, taxCode }))}
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+            />
           </div>
 
           <div>
@@ -799,7 +898,7 @@ function AccountForm({
               placeholder="Account description..."
               value={formData.description || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none"
+              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
             />
           </div>
 
@@ -808,7 +907,7 @@ function AccountForm({
               type="checkbox"
               checked={formData.isActive}
               onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-              className="w-4 h-4 text-[#7c4dff] rounded border-gray-300 focus:ring-[#7c4dff]"
+              className="w-4 h-4 text-[#014582] rounded border-gray-300 focus:ring-[#014582]"
             />
             <label className="text-xs md:text-sm font-medium text-gray-700">Active</label>
           </div>
@@ -824,7 +923,7 @@ function AccountForm({
             <button
               type="submit"
               disabled={submitting}
-              className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : <Save className="w-3.5 h-3.5 md:w-4 md:h-4" />}
               {isEditing ? 'Update Account' : 'Save Account'}
@@ -864,7 +963,7 @@ function AccountDetailModal({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-3 md:gap-4">
             <div className={`p-2 md:p-2.5 rounded-xl ${colorClass}`}>
               <Icon className="w-5 h-5 md:w-6 md:h-6" />
@@ -872,7 +971,7 @@ function AccountDetailModal({
             <div>
               <h2 className="text-lg md:text-xl font-bold text-gray-900">{account.name}</h2>
               <div className="flex flex-wrap items-center gap-1 md:gap-2 mt-1">
-                <span className="font-mono text-[10px] md:text-xs font-bold text-[#7c4dff] bg-[#7c4dff]/10 px-1.5 md:px-2 py-0.5 rounded">
+                <span className="font-mono text-[10px] md:text-xs font-bold text-[#014582] bg-[#014582]/10 px-1.5 md:px-2 py-0.5 rounded">
                   {account.code}
                 </span>
                 <span className={`text-[10px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full ${account.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
@@ -948,7 +1047,7 @@ function AccountDetailModal({
           <div className="border-t border-gray-100 pt-4 mt-4 flex flex-wrap gap-2">
             <button
               onClick={onEdit}
-              className="flex-1 min-w-[80px] px-3 md:px-4 py-2 md:py-2.5 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center justify-center gap-1.5 md:gap-2"
+              className="flex-1 min-w-[80px] px-3 md:px-4 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center justify-center gap-1.5 md:gap-2"
             >
               <Edit className="w-3.5 h-3.5 md:w-4 md:h-4" />
               Edit

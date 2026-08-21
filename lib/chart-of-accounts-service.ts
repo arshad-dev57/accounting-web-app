@@ -53,8 +53,14 @@ export const chartOfAccountService = {
     sortOrder?: 'asc' | 'desc';
   } = {}): Promise<ChartOfAccountListResponse> => {
     const query = new URLSearchParams();
-    
+    const page = params.page && params.page > 0 ? params.page : 1;
+    const limit = params.limit && params.limit > 0 ? Math.min(params.limit, 100) : 10;
+
+    query.set('page', String(page));
+    query.set('limit', String(limit));
+
     Object.entries(params).forEach(([key, value]) => {
+      if (key === 'page' || key === 'limit') return;
       if (value !== undefined && value !== null && value !== '') {
         query.append(key, String(value));
       }
@@ -70,22 +76,34 @@ export const chartOfAccountService = {
       }
       
       const data = response.data || {};
+      const rawAccounts = Array.isArray(data.data)
+        ? data.data
+        : Array.isArray(data)
+          ? data
+          : [];
       
       // Map currentBalance to balance for frontend compatibility
-      const accounts = (data.data || []).map((account: any) => ({
+      const accounts = rawAccounts.map((account: any) => ({
         ...account,
-        balance: account.currentBalance || 0
+        balance: account.currentBalance ?? account.balance ?? 0
       }));
       
       // Map backend summary to frontend stats format
       const summary = data.summary || {};
-      const stats = data.stats || {
-        total: 0,
-        assetTotal: summary.Assets || 0,
-        liabilityTotal: summary.Liabilities || 0,
-        equityTotal: summary.Equity || 0,
-        revenueTotal: summary.Income || 0,
-        expenseTotal: summary.Expenses || 0
+      const total = Number(
+        data.pagination?.total ?? data.totalCount ?? data.stats?.total ?? accounts.length
+      );
+      const pages = Number(
+        data.pagination?.pages ?? (Math.max(1, Math.ceil(total / limit) || 1))
+      );
+      const currentPage = Number(data.pagination?.page ?? page);
+      const stats = {
+        total,
+        assetTotal: data.stats?.assetTotal ?? summary.Assets ?? 0,
+        liabilityTotal: data.stats?.liabilityTotal ?? summary.Liabilities ?? 0,
+        equityTotal: data.stats?.equityTotal ?? summary.Equity ?? 0,
+        revenueTotal: data.stats?.revenueTotal ?? summary.Income ?? 0,
+        expenseTotal: data.stats?.expenseTotal ?? summary.Expenses ?? 0
       };
       
       return {
@@ -93,13 +111,13 @@ export const chartOfAccountService = {
         data: accounts,
         stats,
         typeStats: data.typeStats,
-        pagination: data.pagination || {
-          page: params.page || 1,
-          limit: params.limit || 20,
-          total: 0,
-          pages: 0,
-          hasNext: false,
-          hasPrev: false
+        pagination: {
+          page: currentPage,
+          limit: Number(data.pagination?.limit ?? limit),
+          total,
+          pages,
+          hasNext: data.pagination?.hasNext ?? currentPage < pages,
+          hasPrev: data.pagination?.hasPrev ?? currentPage > 1
         }
       };
     } catch (error: any) {

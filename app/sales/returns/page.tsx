@@ -13,9 +13,10 @@ import {
   Ban, Filter, ArrowUpDown, ClipboardList,
   Truck, Home, Store, CreditCard, Banknote,
   CircleCheck, CircleX, CircleAlert,
-  Receipt, ShoppingCart
+  Receipt, ShoppingCart, MapPin
 } from 'lucide-react';
 import { salesReturnService, ReturnModel, ReturnStats, OrderModel, ReturnLineDraft } from '../../api/salesretuns/route';
+import { useLocation } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -36,6 +37,7 @@ interface WizardState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export default function SalesReturnsPage() {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [returns, setReturns] = useState<ReturnModel[]>([]);
   const [filteredReturns, setFilteredReturns] = useState<ReturnModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,8 +69,10 @@ export default function SalesReturnsPage() {
   const [viewingReturn, setViewingReturn] = useState<ReturnModel | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [returnToActOn, setReturnToActOn] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [cancelReason, setCancelReason] = useState('');
 
   // ─── Wizard State ─────────────────────────────────────────────
   const [wizardState, setWizardState] = useState<WizardState>({
@@ -117,7 +121,8 @@ export default function SalesReturnsPage() {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         type: typeFilter !== 'all' ? typeFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setReturns(response.data || []);
@@ -132,7 +137,7 @@ export default function SalesReturnsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, typeFilter, fromDate, toDate, pagination.page, pagination.limit]);
+  }, [searchTerm, statusFilter, typeFilter, fromDate, toDate, pagination.page, pagination.limit, selectedLocationId]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -148,7 +153,8 @@ export default function SalesReturnsPage() {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         type: typeFilter !== 'all' ? typeFilter : undefined,
         fromDate: fromDate || undefined,
-        toDate: toDate || undefined
+        toDate: toDate || undefined,
+        locationId: selectedLocationId || undefined,
       });
 
       setReturns(prev => [...prev, ...(response.data || [])]);
@@ -159,7 +165,7 @@ export default function SalesReturnsPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, typeFilter, fromDate, toDate]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, typeFilter, fromDate, toDate, selectedLocationId]);
 
   // ─── Apply Local Filters ────────────────────────────────────
 
@@ -185,6 +191,11 @@ export default function SalesReturnsPage() {
   useEffect(() => {
     fetchReturns(true);
   }, []);
+
+  useEffect(() => {
+    fetchReturns(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLocationId]);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -263,7 +274,7 @@ export default function SalesReturnsPage() {
     }
     setWizardState(prev => ({ ...prev, isSearchingOrders: true }));
     try {
-      const results = await salesReturnService.searchOrders(query);
+      const results = await salesReturnService.searchOrders(query, 10, selectedLocationId || undefined);
       setWizardState(prev => ({ ...prev, orderSearchResults: results }));
     } catch (error) {
       console.error('Failed to search orders:', error);
@@ -470,6 +481,24 @@ export default function SalesReturnsPage() {
     }
   };
 
+  const handleCancelReturn = async () => {
+    if (!returnToActOn) return;
+    setSubmitting(true);
+    try {
+      await salesReturnService.cancelReturn(returnToActOn, cancelReason || 'Cancelled by user');
+      setShowCancelConfirm(false);
+      setReturnToActOn(null);
+      setCancelReason('');
+      setViewingReturn(null);
+      fetchReturns(true);
+    } catch (error: any) {
+      console.error('Failed to cancel return:', error);
+      alert(error.message || 'Failed to cancel return');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleDeleteReturn = async () => {
     if (!returnToActOn) return;
     setSubmitting(true);
@@ -570,7 +599,7 @@ export default function SalesReturnsPage() {
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <Undo2 className="w-6 h-6 text-[#7c4dff]" />
+                <Undo2 className="w-6 h-6 text-[#014582]" />
                 Sales Returns
                 <span className="text-sm font-normal text-gray-400 ml-2">
                   ({pagination.total} returns)
@@ -580,7 +609,7 @@ export default function SalesReturnsPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleRefresh}
-                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
                 title="Refresh"
                 disabled={loading}
               >
@@ -588,13 +617,26 @@ export default function SalesReturnsPage() {
               </button>
               <button
                 onClick={openCreateWizard}
-                className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+                className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
               >
                 <Plus className="w-4 h-4" />
                 Create Return
               </button>
             </div>
           </div>
+
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <strong>Flow:</strong> Create return → <strong>Approve</strong> → <strong>Complete</strong> to restock inventory and post GL entries.
+            For cash back, create a refund from Sales Refunds and mark it <strong>Complete</strong>.
+          </div>
+
+          {selectedLocation && (
+            <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+              <MapPin className="w-4 h-4 flex-shrink-0" />
+              Showing returns for <strong>{selectedLocation.name}</strong>
+              <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+            </div>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
@@ -632,7 +674,7 @@ export default function SalesReturnsPage() {
                   placeholder="Search returns..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
                 {searchTerm && (
                   <button onClick={clearSearch} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -645,7 +687,7 @@ export default function SalesReturnsPage() {
                 <select
                   value={statusFilter}
                   onChange={(e) => handleStatusFilterChange(e.target.value)}
-                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {statusOptions.map((status) => (
                     <option key={status} value={status}>
@@ -660,7 +702,7 @@ export default function SalesReturnsPage() {
                 <select
                   value={typeFilter}
                   onChange={(e) => handleTypeFilterChange(e.target.value)}
-                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {typeOptions.map((type) => (
                     <option key={type} value={type}>
@@ -676,18 +718,18 @@ export default function SalesReturnsPage() {
                   type="date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
                 <span className="text-gray-400 text-sm">to</span>
                 <input
                   type="date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
                 <button
                   onClick={handleDateFilter}
-                  className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] rounded-lg text-sm font-semibold hover:bg-[#7c4dff]/20 transition-all"
+                  className="px-4 py-2 bg-[#014582]/10 text-[#014582] rounded-lg text-sm font-semibold hover:bg-[#014582]/20 transition-all"
                 >
                   Apply
                 </button>
@@ -703,7 +745,7 @@ export default function SalesReturnsPage() {
                 onClick={() => handleFilterChange(filter)}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
                   selectedFilter === filter
-                    ? 'bg-[#7c4dff] text-white'
+                    ? 'bg-[#014582] text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -732,7 +774,7 @@ export default function SalesReturnsPage() {
                   {loading && returns.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-center py-12">
-                        <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+                        <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
                         <p className="mt-2 text-gray-500">Loading returns...</p>
                       </td>
                     </tr>
@@ -749,7 +791,7 @@ export default function SalesReturnsPage() {
                       <tr key={returnItem.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-3">
                           <div>
-                            <p className="font-medium text-[#7c4dff]">{returnItem.returnNumber}</p>
+                            <p className="font-medium text-[#014582]">{returnItem.returnNumber}</p>
                             <p className="text-xs text-gray-400">{formatDate(returnItem.returnDate)}</p>
                           </div>
                         </td>
@@ -820,6 +862,18 @@ export default function SalesReturnsPage() {
                                 <CheckCircle className="w-4 h-4" />
                               </button>
                             )}
+                            {(returnItem.returnStatus === 'Pending' || returnItem.returnStatus === 'Approved') && (
+                              <button
+                                onClick={() => {
+                                  setReturnToActOn(returnItem.id);
+                                  setShowCancelConfirm(true);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                title="Cancel"
+                              >
+                                <Ban className="w-4 h-4" />
+                              </button>
+                            )}
                             {returnItem.returnStatus === 'Cancelled' && (
                               <button
                                 onClick={() => {
@@ -847,7 +901,7 @@ export default function SalesReturnsPage() {
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="px-6 py-2 text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50"
+                  className="px-6 py-2 text-sm font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all disabled:opacity-50"
                 >
                   {loadingMore ? (
                     <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -874,7 +928,7 @@ export default function SalesReturnsPage() {
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg">
+                <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg">
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
@@ -902,6 +956,11 @@ export default function SalesReturnsPage() {
             setViewingReturn(null);
           }}
           onComplete={handleCompleteReturn}
+          onCancel={(id: string) => {
+            setReturnToActOn(id);
+            setShowCancelConfirm(true);
+            setViewingReturn(null);
+          }}
           onDelete={(id) => {
             setReturnToActOn(id);
             setShowDeleteConfirm(true);
@@ -937,7 +996,36 @@ export default function SalesReturnsPage() {
                 placeholder="Enter reason for rejection..."
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none resize-none"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none resize-none"
+              />
+            </div>
+          }
+        />
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <ConfirmationModal
+          title="Cancel Return"
+          message="Are you sure you want to cancel this return? This action cannot be undone."
+          confirmLabel="Cancel Return"
+          confirmColor="bg-red-500 hover:bg-red-600"
+          onConfirm={handleCancelReturn}
+          onCancel={() => {
+            setShowCancelConfirm(false);
+            setReturnToActOn(null);
+            setCancelReason('');
+          }}
+          loading={submitting}
+          extraContent={
+            <div className="mt-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Reason (Optional)</label>
+              <input
+                type="text"
+                placeholder="Enter reason for cancellation"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
               />
             </div>
           }
@@ -1007,7 +1095,7 @@ function CreateReturnWizard({
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </button>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Undo2 className="w-6 h-6 text-[#7c4dff]" />
+            <Undo2 className="w-6 h-6 text-[#014582]" />
             Create Return
           </h2>
         </div>
@@ -1020,9 +1108,9 @@ function CreateReturnWizard({
       <div className="flex items-center gap-4">
         {[0, 1, 2].map((step) => (
           <div key={step} className="flex items-center flex-1">
-            <div className={`flex items-center gap-2 ${wizardState.step >= step ? 'text-[#7c4dff]' : 'text-gray-300'}`}>
+            <div className={`flex items-center gap-2 ${wizardState.step >= step ? 'text-[#014582]' : 'text-gray-300'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 ${
-                wizardState.step >= step ? 'border-[#7c4dff] bg-[#7c4dff]/10' : 'border-gray-300'
+                wizardState.step >= step ? 'border-[#014582] bg-[#014582]/10' : 'border-gray-300'
               }`}>
                 {step + 1}
               </div>
@@ -1031,7 +1119,7 @@ function CreateReturnWizard({
               </span>
             </div>
             {step < 2 && (
-              <div className={`flex-1 h-0.5 mx-2 ${wizardState.step > step ? 'bg-[#7c4dff]' : 'bg-gray-300'}`} />
+              <div className={`flex-1 h-0.5 mx-2 ${wizardState.step > step ? 'bg-[#014582]' : 'bg-gray-300'}`} />
             )}
           </div>
         ))}
@@ -1050,13 +1138,13 @@ function CreateReturnWizard({
                   placeholder="Search order number or customer name..."
                   value={orderSearchQuery}
                   onChange={(e) => handleSearchOrders(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
 
               {wizardState.isSearchingOrders && (
                 <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 p-4">
-                  <Loader2 className="w-6 h-6 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-6 h-6 mx-auto text-[#014582] animate-spin" />
                 </div>
               )}
 
@@ -1068,7 +1156,7 @@ function CreateReturnWizard({
                       onClick={() => selectOrderForReturn(order)}
                       className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-none transition-colors"
                     >
-                      <p className="font-medium text-[#7c4dff]">{order.orderNumber}</p>
+                      <p className="font-medium text-[#014582]">{order.orderNumber}</p>
                       <p className="text-sm text-gray-600">{order.customerName}</p>
                       <p className="text-xs text-gray-400">{order.items.length} items</p>
                     </button>
@@ -1078,10 +1166,10 @@ function CreateReturnWizard({
             </div>
 
             {wizardState.selectedOrder && (
-              <div className="mt-3 p-3 bg-[#7c4dff]/5 border border-[#7c4dff]/20 rounded-lg">
+              <div className="mt-3 p-3 bg-[#014582]/5 border border-[#014582]/20 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-[#7c4dff]">{wizardState.selectedOrder.orderNumber}</p>
+                    <p className="font-semibold text-[#014582]">{wizardState.selectedOrder.orderNumber}</p>
                     <p className="text-sm text-gray-600">{wizardState.selectedOrder.customerName}</p>
                     <p className="text-xs text-gray-400">{wizardState.selectedOrder.items.length} line items</p>
                   </div>
@@ -1106,7 +1194,7 @@ function CreateReturnWizard({
                   key={index}
                   className={`p-3 border rounded-lg transition-all cursor-pointer ${
                     line.selected
-                      ? 'border-[#7c4dff] bg-[#7c4dff]/5'
+                      ? 'border-[#014582] bg-[#014582]/5'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                   onClick={() => toggleLineSelection(index)}
@@ -1117,7 +1205,7 @@ function CreateReturnWizard({
                         type="checkbox"
                         checked={line.selected}
                         onChange={() => toggleLineSelection(index)}
-                        className="w-4 h-4 text-[#7c4dff] rounded border-gray-300 focus:ring-[#7c4dff] cursor-pointer"
+                        className="w-4 h-4 text-[#014582] rounded border-gray-300 focus:ring-[#014582] cursor-pointer"
                       />
                     </div>
                     <div className="flex-1">
@@ -1141,7 +1229,7 @@ function CreateReturnWizard({
                               max={line.orderQuantity}
                               value={line.returnQuantity}
                               onChange={(e) => updateReturnQuantity(index, parseInt(e.target.value) || 0)}
-                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                             />
                           </div>
                           <div>
@@ -1149,7 +1237,7 @@ function CreateReturnWizard({
                             <select
                               value={line.condition}
                               onChange={(e) => updateLineCondition(index, e.target.value)}
-                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                             >
                               {conditionOptions.map((condition: string) => (
                                 <option key={condition} value={condition}>{condition}</option>
@@ -1159,7 +1247,7 @@ function CreateReturnWizard({
                         </div>
                       )}
                       {line.selected && line.returnQuantity > 0 && (
-                        <p className="text-sm font-semibold text-[#7c4dff] mt-2">
+                        <p className="text-sm font-semibold text-[#014582] mt-2">
                           Refund: {formatCurrency(line.returnQuantity * line.unitPrice)}
                         </p>
                       )}
@@ -1169,7 +1257,7 @@ function CreateReturnWizard({
               ))}
             </div>
             {wizardState.lineDrafts.some(l => l.selected) && (
-              <div className="mt-4 p-3 bg-[#7c4dff]/5 rounded-lg">
+              <div className="mt-4 p-3 bg-[#014582]/5 rounded-lg">
                 <p className="text-sm font-semibold text-gray-700">
                   Subtotal: {formatCurrency(selectedSubtotal)}
                 </p>
@@ -1187,7 +1275,7 @@ function CreateReturnWizard({
                 <select
                   value={wizardState.returnType}
                   onChange={(e) => setWizardState(prev => ({ ...prev, returnType: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {typeOptions.map((type: string) => (
                     <option key={type} value={type}>{type}</option>
@@ -1199,7 +1287,7 @@ function CreateReturnWizard({
                 <select
                   value={wizardState.returnMethod}
                   onChange={(e) => setWizardState(prev => ({ ...prev, returnMethod: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 >
                   {methodOptions.map((method: string) => (
                     <option key={method} value={method}>{method}</option>
@@ -1215,7 +1303,7 @@ function CreateReturnWizard({
                 placeholder="Enter reason for return..."
                 value={wizardState.reason}
                 onChange={(e) => setWizardState(prev => ({ ...prev, reason: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none resize-none"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none resize-none"
               />
             </div>
 
@@ -1226,7 +1314,7 @@ function CreateReturnWizard({
                 placeholder="Additional notes..."
                 value={wizardState.notes}
                 onChange={(e) => setWizardState(prev => ({ ...prev, notes: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none resize-none"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none resize-none"
               />
             </div>
 
@@ -1241,7 +1329,7 @@ function CreateReturnWizard({
                     min="0"
                     value={wizardState.restockingFee}
                     onChange={(e) => setWizardState(prev => ({ ...prev, restockingFee: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                   />
                 </div>
               </div>
@@ -1255,14 +1343,14 @@ function CreateReturnWizard({
                     min="0"
                     value={wizardState.shippingCost}
                     onChange={(e) => setWizardState(prev => ({ ...prev, shippingCost: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                   />
                 </div>
               </div>
             </div>
 
             {/* Summary */}
-            <div className="mt-4 p-4 bg-[#7c4dff]/5 border border-[#7c4dff]/20 rounded-lg">
+            <div className="mt-4 p-4 bg-[#014582]/5 border border-[#014582]/20 rounded-lg">
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Subtotal</span>
@@ -1279,7 +1367,7 @@ function CreateReturnWizard({
                 <hr className="border-gray-200" />
                 <div className="flex justify-between text-base">
                   <span className="font-bold text-gray-800">Total Refund</span>
-                  <span className="font-bold text-[#7c4dff]">{formatCurrency(totalRefundAmount)}</span>
+                  <span className="font-bold text-[#014582]">{formatCurrency(totalRefundAmount)}</span>
                 </div>
               </div>
             </div>
@@ -1307,7 +1395,7 @@ function CreateReturnWizard({
             <button
               onClick={nextStep}
               disabled={(wizardState.step === 0 && !canGoToStep2) || (wizardState.step === 1 && !canGoToStep3)}
-              className="px-6 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/25"
+              className="px-6 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#014582]/25"
             >
               Next
             </button>
@@ -1315,7 +1403,7 @@ function CreateReturnWizard({
             <button
               onClick={handleCreateReturn}
               disabled={submitting}
-              className="px-6 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/25 flex items-center gap-2"
+              className="px-6 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#014582]/25 flex items-center gap-2"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Submit Return
@@ -1337,6 +1425,7 @@ function ReturnDetailModal({
   onApprove,
   onReject,
   onComplete,
+  onCancel,
   onDelete,
   formatCurrency,
   formatDate,
@@ -1347,10 +1436,10 @@ function ReturnDetailModal({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-[#7c4dff]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Undo2 className="w-6 h-6 text-[#7c4dff]" />
+            <div className="w-12 h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Undo2 className="w-6 h-6 text-[#014582]" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">{returnItem.returnNumber}</h2>
@@ -1373,7 +1462,7 @@ function ReturnDetailModal({
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <p className="text-xs text-gray-400 font-medium">Order</p>
-              <p className="text-sm font-semibold text-[#7c4dff] mt-1">{returnItem.orderNumber}</p>
+              <p className="text-sm font-semibold text-[#014582] mt-1">{returnItem.orderNumber}</p>
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Customer</p>
@@ -1389,7 +1478,7 @@ function ReturnDetailModal({
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Total Refund</p>
-              <p className="text-lg font-bold text-[#7c4dff] mt-1">{formatCurrency(returnItem.totalRefund)}</p>
+              <p className="text-lg font-bold text-[#014582] mt-1">{formatCurrency(returnItem.totalRefund)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Items</p>
@@ -1430,7 +1519,7 @@ function ReturnDetailModal({
                       Qty: {item.returnQuantity} • {item.condition}
                     </p>
                   </div>
-                  <p className="text-sm font-semibold text-[#7c4dff]">{formatCurrency(item.refundAmount)}</p>
+                  <p className="text-sm font-semibold text-[#014582]">{formatCurrency(item.refundAmount)}</p>
                 </div>
               ))}
             </div>
@@ -1453,17 +1542,31 @@ function ReturnDetailModal({
               >
                 Reject
               </button>
+              <button
+                onClick={() => onCancel(returnItem.id)}
+                disabled={submitting}
+                className="flex-1 px-4 py-2.5 border border-red-500 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
             </div>
           )}
 
           {returnItem.returnStatus === 'Approved' && (
-            <div className="border-t border-gray-100 pt-4 mt-4">
+            <div className="border-t border-gray-100 pt-4 mt-4 flex gap-3">
               <button
                 onClick={() => onComplete(returnItem.id)}
                 disabled={submitting}
-                className="w-full px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-all disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-all disabled:opacity-50"
               >
                 Complete Return
+              </button>
+              <button
+                onClick={() => onCancel(returnItem.id)}
+                disabled={submitting}
+                className="flex-1 px-4 py-2.5 border border-red-500 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
+              >
+                Cancel
               </button>
             </div>
           )}

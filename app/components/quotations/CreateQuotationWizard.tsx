@@ -14,6 +14,8 @@ import {
   DollarSign
 } from 'lucide-react';
 import { QuotationLineDraft, Customer, Product } from '@/lib/types/quotation';
+import TaxRateSelect from '../../../components/TaxRateSelect';
+import { useLocationOptional } from '@/lib/location-context';
 
 interface CreateQuotationWizardProps {
   onClose: () => void;
@@ -21,6 +23,7 @@ interface CreateQuotationWizardProps {
 }
 
 export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuotationWizardProps) {
+  const { selectedLocationId } = useLocationOptional();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -98,7 +101,13 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
           headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`/api/product/search?q=${encodeURIComponent(productSearch)}&limit=10`, {
+        const params = new URLSearchParams({
+          q: productSearch,
+          limit: '10',
+        });
+        if (selectedLocationId) params.append('locationId', selectedLocationId);
+
+        const response = await fetch(`/api/product/search?${params.toString()}`, {
           headers,
         });
         const result = await response.json();
@@ -115,7 +124,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
 
     const debounceTimer = setTimeout(searchProducts, 300);
     return () => clearTimeout(debounceTimer);
-  }, [productSearch]);
+  }, [productSearch, selectedLocationId]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PK', {
@@ -256,6 +265,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
         notes: notes || null,
         termsConditions: termsConditions || null,
         status: 'Draft',
+        ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
       };
 
       const token = localStorage.getItem('auth_token');
@@ -292,7 +302,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-[#7c4dff] p-6">
+        <div className="bg-[#014582] p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-white">Create Quotation</h2>
             <button onClick={onClose} className="text-white/70 hover:text-white">
@@ -326,7 +336,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                   placeholder="Search customer by name, email, phone..."
                   value={customerSearch}
                   onChange={(e) => setCustomerSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                 />
               </div>
 
@@ -361,8 +371,8 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
               )}
 
               {selectedCustomer && (
-                <div className="p-4 bg-[#7c4dff]/10 border border-[#7c4dff]/30 rounded-lg">
-                  <p className="font-semibold text-[#7c4dff]">{selectedCustomer.name}</p>
+                <div className="p-4 bg-[#014582]/10 border border-[#014582]/30 rounded-lg">
+                  <p className="font-semibold text-[#014582]">{selectedCustomer.name}</p>
                   {selectedCustomer.email && <p className="text-sm text-gray-600">{selectedCustomer.email}</p>}
                   {selectedCustomer.phone && <p className="text-sm text-gray-600">{selectedCustomer.phone}</p>}
                   {selectedCustomer.company && <p className="text-sm text-gray-600">{selectedCustomer.company}</p>}
@@ -382,7 +392,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                   placeholder="Search products..."
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                 />
               </div>
 
@@ -405,7 +415,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                           <p className="font-medium text-gray-800">{product.name}</p>
                           <p className="text-sm text-gray-500">SKU: {product.sku} • {formatCurrency(product.sellingPrice)}</p>
                         </div>
-                        <Plus className="w-5 h-5 text-[#7c4dff]" />
+                        <Plus className="w-5 h-5 text-[#014582]" />
                       </div>
                     </div>
                   ))}
@@ -443,7 +453,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                             max="9999"
                             value={line.quantity}
                             onChange={(e) => handleUpdateLine(index, 'quantity', parseInt(e.target.value) || 1)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                           />
                         </div>
                         <div>
@@ -454,7 +464,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                             step="0.01"
                             value={line.unitPrice}
                             onChange={(e) => handleUpdateLine(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                           />
                         </div>
                         <div>
@@ -465,18 +475,15 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                             max="100"
                             value={line.discount}
                             onChange={(e) => handleUpdateLine(index, 'discount', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500 mb-1 block">Tax%</label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
+                          <label className="text-xs text-gray-500 mb-1 block">Tax</label>
+                          <TaxRateSelect
                             value={line.taxRate}
-                            onChange={(e) => handleUpdateLine(index, 'taxRate', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                            onChange={(rate) => handleUpdateLine(index, 'taxRate', rate)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                           />
                         </div>
                       </div>
@@ -509,7 +516,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                     </div>
                     <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2">
                       <span className="text-gray-800">Grand Total</span>
-                      <span className="text-[#7c4dff]">{formatCurrency(calculateGrandTotal())}</span>
+                      <span className="text-[#014582]">{formatCurrency(calculateGrandTotal())}</span>
                     </div>
                   </div>
                 </div>
@@ -530,7 +537,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                       type="date"
                       value={quotationDate}
                       onChange={(e) => setQuotationDate(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                     />
                   </div>
                 </div>
@@ -542,7 +549,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                       type="date"
                       value={validUntil}
                       onChange={(e) => setValidUntil(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                     />
                   </div>
                 </div>
@@ -556,7 +563,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                     type="text"
                     value={salesPerson}
                     onChange={(e) => setSalesPerson(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                   />
                 </div>
               </div>
@@ -567,7 +574,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                 />
               </div>
 
@@ -577,11 +584,11 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                   value={termsConditions}
                   onChange={(e) => setTermsConditions(e.target.value)}
                   rows={2}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff]"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
                 />
               </div>
 
-              <div className="p-4 bg-[#7c4dff]/10 border border-[#7c4dff]/30 rounded-lg space-y-2">
+              <div className="p-4 bg-[#014582]/10 border border-[#014582]/30 rounded-lg space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Customer</span>
                   <span className="font-semibold text-gray-800">{selectedCustomer?.name}</span>
@@ -592,7 +599,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                 </div>
                 <div className="flex justify-between font-bold">
                   <span className="text-gray-800">Grand Total</span>
-                  <span className="text-[#7c4dff]">{formatCurrency(calculateGrandTotal())}</span>
+                  <span className="text-[#014582]">{formatCurrency(calculateGrandTotal())}</span>
                 </div>
               </div>
             </div>
@@ -615,7 +622,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
           {currentStep < 2 ? (
             <button
               onClick={handleNextStep}
-              className="px-6 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#7c4dff]/90 transition-all font-semibold"
+              className="px-6 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#014582]/90 transition-all font-semibold"
             >
               Next
             </button>
@@ -623,7 +630,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="px-6 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#7c4dff]/90 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#014582]/90 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Creating...' : 'Create Quotation'}
             </button>

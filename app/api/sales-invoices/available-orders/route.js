@@ -7,6 +7,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const limit = searchParams.get('limit') || '10';
+    const locationId = searchParams.get('locationId') || '';
 
     const token = request.headers.get('authorization');
     const headers = {};
@@ -14,9 +15,12 @@ export async function GET(request) {
       headers['Authorization'] = token;
     }
 
+    const params = { search, limit };
+    if (locationId) params.locationId = locationId;
+
     const response = await axios.get(`${BACKEND_URL}/api/sales/invoices/available-orders`, {
       headers,
-      params: { search, limit },
+      params,
     });
 
     return Response.json(response.data);

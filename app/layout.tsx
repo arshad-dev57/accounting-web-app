@@ -1,12 +1,18 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import './globals.css';   // ✅ yeh line honi chahiye
+import './globals.css';
+import SubscriptionGuard from '../components/SubscriptionGuard';
+import AppToaster from '../components/AppToaster';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'WarehousePro - ERP System',
-  description: 'Complete Warehouse & Accounting Management',
+  title: 'Bisonstechs - Business Suite',
+  description: 'Bisonstechs warehouse, sales, purchases, POS and accounting management',
+  icons: {
+    icon: '/app-icon.png',
+    apple: '/app-icon.png',
+  },
 };
 
 export default function RootLayout({
@@ -17,7 +23,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
-        {children}
+        <SubscriptionGuard>{children}</SubscriptionGuard>
+        <AppToaster />
       </body>
     </html>
   );

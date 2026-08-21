@@ -52,6 +52,7 @@ export interface Order {
   grandTotal: number;
   totalWeight?: number;
   totalItems?: number;
+  locationId?: string;
   items: OrderItem[];
   shippingAddress?: {
     street?: string;
@@ -104,6 +105,7 @@ export const salesOrderService = {
     toDate?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    locationId?: string;
   } = {}): Promise<OrderListResponse> => {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {

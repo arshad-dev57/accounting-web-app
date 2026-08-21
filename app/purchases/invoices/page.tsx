@@ -449,8 +449,8 @@ export default function PurchaseInvoicesPage() {
 
   // ─── Download Invoice PDF ──────────────────────────────────────
 
-  const handleDownloadInvoicePDF = (invoice: PurchaseInvoiceModel) => {
-    PDFService.downloadInvoicePDF(invoice);
+  const handleDownloadInvoicePDF = async (invoice: PurchaseInvoiceModel) => {
+    await PDFService.downloadInvoicePDF(invoice);
   };
 
   // ─── Send Invoice Email ─────────────────────────────────────────
@@ -464,7 +464,7 @@ export default function PurchaseInvoicesPage() {
         return;
       }
 
-      const pdfBlob = PDFService.generateInvoicePDFBlob(invoice);
+      const pdfBlob = await PDFService.generateInvoicePDFBlob(invoice);
       await EmailService.sendInvoiceEmail(invoice, pdfBlob);
       
       alert('Invoice sent successfully!');
@@ -544,7 +544,7 @@ export default function PurchaseInvoicesPage() {
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <Receipt className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+                <Receipt className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
                 Purchase Invoices
                 <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
                   ({pagination.total} invoices)
@@ -554,7 +554,7 @@ export default function PurchaseInvoicesPage() {
             <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={handleRefresh}
-                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all"
+                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
                 title="Refresh"
                 disabled={loading}
               >
@@ -562,7 +562,7 @@ export default function PurchaseInvoicesPage() {
               </button>
               <button
                 onClick={openCreateWizard}
-                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#7c4dff] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25"
+                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
               >
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Create Invoice</span>
@@ -608,7 +608,7 @@ export default function PurchaseInvoicesPage() {
                   placeholder="Search invoices..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                  className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
                 {searchTerm && (
                   <button onClick={clearSearch} className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2">
@@ -622,7 +622,7 @@ export default function PurchaseInvoicesPage() {
                   <select
                     value={statusFilter}
                     onChange={(e) => handleStatusFilterChange(e.target.value)}
-                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   >
                     {statusOptions.map((status) => (
                       <option key={status} value={status}>
@@ -637,7 +637,7 @@ export default function PurchaseInvoicesPage() {
                   <select
                     value={paymentFilter}
                     onChange={(e) => handlePaymentFilterChange(e.target.value)}
-                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50"
+                    className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                   >
                     {paymentOptions.map((status) => (
                       <option key={status} value={status}>
@@ -653,18 +653,18 @@ export default function PurchaseInvoicesPage() {
                     type="date"
                     value={fromDate}
                     onChange={(e) => setFromDate(e.target.value)}
-                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
+                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
                   />
                   <span className="text-gray-400 text-xs md:text-sm hidden xs:inline">to</span>
                   <input
                     type="date"
                     value={toDate}
                     onChange={(e) => setToDate(e.target.value)}
-                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
+                    className="px-2 md:px-3 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 w-[120px] md:w-auto"
                   />
                   <button
                     onClick={handleDateFilter}
-                    className="px-3 md:px-4 py-1.5 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] rounded-lg text-xs md:text-sm font-semibold hover:bg-[#7c4dff]/20 transition-all"
+                    className="px-3 md:px-4 py-1.5 md:py-2 bg-[#014582]/10 text-[#014582] rounded-lg text-xs md:text-sm font-semibold hover:bg-[#014582]/20 transition-all"
                   >
                     Apply
                   </button>
@@ -681,7 +681,7 @@ export default function PurchaseInvoicesPage() {
                 onClick={() => handleFilterChange(filter)}
                 className={`px-2.5 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-all ${
                   selectedFilter === filter
-                    ? 'bg-[#7c4dff] text-white'
+                    ? 'bg-[#014582] text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -709,7 +709,7 @@ export default function PurchaseInvoicesPage() {
                   {loading && invoices.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="text-center py-8 md:py-12">
-                        <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#7c4dff] animate-spin" />
+                        <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                         <p className="mt-2 text-xs md:text-sm text-gray-500">Loading purchase invoices...</p>
                       </td>
                     </tr>
@@ -726,7 +726,7 @@ export default function PurchaseInvoicesPage() {
                       <tr key={invoice.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                         <td className="px-3 md:px-6 py-2 md:py-3">
                           <div>
-                            <p className="font-medium text-[#7c4dff] text-xs md:text-sm">{invoice.invoiceNumber}</p>
+                            <p className="font-medium text-[#014582] text-xs md:text-sm">{invoice.invoiceNumber}</p>
                             <p className="text-[10px] md:text-xs text-gray-400 sm:hidden">{invoice.supplierName}</p>
                           </div>
                         </td>
@@ -827,7 +827,7 @@ export default function PurchaseInvoicesPage() {
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#7c4dff] hover:bg-[#7c4dff]/10 rounded-lg transition-all disabled:opacity-50"
+                  className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all disabled:opacity-50"
                 >
                   {loadingMore ? (
                     <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -854,7 +854,7 @@ export default function PurchaseInvoicesPage() {
                 >
                   <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
-                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg text-xs md:text-sm">
+                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg text-xs md:text-sm">
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
@@ -918,7 +918,7 @@ export default function PurchaseInvoicesPage() {
                 placeholder="Enter reason for cancellation"
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
               />
             </div>
           }
@@ -965,10 +965,10 @@ function InvoiceDetailModal({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
-        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-3 md:gap-4">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-[#7c4dff]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Receipt className="w-5 h-5 md:w-6 md:h-6 text-[#7c4dff]" />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Receipt className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
             </div>
             <div>
               <h2 className="text-lg md:text-xl font-bold text-gray-900">{invoice.invoiceNumber}</h2>
@@ -996,7 +996,7 @@ function InvoiceDetailModal({
             </div>
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Supplier Invoice No</p>
-              <p className="text-sm md:text-base font-semibold text-[#7c4dff] mt-1">{invoice.supplierInvoiceNo || '—'}</p>
+              <p className="text-sm md:text-base font-semibold text-[#014582] mt-1">{invoice.supplierInvoiceNo || '—'}</p>
             </div>
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Invoice Date</p>
@@ -1012,7 +1012,7 @@ function InvoiceDetailModal({
             </div>
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Purchase Order</p>
-              <p className="text-sm md:text-base font-semibold text-[#7c4dff] mt-1">{invoice.purchaseOrderNumber || '—'}</p>
+              <p className="text-sm md:text-base font-semibold text-[#014582] mt-1">{invoice.purchaseOrderNumber || '—'}</p>
             </div>
           </div>
 
@@ -1041,7 +1041,7 @@ function InvoiceDetailModal({
               </div>
               <div className="flex justify-between items-center text-xs md:text-sm pt-2 border-t border-gray-100">
                 <span className="font-semibold text-gray-700">Grand Total</span>
-                <span className="font-bold text-lg text-[#7c4dff]">{formatCurrency(invoice.grandTotal)}</span>
+                <span className="font-bold text-lg text-[#014582]">{formatCurrency(invoice.grandTotal)}</span>
               </div>
               <div className="flex justify-between items-center text-xs md:text-sm">
                 <span className="text-gray-500">Paid</span>

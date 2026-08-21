@@ -23,9 +23,18 @@ import {
   Phone,
   Headset,
   Settings,
-  PackageCheck
+  PackageCheck,
+  CreditCard,
+  Scale,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
+import ProfileDropdown from '../../components/ProfileDropdown';
+import FiscalYearSelect from '../../components/FiscalYearSelect';
+import LocationSelect from '../../components/LocationSelect';
+import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
+import { performLogout } from '../../lib/auth-logout';
+import { FiscalYearProvider } from '../../lib/fiscal-year-context';
+import { LocationProvider } from '../../lib/location-context';
 
 // ============================================================
 // PURCHASES SIDEBAR
@@ -52,6 +61,8 @@ function PurchasesSidebar() {
   // Permission mapping for purchases sub-pages
   const purchasesPages = [
     { path: '/purchases/dashboard', label: 'Dashboard', permission: 'dashboard' },
+    { path: '/purchases/reports', label: 'Purchase Reports', permission: 'dashboard' },
+    { path: '/purchases/products', label: 'Products', permission: 'products' },
     { path: '/purchases/purchaseorder', label: 'Purchase Orders', permission: 'purchase-orders' },
     { path: '/purchases/suppliers', label: 'Suppliers', permission: 'suppliers' },
     { path: '/purchases/quotations', label: 'Quotations', permission: 'quotations' },
@@ -66,7 +77,10 @@ function PurchasesSidebar() {
   ];
 
   const settingsPages = [
+    { path: '/plans', label: 'Subscription Plans', permission: '*' },
+    { path: '/tax', label: 'Tax Compliance', permission: 'settings' },
     { path: '/purchases/currency', label: 'Currency', permission: 'currency' },
+    { path: '/accounting/pdf-reports', label: 'PDF Reports', permission: 'settings' },
     { path: '/purchases/settings', label: 'Purchases Settings', permission: 'settings' },
   ];
 
@@ -79,25 +93,17 @@ function PurchasesSidebar() {
     isAdmin || hasSubPageAccess('purchases', page.permission)
   );
   
-  const filteredSettingsPages = settingsPages.filter(page => 
-    isAdmin || hasSubPageAccess('purchases', page.permission)
-  );
+  const filteredSettingsPages = settingsPages.filter(page => {
+    if (page.path === '/plans') return isAdmin;
+    return page.permission === '*' || isAdmin || hasSubPageAccess('purchases', page.permission);
+  });
 
   return (
-    <div className="w-64 min-h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-6 border-b border-white/10">
-        <div className="w-10 h-10 bg-[#00E676] rounded-xl flex items-center justify-center">
-          <ShoppingCart className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <p className="text-sm font-bold text-white">Purchases Module</p>
-          <p className="text-xs text-white/50">Manage purchases operations</p>
-        </div>
-      </div>
+    <div className="w-64 h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0 fixed left-0 top-0">
+      <BrandHeader subtitle="Purchases Module" />
 
       {/* Navigation */}
-      <div className="flex-1 overflow-auto px-3 py-4 space-y-1">
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar">
         <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3">
           PURCHASES NAVIGATION
         </p>
@@ -121,6 +127,7 @@ function PurchasesSidebar() {
               {filteredPurchasesPages.map((page) => {
                 const iconMap: Record<string, React.ReactNode> = {
                   'dashboard': <Home className="w-4 h-4" />,
+                  'products': <Package className="w-4 h-4" />,
                   'purchase-orders': <ShoppingCart className="w-4 h-4" />,
                   'suppliers': <Users className="w-4 h-4" />,
                   'quotations': <FileText className="w-4 h-4" />,
@@ -128,6 +135,9 @@ function PurchasesSidebar() {
                   'purchase-invoices': <Receipt className="w-4 h-4" />,
                   'purchase-payments': <ArrowLeftRight className="w-4 h-4" />,
                 };
+                const icon = page.path.includes('/reports')
+                  ? <FileText className="w-4 h-4" />
+                  : (iconMap[page.permission] || <FileText className="w-4 h-4" />);
                 
                 return (
                   <Link
@@ -137,7 +147,7 @@ function PurchasesSidebar() {
                       isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    {iconMap[page.permission] || <FileText className="w-4 h-4" />}
+                    {icon}
                     <span>{page.label}</span>
                   </Link>
                 );
@@ -205,8 +215,11 @@ function PurchasesSidebar() {
                 const iconMap: Record<string, React.ReactNode> = {
                   'currency': <DollarSign className="w-4 h-4" />,
                   'settings': <Settings className="w-4 h-4" />,
+                  '*': <CreditCard className="w-4 h-4" />,
                 };
-                
+                const isPdf = page.path.includes('pdf-reports');
+                const isTax = page.path === '/tax';
+
                 return (
                   <Link
                     key={page.path}
@@ -215,7 +228,7 @@ function PurchasesSidebar() {
                       isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    {iconMap[page.permission] || <Settings className="w-4 h-4" />}
+                    {isTax ? <Scale className="w-4 h-4" /> : isPdf ? <FileText className="w-4 h-4" /> : (iconMap[page.permission] || <Settings className="w-4 h-4" />)}
                     <span>{page.label}</span>
                   </Link>
                 );
@@ -260,7 +273,7 @@ function PurchasesSidebar() {
 
         {isAdmin || hasModuleAccess('sales') && (
           <Link
-            href="/sales"
+            href="/sales/dashboard"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
           >
             <ShoppingCart className="w-5 h-5" />
@@ -280,14 +293,28 @@ function PurchasesSidebar() {
       </div>
 
       {/* Bottom Section */}
-      <div className="px-3 pb-6">
+      <div className="px-3 pb-6 flex-shrink-0">
+        {isAdmin && (
+          <Link
+            href="/plans"
+            className="w-full flex items-center gap-3 px-3 py-2.5 mb-2 rounded-lg transition-all text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <CreditCard className="w-5 h-5" />
+            <span className="text-sm font-medium">Subscription Plans</span>
+          </Link>
+        )}
+
         <div className="p-4 bg-[#00E676]/10 rounded-xl border border-[#00E676]/20">
           <HelpCircle className="w-5 h-5 text-[#00E676] mb-2" />
           <p className="text-sm font-semibold text-white">Need Help?</p>
           <p className="text-xs text-white/40">Contact our support team</p>
         </div>
-        
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 mt-3 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all">
+
+        <button
+          type="button"
+          onClick={() => void performLogout()}
+          className="w-full flex items-center gap-3 px-3 py-2.5 mt-3 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all"
+        >
           <LogOut className="w-5 h-5" />
           <span className="text-sm font-medium">Logout</span>
         </button>
@@ -305,21 +332,29 @@ export default function PurchasesLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <FiscalYearProvider>
+      <LocationProvider>
       <PurchasesSidebar />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
         {/* Top Bar */}
-        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <ShoppingCart className="w-6 h-6 text-[#00E676]" />
-              Purchases Management
-            </h1>
-          </div>
+        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
+          <TopBarBrand
+            title="Purchases Management"
+            icon={<ShoppingCart className="w-5 h-5 text-[#00E676]" />}
+          />
 
           <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all">
+            <LocationSelect showManageLink={false} />
+            <FiscalYearSelect />
+
+            <div className="w-px h-6 bg-gray-200" />
+
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/support'; }}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all"
+            >
               <Headset className="w-4 h-4" />
               <span>Support</span>
             </button>
@@ -328,25 +363,20 @@ export default function PurchasesLayout({
 
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4 text-[#00E676]" />
-              <span>Call Us: 03 111 006 555</span>
             </div>
 
             <div className="w-px h-6 bg-gray-200" />
 
-            <div className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-all">
-              <div className="w-8 h-8 bg-[#00E676] rounded-full flex items-center justify-center text-white text-sm font-bold">
-                A
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-            </div>
+            <ProfileDropdown accentClassName="bg-[#00E676]" />
           </div>
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 p-6">
           {children}
         </div>
       </div>
-    </div>
+      </LocationProvider>
+    </FiscalYearProvider>
   );
 }

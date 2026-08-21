@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Search, RefreshCw, Plus, Eye, MoreVertical, X } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, RefreshCw, Plus, Eye, MoreVertical, X, MapPin } from 'lucide-react';
 import { SalesInvoice, InvoiceStats } from '@/types/sales-invoice';
 import CreateInvoiceWizard from '@/components/sales-invoices/CreateInvoiceWizard';
+import { useLocation } from '@/lib/location-context';
 
 const STATUS_COLORS: Record<string, string> = {
   'Draft': 'bg-orange-100 text-orange-700',
@@ -26,6 +27,7 @@ const pill = (map: Record<string, string>, val: string) =>
 const STATUS_OPTIONS = ['all', 'Draft', 'Posted', 'Partially Paid', 'Paid', 'Cancelled'];
 
 export default function SalesInvoicesPage() {
+  const { selectedLocationId, selectedLocation } = useLocation();
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -36,11 +38,7 @@ export default function SalesInvoicesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  useEffect(() => {
-    fetchInvoices();
-  }, []);
-
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
@@ -52,6 +50,7 @@ export default function SalesInvoicesPage() {
       const params = new URLSearchParams();
       if (statusFilter !== 'all') params.append('status', statusFilter);
       if (searchTerm) params.append('search', searchTerm);
+      if (selectedLocationId) params.append('locationId', selectedLocationId);
 
       const response = await fetch(`/api/sales-invoices?${params.toString()}`, {
         headers,
@@ -69,7 +68,16 @@ export default function SalesInvoicesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, searchTerm, selectedLocationId]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  useEffect(() => {
+    fetchInvoices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLocationId]);
 
   const handleCreateSuccess = () => {
     setShowCreateWizard(false);
@@ -89,20 +97,19 @@ export default function SalesInvoicesPage() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`/api/sales-invoices/${id}/post`, {
+      const response = await fetch(`/api/sales/invoices/${id}/post`, {
         method: 'POST',
         headers,
         body: JSON.stringify({}),
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        alert('Invoice posted successfully');
-        fetchInvoices();
-      } else {
-        alert(result.message || 'Failed to post invoice');
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || `Failed to post invoice (${response.status})`);
       }
+
+      alert('Invoice posted successfully');
+      fetchInvoices();
     } catch (error) {
       console.error('Failed to post invoice:', error);
       alert('Failed to post invoice');
@@ -122,20 +129,19 @@ export default function SalesInvoicesPage() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`/api/sales-invoices/${id}/cancel`, {
+      const response = await fetch(`/api/sales/invoices/${id}/cancel`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ reason: 'Cancelled by user' }),
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        alert('Invoice cancelled successfully');
-        fetchInvoices();
-      } else {
-        alert(result.message || 'Failed to cancel invoice');
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || `Failed to cancel invoice (${response.status})`);
       }
+
+      alert('Invoice cancelled successfully');
+      fetchInvoices();
     } catch (error) {
       console.error('Failed to cancel invoice:', error);
       alert('Failed to cancel invoice');
@@ -157,6 +163,14 @@ export default function SalesInvoicesPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Invoices</h1>
         <p className="text-gray-600">Manage your sales invoices and track payments</p>
       </div>
+
+      {selectedLocation && (
+        <div className="mb-4 flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+          <MapPin className="w-4 h-4 flex-shrink-0" />
+          Showing invoices for <strong>{selectedLocation.name}</strong>
+          <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+        </div>
+      )}
 
       {/* Stats Cards */}
       {stats && (
@@ -190,7 +204,7 @@ export default function SalesInvoicesPage() {
               placeholder="Search invoices..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] focus:border-transparent"
             />
             {searchTerm && (
               <button
@@ -204,7 +218,7 @@ export default function SalesInvoicesPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] focus:border-transparent"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option} value={option}>
@@ -220,7 +234,7 @@ export default function SalesInvoicesPage() {
           </button>
           <button
             onClick={() => setShowCreateWizard(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg hover:bg-[#6b4dff] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6b4dff] transition-colors"
           >
             <Plus size={18} />
             Create Invoice
@@ -276,7 +290,7 @@ export default function SalesInvoicesPage() {
               invoices.map((invoice) => (
                 <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="font-semibold text-[#7c4dff]">{invoice.invoiceNumber}</span>
+                    <span className="font-semibold text-[#014582]">{invoice.invoiceNumber}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                     {invoice.orderNumber || '-'}
@@ -304,7 +318,7 @@ export default function SalesInvoicesPage() {
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => handleInvoiceClick(invoice)}
-                        className="p-1.5 text-gray-600 hover:text-[#7c4dff] hover:bg-gray-100 rounded transition-colors"
+                        className="p-1.5 text-gray-600 hover:text-[#014582] hover:bg-gray-100 rounded transition-colors"
                         title="View Details"
                       >
                         <Eye size={16} />
@@ -345,31 +359,34 @@ export default function SalesInvoicesPage() {
 
       {/* Invoice Detail Modal */}
       {selectedInvoice && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-200 bg-white flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">{selectedInvoice.invoiceNumber}</h2>
-              <button onClick={() => setSelectedInvoice(null)} className="text-gray-400 hover:text-gray-600">
-                <X size={24} />
+              <button
+                onClick={() => setSelectedInvoice(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-gray-500" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-6 bg-white">
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
                   <p className="text-sm text-gray-500">Customer</p>
-                  <p className="font-semibold">{selectedInvoice.customerName}</p>
+                  <p className="font-semibold text-gray-900">{selectedInvoice.customerName}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Order #</p>
-                  <p className="font-semibold">{selectedInvoice.orderNumber || '-'}</p>
+                  <p className="font-semibold text-gray-900">{selectedInvoice.orderNumber || '-'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Invoice Date</p>
-                  <p className="font-semibold">{new Date(selectedInvoice.invoiceDate).toLocaleDateString()}</p>
+                  <p className="font-semibold text-gray-900">{new Date(selectedInvoice.invoiceDate).toLocaleDateString()}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Due Date</p>
-                  <p className="font-semibold">{new Date(selectedInvoice.dueDate).toLocaleDateString()}</p>
+                  <p className="font-semibold text-gray-900">{new Date(selectedInvoice.dueDate).toLocaleDateString()}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Invoice Status</p>
@@ -388,7 +405,7 @@ export default function SalesInvoicesPage() {
               {selectedInvoice.notes && (
                 <div className="mb-6">
                   <p className="text-sm text-gray-500 mb-1">Notes</p>
-                  <p className="text-sm bg-gray-50 p-3 rounded-lg">{selectedInvoice.notes}</p>
+                  <p className="text-sm text-gray-800 bg-gray-50 p-3 rounded-lg border border-gray-100">{selectedInvoice.notes}</p>
                 </div>
               )}
 
@@ -406,18 +423,18 @@ export default function SalesInvoicesPage() {
                         <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Total</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-gray-200 bg-white">
                       {selectedInvoice.items.map((item) => (
                         <tr key={item.id}>
                           <td className="px-4 py-3 text-sm">
-                            <p className="font-medium">{item.productName}</p>
+                            <p className="font-medium text-gray-900">{item.productName}</p>
                             <p className="text-xs text-gray-500">{item.sku}</p>
                           </td>
-                          <td className="px-4 py-3 text-sm text-right">{item.quantity}</td>
-                          <td className="px-4 py-3 text-sm text-right">{formatCurrency(item.unitPrice)}</td>
-                          <td className="px-4 py-3 text-sm text-right">{item.discount}%</td>
-                          <td className="px-4 py-3 text-sm text-right">{item.taxRate}%</td>
-                          <td className="px-4 py-3 text-sm text-right font-semibold">{formatCurrency(item.lineTotal)}</td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-800">{item.quantity}</td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-800">{formatCurrency(item.unitPrice)}</td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-800">{item.discount}%</td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-800">{item.taxRate}%</td>
+                          <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">{formatCurrency(item.lineTotal)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -425,9 +442,9 @@ export default function SalesInvoicesPage() {
                 </div>
               </div>
 
-              <div className="p-4 bg-gray-50 rounded-lg space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Subtotal</span>
+              <div className="p-4 bg-gray-50 border border-gray-100 rounded-lg space-y-2">
+                <div className="flex justify-between text-gray-700">
+                  <span>Subtotal</span>
                   <span>{formatCurrency(selectedInvoice.subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-red-600">
@@ -438,11 +455,11 @@ export default function SalesInvoicesPage() {
                   <span>Tax</span>
                   <span>{formatCurrency(selectedInvoice.taxTotal)}</span>
                 </div>
-                <div className="border-t pt-2 flex justify-between font-bold">
+                <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-gray-900">
                   <span>Grand Total</span>
-                  <span className="text-[#7c4dff]">{formatCurrency(selectedInvoice.grandTotal)}</span>
+                  <span className="text-[#014582]">{formatCurrency(selectedInvoice.grandTotal)}</span>
                 </div>
-                <div className="border-t pt-2 flex justify-between">
+                <div className="border-t border-gray-200 pt-2 flex justify-between">
                   <span className="text-gray-600">Paid Amount</span>
                   <span className="text-green-600">{formatCurrency(selectedInvoice.paidAmount)}</span>
                 </div>

@@ -13,6 +13,7 @@ export async function GET(request) {
     const status = searchParams.get('status');
     const fromDate = searchParams.get('fromDate');
     const toDate = searchParams.get('toDate');
+    const locationId = searchParams.get('locationId');
 
     const headers = {
       'Content-Type': 'application/json',
@@ -26,6 +27,7 @@ export async function GET(request) {
     if (status && status !== 'all') params.status = status;
     if (fromDate) params.fromDate = fromDate;
     if (toDate) params.toDate = toDate;
+    if (locationId) params.locationId = locationId;
 
     const response = await axios.get(`${API_BASE_URL}/api/deliveries`, {
       headers,

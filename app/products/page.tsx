@@ -11,12 +11,110 @@ import {
   Settings, Loader2, ChevronLeft, ChevronRight, Barcode,
   Camera, Download, Printer, CheckCircle, XCircle, ZoomIn,
   Thermometer, Package2, ShoppingCart, RotateCcw, Star,
-  Globe, AlertTriangle, Archive, Boxes, Home, Headset, Phone, ChevronDown as ChevronDownIcon
+  Globe, AlertTriangle, Archive, Boxes, Home, Headset, Phone, ChevronDown as ChevronDownIcon, CreditCard
 } from 'lucide-react';
-import { productService, Product } from '../api/product/route';
+import { productService, Product, getProductId } from '../api/product/route';
 import { categoryService, Category } from '../api/category/route';
 import { supplierService, Supplier } from '../api/supplier/route';
 import { settingService } from '../api/settings/route';
+import { ProductTaxFields } from '../../components/TaxRateSelect';
+import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
+import { usePermissions } from '../../lib/usePermissions';
+
+function resolveCategorySelection(categories: Category[], categoryId?: string) {
+  if (!categoryId) return { category: '', subCategory: '', subCategories: [] as Category[] };
+  for (const parent of categories) {
+    const parentId = parent.id || parent._id;
+    const children = parent.children || parent.subCategories || [];
+    const child = children.find((c) => (c.id || c._id) === categoryId);
+    if (child) {
+      return {
+        category: parentId || '',
+        subCategory: (child.id || child._id) || '',
+        subCategories: children,
+      };
+    }
+    if (parentId === categoryId) {
+      return { category: parentId, subCategory: '', subCategories: children };
+    }
+  }
+  return { category: categoryId, subCategory: '', subCategories: [] as Category[] };
+}
+
+function buildProductFormState(editingProduct?: Product | null, categories: Category[] = []) {
+  const catSel = resolveCategorySelection(categories, editingProduct?.categoryId);
+  const tags = editingProduct?.tags;
+  const tagsStr = Array.isArray(tags) ? tags.join(', ') : (tags ? String(tags) : '');
+
+  return {
+    name: editingProduct?.name || '',
+    sku: editingProduct?.sku || '',
+    barcode: editingProduct?.barcode?.number || editingProduct?.barcodeNumber || '',
+    productType: editingProduct?.productType || '',
+    description: editingProduct?.description || '',
+    tags: tagsStr,
+    costPrice: editingProduct?.costPrice ?? '',
+    sellingPrice: editingProduct?.sellingPrice ?? '',
+    landingCost: editingProduct?.landingCost ?? '',
+    currency: editingProduct?.currency || editingProduct?.currencyCode || 'PKR',
+    taxRate: editingProduct?.taxRate ?? '',
+    taxType: editingProduct?.taxType || editingProduct?.taxTypeName || '',
+    stockUnit: editingProduct?.stockUnit || editingProduct?.stockUnitName || '',
+    currentStock: editingProduct?.currentStock ?? '',
+    minimumStock: editingProduct?.minimumStock ?? '',
+    maximumStock: editingProduct?.maximumStock ?? '',
+    category: catSel.category,
+    subCategory: catSel.subCategory,
+    brand: editingProduct?.brand || editingProduct?.brandName || '',
+    modelNumber: editingProduct?.modelNumber || '',
+    supplier: editingProduct?.supplierId || '',
+    supplierSku: editingProduct?.supplierSku || '',
+    leadTime: editingProduct?.leadTime ?? editingProduct?.leadTimeDays ?? '',
+    reorderPoint: editingProduct?.reorderPoint ?? '',
+    rackLocation: editingProduct?.rackLocation || editingProduct?.location || '',
+    zone: editingProduct?.zone || editingProduct?.zoneName || '',
+    palletNumber: editingProduct?.palletNumber || '',
+    shelfNumber: editingProduct?.shelfNumber || '',
+    storageCondition: editingProduct?.storageCondition || editingProduct?.storageConditionName || '',
+    tempMin: editingProduct?.tempMin ?? editingProduct?.temperatureMin ?? '',
+    tempMax: editingProduct?.tempMax ?? editingProduct?.temperatureMax ?? '',
+    weight: editingProduct?.weight ?? '',
+    weightUnit: editingProduct?.weightUnit || editingProduct?.weightUnitName || '',
+    length: editingProduct?.length ?? '',
+    width: editingProduct?.width ?? '',
+    height: editingProduct?.height ?? '',
+    dimensionUnit: editingProduct?.dimensionUnit || editingProduct?.dimensionUnitName || '',
+    color: editingProduct?.color || '',
+    size: editingProduct?.size || '',
+    material: editingProduct?.material || '',
+    finish: editingProduct?.finish || '',
+    hasExpiry: !!editingProduct?.hasExpiry,
+    isBatchManaged: !!editingProduct?.isBatchManaged,
+    isSerialManaged: !!editingProduct?.isSerialManaged,
+    isExpiryManaged: !!editingProduct?.isExpiryManaged,
+    expiryDate: editingProduct?.expiryDate ? String(editingProduct.expiryDate).slice(0, 10) : '',
+    manufacturingDate: editingProduct?.manufacturingDate ? String(editingProduct.manufacturingDate).slice(0, 10) : '',
+    batchNumber: editingProduct?.batchNumber || '',
+    shelfLife: editingProduct?.shelfLife ?? editingProduct?.shelfLifeDays ?? '',
+    hsCode: editingProduct?.hsCode || '',
+    countryOfOrigin: editingProduct?.countryOfOrigin || editingProduct?.countryOfOriginName || 'Pakistan',
+    shippingClass: editingProduct?.shippingClass || '',
+    freightClass: editingProduct?.freightClass || '',
+    stackingLimit: editingProduct?.stackingLimit ?? '',
+    dangerousGoods: !!editingProduct?.dangerousGoods,
+    unNumber: editingProduct?.unNumber || '',
+    handlingInstructions: editingProduct?.handlingInstructions || '',
+    warrantyPeriod: editingProduct?.warrantyPeriod ?? '',
+    warrantyUnit: editingProduct?.warrantyUnit || 'Months',
+    isReturnable: editingProduct?.isReturnable !== false,
+    returnDays: editingProduct?.returnDays ?? '7',
+    isBulkManaged: !!editingProduct?.isBulkManaged,
+    hasIndividualTracking: !!editingProduct?.hasIndividualTracking,
+    bulkUnit: editingProduct?.bulkUnit || 'Bale',
+    defaultBatchQuantity: editingProduct?.defaultBatchQuantity ?? editingProduct?.defaultQuantityPerBatch ?? '',
+    videoUrl: editingProduct?.videoUrl || '',
+  };
+}
 
 // ============================================================
 // BARCODE GENERATOR COMPONENT
@@ -86,10 +184,10 @@ function BarcodeDisplay({ value, productName }: { value: string; productName: st
         <canvas ref={canvasRef} className="rounded-lg border border-gray-100" />
       )}
       <div className="flex gap-2">
-        <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all text-gray-600">
+        <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all text-gray-600">
           <Download className="w-3.5 h-3.5" /> Download
         </button>
-        <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all text-gray-600">
+        <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all text-gray-600">
           <Printer className="w-3.5 h-3.5" /> Print
         </button>
       </div>
@@ -154,7 +252,7 @@ function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; 
       <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <Camera className="w-5 h-5 text-[#7c4dff]" />
+            <Camera className="w-5 h-5 text-[#014582]" />
             <h3 className="text-base font-bold text-gray-800">Scan Barcode</h3>
           </div>
           <button onClick={() => { stopRef.current?.(); onClose(); }} className="p-1.5 hover:bg-gray-100 rounded-lg">
@@ -171,7 +269,7 @@ function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; 
             <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
               <video ref={videoRef} className="w-full h-full object-cover" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-48 h-24 border-2 border-[#7c4dff] rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+                <div className="w-48 h-24 border-2 border-[#014582] rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
               </div>
               {scanning && (
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full">
@@ -191,9 +289,9 @@ function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; 
               value={manualInput}
               onChange={(e) => setManualInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none"
+              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
             />
-            <button onClick={handleManualSubmit} className="px-4 py-2 bg-[#7c4dff] text-white text-sm font-medium rounded-lg hover:bg-[#6c3fe0] transition-all">
+            <button onClick={handleManualSubmit} className="px-4 py-2 bg-[#014582] text-white text-sm font-medium rounded-lg hover:bg-[#01366a] transition-all">
               Search
             </button>
           </div>
@@ -255,15 +353,15 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-start justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl w-full max-w-4xl my-4 shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#7c4dff]/5 to-transparent">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-[#7c4dff]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Package className="w-6 h-6 text-[#7c4dff]" />
+            <div className="w-12 h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Package className="w-6 h-6 text-[#014582]" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">{product.name}</h2>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="font-mono text-xs font-bold text-[#7c4dff] bg-[#7c4dff]/10 px-2 py-0.5 rounded">{product.sku}</span>
+                <span className="font-mono text-xs font-bold text-[#014582] bg-[#014582]/10 px-2 py-0.5 rounded">{product.sku}</span>
                 <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${stockStatus.cls}`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${stockStatus.dot}`} />
                   {stockStatus.label}
@@ -273,7 +371,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={onEdit} className="flex items-center gap-1.5 px-4 py-2 bg-[#7c4dff] text-white text-sm font-semibold rounded-lg hover:bg-[#6c3fe0] transition-all">
+            <button onClick={onEdit} className="flex items-center gap-1.5 px-4 py-2 bg-[#014582] text-white text-sm font-semibold rounded-lg hover:bg-[#01366a] transition-all">
               <Edit className="w-3.5 h-3.5" /> Edit
             </button>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-all">
@@ -308,8 +406,8 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
             return (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap
-                  ${isActive ? 'border-[#7c4dff] text-[#7c4dff]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
-                <Icon className={`w-4 h-4 ${isActive ? 'text-[#7c4dff]' : 'text-gray-400'}`} />
+                  ${isActive ? 'border-[#014582] text-[#014582]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                <Icon className={`w-4 h-4 ${isActive ? 'text-[#014582]' : 'text-gray-400'}`} />
                 {tab.label}
               </button>
             );
@@ -321,6 +419,19 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
 
           {/* ── OVERVIEW ── */}
           {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {(product.mainImage || (product.images && product.images.length > 0)) && (
+                <div>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Images</h4>
+                  <div className="flex flex-wrap gap-3">
+                    {(product.images && product.images.length > 0 ? product.images : [product.mainImage!]).map((url, idx) => (
+                      <a key={`${url}-${idx}`} href={url} target="_blank" rel="noreferrer" className="block w-24 h-24 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                        <img src={url} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Basic Info</h4>
@@ -344,12 +455,13 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
                     <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Tags</h4>
                     <div className="flex flex-wrap gap-1.5">
                       {(Array.isArray(product.tags) ? product.tags : (product.tags ? String(product.tags).split(',') : [])).map((tag: string) => (
-                        <span key={tag.trim()} className="text-xs bg-[#7c4dff]/10 text-[#7c4dff] font-medium px-2 py-0.5 rounded-full">{tag.trim()}</span>
+                        <span key={tag.trim()} className="text-xs bg-[#014582]/10 text-[#014582] font-medium px-2 py-0.5 rounded-full">{tag.trim()}</span>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
+            </div>
             </div>
           )}
 
@@ -528,11 +640,11 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
               <div className="w-full max-w-sm">
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 text-center">Barcode</h4>
                 <BarcodeDisplay
-                  value={product.barcode?.number || product.sku}
+                  value={product.barcode?.number || product.barcodeNumber || product.sku}
                   productName={product.name}
                 />
                 <div className="mt-4 space-y-1">
-                  <DetailRow label="Barcode No." value={product.barcode?.number || product.sku} mono />
+                  <DetailRow label="Barcode No." value={product.barcode?.number || product.barcodeNumber || product.sku} mono />
                   <DetailRow label="Format" value="CODE128" />
                   <DetailRow label="SKU" value={product.sku} mono />
                 </div>
@@ -572,25 +684,36 @@ function ProductList({
   onScanClick: () => void;
   categories: Category[];
 }) {
-  const catOptions = ['All', ...categories.map(c => c.name)];
-  const statusOptions = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
+  const catOptions = [
+    { label: 'All', value: 'all' },
+    ...categories.map((c) => ({
+      label: c.name,
+      value: c.id || c._id || c.name,
+    })),
+  ];
+  const statusOptions = [
+    { label: 'All', value: 'all' },
+    { label: 'In Stock', value: 'in' },
+    { label: 'Low Stock', value: 'low' },
+    { label: 'Out of Stock', value: 'out' },
+  ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Package className="w-6 h-6 text-[#7c4dff]" />
+          <Package className="w-6 h-6 text-[#014582]" />
           Products
           <span className="text-sm font-normal text-gray-400 ml-2">({pagination.total} items)</span>
         </h2>
         <div className="flex items-center gap-3">
-          <button onClick={onScanClick} className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all">
+          <button onClick={onScanClick} className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all">
             <Camera className="w-4 h-4" /> Scan
           </button>
-          <Link href="/warehouse/product-settings" className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all">
+          <Link href="/warehouse/product-settings" className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all">
             <Settings className="w-4 h-4" /> Settings
           </Link>
-          <button onClick={onAddClick} className="flex items-center gap-2 px-4 py-2 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all shadow-lg shadow-purple-500/25">
+          <button onClick={onAddClick} className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25">
             <Plus className="w-4 h-4" /> Add Product
           </button>
         </div>
@@ -602,22 +725,22 @@ function ProductList({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input type="text" placeholder="Search products..." value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none" />
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none" />
           </div>
           <div className="relative">
             <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}
-              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
               {catOptions.map((cat) => (
-                <option key={cat} value={cat === 'All' ? 'all' : cat}>{cat}</option>
+                <option key={cat.value} value={cat.value}>{cat.label}</option>
               ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
           <div className="relative">
             <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}
-              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
               {statusOptions.map((status) => (
-                <option key={status} value={status === 'All' ? 'all' : status.toLowerCase().replace(' ', '-')}>{status}</option>
+                <option key={status.value} value={status.value}>{status.label}</option>
               ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -643,7 +766,7 @@ function ProductList({
             <tbody>
               {loading ? (
                 <tr><td colSpan={8} className="text-center py-12">
-                  <Loader2 className="w-8 h-8 mx-auto text-[#7c4dff] animate-spin" />
+                  <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
                   <p className="mt-2 text-gray-500">Loading...</p>
                 </td></tr>
               ) : products.length === 0 ? (
@@ -654,7 +777,7 @@ function ProductList({
                 </td></tr>
               ) : (
                 products.map((product, index) => (
-                  <tr key={product._id || index} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                  <tr key={getProductId(product) || index} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-3 font-mono text-xs font-semibold text-gray-700">{product.sku}</td>
                     <td className="px-6 py-3 font-medium text-gray-800">{product.name}</td>
                     <td className="px-6 py-3 text-gray-600">{product.categoryName || '-'}</td>
@@ -679,7 +802,14 @@ function ProductList({
                         <button onClick={() => onEditClick(product)} className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-all" title="Edit">
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button onClick={() => onDeleteClick(product._id!)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                        <button
+                          onClick={() => {
+                            const id = getProductId(product);
+                            if (id) onDeleteClick(id);
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                          title="Delete"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -702,7 +832,7 @@ function ProductList({
             <button onClick={() => onPageChange(pagination.page - 1)} disabled={!pagination.hasPrev} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-4 py-2 bg-[#7c4dff]/10 text-[#7c4dff] font-semibold rounded-lg">
+            <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg">
               {pagination.page} / {pagination.pages}
             </span>
             <button onClick={() => onPageChange(pagination.page + 1)} disabled={!pagination.hasNext} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -732,88 +862,50 @@ function ProductForm({
   const categoryList = Array.isArray(categories) ? categories : [];
   const supplierList = Array.isArray(suppliers) ? suppliers : [];
   const isEditing = !!editingProduct;
+  const productId = getProductId(editingProduct);
 
   const [activeTab, setActiveTab] = useState('basic');
-  const [formData, setFormData] = useState({
-    name: editingProduct?.name || '',
-    sku: editingProduct?.sku || '',
-    barcode: editingProduct?.barcode?.number || '',
-    productType: editingProduct?.productType || '',
-    description: editingProduct?.description || '',
-    tags: '',
-    costPrice: editingProduct?.costPrice || '',
-    sellingPrice: editingProduct?.sellingPrice || '',
-    landingCost: '',
-    currency: 'PKR',
-    taxRate: '',
-    taxType: '',
-    stockUnit: '',
-    currentStock: editingProduct?.currentStock || '',
-    minimumStock: editingProduct?.minimumStock || '',
-    maximumStock: editingProduct?.maximumStock || '',
-    category: editingProduct?.categoryId || '',
-    subCategory: '',
-    brand: '',
-    modelNumber: '',
-    supplier: editingProduct?.supplierId || '',
-    supplierSku: '',
-    leadTime: '',
-    reorderPoint: '',
-    rackLocation: '',
-    zone: '',
-    palletNumber: '',
-    shelfNumber: '',
-    storageCondition: '',
-    tempMin: '',
-    tempMax: '',
-    weight: '',
-    weightUnit: '',
-    length: '',
-    width: '',
-    height: '',
-    dimensionUnit: '',
-    color: '',
-    size: '',
-    material: '',
-    finish: '',
-    hasExpiry: false,
-    isBatchManaged: false,
-    isSerialManaged: false,
-    isExpiryManaged: false,
-    expiryDate: '',
-    manufacturingDate: '',
-    batchNumber: '',
-    shelfLife: '',
-    hsCode: '',
-    countryOfOrigin: 'Pakistan',
-    shippingClass: '',
-    freightClass: '',
-    stackingLimit: '',
-    dangerousGoods: false,
-    unNumber: '',
-    handlingInstructions: '',
-    warrantyPeriod: '',
-    warrantyUnit: 'Months',
-    isReturnable: true,
-    returnDays: '7',
-    isBulkManaged: false,
-    hasIndividualTracking: false,
-    bulkUnit: 'Bale',
-    defaultBatchQuantity: '',
-    videoUrl: '',
-  });
+  const [formData, setFormData] = useState(() => buildProductFormState(editingProduct, categoryList));
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [barcodeImageFile, setBarcodeImageFile] = useState<File | null>(null);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>(
+    () => editingProduct?.images || (editingProduct?.mainImage ? [editingProduct.mainImage] : [])
+  );
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [subCategories, setSubCategories] = useState<Category[]>(() => {
-    if (editingProduct?.categoryId) {
-      const cat = categories.find(c => c._id === editingProduct.categoryId);
-      return cat?.children || [];
-    }
-    return [];
+    return resolveCategorySelection(categoryList, editingProduct?.categoryId).subCategories;
   });
+
+  useEffect(() => {
+    setFormData(buildProductFormState(editingProduct, categoryList));
+    setSubCategories(resolveCategorySelection(categoryList, editingProduct?.categoryId).subCategories);
+    setExistingImages(editingProduct?.images || (editingProduct?.mainImage ? [editingProduct.mainImage] : []));
+    setImageFiles([]);
+    setImagePreviews([]);
+  }, [editingProduct, categories]);
+
+  useEffect(() => {
+    const urls = imageFiles.map((f) => URL.createObjectURL(f));
+    setImagePreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [imageFiles]);
+
+  const totalImageCount = existingImages.length + imageFiles.length;
+  const remainingImageSlots = Math.max(0, 5 - totalImageCount);
+
+  const handleAddImageFiles = (fileList: FileList | null) => {
+    if (!fileList || remainingImageSlots <= 0) return;
+    const incoming = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
+    if (!incoming.length) return;
+    setImageFiles((prev) => {
+      const slots = Math.max(0, 5 - existingImages.length - prev.length);
+      return [...prev, ...incoming.slice(0, slots)];
+    });
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
 
   const productTypes = settingsData.productType || [];
   const stockUnits = settingsData.stockUnit || [];
@@ -869,33 +961,85 @@ const handleSubmit = async (e: React.FormEvent) => {
     try {
       const payload = new FormData();
       const mapping: Record<string, string> = {
-        name: 'name', sku: 'sku', barcode: 'barcodeNumber', description: 'description',
-        costPrice: 'costPrice', sellingPrice: 'sellingPrice', currentStock: 'currentStock',
-        minimumStock: 'minimumStock', maximumStock: 'maximumStock', category: 'categoryId',
-        supplier: 'supplierId', rackLocation: 'location', productType: 'productType',
-        hsCode: 'hsCode', countryOfOrigin: 'countryOfOrigin', shippingClass: 'shippingClass',
-        weight: 'weight', length: 'length', width: 'width', height: 'height',
-        color: 'color', size: 'size', material: 'material',
-        hasExpiry: 'hasExpiry', isBatchManaged: 'isBatchManaged', isSerialManaged: 'isSerialManaged',
-        expiryDate: 'expiryDate', manufacturingDate: 'manufacturingDate',
-        batchNumber: 'batchNumber', shelfLife: 'shelfLife',
-        warrantyPeriod: 'warrantyPeriod', warrantyUnit: 'warrantyUnit',
-        isReturnable: 'isReturnable', returnDays: 'returnDays',
-        isBulkManaged: 'isBulkManaged', hasIndividualTracking: 'hasIndividualTracking',
-        bulkUnit: 'bulkUnit', defaultBatchQuantity: 'defaultBatchQuantity', videoUrl: 'videoUrl',
-        stockUnit: 'stockUnit', weightUnit: 'weightUnit', dimensionUnit: 'dimensionUnit',
-        taxType: 'taxType', zone: 'zone', storageCondition: 'storageCondition',
+        name: 'name',
+        sku: 'sku',
+        barcode: 'barcodeNumber',
+        description: 'description',
+        costPrice: 'costPrice',
+        sellingPrice: 'sellingPrice',
+        minimumStock: 'minimumStock',
+        maximumStock: 'maximumStock',
+        supplier: 'supplierId',
+        rackLocation: 'location',
+        productType: 'productType',
+        hsCode: 'hsCode',
+        countryOfOrigin: 'countryOfOrigin',
+        shippingClass: 'shippingClass',
+        freightClass: 'freightClass',
+        weight: 'weight',
+        length: 'length',
+        width: 'width',
+        height: 'height',
+        color: 'color',
+        size: 'size',
+        material: 'material',
+        finish: 'finish',
+        hasExpiry: 'hasExpiry',
+        isBatchManaged: 'isBatchManaged',
+        isSerialManaged: 'isSerialManaged',
+        isExpiryManaged: 'isExpiryManaged',
+        expiryDate: 'expiryDate',
+        manufacturingDate: 'manufacturingDate',
+        batchNumber: 'batchNumber',
+        shelfLife: 'shelfLife',
+        warrantyPeriod: 'warrantyPeriod',
+        warrantyUnit: 'warrantyUnit',
+        isReturnable: 'isReturnable',
+        returnDays: 'returnDays',
+        isBulkManaged: 'isBulkManaged',
+        hasIndividualTracking: 'hasIndividualTracking',
+        bulkUnit: 'bulkUnit',
+        defaultBatchQuantity: 'defaultBatchQuantity',
+        stockUnit: 'stockUnit',
+        weightUnit: 'weightUnit',
+        dimensionUnit: 'dimensionUnit',
+        taxType: 'taxType',
+        taxRate: 'taxRate',
+        zone: 'zone',
+        storageCondition: 'storageCondition',
+        brand: 'brand',
+        modelNumber: 'modelNumber',
+        currency: 'currency',
+        landingCost: 'landingCost',
+        leadTime: 'leadTime',
+        reorderPoint: 'reorderPoint',
+        supplierSku: 'supplierSku',
+        palletNumber: 'palletNumber',
+        shelfNumber: 'shelfNumber',
+        tempMin: 'tempMin',
+        tempMax: 'tempMax',
+        dangerousGoods: 'dangerousGoods',
+        unNumber: 'unNumber',
+        handlingInstructions: 'handlingInstructions',
+        stackingLimit: 'stackingLimit',
       };
+
       Object.entries(mapping).forEach(([front, back]) => {
         const val = formData[front as keyof typeof formData];
-        if (val !== undefined && val !== null && val !== '') payload.append(back, String(val));
+        if (val !== undefined && val !== null && val !== '') {
+          payload.append(back, String(val));
+        }
       });
-      if (formData.tags) payload.append('tags', formData.tags);
-      for (const file of imageFiles) payload.append('images', file);
-      if (barcodeImageFile) payload.append('barcodeImage', barcodeImageFile);
 
-      if (isEditing && editingProduct?._id) {
-        await productService.updateProduct(editingProduct._id, payload);
+      const categoryId = formData.subCategory || formData.category;
+      if (categoryId) payload.append('categoryId', categoryId);
+
+      if (formData.tags) payload.append('tags', formData.tags);
+      payload.append('existingImages', JSON.stringify(existingImages));
+      for (const file of imageFiles) payload.append('images', file);
+
+      if (isEditing && productId) {
+        await productService.updateProduct(productId, payload);
       } else {
         await productService.createProduct(payload);
       }
@@ -911,11 +1055,11 @@ const handleSubmit = async (e: React.FormEvent) => {
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-3">
-          <Package className="w-5 h-5 text-[#7c4dff]" />
+          <Package className="w-5 h-5 text-[#014582]" />
           <h2 className="text-lg font-bold text-gray-800">{isEditing ? 'Edit Product' : 'Create New Product'}</h2>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/warehouse/product-settings" className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-[#7c4dff] transition-all">
+          <Link href="/warehouse/product-settings" className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-[#014582] transition-all">
             <Settings className="w-3.5 h-3.5" /> Settings
           </Link>
           <button onClick={onCancel} className="p-2 hover:bg-gray-200 rounded-lg transition-all">
@@ -931,8 +1075,8 @@ const handleSubmit = async (e: React.FormEvent) => {
           return (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap
-                ${isActive ? 'border-[#7c4dff] text-[#7c4dff]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
-              <Icon className={`w-4 h-4 ${isActive ? 'text-[#7c4dff]' : 'text-gray-400'}`} />
+                ${isActive ? 'border-[#014582] text-[#014582]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+              <Icon className={`w-4 h-4 ${isActive ? 'text-[#014582]' : 'text-gray-400'}`} />
               {tab.label}
             </button>
           );
@@ -950,33 +1094,33 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Product Name *</label>
                 <div className="relative">
                   <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="text" placeholder="e.g., Cotton - Grade A" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <input type="text" placeholder="e.g., Cotton - Grade A" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" required />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">SKU *</label>
                 <div className="relative">
                   <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="text" placeholder="e.g., COT-001" value={formData.sku} onChange={(e) => handleInputChange('sku', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <input type="text" placeholder="e.g., COT-001" value={formData.sku} onChange={(e) => handleInputChange('sku', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" required />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Barcode</label>
                 <div className="relative">
                   <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="text" placeholder="Enter barcode or leave blank to use SKU" value={formData.barcode} onChange={(e) => handleInputChange('barcode', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="text" placeholder="Enter barcode or leave blank to use SKU" value={formData.barcode} onChange={(e) => handleInputChange('barcode', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Leave blank — SKU will be used as barcode automatically</p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Product Type</label>
                 <div className="flex gap-2">
-                  <select value={formData.productType} onChange={(e) => handleInputChange('productType', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.productType} onChange={(e) => handleInputChange('productType', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select type...</option>
                     {productTypes.map((type) => <option key={type._id} value={type.name}>{type.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
+                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
                   </Link>
                 </div>
               </div>
@@ -984,12 +1128,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description</label>
                 <div className="relative">
                   <AlignLeft className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <textarea placeholder="Enter product description..." rows={3} value={formData.description} onChange={(e) => handleInputChange('description', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50 resize-none" />
+                  <textarea placeholder="Enter product description..." rows={3} value={formData.description} onChange={(e) => handleInputChange('description', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none" />
                 </div>
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tags</label>
-                <input type="text" placeholder="e.g., cotton, grade-a, raw-material" value={formData.tags} onChange={(e) => handleInputChange('tags', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="e.g., cotton, grade-a, raw-material" value={formData.tags} onChange={(e) => handleInputChange('tags', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           )}
@@ -1001,76 +1145,87 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Cost Price *</label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" step="0.01" placeholder="0.00" value={formData.costPrice} onChange={(e) => handleInputChange('costPrice', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <input type="number" step="0.01" placeholder="0.00" value={formData.costPrice} onChange={(e) => handleInputChange('costPrice', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" required />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Selling Price *</label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" step="0.01" placeholder="0.00" value={formData.sellingPrice} onChange={(e) => handleInputChange('sellingPrice', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <input type="number" step="0.01" placeholder="0.00" value={formData.sellingPrice} onChange={(e) => handleInputChange('sellingPrice', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" required />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Landing Cost</label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" step="0.01" placeholder="0.00" value={formData.landingCost} onChange={(e) => handleInputChange('landingCost', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="number" step="0.01" placeholder="0.00" value={formData.landingCost} onChange={(e) => handleInputChange('landingCost', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Currency *</label>
                 <div className="flex gap-2">
-                  <select value={formData.currency} onChange={(e) => handleInputChange('currency', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.currency} onChange={(e) => handleInputChange('currency', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                     <option>PKR</option><option>USD</option><option>EUR</option><option>GBP</option><option>AUD</option>
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
+                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
                   </Link>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tax Rate (%)</label>
-                <input type="number" step="0.01" placeholder="0" value={formData.taxRate} onChange={(e) => handleInputChange('taxRate', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tax Type</label>
-                <div className="flex gap-2">
-                  <select value={formData.taxType} onChange={(e) => handleInputChange('taxType', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
-                    <option value="">Select tax type...</option>
-                    {taxTypes.map((tax) => <option key={tax._id} value={tax.name}>{tax.name}</option>)}
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
-                  </Link>
-                </div>
+              <div className="md:col-span-2">
+                <ProductTaxFields
+                  taxRate={formData.taxRate}
+                  taxType={formData.taxType}
+                  onChange={({ taxRate, taxType }) => {
+                    handleInputChange('taxRate', taxRate);
+                    handleInputChange('taxType', taxType);
+                  }}
+                  selectClassName="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+                />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Stock Unit</label>
                 <div className="flex gap-2">
-                  <select value={formData.stockUnit} onChange={(e) => handleInputChange('stockUnit', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.stockUnit} onChange={(e) => handleInputChange('stockUnit', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select unit...</option>
                     {stockUnits.map((unit) => <option key={unit._id} value={unit.name}>{unit.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
+                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
                   </Link>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Current Stock *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  {editingProduct ? 'Current Stock (read-only)' : 'Opening Stock'}
+                </label>
                 <div className="relative">
                   <Box className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" placeholder="0" value={formData.currentStock} onChange={(e) => handleInputChange('currentStock', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" required />
+                  <input
+                    type="number"
+                    value={editingProduct ? (editingProduct.currentStock ?? 0) : 0}
+                    readOnly
+                    disabled
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-600 cursor-not-allowed"
+                  />
                 </div>
+                {!editingProduct && (
+                  <p className="text-xs text-blue-700 mt-1">
+                    Add opening stock via{' '}
+                    <Link href="/warehouse/stock-movement" className="underline font-semibold">
+                      Stock Movement → Opening Stock
+                    </Link>.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Minimum Stock</label>
-                <input type="number" placeholder="5" value={formData.minimumStock} onChange={(e) => handleInputChange('minimumStock', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="number" placeholder="5" value={formData.minimumStock} onChange={(e) => handleInputChange('minimumStock', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Maximum Stock</label>
-                <input type="number" placeholder="100" value={formData.maximumStock} onChange={(e) => handleInputChange('maximumStock', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="number" placeholder="100" value={formData.maximumStock} onChange={(e) => handleInputChange('maximumStock', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           )}
@@ -1084,7 +1239,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         <select 
           value={formData.category} 
           onChange={(e) => handleCategoryChange(e.target.value)} 
-          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
           required
         >
           <option value="">Select category...</option>
@@ -1094,8 +1249,8 @@ const handleSubmit = async (e: React.FormEvent) => {
             </option>
           ))}
         </select>
-        <Link href="/warehouse/categories" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-          <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+        <Link href="/warehouse/categories" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
+          <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
         </Link>
       </div>
     </div>
@@ -1106,7 +1261,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         <select 
           value={formData.subCategory} 
           onChange={(e) => handleInputChange('subCategory', e.target.value)} 
-          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
           disabled={subCategories.length === 0}
         >
           <option value="">
@@ -1118,8 +1273,8 @@ const handleSubmit = async (e: React.FormEvent) => {
             </option>
           ))}
         </select>
-        <Link href="/warehouse/categories" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-          <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+        <Link href="/warehouse/categories" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
+          <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
         </Link>
       </div>
     </div>
@@ -1131,7 +1286,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         placeholder="Brand name" 
         value={formData.brand} 
         onChange={(e) => handleInputChange('brand', e.target.value)} 
-        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
       />
     </div>
     
@@ -1142,7 +1297,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         placeholder="Model #" 
         value={formData.modelNumber} 
         onChange={(e) => handleInputChange('modelNumber', e.target.value)} 
-        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
       />
     </div>
     
@@ -1152,7 +1307,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         <select 
           value={formData.supplier} 
           onChange={(e) => handleInputChange('supplier', e.target.value)} 
-          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
           required
         >
           <option value="">Select supplier...</option>
@@ -1162,8 +1317,8 @@ const handleSubmit = async (e: React.FormEvent) => {
             </option>
           ))}
         </select>
-        <Link href="/warehouse/suppliers" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-          <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+        <Link href="/warehouse/suppliers" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
+          <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
         </Link>
       </div>
     </div>
@@ -1175,7 +1330,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         placeholder="Supplier SKU" 
         value={formData.supplierSku} 
         onChange={(e) => handleInputChange('supplierSku', e.target.value)} 
-        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
       />
     </div>
     
@@ -1186,7 +1341,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         placeholder="7" 
         value={formData.leadTime} 
         onChange={(e) => handleInputChange('leadTime', e.target.value)} 
-        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
       />
     </div>
     
@@ -1197,7 +1352,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         placeholder="100" 
         value={formData.reorderPoint} 
         onChange={(e) => handleInputChange('reorderPoint', e.target.value)} 
-        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" 
+        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
       />
     </div>
   </div>
@@ -1208,55 +1363,55 @@ const handleSubmit = async (e: React.FormEvent) => {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Rack Location</label>
                 <div className="flex gap-2">
-                  <select value={formData.rackLocation} onChange={(e) => handleInputChange('rackLocation', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.rackLocation} onChange={(e) => handleInputChange('rackLocation', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select rack...</option>
                     {rackLocations.map((rack) => <option key={rack._id} value={rack.name}>{rack.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
+                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
                   </Link>
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Zone</label>
                 <div className="flex gap-2">
-                  <select value={formData.zone} onChange={(e) => handleInputChange('zone', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.zone} onChange={(e) => handleInputChange('zone', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select zone...</option>
                     {zones.map((zone) => <option key={zone._id} value={zone.name}>{zone.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
+                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
                   </Link>
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Pallet Number</label>
-                <input type="text" placeholder="Pallet #" value={formData.palletNumber} onChange={(e) => handleInputChange('palletNumber', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="Pallet #" value={formData.palletNumber} onChange={(e) => handleInputChange('palletNumber', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Shelf Number</label>
-                <input type="text" placeholder="Shelf #" value={formData.shelfNumber} onChange={(e) => handleInputChange('shelfNumber', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="Shelf #" value={formData.shelfNumber} onChange={(e) => handleInputChange('shelfNumber', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Storage Condition</label>
                 <div className="flex gap-2">
-                  <select value={formData.storageCondition} onChange={(e) => handleInputChange('storageCondition', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.storageCondition} onChange={(e) => handleInputChange('storageCondition', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select condition...</option>
                     {storageConditions.map((cond) => <option key={cond._id} value={cond.name}>{cond.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
+                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
                   </Link>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Temp Min (°C)</label>
-                  <input type="number" placeholder="0" value={formData.tempMin} onChange={(e) => handleInputChange('tempMin', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="number" placeholder="0" value={formData.tempMin} onChange={(e) => handleInputChange('tempMin', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Temp Max (°C)</label>
-                  <input type="number" placeholder="40" value={formData.tempMax} onChange={(e) => handleInputChange('tempMax', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="number" placeholder="40" value={formData.tempMax} onChange={(e) => handleInputChange('tempMax', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
             </div>
@@ -1270,24 +1425,24 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Scale className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input type="number" step="0.01" placeholder="0.00" value={formData.weight} onChange={(e) => handleInputChange('weight', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    <input type="number" step="0.01" placeholder="0.00" value={formData.weight} onChange={(e) => handleInputChange('weight', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                   </div>
-                  <select value={formData.weightUnit} onChange={(e) => handleInputChange('weightUnit', e.target.value)} className="w-24 px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.weightUnit} onChange={(e) => handleInputChange('weightUnit', e.target.value)} className="w-24 px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                     {weightUnits.map((unit) => <option key={unit._id} value={unit.name}>{unit.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
+                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
                   </Link>
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Dimension Unit</label>
                 <div className="flex gap-2">
-                  <select value={formData.dimensionUnit} onChange={(e) => handleInputChange('dimensionUnit', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.dimensionUnit} onChange={(e) => handleInputChange('dimensionUnit', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                     {dimensionUnits.map((unit) => <option key={unit._id} value={unit.name}>{unit.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
+                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
                   </Link>
                 </div>
               </div>
@@ -1295,40 +1450,40 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Length</label>
                 <div className="relative">
                   <Ruler className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="number" placeholder="0" value={formData.length} onChange={(e) => handleInputChange('length', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="number" placeholder="0" value={formData.length} onChange={(e) => handleInputChange('length', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Width</label>
-                <input type="number" placeholder="0" value={formData.width} onChange={(e) => handleInputChange('width', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="number" placeholder="0" value={formData.width} onChange={(e) => handleInputChange('width', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Height</label>
-                <input type="number" placeholder="0" value={formData.height} onChange={(e) => handleInputChange('height', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="number" placeholder="0" value={formData.height} onChange={(e) => handleInputChange('height', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Color</label>
-                <input type="text" placeholder="e.g., White" value={formData.color} onChange={(e) => handleInputChange('color', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="e.g., White" value={formData.color} onChange={(e) => handleInputChange('color', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Size</label>
                 <div className="flex gap-2">
-                  <select value={formData.size} onChange={(e) => handleInputChange('size', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.size} onChange={(e) => handleInputChange('size', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select size...</option>
                     {sizes.map((size) => <option key={size._id} value={size.name}>{size.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
+                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
                   </Link>
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Material</label>
-                <input type="text" placeholder="e.g., 100% Cotton" value={formData.material} onChange={(e) => handleInputChange('material', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="e.g., 100% Cotton" value={formData.material} onChange={(e) => handleInputChange('material', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Finish</label>
-                <input type="text" placeholder="e.g., Matte, Glossy" value={formData.finish} onChange={(e) => handleInputChange('finish', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="e.g., Matte, Glossy" value={formData.finish} onChange={(e) => handleInputChange('finish', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           )}
@@ -1343,7 +1498,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 { key: 'isExpiryManaged', label: 'Expiry Managed' },
               ].map(({ key, label }) => (
                 <div key={key} className="flex items-center gap-3">
-                  <input type="checkbox" checked={formData[key as keyof typeof formData] as boolean} onChange={(e) => handleInputChange(key, e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
+                  <input type="checkbox" checked={formData[key as keyof typeof formData] as boolean} onChange={(e) => handleInputChange(key, e.target.checked)} className="w-4 h-4 text-[#014582] rounded border-gray-300" />
                   <label className="text-sm font-medium text-gray-700">{label}</label>
                 </div>
               ))}
@@ -1351,44 +1506,44 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Expiry Date</label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="date" value={formData.expiryDate} onChange={(e) => handleInputChange('expiryDate', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="date" value={formData.expiryDate} onChange={(e) => handleInputChange('expiryDate', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Manufacturing Date</label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="date" value={formData.manufacturingDate} onChange={(e) => handleInputChange('manufacturingDate', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                  <input type="date" value={formData.manufacturingDate} onChange={(e) => handleInputChange('manufacturingDate', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Batch Number</label>
-                <input type="text" placeholder="BATCH-001" value={formData.batchNumber} onChange={(e) => handleInputChange('batchNumber', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="BATCH-001" value={formData.batchNumber} onChange={(e) => handleInputChange('batchNumber', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Shelf Life (Days)</label>
-                <input type="number" placeholder="365" value={formData.shelfLife} onChange={(e) => handleInputChange('shelfLife', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="number" placeholder="365" value={formData.shelfLife} onChange={(e) => handleInputChange('shelfLife', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div className="col-span-2 border-t border-gray-100 pt-4 mt-2">
                 <h4 className="text-sm font-semibold text-gray-700 mb-3">Bulk Management (Cotton/Fabric)</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked={formData.isBulkManaged} onChange={(e) => handleInputChange('isBulkManaged', e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
+                    <input type="checkbox" checked={formData.isBulkManaged} onChange={(e) => handleInputChange('isBulkManaged', e.target.checked)} className="w-4 h-4 text-[#014582] rounded border-gray-300" />
                     <label className="text-sm font-medium text-gray-700">Bulk Managed</label>
                   </div>
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked={formData.hasIndividualTracking} onChange={(e) => handleInputChange('hasIndividualTracking', e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
+                    <input type="checkbox" checked={formData.hasIndividualTracking} onChange={(e) => handleInputChange('hasIndividualTracking', e.target.checked)} className="w-4 h-4 text-[#014582] rounded border-gray-300" />
                     <label className="text-sm font-medium text-gray-700">Individual Tracking</label>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Bulk Unit</label>
-                    <select value={formData.bulkUnit} onChange={(e) => handleInputChange('bulkUnit', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                    <select value={formData.bulkUnit} onChange={(e) => handleInputChange('bulkUnit', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                       <option>Bale</option><option>Box</option><option>Roll</option><option>Pallet</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Default Batch Quantity</label>
-                    <input type="number" placeholder="50" value={formData.defaultBatchQuantity} onChange={(e) => handleInputChange('defaultBatchQuantity', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    <input type="number" placeholder="50" value={formData.defaultBatchQuantity} onChange={(e) => handleInputChange('defaultBatchQuantity', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                   </div>
                 </div>
               </div>
@@ -1400,76 +1555,126 @@ const handleSubmit = async (e: React.FormEvent) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">HS Code</label>
-                <input type="text" placeholder="e.g., 5201.00.00" value={formData.hsCode} onChange={(e) => handleInputChange('hsCode', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="e.g., 5201.00.00" value={formData.hsCode} onChange={(e) => handleInputChange('hsCode', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Country of Origin</label>
-                <select value={formData.countryOfOrigin} onChange={(e) => handleInputChange('countryOfOrigin', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                <select value={formData.countryOfOrigin} onChange={(e) => handleInputChange('countryOfOrigin', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                   <option>Pakistan</option><option>China</option><option>USA</option><option>Turkey</option><option>India</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Shipping Class</label>
                 <div className="flex gap-2">
-                  <select value={formData.shippingClass} onChange={(e) => handleInputChange('shippingClass', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                  <select value={formData.shippingClass} onChange={(e) => handleInputChange('shippingClass', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                     <option value="">Select class...</option>
                     {shippingClasses.map((cls) => <option key={cls._id} value={cls.name}>{cls.name}</option>)}
                   </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#7c4dff] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#7c4dff]" />
+                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
+                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
                   </Link>
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Freight Class</label>
-                <input type="text" placeholder="Freight class" value={formData.freightClass} onChange={(e) => handleInputChange('freightClass', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="Freight class" value={formData.freightClass} onChange={(e) => handleInputChange('freightClass', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Stacking Limit</label>
-                <input type="number" placeholder="5" value={formData.stackingLimit} onChange={(e) => handleInputChange('stackingLimit', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="number" placeholder="5" value={formData.stackingLimit} onChange={(e) => handleInputChange('stackingLimit', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div className="flex items-center gap-3 mt-2">
-                <input type="checkbox" checked={formData.dangerousGoods} onChange={(e) => handleInputChange('dangerousGoods', e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
+                <input type="checkbox" checked={formData.dangerousGoods} onChange={(e) => handleInputChange('dangerousGoods', e.target.checked)} className="w-4 h-4 text-[#014582] rounded border-gray-300" />
                 <label className="text-sm font-medium text-gray-700">Dangerous Goods</label>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">UN Number</label>
-                <input type="text" placeholder="UN #" value={formData.unNumber} onChange={(e) => handleInputChange('unNumber', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="UN #" value={formData.unNumber} onChange={(e) => handleInputChange('unNumber', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Handling Instructions</label>
-                <input type="text" placeholder="Special handling instructions..." value={formData.handlingInstructions} onChange={(e) => handleInputChange('handlingInstructions', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                <input type="text" placeholder="Special handling instructions..." value={formData.handlingInstructions} onChange={(e) => handleInputChange('handlingInstructions', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
               </div>
             </div>
           )}
 
           {/* MEDIA */}
           {activeTab === 'media' && (
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Main Images</label>
-                <input type="file" multiple accept="image/*" onChange={(e) => { if (e.target.files) setImageFiles(Array.from(e.target.files)); }} className="w-full p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
-                {imageFiles.length > 0 && <p className="mt-1 text-xs text-gray-500">{imageFiles.length} files selected</p>}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-semibold text-gray-700">Product Images</label>
+                <span className="text-xs font-medium text-gray-500">{totalImageCount} / 5</span>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Barcode Image</label>
-                <input type="file" accept="image/*" onChange={(e) => { if (e.target.files?.[0]) setBarcodeImageFile(e.target.files[0]); }} className="w-full p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
-                {barcodeImageFile && <p className="mt-1 text-xs text-gray-500">Selected: {barcodeImageFile.name}</p>}
+              <p className="text-xs text-gray-400 mb-3">
+                Select multiple images (hold Ctrl/Cmd). First image is the main image. You can also add more in batches.
+              </p>
+
+              <div className="flex flex-wrap gap-3 mb-3">
+                {existingImages.map((url, idx) => (
+                  <div key={`existing-${url}`} className="relative w-24 h-24 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                    <img src={url} alt={`Product ${idx + 1}`} className="w-full h-full object-cover" />
+                    {idx === 0 && imageFiles.length === 0 && (
+                      <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-[#014582] text-white px-1.5 py-0.5 rounded">Main</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setExistingImages((prev) => prev.filter((u) => u !== url))}
+                      className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded"
+                      title="Remove"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+
+                {imagePreviews.map((url, idx) => (
+                  <div key={`new-${url}`} className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-[#014582]/40 bg-gray-50">
+                    <img src={url} alt={`New ${idx + 1}`} className="w-full h-full object-cover" />
+                    {existingImages.length === 0 && idx === 0 && (
+                      <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-[#014582] text-white px-1.5 py-0.5 rounded">Main</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setImageFiles((prev) => prev.filter((_, i) => i !== idx))}
+                      className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+
+                {remainingImageSlots > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 hover:border-[#014582] hover:bg-[#014582]/5 transition-all flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-[#014582]"
+                  >
+                    <ImageIcon className="w-6 h-6" />
+                    <span className="text-[10px] font-semibold">Add images</span>
+                    <span className="text-[9px]">{remainingImageSlots} left</span>
+                  </button>
+                )}
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Video URL</label>
-                <div className="relative">
-                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="url" placeholder="https://youtube.com/..." value={formData.videoUrl} onChange={(e) => handleInputChange('videoUrl', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Specification Sheet (PDF)</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-[#7c4dff] transition-all cursor-pointer">
-                  <FileText className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-                  <p className="text-sm text-gray-500">Upload PDF</p>
-                </div>
-              </div>
+
+              <input
+                ref={imageInputRef}
+                type="file"
+                multiple
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                className="hidden"
+                onChange={(e) => handleAddImageFiles(e.target.files)}
+              />
+
+              {remainingImageSlots > 0 && (
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:border-[#014582] hover:text-[#014582] transition-all"
+                >
+                  <Upload className="w-4 h-4" />
+                  Choose multiple images
+                </button>
+              )}
             </div>
           )}
 
@@ -1479,11 +1684,11 @@ const handleSubmit = async (e: React.FormEvent) => {
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-sm font-semibold text-gray-700">Custom Attributes</h4>
-                  <button type="button" className="text-sm text-[#7c4dff] font-semibold hover:text-[#6c3fe0]">+ Add Field</button>
+                  <button type="button" className="text-sm text-[#014582] font-semibold hover:text-[#01366a]">+ Add Field</button>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <input type="text" placeholder="Attribute Name" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white" />
-                  <input type="text" placeholder="Value" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white" />
+                  <input type="text" placeholder="Attribute Name" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white" />
+                  <input type="text" placeholder="Value" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white" />
                 </div>
               </div>
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
@@ -1491,27 +1696,27 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Warranty Period</label>
-                    <input type="number" placeholder="12" value={formData.warrantyPeriod} onChange={(e) => handleInputChange('warrantyPeriod', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    <input type="number" placeholder="12" value={formData.warrantyPeriod} onChange={(e) => handleInputChange('warrantyPeriod', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Warranty Unit</label>
-                    <select value={formData.warrantyUnit} onChange={(e) => handleInputChange('warrantyUnit', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50">
+                    <select value={formData.warrantyUnit} onChange={(e) => handleInputChange('warrantyUnit', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
                       <option>Days</option><option>Months</option><option>Years</option>
                     </select>
                   </div>
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked={formData.isReturnable} onChange={(e) => handleInputChange('isReturnable', e.target.checked)} className="w-4 h-4 text-[#7c4dff] rounded border-gray-300" />
+                    <input type="checkbox" checked={formData.isReturnable} onChange={(e) => handleInputChange('isReturnable', e.target.checked)} className="w-4 h-4 text-[#014582] rounded border-gray-300" />
                     <label className="text-sm font-medium text-gray-700">Is Returnable</label>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Return Days</label>
-                    <input type="number" placeholder="7" value={formData.returnDays} onChange={(e) => handleInputChange('returnDays', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-gray-50" />
+                    <input type="number" placeholder="7" value={formData.returnDays} onChange={(e) => handleInputChange('returnDays', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                   </div>
                 </div>
               </div>
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <h4 className="text-sm font-semibold text-gray-700 mb-3">Additional Notes</h4>
-                <textarea placeholder="Enter any additional notes..." rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#7c4dff] focus:border-transparent outline-none bg-white resize-none" />
+                <textarea placeholder="Enter any additional notes..." rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white resize-none" />
               </div>
             </div>
           )}
@@ -1521,7 +1726,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             <button type="button" onClick={onCancel} className="px-6 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
               Cancel
             </button>
-            <button type="submit" disabled={loading} className="px-6 py-2.5 bg-[#7c4dff] text-white rounded-lg text-sm font-semibold hover:bg-[#6c3fe0] transition-all flex items-center gap-2 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="submit" disabled={loading} className="px-6 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center gap-2 shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {isEditing ? 'Update Product' : 'Save Product'}
             </button>
@@ -1536,6 +1741,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 // MAIN PAGE
 // ============================================================
 export default function ProductsPage() {
+  const { isAdmin } = usePermissions();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -1638,7 +1844,40 @@ const fetchDropdowns = async () => {
   const handleStatusChange = (val: string) => { setSelectedStatus(val); setPagination(prev => ({ ...prev, page: 1 })); };
 
   const handleAddClick = () => { setEditingProduct(null); setShowCreateForm(true); };
-  const handleEditClick = (product: Product) => { setEditingProduct(product); setViewingProduct(null); setShowCreateForm(true); };
+
+  const handleViewClick = async (product: Product) => {
+    const id = getProductId(product);
+    if (!id) {
+      setViewingProduct(product);
+      return;
+    }
+    try {
+      const full = await productService.getProductById(id);
+      setViewingProduct(full);
+    } catch (err) {
+      console.error('Failed to load product detail:', err);
+      setViewingProduct(product);
+    }
+  };
+
+  const handleEditClick = async (product: Product) => {
+    setViewingProduct(null);
+    const id = getProductId(product);
+    if (!id) {
+      setEditingProduct(product);
+      setShowCreateForm(true);
+      return;
+    }
+    try {
+      const full = await productService.getProductById(id);
+      setEditingProduct(full);
+    } catch (err) {
+      console.error('Failed to load product for edit:', err);
+      setEditingProduct(product);
+    }
+    setShowCreateForm(true);
+  };
+
   const handleDeleteClick = async (id: string) => {
     if (!confirm('Delete this product?')) return;
     try { await productService.deleteProduct(id); fetchProducts(); }
@@ -1650,13 +1889,7 @@ const fetchDropdowns = async () => {
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
       <div className="w-56 min-h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0">
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-6 border-b border-white/10">
-          <div className="w-10 h-10 bg-[#7c4dff] rounded-xl flex items-center justify-center">
-            <Package className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-lg font-extrabold tracking-wider">Products</span>
-        </div>
+        <BrandHeader subtitle="Products" />
 
         {/* Menu Items */}
         <div className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -1689,7 +1922,7 @@ const fetchDropdowns = async () => {
           </Link>
 
           <Link
-            href="/sales"
+            href="/sales/dashboard"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/60 hover:text-white hover:bg-white/5"
           >
             <ShoppingCart className="w-5 h-5" />
@@ -1698,7 +1931,16 @@ const fetchDropdowns = async () => {
         </div>
 
         {/* Bottom Section */}
-        <div className="px-3 pb-6">
+        <div className="px-3 pb-6 space-y-1">
+          {isAdmin && (
+            <Link
+              href="/plans"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
+            >
+              <CreditCard className="w-5 h-5" />
+              <span className="text-sm font-medium">Subscription Plans</span>
+            </Link>
+          )}
           <Link
             href="/warehouse/product-settings"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
@@ -1713,15 +1955,17 @@ const fetchDropdowns = async () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Package className="w-6 h-6 text-[#7c4dff]" />
-              Products Management
-            </h1>
-          </div>
+          <TopBarBrand
+            title="Products Management"
+            icon={<Package className="w-5 h-5 text-[#014582]" />}
+          />
 
           <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all">
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/support'; }}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all"
+            >
               <Headset className="w-4 h-4" />
               <span>Support</span>
             </button>
@@ -1729,14 +1973,13 @@ const fetchDropdowns = async () => {
             <div className="w-px h-6 bg-gray-200" />
 
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Phone className="w-4 h-4 text-[#7c4dff]" />
-              <span>Call Us: 03 111 006 555</span>
+              <Phone className="w-4 h-4 text-[#014582]" />
             </div>
 
             <div className="w-px h-6 bg-gray-200" />
 
             <div className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-all">
-              <div className="w-8 h-8 bg-[#7c4dff] rounded-full flex items-center justify-center text-white text-sm font-bold">
+              <div className="w-8 h-8 bg-[#014582] rounded-full flex items-center justify-center text-white text-sm font-bold">
                 A
               </div>
               <ChevronDownIcon className="w-3.5 h-3.5 text-gray-400" />
@@ -1787,7 +2030,7 @@ const fetchDropdowns = async () => {
                 onAddClick={handleAddClick}
                 onEditClick={handleEditClick}
                 onDeleteClick={handleDeleteClick}
-                onViewClick={setViewingProduct}
+                onViewClick={handleViewClick}
                 onScanClick={() => setShowScanner(true)}
                 categories={categories}
               />
