@@ -14,13 +14,14 @@ import POSReceipt from '../components/POSReceipt';
 import {
   barcodePngDataUrl,
   downloadPosReceiptPdf,
-  printReceiptNode,
   receiptBarcodeValue,
   receiptQrPngDataUrl,
   resolveReceiptCompany,
 } from '../../../lib/pos-receipt';
+import { printPosReceipt } from '../../../lib/pos-thermal-printer';
 import ReceiptEditorTab from '../components/ReceiptEditorTab';
 import ScannerSettingsTab from '../components/ScannerSettingsTab';
+import ThermalPrinterTab from '../components/ThermalPrinterTab';
 import PaymentTerminalTab from '../components/PaymentTerminalTab';
 import { taxService } from '../../../lib/tax-service';
 import TaxUseToggle from '../../../components/TaxUseToggle';
@@ -55,7 +56,7 @@ function ConfirmModal({ message, onConfirm, onCancel }: { message:string; onConf
 }
 
 // ─── TABS ────────────────────────────────────────────────────────────────────
-const TABS = ['Terminals','Shifts','Sales','Returns','Receipt','Scanner','Payments','Tax','Audit Log'] as const;
+const TABS = ['Terminals','Shifts','Sales','Returns','Receipt','Printer','Scanner','Payments','Tax','Audit Log'] as const;
 type Tab = typeof TABS[number];
 
 // ─── Terminals Tab ───────────────────────────────────────────────────────────
@@ -429,9 +430,16 @@ function SalesTab({ locationIdForApi }: { locationIdForApi: string }) {
     }
   };
 
-  const handlePrint = () => {
-    if (receiptPaperRef.current) {
-      printReceiptNode(receiptPaperRef.current, loadReceiptTemplate().thermalPaperWidthMm);
+  const handlePrint = async () => {
+    if (!receiptPaperRef.current || !selected) return;
+    try {
+      await printPosReceipt({
+        sale: selected,
+        companyProfile,
+        paperNode: receiptPaperRef.current,
+      });
+    } catch (e: any) {
+      alert(e?.message || 'Print failed');
     }
   };
 
@@ -1148,6 +1156,7 @@ export default function POSManagementPage() {
         {activeTab==='Sales'      && <SalesTab locationIdForApi={locationIdForApi} />}
         {activeTab==='Returns'    && <ReturnsTab locationIdForApi={locationIdForApi} />}
         {activeTab==='Receipt'    && <ReceiptEditorTab isAdmin={isAdmin} />}
+        {activeTab==='Printer'    && <ThermalPrinterTab isAdmin={isAdmin} />}
         {activeTab==='Scanner'    && <ScannerSettingsTab isAdmin={isAdmin} />}
         {activeTab==='Payments'   && <PaymentTerminalTab isAdmin={isAdmin} />}
         {activeTab==='Tax'        && <TaxTab />}

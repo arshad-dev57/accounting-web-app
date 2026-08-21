@@ -12,6 +12,12 @@ export type PosSettings = {
   receiptReturnPolicy: string;
   receiptNotes: string;
   thermalPaperWidthMm: 58 | 80;
+  /** browser = Chrome print dialog (select thermal printer). escpos = Web Serial raw ESC/POS */
+  thermalPrintMode: 'browser' | 'escpos';
+  thermalPrinterBaudRate: number;
+  thermalFeedLines: number;
+  thermalCutPaper: boolean;
+  autoPrintOnSale: boolean;
   enableBarcodeScanner: boolean;
   enableOfflineMode: boolean;
   soundOnScan: boolean;
@@ -48,6 +54,11 @@ export const DEFAULT_POS_SETTINGS: PosSettings = {
   receiptNotes:
     'This is a computer-generated receipt and is valid without a signature. Please retain this copy for warranty, returns and accounting records.',
   thermalPaperWidthMm: 80,
+  thermalPrintMode: 'browser',
+  thermalPrinterBaudRate: 9600,
+  thermalFeedLines: 4,
+  thermalCutPaper: true,
+  autoPrintOnSale: true,
   enableBarcodeScanner: true,
   enableOfflineMode: true,
   soundOnScan: true,
