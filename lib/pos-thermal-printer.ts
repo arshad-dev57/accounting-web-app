@@ -6,6 +6,7 @@ import {
   loadPosSettings,
   loadReceiptTemplate,
   openCashDrawer,
+  getDrawerPulse,
   type PosSettings,
 } from './pos-settings';
 import {
@@ -171,8 +172,9 @@ class EscPosBuilder {
   }
 
   drawer() {
-    // ESC p m t1 t2 — pulse pin 2
-    return this.raw(ESC, 0x70, 0x00, 0x19, 0xfa);
+    const { t1, t2 } = getDrawerPulse();
+    // Pulse both drawer pins (2 and 5) — Black Copper / clones vary which jack is wired
+    return this.raw(ESC, 0x70, 0x00, t1, t2).raw(ESC, 0x70, 0x01, t1, t2);
   }
 
   barcode(value: string) {
@@ -440,20 +442,39 @@ export async function disconnectThermalPrinter() {
   printerConnected = false;
 }
 
-/** Manual / cash-sale drawer kick. Uses connected ESC/POS printer, else browser fallback. */
+/** Open drawer through the thermal printer only (no browser print dialog). */
 export async function kickCashDrawer() {
   const payload = new EscPosBuilder().init().drawer().build();
-  try {
-    if (!printerConnected) await reconnectThermalPrinter();
-    if (printerConnected && printerPort?.writable) {
-      await writeToPort(payload);
-      return { ok: true as const, mode: 'escpos' as const };
+
+  const send = async () => {
+    if (!printerConnected || !printerPort?.writable) {
+      const ok = await reconnectThermalPrinter();
+      if (!ok || !printerPort?.writable) {
+        throw new Error(
+          'Connect the thermal printer first (POS Management → Printer → Connect printer), then try Open cash drawer again.'
+        );
+      }
     }
-  } catch {
-    /* fall back to browser pulse */
+    await writeToPort(payload);
+  };
+
+  try {
+    await send();
+    return { ok: true as const, mode: 'escpos' as const };
+  } catch (first) {
+    printerConnected = false;
+    printerPort = null;
+    try {
+      await send();
+      return { ok: true as const, mode: 'escpos' as const };
+    } catch {
+      throw first instanceof Error
+        ? first
+        : new Error(
+            'Connect the thermal printer first (POS Management → Printer → Connect printer), then try Open cash drawer again.'
+          );
+    }
   }
-  openCashDrawer();
-  return { ok: true as const, mode: 'browser' as const };
 }
 
 export async function printEscPosReceipt(opts: {

@@ -7,6 +7,8 @@ export type PosSettings = {
   loyaltyEnabled: boolean;
   loyaltyPointsPerUnit: number;
   openDrawerOnCashSale: boolean;
+  /** Solenoid pulse. Drawer cannot open slowly; lower = less slam. */
+  drawerKickStrength: 'gentle' | 'normal' | 'strong';
   receiptFooter: string;
   receiptHeader: string;
   receiptReturnPolicy: string;
@@ -47,6 +49,7 @@ export const DEFAULT_POS_SETTINGS: PosSettings = {
   loyaltyEnabled: true,
   loyaltyPointsPerUnit: 1,
   openDrawerOnCashSale: true,
+  drawerKickStrength: 'gentle',
   receiptFooter: 'Thank you for shopping with us! Please visit again.',
   receiptHeader: 'TAX INVOICE / SALES RECEIPT',
   receiptReturnPolicy:
@@ -192,6 +195,14 @@ export function saveReceiptTemplate(template: Partial<PosReceiptTemplate>) {
   return next;
 }
 
+/** ESC/POS drawer pulse (t1/t2 in 2ms units). Shorter on-time = less slam. */
+export function getDrawerPulse(): { t1: number; t2: number } {
+  const strength = loadPosSettings().drawerKickStrength || 'gentle';
+  if (strength === 'strong') return { t1: 40, t2: 120 };
+  if (strength === 'normal') return { t1: 25, t2: 120 };
+  return { t1: 12, t2: 80 };
+}
+
 /** Attempt cash-drawer kick via browser print of ESC/POS open-drawer sequence */
 export function openCashDrawer() {
   if (typeof window === 'undefined') return;
@@ -206,8 +217,9 @@ export function openCashDrawer() {
     document.body.appendChild(iframe);
     const doc = iframe.contentWindow?.document;
     if (!doc) return;
-    // ESC p m t1 t2 — common drawer pulse; browsers may ignore binary, still useful for compatible print bridges
-    const kick = String.fromCharCode(27, 112, 0, 25, 250);
+    const { t1, t2 } = getDrawerPulse();
+    // ESC p m t1 t2
+    const kick = String.fromCharCode(27, 112, 0, t1, t2);
     doc.open();
     doc.write(`<html><body><pre style="font-size:1px;color:white">${kick}</pre><script>window.onload=function(){window.print();}</script></body></html>`);
     doc.close();

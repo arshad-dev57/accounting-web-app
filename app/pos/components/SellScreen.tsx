@@ -28,7 +28,6 @@ import {
   resolveReceiptCompany,
 } from '../../../lib/pos-receipt';
 import { kickCashDrawer, printPosReceipt } from '../../../lib/pos-thermal-printer';
-import { loadPosSettings } from '../../../lib/pos-settings';
 import {
   computeTaxLine,
   resolveProductTaxRate,

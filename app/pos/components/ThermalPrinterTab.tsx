@@ -221,11 +221,29 @@ export default function ThermalPrinterTab({ isAdmin }: { isAdmin: boolean }) {
         />
         <Toggle
           label="Auto-open cash drawer on cash sale"
-          hint="On = cash payment complete hote hi drawer khulegi. Off = sirf Sell screen ke Open drawer button se khulegi."
+          hint="When on, the drawer opens automatically after a cash sale. When off, use Open cash drawer on the sell screen."
           checked={settings.openDrawerOnCashSale}
           disabled={!isAdmin}
           onChange={(v) => patch({ openDrawerOnCashSale: v })}
         />
+        <label style={{ display: 'block', fontSize: 12, color: '#64748b', margin: '10px 0 6px' }}>
+          Drawer pulse strength
+        </label>
+        <select
+          value={settings.drawerKickStrength || 'gentle'}
+          disabled={!isAdmin}
+          onChange={(e) =>
+            patch({ drawerKickStrength: e.target.value as PosSettings['drawerKickStrength'] })
+          }
+          style={{ ...input, marginBottom: 8 }}
+        >
+          <option value="gentle">Low (softer open)</option>
+          <option value="normal">Medium</option>
+          <option value="strong">High (use if the drawer does not open)</option>
+        </select>
+        <p style={{ margin: '0 0 8px', fontSize: 12, color: '#64748b', lineHeight: 1.45 }}>
+          Cash drawers open with a solenoid pulse, not a slow motor. Use Low for a lighter release. A 12V supply is usually quieter than 24V.
+        </p>
         <Toggle
           label="Cut paper after print (ESC/POS)"
           checked={settings.thermalCutPaper}
