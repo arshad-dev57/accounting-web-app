@@ -852,8 +852,23 @@ function POSSettings() {
           onChange={(v) => update({ openDrawerOnCashSale: v })}
         />
         <p className="text-xs text-gray-500 px-1 -mt-1">
-          Off = cash sale ke baad drawer khud nahi khulegi. Sell screen ka Open cash drawer button hamesha chalega.
+          When off, the drawer will not open automatically after a cash sale. The Open cash drawer button on the sell screen always works.
         </p>
+        <div className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+          <label className="text-sm text-gray-700 block mb-2">Drawer pulse strength</label>
+          <select
+            value={settings.drawerKickStrength || 'gentle'}
+            onChange={(e) => update({ drawerKickStrength: e.target.value as PosSettings['drawerKickStrength'] })}
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-900"
+          >
+            <option value="gentle">Low (softer open)</option>
+            <option value="normal">Medium</option>
+            <option value="strong">High (use if the drawer does not open)</option>
+          </select>
+          <p className="text-xs text-gray-400 mt-2">
+            Cash drawers open with a solenoid pulse, not a slow motor. Use Low for a lighter release. A 12V supply is usually quieter than 24V.
+          </p>
+        </div>
         <Toggle label="Offline mode (queue sales when offline)" checked={settings.enableOfflineMode} onChange={(v) => update({ enableOfflineMode: v })} />
         <div className="bg-white border border-gray-200 rounded-xl px-4 py-3">
           <p className="text-sm text-gray-700 font-medium">Barcode scanner</p>
