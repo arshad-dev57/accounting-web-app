@@ -108,7 +108,6 @@ interface Product {
   currentStock: number;
 }
 
-// ── helpers ──────────────────────────────────────────────────────────────────
 const normalizeId = (item: any) => ({
   ...item,
   _id:
@@ -150,7 +149,6 @@ const PRIORITY_COLORS: Record<string, string> = {
 const pill = (map: Record<string, string>, val: string) =>
   `text-xs font-semibold px-2.5 py-1 rounded-full ${map[val] ?? 'bg-gray-100 text-gray-700'}`;
 
-// ── static option lists ───────────────────────────────────────────────────────
 const STATUS_OPTIONS = ['all', 'Draft', 'Pending', 'Processing', 'Packed', 'Shipped', 'In Transit', 'Partially Delivered', 'Delivered', 'Cancelled', 'Returned', 'On Hold'];
 const PAYMENT_OPTIONS = ['all', 'Pending', 'Paid', 'Partial', 'Refunded', 'Cancelled'];
 const PRIORITY_OPTIONS = ['all', 'Low', 'Medium', 'High', 'Urgent'];
@@ -162,9 +160,6 @@ const SOURCES = ['Direct', 'Website', 'Phone', 'Email', 'Referral'];
 const SHIPPING_METHODS = ['Standard', 'Express', 'Same Day'];
 const PAYMENT_METHODS = ['Cash', 'Bank Transfer', 'Credit Card', 'Online'];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CUSTOMER PICKER MODAL
-// ─────────────────────────────────────────────────────────────────────────────
 function CustomerPickerModal({
   isOpen,
   onClose,
@@ -826,11 +821,9 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
-  // ── Customer Modal State ──────────────────────────────────────────────
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
-  // Customer fields
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -838,14 +831,12 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   const [customerCompany, setCustomerCompany] = useState('');
   const [customerTaxId, setCustomerTaxId] = useState('');
 
-  // Shipping
   const [shippingStreet, setShippingStreet] = useState('');
   const [shippingCity, setShippingCity] = useState('');
   const [shippingState, setShippingState] = useState('');
   const [shippingPostalCode, setShippingPostalCode] = useState('');
   const [shippingCountry, setShippingCountry] = useState('Pakistan');
 
-  // Billing
   const [sameAsShipping, setSameAsShipping] = useState(true);
   const [billingStreet, setBillingStreet] = useState('');
   const [billingCity, setBillingCity] = useState('');
@@ -853,38 +844,32 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   const [billingPostalCode, setBillingPostalCode] = useState('');
   const [billingCountry, setBillingCountry] = useState('Pakistan');
 
-  // Product picker
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
 
-  // Order meta
   const [orderType, setOrderType] = useState('Standard');
   const [priority, setPriority] = useState('Medium');
   const [source, setSource] = useState('Direct');
   const [salesPerson, setSalesPerson] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
 
-  // Shipping & payment
   const [shippingMethod, setShippingMethod] = useState('Standard');
   const [shippingCarrier, setShippingCarrier] = useState('');
   const [shippingCost, setShippingCost] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [paymentStatus, setPaymentStatus] = useState('Pending');
 
-  // Discounts
   const [couponCode, setCouponCode] = useState('');
   const [discountType, setDiscountType] = useState('Percentage');
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
 
-  // Notes
   const [customerNotes, setCustomerNotes] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
   const [tags, setTags] = useState('');
 
-  // ── FIXED: Helper to normalize IDs ──────────────────────────────────────────
   const getNormalizedId = (item: any): string => {
     if (!item) return '';
     const raw = item._id ?? item.id;

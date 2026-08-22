@@ -345,15 +345,26 @@ export async function renderReceiptQrCanvas(
 }
 
 export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
-  if (typeof document === 'undefined') return;
+  if (typeof document === 'undefined') {
+    throw new Error('Cannot print - document not available');
+  }
 
-  const clone = node.cloneNode(true) as HTMLElement;
-  clone.classList.add('pos-receipt-paper');
+  // Find the actual receipt paper element if node is a wrapper
+  const receiptPaper = node.querySelector('.pos-receipt-paper') || node;
+
+  // Clone the receipt node
+  const clone = receiptPaper.cloneNode(true) as HTMLElement;
+
+  // Fix relative image URLs to absolute
   clone.querySelectorAll('img').forEach((img) => {
     const src = img.getAttribute('src') || '';
-    if (src.startsWith('/')) img.setAttribute('src', `${window.location.origin}${src}`);
+    if (src.startsWith('/')) {
+      img.setAttribute('src', `${window.location.origin}${src}`);
+    }
   });
-  const sourceCanvases = Array.from(node.querySelectorAll('canvas'));
+
+  // Convert canvas elements to images (for QR/barcode)
+  const sourceCanvases = Array.from(receiptPaper.querySelectorAll('canvas'));
   clone.querySelectorAll('canvas').forEach((canvasEl, idx) => {
     const source = sourceCanvases[idx] as HTMLCanvasElement | undefined;
     if (!source) return;
@@ -361,9 +372,6 @@ export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
       const img = document.createElement('img');
       img.src = source.toDataURL('image/png');
       img.className = 'receipt-qr';
-      img.style.width = `${Math.min(source.width || 160, widthMm === 58 ? 140 : 180)}px`;
-      img.style.height = 'auto';
-      img.style.display = 'inline-block';
       canvasEl.replaceWith(img);
     } catch {
       /* ignore */
@@ -371,28 +379,27 @@ export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
   });
 
   const paperPx = widthMm === 58 ? 220 : 302;
-  const marginMm = widthMm === 58 ? 2 : 3;
 
+  // Hidden iframe — only receipt content inside, nothing else
   const iframe = document.createElement('iframe');
   iframe.setAttribute('title', 'POS thermal print');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  iframe.style.opacity = '0';
-  iframe.style.pointerEvents = 'none';
+  Object.assign(iframe.style, {
+    position: 'fixed',
+    right: '0',
+    bottom: '0',
+    width: '0',
+    height: '0',
+    border: '0',
+    opacity: '0',
+    pointerEvents: 'none',
+  });
   document.body.appendChild(iframe);
 
   const win = iframe.contentWindow;
   const doc = win?.document;
+
   if (!win || !doc) {
-    try {
-      document.body.removeChild(iframe);
-    } catch {
-      /* ignore */
-    }
+    try { document.body.removeChild(iframe); } catch { /* ignore */ }
     window.print();
     return;
   }
@@ -402,38 +409,46 @@ export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>POS Receipt</title>
+  <title>Receipt</title>
   <style>
     @page {
       size: ${widthMm}mm auto;
-      margin: ${marginMm}mm;
+      margin: 0;
+    }
+    @media print {
+      @page {
+        size: ${widthMm}mm auto;
+        margin: 0;
+      }
+      body {
+        width: ${widthMm}mm !important;
+        max-width: ${widthMm}mm !important;
+      }
     }
     * {
       box-sizing: border-box;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
-      color-adjust: exact !important;
     }
     html, body {
       margin: 0;
       padding: 0;
       width: ${widthMm}mm;
+      max-width: ${widthMm}mm;
       background: #fff;
       color: #000;
     }
     body {
-      font-family: "Courier New", Courier, ui-monospace, monospace;
+      font-family: "Courier New", Courier, monospace;
       font-size: 11px;
-      line-height: 1.35;
+      line-height: 1.4;
     }
     .pos-receipt-paper {
-      width: ${paperPx}px !important;
+      width: 100% !important;
       max-width: 100% !important;
-      margin: 0 auto !important;
-      background: #fff !important;
-      box-shadow: none !important;
-      border: none !important;
-      border-radius: 0 !important;
+      margin: 0 auto;
+      padding: 4px 6px;
+      background: #fff;
     }
     .no-print { display: none !important; }
     img.company-logo {
@@ -443,23 +458,18 @@ export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
       margin: 0 auto 6px;
     }
     img.receipt-qr {
-      width: ${widthMm === 58 ? 36 : 42}mm !important;
-      height: ${widthMm === 58 ? 36 : 42}mm !important;
-      max-width: 90% !important;
+      width: ${widthMm === 58 ? 120 : 160}px;
+      height: ${widthMm === 58 ? 120 : 160}px;
       image-rendering: pixelated;
       display: block;
       margin: 6px auto;
     }
     table { width: 100%; border-collapse: collapse; }
     svg {
-      max-width: 100% !important;
-      height: auto !important;
+      max-width: 100%;
+      height: auto;
       display: block;
       margin: 4px auto;
-    }
-    @media print {
-      html, body { width: ${widthMm}mm; }
-      .pos-receipt-paper { width: 100% !important; }
     }
   </style>
 </head>
@@ -468,21 +478,21 @@ export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
   doc.close();
 
   let printed = false;
+
   const cleanup = () => {
     setTimeout(() => {
-      try {
-        document.body.removeChild(iframe);
-      } catch {
-        /* ignore */
-      }
-    }, 1200);
+      try { document.body.removeChild(iframe); } catch { /* ignore */ }
+    }, 3000);
   };
+
   const printWhenReady = () => {
     if (printed) return;
     printed = true;
     try {
       win.focus();
       win.print();
+    } catch {
+      window.print();
     } finally {
       cleanup();
     }
@@ -490,9 +500,10 @@ export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
 
   const images = Array.from(doc.images);
   if (!images.length) {
-    setTimeout(printWhenReady, 250);
+    setTimeout(printWhenReady, 300);
     return;
   }
+
   let remaining = images.length;
   const done = () => {
     remaining -= 1;
@@ -505,7 +516,9 @@ export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
       img.onerror = done;
     }
   });
-  setTimeout(printWhenReady, 4000);
+
+  // Force print after 4s even if images stall
+  setTimeout(() => { if (!printed) printWhenReady(); }, 4000);
 }
 
 export async function downloadPosReceiptPdf(opts: {

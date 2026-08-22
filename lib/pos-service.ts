@@ -1,28 +1,36 @@
 // lib/pos-service.ts — POS API Service Layer
-const BASE = '/api/pos';
-
-function getHeaders(): Record<string, string> {
-  const token =
-    typeof window !== 'undefined'
-      ? localStorage.getItem('auth_token') ||
-        document.cookie
-          .split('; ')
-          .find((c) => c.startsWith('auth_token='))
-          ?.split('=')[1] ||
-        ''
-      : '';
-  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
-}
+import { apiClient } from '@/lib/api-client';
 
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers: getHeaders(),
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || `Request failed (${res.status})`);
-  return data;
+  const endpoint = `/api/pos${path}`;
+  const verb = method.toUpperCase();
+  let res;
+  if (verb === 'GET') res = await apiClient.get(endpoint);
+  else if (verb === 'POST') res = await apiClient.post(endpoint, body);
+  else if (verb === 'PUT') res = await apiClient.put(endpoint, body);
+  else if (verb === 'PATCH') res = await apiClient.patch(endpoint, body);
+  else if (verb === 'DELETE') res = await apiClient.delete(endpoint);
+  else res = await apiClient.request(verb, endpoint, body);
+
+  if (!res.success) {
+    throw new Error(res.message || `Request failed (${res.statusCode})`);
+  }
+  return (res.data ?? {}) as T;
+}
+
+/** Normalize POS list payloads: { data }, { shifts }, or a raw array. */
+export function asPosArray(payload: any): any[] {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.shifts)) return payload.shifts;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  if (Array.isArray(payload?.data?.shifts)) return payload.data.shifts;
+  return [];
+}
+
+export function asPosTotal(payload: any, list: any[] = asPosArray(payload)): number {
+  const n = Number(payload?.total ?? payload?.data?.total);
+  return Number.isFinite(n) && n >= 0 ? n : list.length;
 }
 
 // ─── Terminals ───────────────────────────────────────────────────────────────
@@ -64,6 +72,8 @@ export const posProductService = {
 export const posSaleService = {
   list: (params?: string) => api<any>('GET', `/sales${params ? '?' + params : ''}`),
   get: (id: string) => api<any>('GET', `/sales/${id}`),
+  lookup: (q: string) =>
+    api<any>('GET', `/sales/lookup?q=${encodeURIComponent(q)}`),
   complete: (body: any) => api<any>('POST', '/sales', body),
   hold: (body: any) => api<any>('POST', '/sales/hold', body),
   getHeld: () => api<any>('GET', '/sales/held'),

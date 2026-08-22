@@ -3,7 +3,10 @@ import { API_BASE_URL } from '@/lib/constants';
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth_token')?.value;
+    const token =
+      request.cookies.get('auth_token')?.value ||
+      request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
+      '';
 
     if (!token) {
       return NextResponse.json(

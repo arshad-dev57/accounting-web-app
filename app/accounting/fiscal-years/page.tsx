@@ -98,8 +98,8 @@ export default function FiscalYearsPage() {
   });
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    if (!fiscalYears.length) void refresh();
+  }, [fiscalYears.length, refresh]);
 
   const sorted = useMemo(
     () =>

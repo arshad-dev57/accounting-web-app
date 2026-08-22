@@ -10,12 +10,14 @@ export default function LocationSelect({
   showManageLink = true,
   className = '',
   allowAll,
+  variant = 'light',
 }: {
   compact?: boolean;
   showManageLink?: boolean;
   className?: string;
   /** Override provider allowAll for the All option in the dropdown. */
   allowAll?: boolean;
+  variant?: 'light' | 'dark';
 }) {
   const {
     locations,
@@ -28,9 +30,11 @@ export default function LocationSelect({
 
   const showAll = allowAll ?? providerAllowAll;
 
+  const dark = variant === 'dark';
+
   if (loading && locations.length === 0) {
     return (
-      <div className={`flex items-center gap-2 text-sm text-gray-400 ${className}`}>
+      <div className={`flex items-center gap-2 text-sm ${dark ? 'text-white/80' : 'text-gray-500'} ${className}`}>
         <MapPin className="w-4 h-4" />
         <span>Loading location…</span>
       </div>
@@ -57,11 +61,11 @@ export default function LocationSelect({
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white">
-        <MapPin className="w-4 h-4 text-[#014582] flex-shrink-0" />
-        <div className="min-w-0">
+      <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border overflow-hidden isolate ${dark ? 'border-white/25 bg-white/10' : 'border-gray-200 bg-white'}`}>
+        <MapPin className={`w-4 h-4 flex-shrink-0 ${dark ? 'text-white' : 'text-[#014582]'}`} />
+        <div className="min-w-0 flex-1">
           {!compact && (
-            <p className="text-[10px] uppercase tracking-wide text-gray-400 leading-none mb-0.5">
+            <p className={`text-[10px] uppercase tracking-wide leading-none mb-0.5 ${dark ? 'text-white/70' : 'text-gray-400'}`}>
               Location
             </p>
           )}
@@ -71,7 +75,8 @@ export default function LocationSelect({
             onChange={(e) => {
               setSelectedLocationId(e.target.value);
             }}
-            className="text-sm font-medium text-gray-800 bg-transparent border-0 outline-none max-w-[220px] cursor-pointer"
+            className={`appearance-none text-sm font-semibold bg-transparent border-0 outline-none w-[9.5rem] sm:w-[11rem] cursor-pointer ${dark ? 'text-white' : 'text-gray-800'}`}
+            style={dark ? { colorScheme: 'dark' } : undefined}
             title={
               selectValue === ALL_LOCATIONS_VALUE
                 ? 'All locations'
@@ -92,11 +97,13 @@ export default function LocationSelect({
             ))}
           </select>
         </div>
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">
-          {selectValue === ALL_LOCATIONS_VALUE
-            ? 'ALL'
-            : selectedLocation?.code || 'LOC'}
-        </span>
+        {!compact && (
+          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${dark ? 'bg-white/20 text-white' : 'bg-sky-50 text-sky-700'}`}>
+            {selectValue === ALL_LOCATIONS_VALUE
+              ? 'ALL'
+              : selectedLocation?.code || 'LOC'}
+          </span>
+        )}
       </div>
       {showManageLink && (
         <Link

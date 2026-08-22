@@ -289,6 +289,13 @@ export default function RegisterPage() {
       saveCurrencyLocal(currency.code, currency.symbol, currency.name);
 
       try {
+        const { hydrateCompanyPrefsFromApi } = await import('../../lib/company-prefs');
+        await hydrateCompanyPrefsFromApi();
+      } catch {
+        /* cache fills on first dropdown load */
+      }
+
+      try {
         await apiClient.put(
           '/api/users/currency',
           { currencyCode: currency.code, currencySymbol: currency.symbol },

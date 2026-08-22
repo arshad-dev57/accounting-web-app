@@ -16,6 +16,8 @@ export interface FiscalYear {
 }
 
 export const FISCAL_YEAR_STORAGE_KEY = 'selected_fiscal_year_id';
+export const FISCAL_YEARS_CACHE_KEY = 'cached_fiscal_years';
+export const FISCAL_YEARS_CACHE_EVENT = 'fiscal-years-cache-changed';
 
 /** Backend GET paths that accept fiscalYearId filtering */
 export const FISCAL_YEAR_QUERY_PATHS = [
@@ -74,22 +76,84 @@ export function setStoredFiscalYearId(id: string | null) {
   }
 }
 
+function parseFiscalYear(raw: any): FiscalYear | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const id = String(raw.id || raw._id || '').trim();
+  if (!id) return null;
+  return {
+    id,
+    name: String(raw.name || 'Fiscal year'),
+    startDate: String(raw.startDate || ''),
+    endDate: String(raw.endDate || ''),
+    status: raw.status || 'Open',
+    periodType: raw.periodType ?? null,
+    closedAt: raw.closedAt ?? null,
+    closedBy: raw.closedBy ?? null,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  };
+}
+
+export function getCachedFiscalYears(): FiscalYear[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(FISCAL_YEARS_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(parseFiscalYear).filter((y): y is FiscalYear => !!y);
+  } catch {
+    return [];
+  }
+}
+
+export function setCachedFiscalYears(list: FiscalYear[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    const clean = list.map(parseFiscalYear).filter((y): y is FiscalYear => !!y);
+    localStorage.setItem(FISCAL_YEARS_CACHE_KEY, JSON.stringify(clean));
+    window.dispatchEvent(new CustomEvent(FISCAL_YEARS_CACHE_EVENT));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function upsertCachedFiscalYear(year: FiscalYear | null | undefined): FiscalYear[] {
+  const next = parseFiscalYear(year);
+  if (!next) return getCachedFiscalYears();
+  const list = getCachedFiscalYears();
+  const idx = list.findIndex((y) => y.id === next.id);
+  if (idx >= 0) list[idx] = { ...list[idx], ...next };
+  else list.push(next);
+  setCachedFiscalYears(list);
+  return list;
+}
+
 function unwrapList(data: any): FiscalYear[] {
   const raw = data?.data ?? data ?? [];
-  return Array.isArray(raw) ? raw : [];
+  const list = Array.isArray(raw) ? raw : [];
+  return list.map(parseFiscalYear).filter((y): y is FiscalYear => !!y);
 }
 
 export const fiscalYearService = {
   list: async (): Promise<FiscalYear[]> => {
     const res = await apiClient.get('/api/fiscal-year');
     if (!res.success) throw new Error(res.message || 'Failed to load fiscal years');
-    return unwrapList(res.data);
+    const list = unwrapList(res.data);
+    setCachedFiscalYears(list);
+    return list;
+  },
+
+  listCached: async (): Promise<FiscalYear[]> => {
+    const cached = getCachedFiscalYears();
+    if (cached.length) return cached;
+    return fiscalYearService.list();
   },
 
   active: async (): Promise<FiscalYear | null> => {
     const res = await apiClient.get('/api/fiscal-year/active');
     if (!res.success) return null;
-    return (res.data?.data ?? res.data) || null;
+    return parseFiscalYear(res.data?.data ?? res.data);
   },
 
   create: async (body: {
@@ -101,7 +165,9 @@ export const fiscalYearService = {
   }): Promise<FiscalYear> => {
     const res = await apiClient.post('/api/fiscal-year', body);
     if (!res.success) throw new Error(res.message || 'Failed to create fiscal year');
-    return res.data?.data ?? res.data;
+    const created = parseFiscalYear(res.data?.data ?? res.data);
+    if (created) upsertCachedFiscalYear(created);
+    return created || (res.data?.data ?? res.data);
   },
 
   update: async (
@@ -110,18 +176,24 @@ export const fiscalYearService = {
   ): Promise<FiscalYear> => {
     const res = await apiClient.put(`/api/fiscal-year/${id}`, body);
     if (!res.success) throw new Error(res.message || 'Failed to update fiscal year');
-    return res.data?.data ?? res.data;
+    const updated = parseFiscalYear(res.data?.data ?? res.data);
+    if (updated) upsertCachedFiscalYear(updated);
+    return updated || (res.data?.data ?? res.data);
   },
 
   close: async (id: string): Promise<FiscalYear> => {
     const res = await apiClient.post(`/api/fiscal-year/${id}/close`);
     if (!res.success) throw new Error(res.message || 'Failed to close fiscal year');
-    return res.data?.data ?? res.data;
+    const updated = parseFiscalYear(res.data?.data ?? res.data);
+    if (updated) upsertCachedFiscalYear(updated);
+    return updated || (res.data?.data ?? res.data);
   },
 
   reopen: async (id: string): Promise<FiscalYear> => {
     const res = await apiClient.post(`/api/fiscal-year/${id}/reopen`);
     if (!res.success) throw new Error(res.message || 'Failed to reopen fiscal year');
-    return res.data?.data ?? res.data;
+    const updated = parseFiscalYear(res.data?.data ?? res.data);
+    if (updated) upsertCachedFiscalYear(updated);
+    return updated || (res.data?.data ?? res.data);
   },
 };

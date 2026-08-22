@@ -170,8 +170,8 @@ export function TopBarBrand({ title, icon, dark = false }: TopBarBrandProps) {
       </div>
       <div className="min-w-0">
         <p
-          className={`text-[11px] font-semibold tracking-wide truncate ${
-            dark ? 'text-white/50' : 'text-gray-400'
+          className={`text-xs font-semibold tracking-wide truncate ${
+            dark ? 'text-white/85' : 'text-gray-500'
           }`}
         >
           {APP_NAME}
