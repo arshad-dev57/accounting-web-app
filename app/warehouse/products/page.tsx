@@ -20,6 +20,7 @@ import { settingService } from '../../api/settings/route';
 import { ProductTaxFields } from '../../../components/TaxRateSelect';
 import QuickAddSelect from '../../../components/QuickAddSelect';
 import { useLocation } from '@/lib/location-context';
+import { useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 
 // ============================================================
 // BARCODE DISPLAY COMPONENT
@@ -2015,6 +2016,11 @@ export default function ProductsPage() {
       setLoading(false);
     }
   }, [selectedLocationId]);
+
+  useHardwareBarcodeScanner((code) => {
+    if (showCreateForm) return;
+    void handleBarcodeScan(code);
+  }, !showCreateForm);
 
   const handlePageChange = (page: number) =>
     setPagination((prev) => ({ ...prev, page }));

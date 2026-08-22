@@ -20,6 +20,7 @@ import { settingService } from '../api/settings/route';
 import { ProductTaxFields } from '../../components/TaxRateSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { usePermissions } from '../../lib/usePermissions';
+import { useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 
 function resolveCategorySelection(categories: Category[], categoryId?: string) {
   if (!categoryId) return { category: '', subCategory: '', subCategories: [] as Category[] };
@@ -1837,6 +1838,11 @@ const fetchDropdowns = async () => {
       setLoading(false);
     }
   }, []);
+
+  useHardwareBarcodeScanner((code) => {
+    if (showCreateForm) return;
+    void handleBarcodeScan(code);
+  }, !showCreateForm);
 
   const handlePageChange = (page: number) => setPagination(prev => ({ ...prev, page }));
   const handleSearch = (val: string) => { setSearchTerm(val); setPagination(prev => ({ ...prev, page: 1 })); };

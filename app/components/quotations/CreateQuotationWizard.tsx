@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { findProductFromScan, useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
+import { matchScannedProduct } from '@/lib/pos-scanner';
 import { 
   X, 
   Search, 
@@ -226,6 +228,22 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
     setProductResults([]);
   };
 
+  useHardwareBarcodeScanner((code) => {
+    if (currentStep !== 1) return;
+    const local = matchScannedProduct(productResults, code);
+    if (local) {
+      handleAddProduct(local as Product);
+      return;
+    }
+    void findProductFromScan(code, selectedLocationId || undefined).then((found) => {
+      if (!found) {
+        setProductSearch(code);
+        return;
+      }
+      handleAddProduct(found as Product);
+    });
+  }, currentStep === 1);
+
   const handleRemoveProduct = (index: number) => {
     setLineDrafts(lineDrafts.filter((_, i) => i !== index));
   };
@@ -389,7 +407,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder="Search products or scan barcode..."
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"

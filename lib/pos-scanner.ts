@@ -48,7 +48,6 @@ export function attachHidBarcodeScanner() {
 
   const onKeyDown = (e: KeyboardEvent) => {
     const settings = loadPosSettings();
-    if (!settings.enableBarcodeScanner) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
 
     const target = e.target as HTMLElement | null;
@@ -172,7 +171,7 @@ export function scannerSupportsSerial() {
 export function matchScannedProduct(list: any[], code: string) {
   const needle = code.trim().toLowerCase();
   return (
-    list.find((p) => String(p.barcodeNumber || '').trim().toLowerCase() === needle) ||
+    list.find((p) => String(p.barcodeNumber || p.barcode?.number || '').trim().toLowerCase() === needle) ||
     list.find((p) => String(p.sku || '').trim().toLowerCase() === needle) ||
     null
   );

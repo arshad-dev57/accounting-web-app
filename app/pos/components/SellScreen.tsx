@@ -27,7 +27,8 @@ import {
   receiptQrPngDataUrl,
   resolveReceiptCompany,
 } from '../../../lib/pos-receipt';
-import { printPosReceipt } from '../../../lib/pos-thermal-printer';
+import { kickCashDrawer, printPosReceipt } from '../../../lib/pos-thermal-printer';
+import { loadPosSettings } from '../../../lib/pos-settings';
 import {
   computeTaxLine,
   resolveProductTaxRate,
@@ -378,6 +379,8 @@ export default function SellScreen({ shift }: { shift: any }) {
   const [payments, setPayments] = useState<Payment[]>([{ paymentMethod:'Cash', amount:0, reference:'' }]);
   const [submitting, setSubmitting] = useState(false);
   const [saleError, setSaleError] = useState('');
+  const [drawerBusy, setDrawerBusy] = useState(false);
+  const [drawerMsg, setDrawerMsg] = useState('');
   const [chargingIndex, setChargingIndex] = useState<number | null>(null);
   const [chargeError, setChargeError] = useState('');
   const [lastSale, setLastSale] = useState<any>(null);
@@ -855,6 +858,19 @@ export default function SellScreen({ shift }: { shift: any }) {
     if (field === 'amount' && pm.terminalApproved) return pm;
     return { ...pm, [field]: value };
   }));
+  const handleOpenDrawer = async () => {
+    setDrawerBusy(true);
+    setDrawerMsg('');
+    try {
+      await kickCashDrawer();
+      setDrawerMsg('Drawer open signal sent');
+    } catch (e: any) {
+      setDrawerMsg(e?.message || 'Could not open drawer');
+    } finally {
+      setDrawerBusy(false);
+    }
+  };
+
   const setExactAmount = () => setPayments([{
     paymentMethod: payments[0].paymentMethod,
     amount: grandTotal,
@@ -1529,6 +1545,15 @@ export default function SellScreen({ shift }: { shift: any }) {
           >
             ⏸️ Hold Sale
           </button>
+          <button
+            type="button"
+            className="w-full py-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-sm font-semibold cursor-pointer mt-2 hover:bg-amber-100 transition-colors disabled:opacity-50"
+            onClick={() => { void handleOpenDrawer(); }}
+            disabled={drawerBusy}
+          >
+            {drawerBusy ? 'Opening drawer…' : 'Open cash drawer'}
+          </button>
+          {drawerMsg ? <p className="text-[11px] text-gray-500 mt-1 text-center">{drawerMsg}</p> : null}
         </div>
       </div>
 
@@ -1665,6 +1690,16 @@ export default function SellScreen({ shift }: { shift: any }) {
                 </span>
               </div>
             )}
+
+            <button
+              type="button"
+              onClick={() => { void handleOpenDrawer(); }}
+              disabled={drawerBusy}
+              className="w-full py-2.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm font-semibold mb-3 disabled:opacity-50"
+            >
+              {drawerBusy ? 'Opening drawer…' : 'Open cash drawer'}
+            </button>
+            {drawerMsg ? <p className="text-[11px] text-gray-500 -mt-2 mb-3 text-center">{drawerMsg}</p> : null}
 
             <div className="flex gap-3">
               <button

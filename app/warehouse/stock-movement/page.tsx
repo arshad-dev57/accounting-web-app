@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { findProductFromScan, useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
+import { matchScannedProduct } from '@/lib/pos-scanner';
 import Link from 'next/link';
 import {
   ArrowLeft, Search, Plus, Minus, Package, Box,
@@ -96,6 +98,19 @@ function ProductSearch({
     onSelect(product);
   };
 
+  useHardwareBarcodeScanner((code) => {
+    void (async () => {
+      await handleSearch(code);
+      const found = await findProductFromScan(code, locationId);
+      if (found) {
+        handleSelect(found);
+        return;
+      }
+      const local = matchScannedProduct(results, code);
+      if (local) handleSelect(local);
+    })();
+  });
+
   return (
     <div className="relative">
       <div className="relative">
@@ -104,8 +119,8 @@ function ProductSearch({
           type="text"
           placeholder={
             locationId
-              ? 'Search product at this warehouse...'
-              : 'Search product by name or SKU...'
+              ? 'Scan barcode or search at this warehouse...'
+              : 'Scan barcode or search by name / SKU...'
           }
           value={searchTerm}
           onChange={(e) => handleSearch(e.target.value)}

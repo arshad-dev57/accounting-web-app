@@ -18,6 +18,8 @@ import {
   Edit3, File, Printer, Download
 } from 'lucide-react';
 import { purchaseOrderService, PurchaseOrderModel, PurchaseOrderStats, PurchaseOrderStatusCounts, Supplier, Product } from '../../api/purchaseorder/route';
+import { findProductFromScan, useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
+import { matchScannedProduct } from '@/lib/pos-scanner';
 import PDFService from '../../../lib/pdf-service';
 import EmailService from '../../../lib/email-service';
 import TaxRateSelect from '../../../components/TaxRateSelect';
@@ -321,7 +323,7 @@ export default function PurchaseOrdersPage() {
   const searchProducts = async (query: string) => {
     if (query.trim().length < 2) {
       setWizardState(prev => ({ ...prev, productSearchResults: [] }));
-      return;
+      return [] as Product[];
     }
     setWizardState(prev => ({ ...prev, isSearchingProducts: true }));
     try {
@@ -331,9 +333,11 @@ export default function PurchaseOrdersPage() {
         selectedLocationId || undefined
       );
       setWizardState(prev => ({ ...prev, productSearchResults: results }));
+      return results;
     } catch (error) {
       console.error('Failed to search products:', error);
       setWizardState(prev => ({ ...prev, productSearchResults: [] }));
+      return [] as Product[];
     } finally {
       setWizardState(prev => ({ ...prev, isSearchingProducts: false }));
     }
@@ -1124,6 +1128,29 @@ function CreateOrderWizard({
 }: any) {
   const [supplierSearchQuery, setSupplierSearchQuery] = useState('');
   const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [scanMessage, setScanMessage] = useState('');
+
+  useHardwareBarcodeScanner((code) => {
+    if (wizardState.step !== 1) return;
+    void (async () => {
+      const results = await searchProducts(code);
+      const match = matchScannedProduct(results || [], code) || results?.[0];
+      if (match) {
+        addProductToOrder(match);
+        setProductSearchQuery('');
+        setScanMessage(`Added ${match.name}`);
+        return;
+      }
+      const found = await findProductFromScan(code, undefined);
+      if (found) {
+        addProductToOrder(found as Product);
+        setProductSearchQuery('');
+        setScanMessage(`Added ${found.name}`);
+        return;
+      }
+      setScanMessage(`No product found for ${code}`);
+    })();
+  }, wizardState.step === 1);
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -1237,7 +1264,7 @@ function CreateOrderWizard({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder="Search products or scan barcode..."
                   value={productSearchQuery}
                   onChange={(e) => {
                     setProductSearchQuery(e.target.value);
@@ -1247,6 +1274,11 @@ function CreateOrderWizard({
                 />
               </div>
             </div>
+            {scanMessage ? (
+              <p className="text-xs text-[#014582] mt-2">{scanMessage}</p>
+            ) : (
+              <p className="text-xs text-gray-400 mt-2">USB scanner ready — scan a product barcode to add it.</p>
+            )}
 
             {wizardState.isSearchingProducts && (
               <div className="mt-3 p-4 bg-gray-50 rounded-lg">
