@@ -82,7 +82,7 @@ export default function ShiftGate({ onShiftOpened, isAdmin }: Props) {
   };
 
   useEffect(() => {
-    locationService.list().then(setLocations).catch(() => setLocations([]));
+    locationService.listCached().then(setLocations).catch(() => setLocations([]));
   }, []);
 
   useEffect(() => {
@@ -109,8 +109,8 @@ export default function ShiftGate({ onShiftOpened, isAdmin }: Props) {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white border border-gray-200 rounded-3xl shadow-sm p-12 max-w-xl w-[90%]">
+    <div className="min-h-screen flex items-center justify-center bg-[#014582]">
+      <div className="bg-white border border-gray-200 rounded-3xl shadow-xl p-6 sm:p-12 max-w-xl w-[92%] my-6">
         {/* Logo */}
         <div className="flex flex-col items-center justify-center gap-2 mb-6">
           <div className="w-32 h-16 bg-white rounded-xl flex items-center justify-center p-2">
@@ -122,8 +122,8 @@ export default function ShiftGate({ onShiftOpened, isAdmin }: Props) {
               className="object-contain"
             />
           </div>
-          <p className="text-lg font-extrabold text-gray-900">Bisonstechs</p>
-          <p className="text-xs text-gray-500">Point of Sale</p>
+          <p className="text-xl font-extrabold text-[#014582]">Bisonstechs</p>
+          <p className="text-sm font-medium text-gray-600">Point of Sale</p>
         </div>
 
         <div className="mb-6 flex justify-center">
@@ -132,7 +132,7 @@ export default function ShiftGate({ onShiftOpened, isAdmin }: Props) {
 
         {step === 'terminal' ? (
           <>
-            <p className="text-gray-500 text-sm text-center mb-6">
+            <p className="text-gray-700 text-base text-center mb-6">
               {isAllLocations
                 ? 'Select a terminal to begin your shift (all locations)'
                 : `Select a terminal at ${selectedLocation?.name || 'this location'}`}

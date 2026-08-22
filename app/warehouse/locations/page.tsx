@@ -63,11 +63,12 @@ export default function LocationsPage() {
   });
   const [transferring, setTransferring] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (fromApi = false) => {
     setError('');
     try {
-      const list = await locationService.list();
+      const list = fromApi
+        ? await locationService.list()
+        : await locationService.listCached();
       setLocations(list);
     } catch (e: any) {
       setError(e?.message || 'Failed to load locations');

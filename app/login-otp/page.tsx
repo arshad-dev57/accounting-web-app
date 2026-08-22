@@ -121,6 +121,13 @@ function OtpContent() {
           data.pdfReportSettings || data.user?.pdfReportSettings
         );
 
+        try {
+          const { hydrateCompanyPrefsFromApi } = await import('../../lib/company-prefs');
+          await hydrateCompanyPrefsFromApi();
+        } catch {
+          /* dropdowns will fetch once if cache is empty */
+        }
+
         setSuccess('Verified! Checking subscription...');
         const { resolvePostAuthDestination } = await import('../../lib/subscription-service');
         const destination = await resolvePostAuthDestination(data.token);

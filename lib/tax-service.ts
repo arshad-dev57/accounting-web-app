@@ -1,27 +1,20 @@
-const BASE = '/api/tax';
-
-function getHeaders(): Record<string, string> {
-  const token =
-    typeof window !== 'undefined'
-      ? localStorage.getItem('auth_token') ||
-        document.cookie
-          .split('; ')
-          .find((c) => c.startsWith('auth_token='))
-          ?.split('=')[1] ||
-        ''
-      : '';
-  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
-}
+import { apiClient } from '@/lib/api-client';
 
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers: getHeaders(),
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || `Request failed (${res.status})`);
-  return data;
+  const endpoint = `/api/tax${path}`;
+  const verb = method.toUpperCase();
+  let res;
+  if (verb === 'GET') res = await apiClient.get(endpoint);
+  else if (verb === 'POST') res = await apiClient.post(endpoint, body);
+  else if (verb === 'PUT') res = await apiClient.put(endpoint, body);
+  else if (verb === 'PATCH') res = await apiClient.patch(endpoint, body);
+  else if (verb === 'DELETE') res = await apiClient.delete(endpoint);
+  else res = await apiClient.request(verb, endpoint, body);
+
+  if (!res.success) {
+    throw new Error(res.message || `Request failed (${res.statusCode})`);
+  }
+  return (res.data ?? {}) as T;
 }
 
 export type TaxPricingModel = 'exclusive' | 'inclusive';

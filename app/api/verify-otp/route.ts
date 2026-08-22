@@ -9,7 +9,7 @@ import {
   publicAuthCookie,
 } from '@/lib/auth-cookies';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '@/lib/constants';
 
 export async function POST(request: NextRequest) {
   try {
