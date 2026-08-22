@@ -12,6 +12,7 @@ import {
   isThermalPrinterConnected,
   printTestThermalPage,
   reconnectThermalPrinter,
+  kickCashDrawer,
   thermalPrinterSupportsSerial,
 } from '../../../lib/pos-thermal-printer';
 
@@ -124,6 +125,19 @@ export default function ThermalPrinterTab({ isAdmin }: { isAdmin: boolean }) {
     }
   };
 
+  const handleOpenDrawer = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await kickCashDrawer();
+      setMessage('Drawer open signal sent');
+    } catch (e: any) {
+      setError(e?.message || 'Could not open drawer');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleTest = async () => {
     setBusy(true);
     setError('');
@@ -206,12 +220,30 @@ export default function ThermalPrinterTab({ isAdmin }: { isAdmin: boolean }) {
           onChange={(v) => patch({ autoPrintOnSale: v })}
         />
         <Toggle
-          label="Open cash drawer on cash sale"
-          hint="Sends drawer kick with cash tenders"
+          label="Auto-open cash drawer on cash sale"
+          hint="When on, the drawer opens automatically after a cash sale. When off, use Open cash drawer on the sell screen."
           checked={settings.openDrawerOnCashSale}
           disabled={!isAdmin}
           onChange={(v) => patch({ openDrawerOnCashSale: v })}
         />
+        <label style={{ display: 'block', fontSize: 12, color: '#64748b', margin: '10px 0 6px' }}>
+          Drawer pulse strength
+        </label>
+        <select
+          value={settings.drawerKickStrength || 'gentle'}
+          disabled={!isAdmin}
+          onChange={(e) =>
+            patch({ drawerKickStrength: e.target.value as PosSettings['drawerKickStrength'] })
+          }
+          style={{ ...input, marginBottom: 8 }}
+        >
+          <option value="gentle">Low (softer open)</option>
+          <option value="normal">Medium</option>
+          <option value="strong">High (use if the drawer does not open)</option>
+        </select>
+        <p style={{ margin: '0 0 8px', fontSize: 12, color: '#64748b', lineHeight: 1.45 }}>
+          Cash drawers open with a solenoid pulse, not a slow motor. Use Low for a lighter release. A 12V supply is usually quieter than 24V.
+        </p>
         <Toggle
           label="Cut paper after print (ESC/POS)"
           checked={settings.thermalCutPaper}
@@ -290,6 +322,14 @@ export default function ThermalPrinterTab({ isAdmin }: { isAdmin: boolean }) {
             onClick={handleTest}
           >
             Print test page
+          </button>
+          <button
+            type="button"
+            style={btn('#f59e0b')}
+            disabled={busy}
+            onClick={() => { void handleOpenDrawer(); }}
+          >
+            Open cash drawer
           </button>
         </div>
         <ol style={{ margin: '16px 0 0', paddingLeft: 18, color: '#64748b', fontSize: 12, lineHeight: 1.7 }}>

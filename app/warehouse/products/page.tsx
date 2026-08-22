@@ -20,6 +20,7 @@ import { settingService } from '../../api/settings/route';
 import { ProductTaxFields } from '../../../components/TaxRateSelect';
 import QuickAddSelect from '../../../components/QuickAddSelect';
 import { useLocation } from '@/lib/location-context';
+import { useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 
 // ============================================================
 // BARCODE DISPLAY COMPONENT
@@ -382,7 +383,10 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
               <div>
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Stock Levels</h4>
                 <DetailRow label="Stock Unit" value={product.stockUnit} />
-                <DetailRow label="Current Stock" value={`${Number(product.currentStock || 0).toLocaleString()} ${product.stockUnit || ''}`} />
+                <DetailRow label="Stock at this location" value={`${Number(product.currentStock || 0).toLocaleString()} ${product.stockUnit || ''}`} />
+                {product.companyStock != null ? (
+                  <DetailRow label="All locations (total)" value={`${Number(product.companyStock).toLocaleString()} ${product.stockUnit || ''}`} />
+                ) : null}
                 <DetailRow label="Minimum Stock" value={`${Number(product.minimumStock || 0).toLocaleString()} ${product.stockUnit || ''}`} />
                 <DetailRow label="Maximum Stock" value={product.maximumStock ? `${Number(product.maximumStock).toLocaleString()} ${product.stockUnit || ''}` : undefined} />
                 <DetailRow label="Reorder Point" value={product.reorderPoint} />
@@ -556,7 +560,7 @@ function ProductList({
   products, loading, pagination, searchTerm, setSearchTerm,
   selectedCategory, setSelectedCategory, selectedStatus, setSelectedStatus,
   onPageChange, onAddClick, onEditClick, onDeleteClick, onViewClick,
-  onScanClick, categories,
+  onScanClick, categories, locationName,
 }: {
   products: Product[];
   loading: boolean;
@@ -574,6 +578,7 @@ function ProductList({
   onViewClick: (product: Product) => void;
   onScanClick: () => void;
   categories: Category[];
+  locationName?: string;
 }) {
   const statusOptions = [
     { label: 'All Products', value: 'all' },
@@ -661,7 +666,9 @@ function ProductList({
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Category</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Supplier</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Stock (location)</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                  Stock{locationName ? ` (${locationName})` : ''}
+                </th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
@@ -686,7 +693,9 @@ function ProductList({
                     <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden sm:table-cell">{product.categoryName || '-'}</td>
                     <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden md:table-cell">{product.supplierName || '-'}</td>
                     <td className="px-3 md:px-6 py-2 md:py-3 font-semibold text-gray-700 text-xs md:text-sm">Rs. {Number(product.sellingPrice).toLocaleString()}</td>
-                    <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden lg:table-cell">{Number(product.currentStock).toLocaleString()}</td>
+                    <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden lg:table-cell">
+                      {Number(product.currentStock || 0).toLocaleString()}
+                    </td>
                     <td className="px-3 md:px-6 py-2 md:py-3">
                       <span className={`text-[8px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full ${
                         product.currentStock === 0 ? 'bg-red-100 text-red-700' :
@@ -2008,6 +2017,11 @@ export default function ProductsPage() {
     }
   }, [selectedLocationId]);
 
+  useHardwareBarcodeScanner((code) => {
+    if (showCreateForm) return;
+    void handleBarcodeScan(code);
+  }, !showCreateForm);
+
   const handlePageChange = (page: number) =>
     setPagination((prev) => ({ ...prev, page }));
   const handleSearch = (val: string) => {
@@ -2161,6 +2175,7 @@ export default function ProductsPage() {
           onViewClick={handleViewClick}
           onScanClick={() => setShowScanner(true)}
           categories={categories}
+          locationName={selectedLocation?.name}
         />
       )}
     </div>

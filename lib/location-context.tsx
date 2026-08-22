@@ -12,7 +12,9 @@ import {
   ALL_LOCATIONS_VALUE,
   Location,
   LOCATION_STORAGE_KEY,
+  LOCATIONS_CACHE_EVENT,
   effectiveLocationId,
+  getCachedLocations,
   getStoredLocationId,
   isAllLocationsId,
   locationService,
@@ -48,6 +50,30 @@ function pickDefault(
   return locations.find((l) => l.isDefault) || locations[0];
 }
 
+function applySelection(
+  list: Location[],
+  allowAll: boolean,
+  setSelectedId: (id: string) => void
+) {
+  const stored = getStoredLocationId();
+  if (allowAll && isAllLocationsId(stored)) {
+    setSelectedId(ALL_LOCATIONS_VALUE);
+    return;
+  }
+  if (allowAll && !stored) {
+    setSelectedId(ALL_LOCATIONS_VALUE);
+    setStoredLocationId(ALL_LOCATIONS_VALUE);
+    return;
+  }
+  const preferred = !allowAll && isAllLocationsId(stored) ? null : stored;
+  const chosen = pickDefault(list, preferred);
+  const id = chosen?.id || '';
+  setSelectedId(id);
+  if (!(!allowAll && isAllLocationsId(stored))) {
+    setStoredLocationId(id || null);
+  }
+}
+
 export function LocationProvider({
   children,
   allowAll = false,
@@ -56,41 +82,31 @@ export function LocationProvider({
   /** When true, "All locations" is a valid selection (accounting). */
   allowAll?: boolean;
 }) {
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [selectedLocationId, setSelectedId] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [locations, setLocations] = useState<Location[]>(() =>
+    typeof window === 'undefined' ? [] : getCachedLocations()
+  );
+  const [selectedLocationId, setSelectedId] = useState(() =>
+    typeof window === 'undefined' ? '' : getStoredLocationId() || ''
+  );
+  const [loading, setLoading] = useState(
+    () => (typeof window === 'undefined' ? true : getCachedLocations().length === 0)
+  );
   const [error, setError] = useState('');
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(
+    () => (typeof window === 'undefined' ? false : getCachedLocations().length > 0)
+  );
 
   const refresh = useCallback(async () => {
-    setLoading(true);
     setError('');
     try {
       const list = await locationService.list();
       setLocations(list);
-      const stored = getStoredLocationId();
-
-      if (allowAll && isAllLocationsId(stored)) {
-        setSelectedId(ALL_LOCATIONS_VALUE);
-        setStoredLocationId(ALL_LOCATIONS_VALUE);
-      } else if (allowAll && !stored) {
-        setSelectedId(ALL_LOCATIONS_VALUE);
-        setStoredLocationId(ALL_LOCATIONS_VALUE);
-      } else {
-        // Sales/warehouse need a concrete location. If accounting stored "all",
-        // pick a default for this module without overwriting the shared preference.
-        const preferred =
-          !allowAll && isAllLocationsId(stored) ? null : stored;
-        const chosen = pickDefault(list, preferred);
-        const id = chosen?.id || '';
-        setSelectedId(id);
-        if (!(!allowAll && isAllLocationsId(stored))) {
-          setStoredLocationId(id || null);
-        }
-      }
+      applySelection(list, allowAll, setSelectedId);
     } catch (e: any) {
       setError(e?.message || 'Failed to load locations');
-      setLocations([]);
+      const cached = getCachedLocations();
+      if (cached.length) setLocations(cached);
+      else setLocations([]);
     } finally {
       setLoading(false);
       setReady(true);
@@ -98,18 +114,43 @@ export function LocationProvider({
   }, [allowAll]);
 
   useEffect(() => {
-    refresh();
+    const cached = getCachedLocations();
+    if (cached.length) {
+      setLocations(cached);
+      applySelection(cached, allowAll, setSelectedId);
+      setLoading(false);
+      setReady(true);
+      return;
+    }
+    void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    const onCache = () => {
+      const list = getCachedLocations();
+      setLocations(list);
+      applySelection(list, allowAll, setSelectedId);
+    };
+    window.addEventListener(LOCATIONS_CACHE_EVENT, onCache);
+    return () => window.removeEventListener(LOCATIONS_CACHE_EVENT, onCache);
+  }, [allowAll]);
+
+  useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key !== LOCATION_STORAGE_KEY) return;
-      const next = e.newValue || '';
-      if (allowAll && isAllLocationsId(next)) {
-        setSelectedId(ALL_LOCATIONS_VALUE);
-      } else if (next) {
-        setSelectedId(next);
+      if (e.key === LOCATION_STORAGE_KEY) {
+        const next = e.newValue || '';
+        if (allowAll && isAllLocationsId(next)) {
+          setSelectedId(ALL_LOCATIONS_VALUE);
+        } else if (next) {
+          setSelectedId(next);
+        }
+        return;
+      }
+      if (e.key === 'cached_locations') {
+        const list = getCachedLocations();
+        setLocations(list);
+        applySelection(list, allowAll, setSelectedId);
       }
     };
     const onLocal = (e: Event) => {

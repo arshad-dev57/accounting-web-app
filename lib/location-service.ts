@@ -25,6 +25,8 @@ export interface ProductLocationStock {
 }
 
 export const LOCATION_STORAGE_KEY = 'selected_location_id';
+export const LOCATIONS_CACHE_KEY = 'cached_locations';
+export const LOCATIONS_CACHE_EVENT = 'locations-cache-changed';
 
 /** Sentinel for company-wide / all warehouses (accounting dropdown). */
 export const ALL_LOCATIONS_VALUE = 'all';
@@ -57,6 +59,52 @@ export function setStoredLocationId(id: string | null) {
   if (typeof window === 'undefined') return;
   if (id) localStorage.setItem(LOCATION_STORAGE_KEY, id);
   else localStorage.removeItem(LOCATION_STORAGE_KEY);
+}
+
+export function getCachedLocations(): Location[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(LOCATIONS_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeLocation).filter((l): l is Location => !!l);
+  } catch {
+    return [];
+  }
+}
+
+export function setCachedLocations(list: Location[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    const clean = list.map(normalizeLocation).filter((l): l is Location => !!l);
+    localStorage.setItem(LOCATIONS_CACHE_KEY, JSON.stringify(clean));
+    window.dispatchEvent(new CustomEvent(LOCATIONS_CACHE_EVENT));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+export function upsertCachedLocation(loc: Location | null | undefined): Location[] {
+  const next = normalizeLocation(loc);
+  if (!next) return getCachedLocations();
+  const list = getCachedLocations();
+  const idx = list.findIndex((l) => l.id === next.id);
+  if (idx >= 0) list[idx] = { ...list[idx], ...next };
+  else list.push(next);
+  if (next.isDefault) {
+    list.forEach((l) => {
+      if (l.id !== next.id) l.isDefault = false;
+    });
+  }
+  setCachedLocations(list);
+  return list;
+}
+
+export function removeCachedLocation(id: string): Location[] {
+  const list = getCachedLocations().filter((l) => l.id !== id);
+  setCachedLocations(list);
+  return list;
 }
 
 function normalizeLocation(raw: any): Location | null {
@@ -97,7 +145,15 @@ export const locationService = {
     if (!response.success) {
       throw new Error(response.message || 'Failed to load locations');
     }
-    return unwrapList(response.data ?? response);
+    const list = unwrapList(response.data ?? response);
+    setCachedLocations(list);
+    return list;
+  },
+
+  listCached: async (): Promise<Location[]> => {
+    const cached = getCachedLocations();
+    if (cached.length) return cached;
+    return locationService.list();
   },
 
   create: async (body: {
@@ -113,7 +169,9 @@ export const locationService = {
     if (!response.success) {
       throw new Error(response.message || 'Failed to create location');
     }
-    return response.data?.data || response.data;
+    const created = normalizeLocation(response.data?.data || response.data);
+    if (created) upsertCachedLocation(created);
+    return created || (response.data?.data || response.data);
   },
 
   update: async (
@@ -133,7 +191,13 @@ export const locationService = {
     if (!response.success) {
       throw new Error(response.message || 'Failed to update location');
     }
-    return response.data?.data || response.data;
+    const updated = normalizeLocation(response.data?.data || response.data) || {
+      ...getCachedLocations().find((l) => l.id === id),
+      ...body,
+      id,
+    } as Location;
+    upsertCachedLocation(updated);
+    return updated;
   },
 
   remove: async (id: string): Promise<void> => {
@@ -141,6 +205,7 @@ export const locationService = {
     if (!response.success) {
       throw new Error(response.message || 'Failed to delete location');
     }
+    removeCachedLocation(id);
   },
 
   getStock: async (locationId: string) => {

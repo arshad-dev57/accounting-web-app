@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { posTerminalService, posShiftService, posSaleService } from '../../../lib/pos-service';
+import { posTerminalService, posShiftService, posSaleService, asPosArray, asPosTotal } from '../../../lib/pos-service';
 import { loadPosSettings, loadReceiptTemplate } from '../../../lib/pos-settings';
 import { usePermissions } from '../../../lib/usePermissions';
 import { useLocation } from '../../../lib/location-context';
@@ -33,6 +33,12 @@ const input  = { background:'#ffffff', border:'1px solid #e5e7eb', borderRadius:
 const btn    = (bg:string, c='#fff') => ({ padding:'9px 18px', borderRadius:'10px', border:'none', background:bg, color:c, cursor:'pointer', fontWeight:600, fontSize:'13px' });
 const tHead  = { background:'#f8fafc', borderBottom:'1px solid #e5e7eb' };
 const tCell  = { padding:'12px 16px', color:'#64748b', fontSize:'13px', borderBottom:'1px solid #e5e7eb' };
+
+function emptyHint(label: string, locationIdForApi?: string) {
+  return locationIdForApi
+    ? `No ${label} for this location. Switch to All locations.`
+    : `No ${label} found`;
+}
 
 // ─── Status badge helper ──────────────────────────────────────────────────────
 function StatusBadge({ status }: { status:string }) {
@@ -82,7 +88,8 @@ function TerminalsTab({
       const qs = new URLSearchParams();
       if (locationIdForApi) qs.set('locationId', locationIdForApi);
       const r:any = await posTerminalService.list(qs.toString() || undefined);
-      setTerminals(r.data||[]);
+      setTerminals(asPosArray(r));
+      setError('');
     }
     catch(e:any){ setError(e.message); }
     finally { setLoading(false); }
@@ -91,7 +98,7 @@ function TerminalsTab({
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    locationService.list().then(setLocations).catch(() => setLocations([]));
+    locationService.listCached().then(setLocations).catch(() => setLocations([]));
   }, []);
 
   const create = async () => {
@@ -182,7 +189,7 @@ function TerminalsTab({
                   </td>
                 </tr>
               ))}
-              {terminals.length === 0 && <tr><td colSpan={7} style={{ ...tCell, textAlign:'center', color:'#64748b', padding:'40px' }}>No terminals found</td></tr>}
+              {terminals.length === 0 && <tr><td colSpan={7} style={{ ...tCell, textAlign:'center', color:'#64748b', padding:'40px' }}>{emptyHint('terminals', locationIdForApi)}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -206,6 +213,7 @@ function ShiftsTab({
   const [page, setPage]           = useState(1);
   const [total, setTotal]         = useState(0);
   const [selected, setSelected]   = useState<any>(null);
+  const [error, setError]         = useState('');
   const LIMIT = 15;
 
   const load = useCallback(async (p:number) => {
@@ -214,8 +222,15 @@ function ShiftsTab({
       const params = new URLSearchParams({ page: String(p), limit: String(LIMIT) });
       if (locationIdForApi) params.set('locationId', locationIdForApi);
       const r:any = await posShiftService.getHistory(params.toString());
-      setShifts(r.shifts||[]); setTotal(r.total||0);
-    } catch {} finally { setLoading(false); }
+      const rows = asPosArray(r);
+      setShifts(rows);
+      setTotal(asPosTotal(r, rows));
+      setError('');
+    } catch (e: any) {
+      setShifts([]);
+      setTotal(0);
+      setError(e?.message || 'Failed to load shifts');
+    } finally { setLoading(false); }
   }, [locationIdForApi]);
 
   useEffect(() => { setPage(1); }, [locationIdForApi]);
@@ -237,6 +252,7 @@ function ShiftsTab({
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' }}>
         <h2 style={{ color:'#0f172a', margin:0, fontSize:'18px', fontWeight:700 }}>📋 Shift History ({total})</h2>
       </div>
+      {error && <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'10px', padding:'10px 14px', color:'#dc2626', fontSize:'13px', marginBottom:'14px' }}>{error}</div>}
       {loading ? <p style={{ color:'#64748b' }}>Loading...</p> : (
         <>
           <div style={{ overflowX:'auto' as const }}>
@@ -265,7 +281,7 @@ function ShiftsTab({
                     </td>
                   </tr>
                 ))}
-                {shifts.length===0 && <tr><td colSpan={9} style={{ ...tCell, textAlign:'center', color:'#64748b', padding:'40px' }}>No shifts found</td></tr>}
+                {shifts.length===0 && <tr><td colSpan={9} style={{ ...tCell, textAlign:'center', color:'#64748b', padding:'40px' }}>{emptyHint('shifts', locationIdForApi)}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -361,7 +377,9 @@ function SalesTab({ locationIdForApi }: { locationIdForApi: string }) {
       if (s) params.set('status', s);
       if (locationIdForApi) params.set('locationId', locationIdForApi);
       const r:any = await posSaleService.list(params.toString());
-      setSales(r.data||[]); setTotal(r.total||0);
+      const rows = asPosArray(r);
+      setSales(rows);
+      setTotal(asPosTotal(r, rows));
     } catch {} finally { setLoading(false); }
   }, [locationIdForApi]);
 
@@ -458,7 +476,7 @@ function SalesTab({ locationIdForApi }: { locationIdForApi: string }) {
       });
       if (locationIdForApi) params.set('locationId', locationIdForApi);
       const r:any = await posSaleService.list(params.toString());
-      setExportRecords(r.data || []);
+      setExportRecords(asPosArray(r));
     } catch (e) {
       alert('Failed to fetch records');
     } finally {
@@ -593,7 +611,7 @@ function SalesTab({ locationIdForApi }: { locationIdForApi: string }) {
                     </td>
                   </tr>
                 ))}
-                {sales.length===0 && <tr><td colSpan={8} style={{ ...tCell, textAlign:'center', color:'#64748b', padding:'40px' }}>No sales found</td></tr>}
+                {sales.length===0 && <tr><td colSpan={8} style={{ ...tCell, textAlign:'center', color:'#64748b', padding:'40px' }}>{emptyHint('sales', locationIdForApi)}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -708,7 +726,9 @@ function ReturnsTab({ locationIdForApi }: { locationIdForApi: string }) {
       const params = new URLSearchParams({ page:String(p), limit:String(LIMIT), status:'Completed' });
       if (locationIdForApi) params.set('locationId', locationIdForApi);
       const r:any = await posSaleService.list(params.toString());
-      setSales(r.data||[]); setTotal(r.total||0);
+      const rows = asPosArray(r);
+      setSales(rows);
+      setTotal(asPosTotal(r, rows));
     } catch {} finally { setLoading(false); }
   }, [locationIdForApi]);
 
@@ -797,7 +817,7 @@ function ReturnsTab({ locationIdForApi }: { locationIdForApi: string }) {
                     </td>
                   </tr>
                 ))}
-                {sales.length===0 && <tr><td colSpan={5} style={{ ...tCell, textAlign:'center', color:'#64748b', padding:'40px' }}>No completed sales found</td></tr>}
+                {sales.length===0 && <tr><td colSpan={5} style={{ ...tCell, textAlign:'center', color:'#64748b', padding:'40px' }}>{emptyHint('completed sales', locationIdForApi)}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -896,7 +916,9 @@ function AuditLogTab() {
     try {
       const params = new URLSearchParams({ page:String(p), limit:String(LIMIT) });
       const r:any = await posSaleService.auditLogs(params.toString());
-      setLogs(r.data||[]); setTotal(r.total||0);
+      const rows = asPosArray(r);
+      setLogs(rows);
+      setTotal(asPosTotal(r, rows));
     } catch {} finally { setLoading(false); }
   }, []);
 
@@ -915,7 +937,7 @@ function AuditLogTab() {
         limit: '1000'
       });
       const r:any = await posSaleService.auditLogs(params.toString());
-      setExportRecords(r.data || []);
+      setExportRecords(asPosArray(r));
     } catch (e) {
       alert('Failed to fetch records');
     } finally {
@@ -1075,7 +1097,7 @@ function TaxTab() {
   const [ctx, setCtx] = useState<any>(null);
   const [error, setError] = useState('');
   useEffect(() => {
-    taxService.context().then((r) => setCtx(r.data)).catch((e) => setError(e.message));
+    taxService.context().then((r) => setCtx(r.data || r)).catch((e) => setError(e.message));
   }, []);
   return (
     <div style={card}>
@@ -1084,7 +1106,7 @@ function TaxTab() {
         Rates, inclusive/exclusive pricing and exemptions are managed in Tax Compliance. If taxation is OFF, POS will not add tax.
       </p>
       <div style={{ marginBottom:'16px' }}>
-        <TaxUseToggle onChanged={() => taxService.context().then((r) => setCtx(r.data)).catch(() => {})} />
+        <TaxUseToggle onChanged={() => taxService.context().then((r) => setCtx(r.data || r)).catch(() => {})} />
       </div>
       {error && <p style={{ color:'#f87171', fontSize:'13px' }}>{error}</p>}
       {ctx && (

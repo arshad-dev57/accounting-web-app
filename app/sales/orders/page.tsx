@@ -12,6 +12,8 @@ import { customerService } from '../../api/customer/route';
 import { productService } from '../../api/product/route';
 import { salesOrderService } from '../../api/orders/sales/route';
 import { useLocation } from '@/lib/location-context';
+import { findProductFromScan, useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
+import { matchScannedProduct } from '@/lib/pos-scanner';
 
 interface Order {
   _id: string;
@@ -108,7 +110,6 @@ interface Product {
   currentStock: number;
 }
 
-// ── helpers ──────────────────────────────────────────────────────────────────
 const normalizeId = (item: any) => ({
   ...item,
   _id:
@@ -150,7 +151,6 @@ const PRIORITY_COLORS: Record<string, string> = {
 const pill = (map: Record<string, string>, val: string) =>
   `text-xs font-semibold px-2.5 py-1 rounded-full ${map[val] ?? 'bg-gray-100 text-gray-700'}`;
 
-// ── static option lists ───────────────────────────────────────────────────────
 const STATUS_OPTIONS = ['all', 'Draft', 'Pending', 'Processing', 'Packed', 'Shipped', 'In Transit', 'Partially Delivered', 'Delivered', 'Cancelled', 'Returned', 'On Hold'];
 const PAYMENT_OPTIONS = ['all', 'Pending', 'Paid', 'Partial', 'Refunded', 'Cancelled'];
 const PRIORITY_OPTIONS = ['all', 'Low', 'Medium', 'High', 'Urgent'];
@@ -162,9 +162,6 @@ const SOURCES = ['Direct', 'Website', 'Phone', 'Email', 'Referral'];
 const SHIPPING_METHODS = ['Standard', 'Express', 'Same Day'];
 const PAYMENT_METHODS = ['Cash', 'Bank Transfer', 'Credit Card', 'Online'];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CUSTOMER PICKER MODAL
-// ─────────────────────────────────────────────────────────────────────────────
 function CustomerPickerModal({
   isOpen,
   onClose,
@@ -826,11 +823,9 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
-  // ── Customer Modal State ──────────────────────────────────────────────
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
-  // Customer fields
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -838,14 +833,12 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   const [customerCompany, setCustomerCompany] = useState('');
   const [customerTaxId, setCustomerTaxId] = useState('');
 
-  // Shipping
   const [shippingStreet, setShippingStreet] = useState('');
   const [shippingCity, setShippingCity] = useState('');
   const [shippingState, setShippingState] = useState('');
   const [shippingPostalCode, setShippingPostalCode] = useState('');
   const [shippingCountry, setShippingCountry] = useState('Pakistan');
 
-  // Billing
   const [sameAsShipping, setSameAsShipping] = useState(true);
   const [billingStreet, setBillingStreet] = useState('');
   const [billingCity, setBillingCity] = useState('');
@@ -853,38 +846,32 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   const [billingPostalCode, setBillingPostalCode] = useState('');
   const [billingCountry, setBillingCountry] = useState('Pakistan');
 
-  // Product picker
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
 
-  // Order meta
   const [orderType, setOrderType] = useState('Standard');
   const [priority, setPriority] = useState('Medium');
   const [source, setSource] = useState('Direct');
   const [salesPerson, setSalesPerson] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
 
-  // Shipping & payment
   const [shippingMethod, setShippingMethod] = useState('Standard');
   const [shippingCarrier, setShippingCarrier] = useState('');
   const [shippingCost, setShippingCost] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [paymentStatus, setPaymentStatus] = useState('Pending');
 
-  // Discounts
   const [couponCode, setCouponCode] = useState('');
   const [discountType, setDiscountType] = useState('Percentage');
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
 
-  // Notes
   const [customerNotes, setCustomerNotes] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
   const [tags, setTags] = useState('');
 
-  // ── FIXED: Helper to normalize IDs ──────────────────────────────────────────
   const getNormalizedId = (item: any): string => {
     if (!item) return '';
     const raw = item._id ?? item.id;
@@ -952,7 +939,10 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
     ? products.filter(
         (p) =>
           p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
-          p.sku.toLowerCase().includes(productSearchQuery.toLowerCase())
+          p.sku.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+          String((p as any).barcodeNumber || (p as any).barcode?.number || '')
+            .toLowerCase()
+            .includes(productSearchQuery.toLowerCase())
       )
     : products;
 
@@ -1081,54 +1071,43 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
     }
   };
 
-  // ── Add item to order ──────────────────────────────────────────────────
-  const handleAddItem = () => {
-    console.log('🔄 Adding item to order...');
-    console.log('📦 Selected product:', selectedProduct);
-    console.log('📦 Quantity:', quantity);
-    
-    if (!selectedProduct) { 
-      setFormError('Please select a product'); 
-      return; 
+  const addProductLine = (product: Product, qty: number) => {
+    if (qty < 1) {
+      setFormError('Quantity must be at least 1');
+      return;
     }
-    
-    if (quantity < 1) { 
-      setFormError('Quantity must be at least 1'); 
-      return; 
-    }
-    
-    if (quantity > selectedProduct.currentStock) {
-      setFormError(`Insufficient stock. Available: ${selectedProduct.currentStock}`);
+    if (qty > product.currentStock) {
+      setFormError(`Insufficient stock. Available: ${product.currentStock}`);
       return;
     }
 
-    const selectedProductId = getNormalizedId(selectedProduct);
+    const selectedProductId = getNormalizedId(product);
     const idx = orderItems.findIndex((i) => {
       const itemProductId = getNormalizedId({ _id: i.productId });
       return itemProductId === selectedProductId;
     });
-    
+
     if (idx >= 0) {
-      const newQty = orderItems[idx].quantity + quantity;
-      if (newQty > selectedProduct.currentStock) {
-        setFormError(`Insufficient stock. Available: ${selectedProduct.currentStock}, total requested: ${newQty}`);
+      const newQty = orderItems[idx].quantity + qty;
+      if (newQty > product.currentStock) {
+        setFormError(`Insufficient stock. Available: ${product.currentStock}, total requested: ${newQty}`);
         return;
       }
       const updated = [...orderItems];
       updated[idx] = { ...updated[idx], quantity: newQty, totalPrice: updated[idx].unitPrice * newQty };
       setOrderItems(updated);
-      console.log('✅ Updated existing item:', updated[idx]);
     } else {
-      const newItem = {
-        productId: getNormalizedId(selectedProduct),
-        productName: selectedProduct.name,
-        sku: selectedProduct.sku,
-        quantity,
-        unitPrice: selectedProduct.sellingPrice,
-        totalPrice: selectedProduct.sellingPrice * quantity,
-      };
-      setOrderItems([...orderItems, newItem]);
-      console.log('✅ Added new item:', newItem);
+      setOrderItems([
+        ...orderItems,
+        {
+          productId: getNormalizedId(product),
+          productName: product.name,
+          sku: product.sku,
+          quantity: qty,
+          unitPrice: product.sellingPrice,
+          totalPrice: product.sellingPrice * qty,
+        },
+      ]);
     }
 
     setSelectedProduct(null);
@@ -1136,6 +1115,30 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
     setProductSearchQuery('');
     setFormError('');
   };
+
+  const handleAddItem = () => {
+    if (!selectedProduct) {
+      setFormError('Please select a product');
+      return;
+    }
+    addProductLine(selectedProduct, quantity);
+  };
+
+  useHardwareBarcodeScanner((code) => {
+    const local = matchScannedProduct(products, code);
+    if (local) {
+      addProductLine(local as Product, 1);
+      return;
+    }
+    void findProductFromScan(code, selectedLocationId || undefined).then((found) => {
+      if (!found) {
+        setFormError(`No product found for barcode ${code}`);
+        setProductSearchQuery(code);
+        return;
+      }
+      addProductLine(found as Product, 1);
+    });
+  });
 
   const handleRemoveItem = (i: number) => setOrderItems(orderItems.filter((_, idx) => idx !== i));
 
@@ -1395,7 +1398,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Filter by name or SKU..."
+                placeholder="Filter by name, SKU, or scan barcode..."
                 value={productSearchQuery}
                 onChange={(e) => { 
                   setProductSearchQuery(e.target.value); 
@@ -1410,6 +1413,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
                 </button>
               )}
             </div>
+            <p className="text-xs text-gray-400 mt-1">USB scanner ready — scan a barcode to add the product.</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>

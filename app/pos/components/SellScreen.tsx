@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { posProductService, posSaleService } from '../../../lib/pos-service';
 import { customerService } from '../../../app/api/customer/route';
 import { categoryService, Category } from '../../../app/api/category/route';
-import { Search, ShoppingCart, Plus, Minus, X, CreditCard, DollarSign, Printer, Check, Loader2, Package, User, ChevronDown, Download, Barcode, Nfc } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, X, CreditCard, DollarSign, Printer, Check, Loader2, Package, User, ChevronDown, Download, Barcode, Nfc, ChevronRight, LayoutGrid } from 'lucide-react';
 import { loadPosSettings, loadReceiptTemplate } from '../../../lib/pos-settings';
 import {
   attachHidBarcodeScanner,
@@ -27,7 +27,7 @@ import {
   receiptQrPngDataUrl,
   resolveReceiptCompany,
 } from '../../../lib/pos-receipt';
-import { printPosReceipt } from '../../../lib/pos-thermal-printer';
+import { kickCashDrawer, printPosReceipt } from '../../../lib/pos-thermal-printer';
 import {
   computeTaxLine,
   resolveProductTaxRate,
@@ -36,6 +36,7 @@ import {
   type TaxPricingModel,
 } from '../../../lib/tax-service';
 import { effectiveLocationId } from '../../../lib/location-service';
+import { useLocation } from '../../../lib/location-context';
 
 function getAuthToken() {
   if (typeof window === 'undefined') return '';
@@ -109,7 +110,7 @@ function ManagerPinModal({
   );
 }
 
-interface CartItem { productId:string; productName:string; sku:string; barcodeNumber?:string; quantity:number; unitPrice:number; discount:number; taxRate:number; taxAmount:number; lineTotal:number; mainImage?:string; currentStock:number; }
+interface CartItem { productId:string; productName:string; sku:string; barcodeNumber?:string; quantity:number; unitPrice:number; discount:number; taxRate:number; taxAmount:number; lineTotal:number; mainImage?:string; currentStock:number; availableStock?:number; }
 interface Payment {
   paymentMethod: string;
   amount: number;
@@ -118,22 +119,25 @@ interface Payment {
   cardLast4?: string;
   entryMode?: string;
 }
-interface Product { id:string; name:string; sku:string; barcodeNumber:string; sellingPrice:number; costPrice:number; currentStock:number; mainImage?:string; categoryId?:string; categoryName?:string; taxRate?:number; }
+interface Product { id:string; name:string; sku:string; barcodeNumber:string; sellingPrice:number; costPrice:number; currentStock:number; availableStock?:number; mainImage?:string; categoryId?:string; categoryName?:string; taxRate?:number; }
+function sellableQty(p: { currentStock?: number; availableStock?: number }) {
+  const n = p.availableStock ?? p.currentStock ?? 0;
+  return Number.isFinite(n) ? n : 0;
+}
 
-function flattenCategories(categories: Category[]): { id: string; name: string; productCount?: number }[] {
-  const result: { id: string; name: string; productCount?: number }[] = [];
-  const walk = (items: Category[], prefix = '') => {
-    for (const cat of items) {
-      const id = cat.id || cat._id;
-      if (!id) continue;
-      const label = prefix ? `${prefix} › ${cat.name}` : cat.name;
-      result.push({ id, name: label, productCount: cat.productCount });
-      const children = cat.children || cat.subCategories || [];
-      if (children.length) walk(children, cat.name);
-    }
-  };
-  walk(categories);
-  return result;
+function categoryIdOf(cat: Category): string {
+  return String(cat.id || cat._id || '');
+}
+
+function categoryChildren(cat: Category): Category[] {
+  return (cat.children || cat.subCategories || []).filter((c) => !!categoryIdOf(c));
+}
+
+function rootCategories(tree: Category[]): Category[] {
+  if (!tree.length) return [];
+  const hasNested = tree.some((c) => categoryChildren(c).length > 0);
+  if (hasNested) return tree.filter((c) => !!categoryIdOf(c));
+  return tree.filter((c) => !c.parentId && !!categoryIdOf(c));
 }
 
 const PAYMENT_METHODS = ['Cash','Card','Bank Transfer','Mobile Wallet','Cheque'];
@@ -307,14 +311,28 @@ function ReceiptModal({ sale, companyProfile, shift, onClose, onDownloadReport, 
 }
 
 export default function SellScreen({ shift }: { shift: any }) {
+  const { locationIdForApi, selectedLocation, isAllLocations } = useLocation();
+  const terminalLocationId = effectiveLocationId(
+    shift?.terminal?.locationId || shift?.terminal?.location?.id
+  );
+  const saleLocationId = locationIdForApi || terminalLocationId;
+  const saleLocationName = locationIdForApi
+    ? selectedLocation?.name
+    : shift?.terminal?.location?.name || shift?.terminal?.name || 'Terminal location';
+  const prevSaleLocationRef = useRef(saleLocationId);
+
   // Product Panel state
   const [products, setProducts] = useState<Product[]>([]);
   const [query, setQuery] = useState('');
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [productError, setProductError] = useState('');
-  const [categories, setCategories] = useState<{ id: string; name: string; productCount?: number }[]>([]);
+  const [categoryTree, setCategoryTree] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('All');
   const [loadingCategories, setLoadingCategories] = useState(false);
+  const [activeParent, setActiveParent] = useState<Category | null>(null);
+  const [subcategories, setSubcategories] = useState<Category[]>([]);
+
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
 
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -360,6 +378,8 @@ export default function SellScreen({ shift }: { shift: any }) {
   const [payments, setPayments] = useState<Payment[]>([{ paymentMethod:'Cash', amount:0, reference:'' }]);
   const [submitting, setSubmitting] = useState(false);
   const [saleError, setSaleError] = useState('');
+  const [drawerBusy, setDrawerBusy] = useState(false);
+  const [drawerMsg, setDrawerMsg] = useState('');
   const [chargingIndex, setChargingIndex] = useState<number | null>(null);
   const [chargeError, setChargeError] = useState('');
   const [lastSale, setLastSale] = useState<any>(null);
@@ -577,10 +597,10 @@ export default function SellScreen({ shift }: { shift: any }) {
     setLoadingCategories(true);
     try {
       const data = await categoryService.getCategories({ tree: true });
-      setCategories(flattenCategories(data));
+      setCategoryTree(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error('Failed to load categories:', e);
-      setCategories([]);
+      setCategoryTree([]);
     } finally {
       setLoadingCategories(false);
     }
@@ -593,10 +613,7 @@ export default function SellScreen({ shift }: { shift: any }) {
       const params = new URLSearchParams({ limit: '50' });
       if (q) params.set('q', q);
       if (categoryId && categoryId !== 'All') params.set('categoryId', categoryId);
-      const locId = effectiveLocationId(
-        shift?.terminal?.locationId || shift?.terminal?.location?.id
-      );
-      if (locId) params.set('locationId', locId);
+      if (saleLocationId) params.set('locationId', saleLocationId);
       const res: any = await posProductService.search(params.toString());
       setProducts(res.data || []);
     } catch (e: any) {
@@ -604,19 +621,50 @@ export default function SellScreen({ shift }: { shift: any }) {
     } finally {
       setLoadingProducts(false);
     }
-  }, [shift?.terminal?.locationId, shift?.terminal?.location?.id]);
+  }, [saleLocationId]);
 
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
 
   useEffect(() => {
+    const searching = !!query.trim();
+    if (!searching && !activeParent) {
+      setProducts([]);
+      return;
+    }
     const delay = query ? 300 : 0;
     const timer = setTimeout(() => {
-      loadProducts(query, selectedCategoryId);
+      loadProducts(query, searching && !activeParent ? 'All' : selectedCategoryId);
     }, delay);
     return () => clearTimeout(timer);
-  }, [query, selectedCategoryId, loadProducts]);
+  }, [query, selectedCategoryId, loadProducts, activeParent]);
+
+  useEffect(() => {
+    if (prevSaleLocationRef.current && prevSaleLocationRef.current !== saleLocationId) {
+      setCart([]);
+    }
+    prevSaleLocationRef.current = saleLocationId;
+  }, [saleLocationId]);
+
+  const mains = rootCategories(categoryTree);
+  const selectedSub = subcategories.find((c) => categoryIdOf(c) === selectedCategoryId) || null;
+
+  const openMainCategory = (cat: Category) => {
+    const kids = categoryChildren(cat);
+    setActiveParent(cat);
+    setSubcategories(kids);
+    setSelectedCategoryId(kids.length ? categoryIdOf(kids[0]) : categoryIdOf(cat));
+    setQuery('');
+  };
+
+  const goToCategories = () => {
+    setActiveParent(null);
+    setSubcategories([]);
+    setSelectedCategoryId('All');
+    setQuery('');
+    setProducts([]);
+  };
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategoryId(categoryId);
@@ -629,10 +677,10 @@ export default function SellScreen({ shift }: { shift: any }) {
     setCart(prev => {
       const existing = prev.find(i=>i.productId===p.id);
       if (existing) {
-        if (existing.quantity >= p.currentStock) return prev;
+        if (existing.quantity >= sellableQty(p)) return prev;
         return prev.map(i=>i.productId===p.id ? { ...i, quantity:i.quantity+1, ...computeLineTotal(i.quantity+1,i.unitPrice,i.discount,i.taxRate, model) } : i);
       }
-      return [...prev, { productId:p.id, productName:p.name, sku:p.sku||'', barcodeNumber:p.barcodeNumber||'', quantity:1, unitPrice:p.sellingPrice, discount:0, taxRate:rate, taxAmount, lineTotal, mainImage:p.mainImage, currentStock:p.currentStock }];
+      return [...prev, { productId:p.id, productName:p.name, sku:p.sku||'', barcodeNumber:p.barcodeNumber||'', quantity:1, unitPrice:p.sellingPrice, discount:0, taxRate:rate, taxAmount, lineTotal, mainImage:p.mainImage, currentStock: sellableQty(p), availableStock: sellableQty(p) }];
     });
   };
   addToCartRef.current = addToCart;
@@ -647,9 +695,7 @@ export default function SellScreen({ shift }: { shift: any }) {
     setScanStatus('Looking up…');
     try {
       let product: Product | null = null;
-      const locId = effectiveLocationId(
-        shift?.terminal?.locationId || shift?.terminal?.location?.id
-      );
+      const locId = saleLocationId;
       try {
         const res: any = await posProductService.byBarcode(
           trimmed,
@@ -668,7 +714,7 @@ export default function SellScreen({ shift }: { shift: any }) {
         setQuery(trimmed);
         return;
       }
-      if ((product.currentStock || 0) <= 0) {
+      if (sellableQty(product) <= 0) {
         setScanError(`${product.name} is out of stock`);
         setScanStatus('');
         return;
@@ -688,7 +734,7 @@ export default function SellScreen({ shift }: { shift: any }) {
       setScanError(e.message || 'Scan failed');
       setScanStatus('');
     }
-  }, [shift?.terminal?.locationId, shift?.terminal?.location?.id]);
+  }, [saleLocationId]);
 
   const removeFromCart = (productId: string) => setCart(prev=>prev.filter(i=>i.productId!==productId));
 
@@ -696,7 +742,7 @@ export default function SellScreen({ shift }: { shift: any }) {
     if (qty <= 0) { removeFromCart(productId); return; }
     setCart(prev=>prev.map(i=>{
       if(i.productId!==productId) return i;
-      if(qty>i.currentStock) return i;
+      if(qty>sellableQty(i)) return i;
       return { ...i, quantity:qty, ...computeLineTotal(qty,i.unitPrice,i.discount,i.taxRate, pricingModel) };
     }));
   };
@@ -742,7 +788,7 @@ export default function SellScreen({ shift }: { shift: any }) {
             taxRate: item.taxRate || 0,
             taxAmount,
             lineTotal,
-            currentStock: item.quantity + 999,
+            currentStock: item.currentStock || item.quantity,
           };
         })
       );
@@ -811,6 +857,19 @@ export default function SellScreen({ shift }: { shift: any }) {
     if (field === 'amount' && pm.terminalApproved) return pm;
     return { ...pm, [field]: value };
   }));
+  const handleOpenDrawer = async () => {
+    setDrawerBusy(true);
+    setDrawerMsg('');
+    try {
+      await kickCashDrawer();
+      setDrawerMsg('Drawer open signal sent');
+    } catch (e: any) {
+      setDrawerMsg(e?.message || 'Could not open drawer');
+    } finally {
+      setDrawerBusy(false);
+    }
+  };
+
   const setExactAmount = () => setPayments([{
     paymentMethod: payments[0].paymentMethod,
     amount: grandTotal,
@@ -854,6 +913,11 @@ export default function SellScreen({ shift }: { shift: any }) {
   // Complete Sale
   const completeSale = async () => {
     if (cart.length===0) { setSaleError('Cart is empty'); return; }
+    const oversold = cart.find((i) => i.quantity > sellableQty(i));
+    if (oversold) {
+      setSaleError(`${oversold.productName} only has ${sellableQty(oversold)} available`);
+      return;
+    }
     if (!customerName || customerName.trim() === '') { setSaleError('Customer is required'); return; }
     if (paidTotal < grandTotal) { setSaleError(`Insufficient payment. Need $${grandTotal.toFixed(2)}, got $${paidTotal.toFixed(2)}`); return; }
     const uncharged = payments.find((p) => methodNeedsPaymentDevice(p.paymentMethod) && !p.terminalApproved && p.amount > 0);
@@ -885,9 +949,7 @@ export default function SellScreen({ shift }: { shift: any }) {
       const payload = {
         id: saleId,
         terminalId: shift.terminalId,
-        locationId: effectiveLocationId(
-          shift.terminal?.locationId || shift.terminal?.location?.id
-        ) || undefined,
+        locationId: saleLocationId || undefined,
         customerName,
         customerPhone: customerPhone || null,
         customerEmail: selectedCustomer?.email || null,
@@ -962,7 +1024,7 @@ export default function SellScreen({ shift }: { shift: any }) {
         clearCart();
         loadProducts(query, selectedCategoryId);
       } catch (e: any) {
-        if (settings.enableOfflineMode) {
+        if (settings.enableOfflineMode && !navigator.onLine) {
           posOfflineQueue.enqueue({ ...payload, isOffline: true as const });
           window.dispatchEvent(new Event('pos:offline-queue-changed'));
           setLastSale({
@@ -1066,28 +1128,35 @@ export default function SellScreen({ shift }: { shift: any }) {
   };
 
   return (
-    <div className="flex h-full overflow-hidden font-sans">
+    <div className="flex h-full overflow-hidden font-sans flex-col lg:flex-row">
       {/* ─── LEFT: Product Browser ──────────────────────────────── */}
-      <div className="w-[55%] flex flex-col border-r border-gray-200 overflow-hidden bg-gray-50">
+      <div className="w-full lg:w-[55%] flex flex-col border-r border-gray-200 overflow-hidden bg-gray-50 min-h-0 flex-1">
         <div className="p-3 bg-white border-b border-gray-200 space-y-2.5">
-          <div className="flex gap-2">
+          <div className="flex items-center justify-between gap-2 text-sm text-gray-700">
+            <span>
+              Selling from{' '}
+              <strong className="text-[#014582]">{saleLocationName || 'selected location'}</strong>
+              {isAllLocations && terminalLocationId ? ' (header is All — using terminal location)' : ''}
+            </span>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 ref={searchRef}
-                className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-gray-900 text-sm outline-none focus:border-[#014582] transition-colors"
+                className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-900 text-base outline-none focus:border-[#014582] transition-colors"
                 placeholder="Search by name or SKU..."
                 value={query}
                 onChange={e=>setQuery(e.target.value)}
               />
             </div>
             {scannerEnabled && (
-              <div className="relative w-[44%] min-w-[160px]">
+              <div className="relative w-full sm:w-[44%] min-w-0 sm:min-w-[160px]">
                 <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 text-[#014582] w-4 h-4" />
                 <input
                   ref={scanRef}
                   data-pos-scan="1"
-                  className="w-full bg-[#014582]/5 border border-[#014582]/30 rounded-xl pl-9 pr-3 py-2.5 text-gray-900 text-sm outline-none focus:border-[#014582] transition-colors"
+                  className="w-full bg-[#014582]/5 border border-[#014582]/30 rounded-xl pl-9 pr-3 py-3 text-gray-900 text-base outline-none focus:border-[#014582] transition-colors"
                   placeholder="Scan barcode..."
                   value={scanValue}
                   onChange={(e) => {
@@ -1105,8 +1174,8 @@ export default function SellScreen({ shift }: { shift: any }) {
             )}
           </div>
           {scannerEnabled && (
-            <div className="flex items-center justify-between gap-2 text-[11px]">
-              <span className="text-gray-400 flex items-center gap-1.5">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="text-gray-600 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
                 Scanner ready — scan a product barcode
               </span>
@@ -1115,117 +1184,162 @@ export default function SellScreen({ shift }: { shift: any }) {
             </div>
           )}
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-0.5 scrollbar-thin">
-            <button
-              type="button"
-              onClick={() => handleCategorySelect('All')}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                selectedCategoryId === 'All'
-                  ? 'bg-[#014582] border-[#014582] text-white'
-                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-[#014582]/40 hover:text-[#014582]'
-              }`}
-            >
-              All
-            </button>
-            {loadingCategories ? (
-              <span className="text-gray-500 text-xs flex items-center gap-1.5 px-2">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Categories...
-              </span>
-            ) : categories.length === 0 ? (
-              <span className="text-gray-500 text-xs px-1">No categories</span>
-            ) : (
-              categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => handleCategorySelect(cat.id)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                    selectedCategoryId === cat.id
-                      ? 'bg-[#014582] border-[#014582] text-white'
-                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-[#014582]/40 hover:text-[#014582]'
-                  }`}
-                  title={cat.name}
-                >
-                  {cat.name}
-                  {typeof cat.productCount === 'number' ? (
-                    <span className="ml-1 opacity-70">({cat.productCount})</span>
-                  ) : null}
+          {activeParent ? (
+            <>
+              <nav className="flex items-center flex-wrap gap-1 text-sm font-semibold text-gray-600">
+                <button type="button" onClick={goToCategories} className="text-[#014582] hover:underline">
+                  Categories
                 </button>
-              ))
-            )}
-          </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+                <span className="text-gray-900">{activeParent.name}</span>
+                {selectedSub ? (
+                  <>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                    <span className="text-gray-900">{selectedSub.name}</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                    <span className="text-gray-900">Products</span>
+                  </>
+                )}
+              </nav>
+              {subcategories.length > 0 ? (
+                <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                  {subcategories.map((cat) => {
+                    const id = categoryIdOf(cat);
+                    const on = selectedCategoryId === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => handleCategorySelect(id)}
+                        className={`aspect-square rounded-xl border flex items-center justify-center text-center px-1.5 text-xs sm:text-sm font-bold leading-tight ${
+                          on
+                            ? 'bg-[#014582] border-[#014582] text-white'
+                            : 'bg-white border-gray-300 text-gray-800 hover:border-[#014582]'
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-sm font-semibold text-gray-700">Categories</p>
+          )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5 content-start">
-          {loadingProducts ? (
-            <div className="col-span-full text-center text-gray-400 py-12">Loading products...</div>
+        <div className="flex-1 overflow-y-auto p-3 pb-24 lg:pb-3">
+          {!query.trim() && !activeParent ? (
+            loadingCategories ? (
+              <div className="text-center text-gray-600 py-12">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-[#014582]" />
+                Loading categories...
+              </div>
+            ) : mains.length === 0 ? (
+              <div className="text-center text-gray-600 py-12">No categories</div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-5 gap-3">
+                {mains.map((cat) => {
+                  const id = categoryIdOf(cat);
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => openMainCategory(cat)}
+                      className="aspect-square rounded-2xl border-2 border-gray-200 bg-white shadow-sm flex flex-col items-center justify-center gap-2 px-3 text-center hover:border-[#014582] hover:bg-sky-50 transition-colors"
+                    >
+                      <LayoutGrid className="w-8 h-8 text-[#014582]" />
+                      <span className="text-sm sm:text-base font-bold text-gray-900 leading-tight">
+                        {cat.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )
+          ) : loadingProducts ? (
+            <div className="text-center text-gray-600 text-base py-12">Loading products...</div>
           ) : productError ? (
-            <div className="col-span-full text-center text-red-600 py-6">{productError}</div>
+            <div className="text-center text-red-600 py-6">{productError}</div>
           ) : products.length === 0 ? (
-            <div className="col-span-full text-center text-gray-400 py-12">
+            <div className="text-center text-gray-600 text-base py-12">
               <Package className="w-10 h-10 mx-auto mb-3 opacity-50" />
               <p>No products found</p>
-              {selectedCategoryId !== 'All' && (
-                <button
-                  type="button"
-                  onClick={() => handleCategorySelect('All')}
-                  className="mt-3 text-[#014582] text-xs underline"
-                >
-                  Clear category filter
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={goToCategories}
+                className="mt-3 text-[#014582] text-sm underline"
+              >
+                Back to categories
+              </button>
             </div>
-          ) : products.map(p=>(
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5">
+          {products.map(p=>(
             <div
               key={p.id}
               className="bg-white border border-gray-200 shadow-sm rounded-xl p-3 cursor-pointer transition-all flex flex-col gap-1.5 hover:bg-sky-50 hover:border-[#014582]/30"
               onClick={()=>addToCart(p)}
             >
-              <div className="w-full h-20 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+              <div className="w-full h-24 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden">
                 {p.mainImage ? (
                   <img src={p.mainImage} alt={p.name} className="w-full h-full object-cover rounded-lg" onError={e=>{ (e.target as HTMLImageElement).style.display='none'; }} />
                 ) : (
-                  <Package className="w-7 h-7 text-gray-400" />
+                  <Package className="w-8 h-7 text-gray-500" />
                 )}
               </div>
-              <div className="text-gray-900 font-semibold text-xs leading-tight">{p.name}</div>
-              {p.sku && <div className="text-gray-400 text-[10px]">{p.sku}</div>}
+              <div className="text-gray-900 font-bold text-sm leading-tight">{p.name}</div>
+              {p.sku && <div className="text-gray-600 text-xs">{p.sku}</div>}
               {p.categoryName && (
-                <div className="text-gray-500 text-[10px] truncate">{p.categoryName}</div>
+                <div className="text-gray-600 text-xs truncate">{p.categoryName}</div>
               )}
-              <div className="text-[#014582] font-bold text-base">${p.sellingPrice?.toFixed(2)}</div>
-              <div className={`text-[10px] ${p.currentStock <= 0 ? 'text-red-600' : p.currentStock <= 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
+              <div className="text-[#014582] font-bold text-lg">${p.sellingPrice?.toFixed(2)}</div>
+              <div className={`text-xs font-semibold ${p.currentStock <= 0 ? 'text-red-600' : p.currentStock <= 5 ? 'text-amber-700' : 'text-emerald-700'}`}>
                 Stock: {p.currentStock}
               </div>
             </div>
           ))}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="w-[45%] flex flex-col overflow-hidden bg-white border-l border-gray-200">
+      <div className={`flex-col overflow-hidden bg-white border-l border-gray-200 lg:relative lg:flex lg:w-[45%] ${mobileCartOpen ? 'fixed inset-0 z-[80] flex' : 'hidden lg:flex'}`}>
         {/* Cart header */}
         <div className="p-3 bg-white border-b border-gray-200">
           <div className="flex justify-between items-center">
-            <h3 className="text-gray-900 font-semibold text-sm flex items-center gap-2 m-0">
-              <ShoppingCart className="w-4 h-4" />
-              Cart <span className="text-gray-400 font-normal text-xs">({cart.length} items)</span>
+            <h3 className="text-gray-900 font-bold text-base flex items-center gap-2 m-0">
+              <ShoppingCart className="w-5 h-5 text-[#014582]" />
+              Cart <span className="text-gray-600 font-medium text-sm">({cart.length} items)</span>
             </h3>
-            {cart.length > 0 && (
-              <button onClick={clearCart} className="bg-red-500/15 border border-red-500/30 rounded-lg px-3 py-1 text-red-600 cursor-pointer text-xs">Clear</button>
-            )}
+            <div className="flex items-center gap-2">
+              {cart.length > 0 && (
+                <button onClick={clearCart} className="bg-red-500/15 border border-red-500/30 rounded-lg px-3 py-1 text-red-600 cursor-pointer text-xs">Clear</button>
+              )}
+              <button
+                type="button"
+                className="lg:hidden p-2 rounded-lg border border-gray-200 text-gray-700"
+                onClick={() => setMobileCartOpen(false)}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           
           {/* Customer Selection - Mandatory */}
           <div className="mt-3 relative">
-            <label className="block text-gray-400 text-xs mb-1.5">Customer *</label>
+            <label className="block text-gray-700 text-sm font-medium mb-1.5">Customer *</label>
             <div className="relative">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                 <User className="w-4 h-4" />
               </div>
               <input
                 ref={customerSearchRef}
-                className="w-full bg-white border border-gray-200 rounded-lg pl-10 pr-10 py-2.5 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
+                className="w-full bg-white border border-gray-200 rounded-lg pl-10 pr-10 py-2.5 text-gray-900 text-sm outline-none focus:border-[#014582] transition-colors"
                 placeholder="Search customer or type name..."
                 value={customerSearchQuery}
                 onChange={handleCustomerInputChange}
@@ -1263,8 +1377,8 @@ export default function SellScreen({ shift }: { shift: any }) {
                       onClick={() => handleCustomerSelect(customer)}
                       className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors"
                     >
-                      <div className="text-gray-900 text-xs font-medium">{customer.name}</div>
-                      <div className="text-gray-400 text-xs mt-0.5">{customer.phone || customer.email || 'No contact info'}</div>
+                      <div className="text-gray-900 text-sm font-medium">{customer.name}</div>
+                      <div className="text-gray-600 text-xs mt-0.5">{customer.phone || customer.email || 'No contact info'}</div>
                     </div>
                   ))
                 )}
@@ -1276,28 +1390,28 @@ export default function SellScreen({ shift }: { shift: any }) {
           {selectedCustomer && customerCreditInfo && (
             <div className="mt-2.5 bg-white border border-gray-200 rounded-lg p-2.5">
               <div className="flex justify-between items-center text-xs mb-1.5">
-                <span className="text-gray-400">Credit Limit:</span>
+                <span className="text-gray-600">Credit Limit:</span>
                 <span className="text-gray-900 font-medium">${customerCreditInfo.creditLimit.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-xs mb-1.5">
-                <span className="text-gray-400">Outstanding:</span>
+                <span className="text-gray-600">Outstanding:</span>
                 <span className="text-gray-900 font-medium">${customerCreditInfo.outstandingBalance.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-xs mb-1.5">
-                <span className="text-gray-400">Available:</span>
+                <span className="text-gray-600">Available:</span>
                 <span className={`${customerCreditInfo.availableCredit >= 0 ? 'text-emerald-600' : 'text-red-600'} font-medium`}>
                   ${customerCreditInfo.availableCredit.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-400">Utilization:</span>
+                <span className="text-gray-600">Utilization:</span>
                 <span className={`${customerCreditInfo.utilization > 80 ? 'text-red-600' : customerCreditInfo.utilization > 50 ? 'text-amber-600' : 'text-emerald-600'} font-medium`}>
                   {customerCreditInfo.utilization.toFixed(1)}%
                 </span>
               </div>
               {(customerCreditInfo.loyaltyPoints != null || selectedCustomer?.loyaltyPoints != null) && (
                 <div className="flex justify-between items-center text-xs mt-1.5">
-                  <span className="text-gray-400">Loyalty points:</span>
+                  <span className="text-gray-600">Loyalty points:</span>
                   <span className="text-sky-700 font-medium">
                     {customerCreditInfo.loyaltyPoints ?? selectedCustomer?.loyaltyPoints ?? 0}
                   </span>
@@ -1313,7 +1427,7 @@ export default function SellScreen({ shift }: { shift: any }) {
 
           <div className="flex gap-2.5 mt-2.5">
             <input
-              className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-xs outline-none focus:border-[#014582] transition-colors"
+              className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-sm outline-none focus:border-[#014582] transition-colors"
               placeholder="Phone (optional)"
               value={customerPhone}
               onChange={e=>setCustomerPhone(e.target.value)}
@@ -1324,19 +1438,19 @@ export default function SellScreen({ shift }: { shift: any }) {
         {/* Cart items */}
         <div className="flex-1 overflow-y-auto p-2">
           {cart.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <ShoppingCart className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">Tap a product to add it to the cart</p>
+            <div className="text-center py-16 text-gray-600">
+              <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+              <p className="text-base">Tap a product to add it to the cart</p>
             </div>
           ) : (
             cart.map(item=>(
               <div key={item.productId} className="bg-white border border-gray-200 rounded-xl p-2.5 mb-2 flex gap-2.5 items-start">
                 <div className="flex-1">
-                  <div className="text-gray-900 font-semibold text-xs mb-1">{item.productName}</div>
-                  <div className="text-gray-400 text-xs">${item.unitPrice.toFixed(2)} each</div>
+                  <div className="text-gray-900 font-bold text-sm mb-1">{item.productName}</div>
+                  <div className="text-gray-700 text-sm">${item.unitPrice.toFixed(2)} each</div>
                   {/* discount input */}
                   <div className="flex items-center gap-1.5 mt-1.5">
-                    <span className="text-gray-400 text-[10px]">Disc%:</span>
+                    <span className="text-gray-600 text-xs">Disc%:</span>
                     <input
                       type="number"
                       min="0"
@@ -1351,7 +1465,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                   <button onClick={()=>removeFromCart(item.productId)} className="bg-transparent border-none text-red-600 cursor-pointer text-sm">
                     <X className="w-4 h-4" />
                   </button>
-                  <div className="text-[#014582] font-bold text-sm">${item.lineTotal.toFixed(2)}</div>
+                  <div className="text-[#014582] font-bold text-base">${item.lineTotal.toFixed(2)}</div>
                   <div className="flex items-center gap-1">
                     <button className="w-7 h-7 rounded-lg border border-gray-300 bg-transparent text-gray-900 cursor-pointer text-sm flex items-center justify-center" onClick={()=>updateQty(item.productId,item.quantity-1)}>
                       <Minus className="w-3 h-3" />
@@ -1369,10 +1483,10 @@ export default function SellScreen({ shift }: { shift: any }) {
 
         <div className="p-3 border-t border-gray-200 bg-white">
           <div className="flex flex-col gap-1 mb-3">
-            <div className="flex justify-between text-gray-400 text-xs">
+            <div className="flex justify-between text-gray-700 text-sm">
               <span>Subtotal</span><span>${subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-gray-400 text-xs items-center gap-2">
+            <div className="flex justify-between text-gray-700 text-sm items-center gap-2">
               <span className="flex items-center gap-1">
                 Disc
                 <select
@@ -1406,7 +1520,7 @@ export default function SellScreen({ shift }: { shift: any }) {
               <div className="text-[10px] text-amber-700">Resuming held sale</div>
             )}
             {taxTotal > 0 && (
-              <div className="flex justify-between text-gray-400 text-xs">
+              <div className="flex justify-between text-gray-700 text-sm">
                 <span>{taxContext?.regime || 'Tax'}{pricingModel === 'inclusive' ? ' (incl.)' : ''}</span><span>${taxTotal.toFixed(2)}</span>
               </div>
             )}
@@ -1416,7 +1530,7 @@ export default function SellScreen({ shift }: { shift: any }) {
           </div>
 
           <button
-            className={`w-full py-3.5 rounded-xl bg-gradient-to-r from-[#014582] to-[#01366a] text-white font-bold text-sm cursor-pointer mt-2.5 flex items-center justify-center gap-2 hover:opacity-90 transition-opacity ${cart.length===0?'opacity-50':''}`}
+            className={`w-full py-4 rounded-xl bg-gradient-to-r from-[#014582] to-[#01366a] text-white font-bold text-base cursor-pointer mt-2.5 flex items-center justify-center gap-2 hover:opacity-90 transition-opacity ${cart.length===0?'opacity-50':''}`}
             disabled={cart.length===0}
             onClick={()=>{ setPayments([{ paymentMethod:'Cash', amount:grandTotal, reference:'' }]); setSaleError(''); setShowCheckout(true); }}
           >
@@ -1424,13 +1538,36 @@ export default function SellScreen({ shift }: { shift: any }) {
             Checkout — ${grandTotal.toFixed(2)}
           </button>
           <button
-            className="w-full py-2.5 rounded-xl border border-gray-200 bg-transparent text-gray-400 text-xs cursor-pointer mt-2 hover:bg-gray-50 transition-colors"
+            className="w-full py-3 rounded-xl border border-[#014582]/30 bg-[#014582]/5 text-[#014582] text-sm font-semibold cursor-pointer mt-2 hover:bg-[#014582]/10 transition-colors"
             onClick={holdSale}
             disabled={cart.length===0}
           >
             ⏸️ Hold Sale
           </button>
+          <button
+            type="button"
+            className="w-full py-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-sm font-semibold cursor-pointer mt-2 hover:bg-amber-100 transition-colors disabled:opacity-50"
+            onClick={() => { void handleOpenDrawer(); }}
+            disabled={drawerBusy}
+          >
+            {drawerBusy ? 'Opening drawer…' : 'Open cash drawer'}
+          </button>
+          {drawerMsg ? <p className="text-[11px] text-gray-500 mt-1 text-center">{drawerMsg}</p> : null}
         </div>
+      </div>
+
+      <div className="lg:hidden fixed left-0 right-0 bottom-16 z-30 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+        <div>
+          <p className="text-xs text-gray-600">{cart.length} items</p>
+          <p className="text-lg font-bold text-[#014582]">${grandTotal.toFixed(2)}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setMobileCartOpen(true)}
+          className="px-5 py-2.5 rounded-xl bg-[#014582] text-white font-bold text-sm"
+        >
+          View cart
+        </button>
       </div>
 
       {showCheckout && (
@@ -1552,6 +1689,16 @@ export default function SellScreen({ shift }: { shift: any }) {
                 </span>
               </div>
             )}
+
+            <button
+              type="button"
+              onClick={() => { void handleOpenDrawer(); }}
+              disabled={drawerBusy}
+              className="w-full py-2.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm font-semibold mb-3 disabled:opacity-50"
+            >
+              {drawerBusy ? 'Opening drawer…' : 'Open cash drawer'}
+            </button>
+            {drawerMsg ? <p className="text-[11px] text-gray-500 -mt-2 mb-3 text-center">{drawerMsg}</p> : null}
 
             <div className="flex gap-3">
               <button

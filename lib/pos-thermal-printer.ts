@@ -1,11 +1,12 @@
 /**
  * POS thermal printer — ESC/POS (Web Serial) + browser thermal print fallback.
- * Works with common USB/Serial printers: Xprinter, Rongta, Epson TM, etc.
+ * Works with common USB/Serial printers: Xprinter, Rongta, Epson TM, Black Copper, etc.
  */
 import {
   loadPosSettings,
   loadReceiptTemplate,
   openCashDrawer,
+  getDrawerPulse,
   type PosSettings,
 } from './pos-settings';
 import {
@@ -141,7 +142,9 @@ class EscPosBuilder {
   }
 
   init() {
-    return this.raw(ESC, 0x40);
+    // ESC @ = initialize printer
+    // 0x00 x2 = null bytes to wake up printer (Black Copper / clone printers need this)
+    return this.raw(ESC, 0x40, 0x00, 0x00);
   }
 
   align(mode: 'left' | 'center' | 'right') {
@@ -159,24 +162,27 @@ class EscPosBuilder {
   }
 
   cut() {
-    return this.raw(GS, 0x56, 0x00);
+    // GS V 0x41 0x00 = partial cut — Black Copper aur most clone printers ke saath compatible
+    // Fallback: GS V 0x00 full cut bhi send karo
+    return this.raw(GS, 0x56, 0x41, 0x00);
   }
 
-  feed(n = 3) {
+  feed(n = 4) {
     return this.raw(ESC, 0x64, Math.min(20, Math.max(0, n)));
   }
 
   drawer() {
-    // ESC p m t1 t2 — pulse pin 2
-    return this.raw(ESC, 0x70, 0x00, 0x19, 0xfa);
+    const { t1, t2 } = getDrawerPulse();
+    // Pulse both drawer pins (2 and 5) — Black Copper / clones vary which jack is wired
+    return this.raw(ESC, 0x70, 0x00, t1, t2).raw(ESC, 0x70, 0x01, t1, t2);
   }
 
   barcode(value: string) {
     const data = encodeText(value.slice(0, 40));
     this.raw(GS, 0x68, 60); // height
-    this.raw(GS, 0x77, 2); // module width
-    this.raw(GS, 0x48, 2); // HRI below
-    this.raw(GS, 0x66, 0); // HRI font A
+    this.raw(GS, 0x77, 2);  // module width
+    this.raw(GS, 0x48, 2);  // HRI below
+    this.raw(GS, 0x66, 0);  // HRI font A
     // CODE128: GS k 73 n data
     this.raw(GS, 0x6b, 73, data.length);
     this.chunks.push(data);
@@ -229,6 +235,11 @@ export function buildEscPosReceipt(opts: {
   const b = new EscPosBuilder();
 
   b.init();
+
+  // Black Copper aur clone printers ke liye: init ke baad line feed dو
+  // taake printer command buffer settle ho jaye
+  b.raw(LF);
+
   b.align('center');
   b.bold(true);
   b.size(2, 2);
@@ -325,7 +336,6 @@ export function buildEscPosReceipt(opts: {
       b.line(receiptBarcodeValue(sale));
     }
     try {
-      // Compact QR for ESC/POS module size
       const qrPayload = receiptQrValue(sale, opts.shift);
       b.qr(qrPayload.length > 400 ? receiptBarcodeValue(sale) : qrPayload, widthMm === 58 ? 4 : 5);
     } catch {
@@ -345,7 +355,9 @@ export function buildEscPosReceipt(opts: {
   if (tpl.poweredBy) b.line(tpl.poweredBy);
   b.line(new Date().toLocaleString());
 
-  b.feed(settings.thermalFeedLines ?? 4);
+  // Feed lines badhe kiye: 4 → 6 (Black Copper pe cut se pehle enough paper chahiye)
+  b.feed(settings.thermalFeedLines ?? 6);
+
   if (settings.thermalCutPaper !== false) b.cut();
   if (settings.openDrawerOnCashSale && saleHasCashPayment(sale)) b.drawer();
 
@@ -374,28 +386,49 @@ export async function connectThermalPrinter(baudRate?: number) {
   }
   const settings = loadPosSettings();
   const port = await navigator.serial!.requestPort();
-  await port.open({ baudRate: baudRate || settings.thermalPrinterBaudRate || 9600 });
-  printerPort = port;
-  printerConnected = true;
-  return true;
+  try {
+    await port.open({ baudRate: baudRate || settings.thermalPrinterBaudRate || 9600 });
+    printerPort = port;
+    printerConnected = true;
+    return true;
+  } catch (e: any) {
+    // Port already open by OS/driver — treat as connected
+    if (e?.name === 'InvalidStateError' || e?.message?.toLowerCase().includes('already open')) {
+      printerPort = port;
+      printerConnected = true;
+      return true;
+    }
+    throw e;
+  }
 }
 
 export async function reconnectThermalPrinter() {
   if (!thermalPrinterSupportsSerial()) return false;
+
+  if (printerConnected && printerPort) return true;
+
   const settings = loadPosSettings();
   const ports = await navigator.serial!.getPorts();
   if (!ports.length) return false;
   const port = ports[0];
+
   try {
     await port.open({ baudRate: settings.thermalPrinterBaudRate || 9600 });
     printerPort = port;
     printerConnected = true;
     return true;
-  } catch {
-    // already open
-    printerPort = port;
-    printerConnected = true;
-    return true;
+  } catch (e: any) {
+    if (
+      e?.message?.toLowerCase().includes('already open') ||
+      e?.name === 'InvalidStateError'
+    ) {
+      printerPort = port;
+      printerConnected = true;
+      return true;
+    }
+    printerPort = null;
+    printerConnected = false;
+    return false;
   }
 }
 
@@ -407,6 +440,41 @@ export async function disconnectThermalPrinter() {
   }
   printerPort = null;
   printerConnected = false;
+}
+
+/** Open drawer through the thermal printer only (no browser print dialog). */
+export async function kickCashDrawer() {
+  const payload = new EscPosBuilder().init().drawer().build();
+
+  const send = async () => {
+    if (!printerConnected || !printerPort?.writable) {
+      const ok = await reconnectThermalPrinter();
+      if (!ok || !printerPort?.writable) {
+        throw new Error(
+          'Connect the thermal printer first (POS Management → Printer → Connect printer), then try Open cash drawer again.'
+        );
+      }
+    }
+    await writeToPort(payload);
+  };
+
+  try {
+    await send();
+    return { ok: true as const, mode: 'escpos' as const };
+  } catch (first) {
+    printerConnected = false;
+    printerPort = null;
+    try {
+      await send();
+      return { ok: true as const, mode: 'escpos' as const };
+    } catch {
+      throw first instanceof Error
+        ? first
+        : new Error(
+            'Connect the thermal printer first (POS Management → Printer → Connect printer), then try Open cash drawer again.'
+          );
+    }
+  }
 }
 
 export async function printEscPosReceipt(opts: {
@@ -427,7 +495,10 @@ export async function printTestThermalPage() {
   const tpl = loadReceiptTemplate();
   const cols = charsPerLine(tpl.thermalPaperWidthMm || 80);
   const b = new EscPosBuilder();
+
   b.init();
+  b.raw(LF); // settle delay
+
   b.align('center');
   b.bold(true);
   b.size(2, 2);
@@ -442,7 +513,7 @@ export async function printTestThermalPage() {
   b.barcode('TEST-12345');
   b.qr('POS-TEST', 5);
   b.line('If you can read this, ESC/POS works.');
-  b.feed(settings.thermalFeedLines ?? 4);
+  b.feed(settings.thermalFeedLines ?? 6);
   if (settings.thermalCutPaper !== false) b.cut();
   await writeToPort(b.build());
 }
@@ -481,7 +552,6 @@ export async function printPosReceipt(opts: {
   }
 
   if (settings.openDrawerOnCashSale && saleHasCashPayment(opts.sale) && mode === 'browser') {
-    // Browser path: kick drawer via separate ESC sequence (works with some print bridges)
     setTimeout(() => openCashDrawer(), 400);
   }
 

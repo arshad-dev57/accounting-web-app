@@ -11,7 +11,9 @@ import React, {
 import {
   FiscalYear,
   FISCAL_YEAR_STORAGE_KEY,
+  FISCAL_YEARS_CACHE_EVENT,
   fiscalYearService,
+  getCachedFiscalYears,
   getStoredFiscalYearId,
   setStoredFiscalYearId,
 } from './fiscal-year-service';
@@ -37,44 +39,72 @@ function pickDefault(years: FiscalYear[], preferredId: string | null): FiscalYea
   return years.find((y) => String(y.status).toLowerCase() === 'open') || years[0];
 }
 
+function applyFiscalSelection(years: FiscalYear[], setSelectedId: (id: string) => void) {
+  const stored = getStoredFiscalYearId();
+  const chosen = pickDefault(years, stored);
+  const id = chosen?.id || '';
+  setSelectedId(id);
+  setStoredFiscalYearId(id || null);
+}
+
 export function FiscalYearProvider({ children }: { children: React.ReactNode }) {
-  const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
-  const [selectedFiscalYearId, setSelectedId] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>(() =>
+    typeof window === 'undefined' ? [] : getCachedFiscalYears()
+  );
+  const [selectedFiscalYearId, setSelectedId] = useState(() =>
+    typeof window === 'undefined' ? '' : getStoredFiscalYearId() || ''
+  );
+  const [loading, setLoading] = useState(
+    () => (typeof window === 'undefined' ? true : getCachedFiscalYears().length === 0)
+  );
   const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {
-    setLoading(true);
     setError('');
     try {
       const years = await fiscalYearService.list();
       setFiscalYears(years);
-      const stored = getStoredFiscalYearId();
-      const chosen = pickDefault(years, stored);
-      const id = chosen?.id || '';
-      setSelectedId(id);
-      setStoredFiscalYearId(id || null);
+      applyFiscalSelection(years, setSelectedId);
     } catch (e: any) {
       setError(e?.message || 'Failed to load fiscal years');
-      setFiscalYears([]);
+      const cached = getCachedFiscalYears();
+      if (cached.length) setFiscalYears(cached);
+      else setFiscalYears([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    refresh();
+    const cached = getCachedFiscalYears();
+    if (cached.length) {
+      setFiscalYears(cached);
+      applyFiscalSelection(cached, setSelectedId);
+      setLoading(false);
+      return;
+    }
+    void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    const onCache = () => {
+      const years = getCachedFiscalYears();
+      setFiscalYears(years);
+      applyFiscalSelection(years, setSelectedId);
+    };
     const onStorage = (e: StorageEvent) => {
       if (e.key === FISCAL_YEAR_STORAGE_KEY && e.newValue) {
         setSelectedId(e.newValue);
       }
+      if (e.key === 'cached_fiscal_years') onCache();
     };
+    window.addEventListener(FISCAL_YEARS_CACHE_EVENT, onCache);
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(FISCAL_YEARS_CACHE_EVENT, onCache);
+      window.removeEventListener('storage', onStorage);
+    };
   }, []);
 
   const setSelectedFiscalYearId = useCallback((id: string) => {

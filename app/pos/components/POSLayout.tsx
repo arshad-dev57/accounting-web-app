@@ -8,8 +8,8 @@ import {
   saveReceiptTemplate,
   DEFAULT_POS_SETTINGS,
   type PosSettings,
-  openCashDrawer,
 } from '../../../lib/pos-settings';
+import { kickCashDrawer } from '../../../lib/pos-thermal-printer';
 import { posOfflineQueue } from '../../../lib/pos-offline-queue';
 import {
   getPaymentTerminalStatus,
@@ -32,7 +32,10 @@ import {
   WifiOff,
   RefreshCw,
   CreditCard,
+  Menu,
+  RotateCcw,
 } from 'lucide-react';
+import ReturnsScreen from './ReturnsScreen';
 import { TopBarBrand } from '../../../components/BrandHeader';
 import LocationSelect from '../../../components/LocationSelect';
 import { useLocation } from '../../../lib/location-context';
@@ -46,7 +49,7 @@ interface Props {
 export default function POSLayout({ shift, onShiftClose, children }: Props) {
   const { isAdmin } = usePermissions();
   const { locationIdForApi, selectedLocation, isAllLocations } = useLocation();
-  const [activeTab, setActiveTab] = useState<'sell'|'held'|'shifts'|'reports'|'settings'>('sell');
+  const [activeTab, setActiveTab] = useState<'sell'|'returns'|'held'|'shifts'|'reports'|'settings'>('sell');
   const [showCloseShift, setShowCloseShift] = useState(false);
   const [actualCash, setActualCash] = useState('');
   const [closeNotes, setCloseNotes] = useState('');
@@ -59,6 +62,7 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
   const [online, setOnline] = useState(true);
   const [payDeviceOn, setPayDeviceOn] = useState(() => loadPosSettings().enablePaymentTerminal);
   const [payDeviceStatus, setPayDeviceStatus] = useState<TerminalLinkStatus>('disconnected');
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000);
@@ -161,6 +165,7 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
 
   const tabs = [
     { id:'sell' as const,     icon: Store,      label:'Sell' },
+    { id:'returns' as const,  icon: RotateCcw, label:'Returns' },
     { id:'held' as const,     icon: PauseCircle,label:'Held' },
     { id:'shifts' as const,   icon: Clock,      label:'Shifts' },
     { id:'reports' as const,  icon: BarChart3,  label:'Reports' },
@@ -170,124 +175,124 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
   return (
     <div className="flex flex-col h-screen bg-gray-50 text-gray-900 overflow-hidden font-sans">
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-6 h-[60px] bg-white border-b border-gray-200 flex-shrink-0">
-        <div className="flex items-center gap-2.5 font-bold text-lg">
-          <TopBarBrand
-            title="Point of Sale"
-            icon={<Store className="w-4 h-4 text-[#014582]" />}
-          />
-          {!online && (
-            <span className="ml-2 text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-              <WifiOff className="w-3 h-3" /> Offline
+      <div className="relative bg-[#014582] text-white flex-shrink-0 shadow-md">
+        <div className="flex items-center justify-between gap-2 px-3 md:px-4 min-h-[56px] md:h-[64px] py-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <TopBarBrand
+              title="Point of Sale"
+              icon={<Store className="w-5 h-5 text-white" />}
+              dark
+            />
+            {!online && (
+              <span className="hidden sm:flex text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full items-center gap-1">
+                <WifiOff className="w-3 h-3" /> Offline
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <LocationSelect
+              allowAll
+              showManageLink={false}
+              compact
+              variant="dark"
+              className="relative z-10 shrink-0"
+            />
+            <span className="relative z-20 hidden sm:flex items-center justify-center min-w-[118px] h-9 px-3 rounded-lg bg-[#012f5c] text-white font-bold text-sm tabular-nums whitespace-nowrap leading-none overflow-hidden">
+              {time.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+              })}
             </span>
-          )}
+            <button
+              className="px-3 py-2 rounded-lg bg-red-500 text-white text-sm font-bold hover:bg-red-400 whitespace-nowrap"
+              onClick={()=>setShowCloseShift(true)}
+            >
+              Close
+            </button>
+            <button
+              className="lg:hidden p-2 rounded-lg bg-white/15 border border-white/20"
+              onClick={() => setMoreOpen((v) => !v)}
+              aria-label="More actions"
+            >
+              {moreOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
+        </div>
+
+        <div className="hidden lg:flex items-center gap-2 px-4 pb-2">
+          <span className="flex items-center gap-1.5 text-sm font-medium">
+            <Store className="w-4 h-4" />
+            {(!isAllLocations && selectedLocation?.name) ||
+              shift.terminal?.location?.name ||
+              shift.terminal?.name ||
+              'Terminal'}
+          </span>
+          <span className="text-sm font-medium">
+            👤 {shift.cashier?.firstName} {shift.cashier?.lastName}
+          </span>
+          <span className="bg-emerald-400 text-[#01366a] px-2.5 py-1 rounded-full text-xs font-bold">
+            ● SHIFT OPEN
+          </span>
           {offlineCount > 0 && (
             <button
               onClick={syncOffline}
               disabled={syncing || !online}
-              className="ml-2 text-xs bg-sky-50 text-sky-700 border border-sky-200 px-2 py-0.5 rounded-full flex items-center gap-1 disabled:opacity-50"
+              className="text-xs bg-white text-[#014582] px-2 py-1 rounded-full font-bold disabled:opacity-50"
             >
-              {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
               Sync {offlineCount}
             </button>
           )}
-        </div>
-        <div className="flex items-center gap-3">
-          <LocationSelect allowAll showManageLink={false} compact />
-          <div className="flex items-center gap-4 text-gray-400 text-xs">
-            <span className="flex items-center gap-1.5">
-              <Store className="w-3.5 h-3.5" />
-              {shift.terminal?.location?.name ||
-                shift.terminal?.name ||
-                (isAllLocations ? 'All locations' : selectedLocation?.name) ||
-                'Terminal'}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span>👤</span>
-              {shift.cashier?.firstName} {shift.cashier?.lastName}
-            </span>
-            <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold">
-              ● SHIFT OPEN
-            </span>
-            {payDeviceOn && (
-              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                payDeviceStatus === 'ready' || payDeviceStatus === 'busy'
-                  ? 'bg-sky-500/10 border-sky-500/20 text-sky-700'
-                  : 'bg-red-500/10 border-red-500/20 text-red-600'
-              }`}>
-                {loadPosSettings().paymentTerminalModel} {payDeviceStatus === 'ready' ? 'Ready' : payDeviceStatus === 'busy' ? 'Charging' : 'Offline'}
-              </span>
-            )}
-          </div>
-          <span className="text-[#014582] font-bold text-sm tabular-nums">{time.toLocaleTimeString()}</span>
-          <button
-            className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-50 border border-gray-200 transition-colors flex items-center gap-2"
-            onClick={() => openCashDrawer()}
-            title="Open cash drawer"
-          >
-            Drawer
+          <button className="px-3 py-1.5 rounded-lg bg-white/15 text-sm font-semibold" onClick={() => { void kickCashDrawer(); }}>Drawer</button>
+          <button className="px-3 py-1.5 rounded-lg bg-white/15 text-sm font-semibold flex items-center gap-1" onClick={()=>setShowCashFlow(true)}>
+            <DollarSign className="w-4 h-4" /> Cash
           </button>
-          <button
-            className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-50 border border-gray-200 transition-colors flex items-center gap-2"
-            onClick={()=>setShowCashFlow(true)}
-          >
-            <DollarSign className="w-4 h-4" />
-            Cash
-          </button>
-          <button
-            className="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold hover:bg-amber-100 transition-colors flex items-center gap-2"
-            onClick={handleSuspend}
-          >
-            <Pause className="w-4 h-4" />
-            Suspend
+          <button className="px-3 py-1.5 rounded-lg bg-amber-400 text-[#01366a] text-sm font-bold flex items-center gap-1" onClick={handleSuspend}>
+            <Pause className="w-4 h-4" /> Suspend
           </button>
           {isAdmin && (
-            <button
-              className="px-3 py-2 rounded-lg bg-[#014582]/10 text-[#014582] border border-[#014582]/30 text-xs font-semibold hover:bg-[#014582]/15 transition-colors flex items-center gap-2"
-              onClick={() => window.location.href = '/pos/management'}
-            >
-              <Settings className="w-4 h-4" />
+            <button className="px-3 py-1.5 rounded-lg bg-white text-[#014582] text-sm font-bold" onClick={() => window.location.href = '/pos/management'}>
               Admin
             </button>
           )}
-          {isAdmin && (
-            <button
-              className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-50 border border-gray-200 transition-colors flex items-center gap-2"
-              onClick={() => { window.location.href = '/plans'; }}
-            >
-              <CreditCard className="w-4 h-4" />
-              Plans
-            </button>
-          )}
-          <button
-            className="px-3 py-2 rounded-lg bg-red-500/80 text-white text-xs font-semibold hover:bg-red-500/90 transition-colors flex items-center gap-2"
-            onClick={()=>setShowCloseShift(true)}
-          >
-            <Lock className="w-4 h-4" />
-            Close
-          </button>
         </div>
+
+        {moreOpen && (
+          <div className="lg:hidden absolute right-3 top-full mt-1 z-50 w-56 rounded-xl bg-white text-gray-900 shadow-xl border border-gray-200 p-2">
+            <p className="px-2 py-1 text-xs text-gray-500">
+              {shift.cashier?.firstName} {shift.cashier?.lastName}
+            </p>
+            <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50" onClick={() => { void kickCashDrawer(); setMoreOpen(false); }}>Drawer</button>
+            <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50" onClick={() => { setShowCashFlow(true); setMoreOpen(false); }}>Cash</button>
+            <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50" onClick={() => { handleSuspend(); setMoreOpen(false); }}>Suspend shift</button>
+            {isAdmin && (
+              <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50" onClick={() => { window.location.href = '/pos/management'; }}>Admin</button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Body */}
-      <div className="flex flex-1 overflow-hidden">
-        <div className="w-[72px] bg-white border-r border-gray-200 flex flex-col items-center py-4 gap-1 flex-shrink-0">
+      <div className="flex flex-1 overflow-hidden pb-16 md:pb-0">
+        <div className="hidden md:flex w-[80px] bg-[#01366a] flex-col items-center py-4 gap-1.5 flex-shrink-0">
           {tabs.map(t=>(
             <button
               key={t.id}
-              className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center gap-0.5 cursor-pointer border-none transition-all outline-none ${
-                activeTab===t.id ? 'bg-[#014582]/10' : 'hover:bg-gray-50'
+              className={`w-[68px] h-[62px] rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer border-none transition-all outline-none ${
+                activeTab===t.id ? 'bg-white text-[#014582] shadow-sm' : 'text-white/80 hover:bg-white/10'
               }`}
               onClick={()=>setActiveTab(t.id)}
             >
-              <t.icon className={`w-5 h-5 ${activeTab===t.id ? 'text-[#014582]' : 'text-gray-400'}`} />
-              <span className={`text-[9px] font-semibold ${activeTab===t.id ? 'text-[#014582]' : 'text-gray-400'}`}>{t.label}</span>
+              <t.icon className={`w-5 h-5 ${activeTab===t.id ? 'text-[#014582]' : 'text-white'}`} />
+              <span className={`text-[11px] font-bold ${activeTab===t.id ? 'text-[#014582]' : 'text-white'}`}>{t.label}</span>
             </button>
           ))}
         </div>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden min-w-0">
           {activeTab === 'sell'     && children}
+          {activeTab === 'returns'  && <ReturnsScreen />}
           {activeTab === 'held'     && <HeldSales onRecalled={() => setActiveTab('sell')} />}
           {activeTab === 'shifts'   && (
             <ShiftHistory
@@ -302,6 +307,21 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
           {activeTab === 'settings' && <POSSettings />}
         </div>
       </div>
+
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#01366a] flex justify-around items-center h-16 border-t border-white/10 pb-[env(safe-area-inset-bottom)]">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            className={`flex flex-col items-center justify-center gap-0.5 min-w-[56px] py-1 ${
+              activeTab === t.id ? 'text-white' : 'text-white/60'
+            }`}
+            onClick={() => setActiveTab(t.id)}
+          >
+            <t.icon className="w-5 h-5" />
+            <span className="text-[10px] font-bold">{t.label}</span>
+          </button>
+        ))}
+      </nav>
 
       {/* Close Shift Modal */}
       {showCloseShift && (
@@ -826,7 +846,29 @@ function POSSettings() {
         <Toggle label="Require manager for voids" checked={settings.requireManagerForVoid} onChange={(v) => update({ requireManagerForVoid: v })} />
         <Toggle label="Require manager for returns" checked={settings.requireManagerForReturn} onChange={(v) => update({ requireManagerForReturn: v })} />
         <Toggle label="Loyalty points enabled" checked={settings.loyaltyEnabled} onChange={(v) => update({ loyaltyEnabled: v })} />
-        <Toggle label="Open cash drawer on cash sale" checked={settings.openDrawerOnCashSale} onChange={(v) => update({ openDrawerOnCashSale: v })} />
+        <Toggle
+          label="Auto-open cash drawer on cash sale"
+          checked={settings.openDrawerOnCashSale}
+          onChange={(v) => update({ openDrawerOnCashSale: v })}
+        />
+        <p className="text-xs text-gray-500 px-1 -mt-1">
+          When off, the drawer will not open automatically after a cash sale. The Open cash drawer button on the sell screen always works.
+        </p>
+        <div className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+          <label className="text-sm text-gray-700 block mb-2">Drawer pulse strength</label>
+          <select
+            value={settings.drawerKickStrength || 'gentle'}
+            onChange={(e) => update({ drawerKickStrength: e.target.value as PosSettings['drawerKickStrength'] })}
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-900"
+          >
+            <option value="gentle">Low (softer open)</option>
+            <option value="normal">Medium</option>
+            <option value="strong">High (use if the drawer does not open)</option>
+          </select>
+          <p className="text-xs text-gray-400 mt-2">
+            Cash drawers open with a solenoid pulse, not a slow motor. Use Low for a lighter release. A 12V supply is usually quieter than 24V.
+          </p>
+        </div>
         <Toggle label="Offline mode (queue sales when offline)" checked={settings.enableOfflineMode} onChange={(v) => update({ enableOfflineMode: v })} />
         <div className="bg-white border border-gray-200 rounded-xl px-4 py-3">
           <p className="text-sm text-gray-700 font-medium">Barcode scanner</p>

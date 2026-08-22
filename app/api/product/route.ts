@@ -16,6 +16,8 @@ export interface Product {
   costPrice: number;
   sellingPrice: number;
   currentStock: number;
+  companyStock?: number;
+  locationStock?: number;
   minimumStock: number;
   maximumStock: number;
   location?: string;
