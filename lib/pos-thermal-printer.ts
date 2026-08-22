@@ -440,6 +440,22 @@ export async function disconnectThermalPrinter() {
   printerConnected = false;
 }
 
+/** Manual / cash-sale drawer kick. Uses connected ESC/POS printer, else browser fallback. */
+export async function kickCashDrawer() {
+  const payload = new EscPosBuilder().init().drawer().build();
+  try {
+    if (!printerConnected) await reconnectThermalPrinter();
+    if (printerConnected && printerPort?.writable) {
+      await writeToPort(payload);
+      return { ok: true as const, mode: 'escpos' as const };
+    }
+  } catch {
+    /* fall back to browser pulse */
+  }
+  openCashDrawer();
+  return { ok: true as const, mode: 'browser' as const };
+}
+
 export async function printEscPosReceipt(opts: {
   sale: PosReceiptSale;
   companyProfile?: any;

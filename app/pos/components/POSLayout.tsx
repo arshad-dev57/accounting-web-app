@@ -8,8 +8,8 @@ import {
   saveReceiptTemplate,
   DEFAULT_POS_SETTINGS,
   type PosSettings,
-  openCashDrawer,
 } from '../../../lib/pos-settings';
+import { kickCashDrawer } from '../../../lib/pos-thermal-printer';
 import { posOfflineQueue } from '../../../lib/pos-offline-queue';
 import {
   getPaymentTerminalStatus,
@@ -244,7 +244,7 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
               Sync {offlineCount}
             </button>
           )}
-          <button className="px-3 py-1.5 rounded-lg bg-white/15 text-sm font-semibold" onClick={() => openCashDrawer()}>Drawer</button>
+          <button className="px-3 py-1.5 rounded-lg bg-white/15 text-sm font-semibold" onClick={() => { void kickCashDrawer(); }}>Drawer</button>
           <button className="px-3 py-1.5 rounded-lg bg-white/15 text-sm font-semibold flex items-center gap-1" onClick={()=>setShowCashFlow(true)}>
             <DollarSign className="w-4 h-4" /> Cash
           </button>
@@ -263,7 +263,7 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
             <p className="px-2 py-1 text-xs text-gray-500">
               {shift.cashier?.firstName} {shift.cashier?.lastName}
             </p>
-            <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50" onClick={() => { openCashDrawer(); setMoreOpen(false); }}>Drawer</button>
+            <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50" onClick={() => { void kickCashDrawer(); setMoreOpen(false); }}>Drawer</button>
             <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50" onClick={() => { setShowCashFlow(true); setMoreOpen(false); }}>Cash</button>
             <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50" onClick={() => { handleSuspend(); setMoreOpen(false); }}>Suspend shift</button>
             {isAdmin && (
@@ -846,7 +846,14 @@ function POSSettings() {
         <Toggle label="Require manager for voids" checked={settings.requireManagerForVoid} onChange={(v) => update({ requireManagerForVoid: v })} />
         <Toggle label="Require manager for returns" checked={settings.requireManagerForReturn} onChange={(v) => update({ requireManagerForReturn: v })} />
         <Toggle label="Loyalty points enabled" checked={settings.loyaltyEnabled} onChange={(v) => update({ loyaltyEnabled: v })} />
-        <Toggle label="Open cash drawer on cash sale" checked={settings.openDrawerOnCashSale} onChange={(v) => update({ openDrawerOnCashSale: v })} />
+        <Toggle
+          label="Auto-open cash drawer on cash sale"
+          checked={settings.openDrawerOnCashSale}
+          onChange={(v) => update({ openDrawerOnCashSale: v })}
+        />
+        <p className="text-xs text-gray-500 px-1 -mt-1">
+          Off = cash sale ke baad drawer khud nahi khulegi. Sell screen ka Open cash drawer button hamesha chalega.
+        </p>
         <Toggle label="Offline mode (queue sales when offline)" checked={settings.enableOfflineMode} onChange={(v) => update({ enableOfflineMode: v })} />
         <div className="bg-white border border-gray-200 rounded-xl px-4 py-3">
           <p className="text-sm text-gray-700 font-medium">Barcode scanner</p>

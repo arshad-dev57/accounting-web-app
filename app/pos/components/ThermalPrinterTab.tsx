@@ -12,6 +12,7 @@ import {
   isThermalPrinterConnected,
   printTestThermalPage,
   reconnectThermalPrinter,
+  kickCashDrawer,
   thermalPrinterSupportsSerial,
 } from '../../../lib/pos-thermal-printer';
 
@@ -124,6 +125,19 @@ export default function ThermalPrinterTab({ isAdmin }: { isAdmin: boolean }) {
     }
   };
 
+  const handleOpenDrawer = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await kickCashDrawer();
+      setMessage('Drawer open signal sent');
+    } catch (e: any) {
+      setError(e?.message || 'Could not open drawer');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleTest = async () => {
     setBusy(true);
     setError('');
@@ -206,8 +220,8 @@ export default function ThermalPrinterTab({ isAdmin }: { isAdmin: boolean }) {
           onChange={(v) => patch({ autoPrintOnSale: v })}
         />
         <Toggle
-          label="Open cash drawer on cash sale"
-          hint="Sends drawer kick with cash tenders"
+          label="Auto-open cash drawer on cash sale"
+          hint="On = cash payment complete hote hi drawer khulegi. Off = sirf Sell screen ke Open drawer button se khulegi."
           checked={settings.openDrawerOnCashSale}
           disabled={!isAdmin}
           onChange={(v) => patch({ openDrawerOnCashSale: v })}
@@ -290,6 +304,14 @@ export default function ThermalPrinterTab({ isAdmin }: { isAdmin: boolean }) {
             onClick={handleTest}
           >
             Print test page
+          </button>
+          <button
+            type="button"
+            style={btn('#f59e0b')}
+            disabled={busy}
+            onClick={() => { void handleOpenDrawer(); }}
+          >
+            Open cash drawer
           </button>
         </div>
         <ol style={{ margin: '16px 0 0', paddingLeft: 18, color: '#64748b', fontSize: 12, lineHeight: 1.7 }}>

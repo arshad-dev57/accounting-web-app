@@ -12,6 +12,8 @@ import { customerService } from '../../api/customer/route';
 import { productService } from '../../api/product/route';
 import { salesOrderService } from '../../api/orders/sales/route';
 import { useLocation } from '@/lib/location-context';
+import { findProductFromScan, useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
+import { matchScannedProduct } from '@/lib/pos-scanner';
 
 interface Order {
   _id: string;
@@ -937,7 +939,10 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
     ? products.filter(
         (p) =>
           p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
-          p.sku.toLowerCase().includes(productSearchQuery.toLowerCase())
+          p.sku.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+          String((p as any).barcodeNumber || (p as any).barcode?.number || '')
+            .toLowerCase()
+            .includes(productSearchQuery.toLowerCase())
       )
     : products;
 
@@ -1066,54 +1071,43 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
     }
   };
 
-  // ── Add item to order ──────────────────────────────────────────────────
-  const handleAddItem = () => {
-    console.log('🔄 Adding item to order...');
-    console.log('📦 Selected product:', selectedProduct);
-    console.log('📦 Quantity:', quantity);
-    
-    if (!selectedProduct) { 
-      setFormError('Please select a product'); 
-      return; 
+  const addProductLine = (product: Product, qty: number) => {
+    if (qty < 1) {
+      setFormError('Quantity must be at least 1');
+      return;
     }
-    
-    if (quantity < 1) { 
-      setFormError('Quantity must be at least 1'); 
-      return; 
-    }
-    
-    if (quantity > selectedProduct.currentStock) {
-      setFormError(`Insufficient stock. Available: ${selectedProduct.currentStock}`);
+    if (qty > product.currentStock) {
+      setFormError(`Insufficient stock. Available: ${product.currentStock}`);
       return;
     }
 
-    const selectedProductId = getNormalizedId(selectedProduct);
+    const selectedProductId = getNormalizedId(product);
     const idx = orderItems.findIndex((i) => {
       const itemProductId = getNormalizedId({ _id: i.productId });
       return itemProductId === selectedProductId;
     });
-    
+
     if (idx >= 0) {
-      const newQty = orderItems[idx].quantity + quantity;
-      if (newQty > selectedProduct.currentStock) {
-        setFormError(`Insufficient stock. Available: ${selectedProduct.currentStock}, total requested: ${newQty}`);
+      const newQty = orderItems[idx].quantity + qty;
+      if (newQty > product.currentStock) {
+        setFormError(`Insufficient stock. Available: ${product.currentStock}, total requested: ${newQty}`);
         return;
       }
       const updated = [...orderItems];
       updated[idx] = { ...updated[idx], quantity: newQty, totalPrice: updated[idx].unitPrice * newQty };
       setOrderItems(updated);
-      console.log('✅ Updated existing item:', updated[idx]);
     } else {
-      const newItem = {
-        productId: getNormalizedId(selectedProduct),
-        productName: selectedProduct.name,
-        sku: selectedProduct.sku,
-        quantity,
-        unitPrice: selectedProduct.sellingPrice,
-        totalPrice: selectedProduct.sellingPrice * quantity,
-      };
-      setOrderItems([...orderItems, newItem]);
-      console.log('✅ Added new item:', newItem);
+      setOrderItems([
+        ...orderItems,
+        {
+          productId: getNormalizedId(product),
+          productName: product.name,
+          sku: product.sku,
+          quantity: qty,
+          unitPrice: product.sellingPrice,
+          totalPrice: product.sellingPrice * qty,
+        },
+      ]);
     }
 
     setSelectedProduct(null);
@@ -1121,6 +1115,30 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
     setProductSearchQuery('');
     setFormError('');
   };
+
+  const handleAddItem = () => {
+    if (!selectedProduct) {
+      setFormError('Please select a product');
+      return;
+    }
+    addProductLine(selectedProduct, quantity);
+  };
+
+  useHardwareBarcodeScanner((code) => {
+    const local = matchScannedProduct(products, code);
+    if (local) {
+      addProductLine(local as Product, 1);
+      return;
+    }
+    void findProductFromScan(code, selectedLocationId || undefined).then((found) => {
+      if (!found) {
+        setFormError(`No product found for barcode ${code}`);
+        setProductSearchQuery(code);
+        return;
+      }
+      addProductLine(found as Product, 1);
+    });
+  });
 
   const handleRemoveItem = (i: number) => setOrderItems(orderItems.filter((_, idx) => idx !== i));
 
@@ -1380,7 +1398,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Filter by name or SKU..."
+                placeholder="Filter by name, SKU, or scan barcode..."
                 value={productSearchQuery}
                 onChange={(e) => { 
                   setProductSearchQuery(e.target.value); 
@@ -1395,6 +1413,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
                 </button>
               )}
             </div>
+            <p className="text-xs text-gray-400 mt-1">USB scanner ready — scan a barcode to add the product.</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
