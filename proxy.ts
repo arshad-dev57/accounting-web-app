@@ -1,38 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const MARKETING_URL =
-  process.env.NEXT_PUBLIC_MARKETING_URL?.replace(/\/$/, '') ||
-  'https://bisonstechs.com';
-
-function isNextDataRequest(request: NextRequest) {
-  return (
-    request.headers.get('RSC') === '1' ||
-    request.headers.get('Next-Router-Prefetch') === '1' ||
-    request.headers.get('Next-Router-State-Tree') != null ||
-    request.headers.get('Sec-Purpose')?.includes('prefetch') === true ||
-    request.headers.get('Purpose') === 'prefetch' ||
-    request.nextUrl.searchParams.has('_rsc')
-  );
-}
+// Marketing site disconnected — app starts at /login.
+// const MARKETING_URL =
+//   process.env.NEXT_PUBLIC_MARKETING_URL?.replace(/\/$/, '') ||
+//   'https://bisonstechs.com';
 
 function redirectToAppLogin(request: NextRequest) {
   const url = request.nextUrl.clone();
   const nextPath = request.nextUrl.pathname + request.nextUrl.search;
   url.pathname = '/login';
   url.search = '';
-  if (nextPath && nextPath !== '/login') {
+  if (nextPath && nextPath !== '/login' && nextPath !== '/') {
     url.searchParams.set('next', nextPath);
   }
   return NextResponse.redirect(url);
-}
-
-function redirectUnauthenticated(request: NextRequest) {
-  // Cross-origin 302 (marketing site) on RSC/prefetch makes Chrome show
-  // "This page couldn't load" until a hard reload. Stay on the app origin.
-  if (isNextDataRequest(request)) {
-    return redirectToAppLogin(request);
-  }
-  return NextResponse.redirect(MARKETING_URL);
 }
 
 export async function proxy(request: NextRequest) {
@@ -57,26 +38,23 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Brand / smart entry: session → dashboard path, else marketing website
+  // App root / enter: token → dashboard, else login
   if (pathname === '/' || pathname === '/enter') {
     if (!token) {
-      return redirectUnauthenticated(request);
+      return NextResponse.redirect(new URL('/login', request.url));
     }
     const access = request.cookies.get('subscription_access')?.value;
     if (access === '0') {
       return NextResponse.redirect(new URL('/plans', request.url));
     }
-    if (pathname === '/') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-    return NextResponse.next();
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   if (!token && !isPublicRoute) {
-    return redirectUnauthenticated(request);
+    return redirectToAppLogin(request);
   }
 
-  if (token && pathname === '/login') {
+  if (token && (pathname === '/login' || pathname === '/login-otp' || pathname === '/register')) {
     const access = request.cookies.get('subscription_access')?.value;
     if (access === '0') {
       return NextResponse.redirect(new URL('/plans', request.url));

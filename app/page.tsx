@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-/** App root → smart entry (session → dashboard, else marketing site) */
+/** App root → login (token check is in proxy; logged-in users go to dashboard there) */
 export default function Home() {
-  redirect('/enter');
+  redirect('/login');
 }
