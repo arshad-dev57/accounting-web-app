@@ -15,42 +15,56 @@ export type AuthCookieBase = {
   domain?: string;
 };
 
+function hostMatchesCookieDomain(host: string, domain: string): boolean {
+  const h = host.split(':')[0].toLowerCase();
+  const d = domain.replace(/^\./, '').toLowerCase();
+  return h === d || h.endsWith(`.${d}`);
+}
+
 /** Parent domain for cross-subdomain cookies, e.g. ".bisonstechs.com" */
-export function cookieDomain(): string | undefined {
+export function cookieDomain(requestHost?: string): string | undefined {
   // Never attach parent domain on localhost — browsers reject it.
   if (process.env.NODE_ENV !== 'production') return undefined;
   const domain = process.env.COOKIE_DOMAIN?.trim();
-  return domain && domain.length > 0 ? domain : undefined;
+  if (!domain) return undefined;
+
+  // Vercel (*.vercel.app) cannot set Domain=.bisonstechs.com — browser drops the cookie,
+  // proxy sees no auth_token, and OTP success redirects back to /login.
+  const host = (requestHost || '').split(':')[0].toLowerCase();
+  if (host.endsWith('.vercel.app') || host === 'vercel.app') return undefined;
+  if (process.env.VERCEL && !hostMatchesCookieDomain(host, domain)) return undefined;
+  if (host && !hostMatchesCookieDomain(host, domain)) return undefined;
+  return domain;
 }
 
-export function authCookieBase(maxAge: number): AuthCookieBase {
+export function authCookieBase(maxAge: number, requestHost?: string): AuthCookieBase {
   const opts: AuthCookieBase = {
     path: '/',
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     maxAge,
   };
-  const domain = cookieDomain();
+  const domain = cookieDomain(requestHost);
   if (domain) opts.domain = domain;
   return opts;
 }
 
-export function httpOnlyAuthCookie(maxAge = AUTH_TOKEN_MAX_AGE) {
-  return { ...authCookieBase(maxAge), httpOnly: true as const };
+export function httpOnlyAuthCookie(maxAge = AUTH_TOKEN_MAX_AGE, requestHost?: string) {
+  return { ...authCookieBase(maxAge, requestHost), httpOnly: true as const };
 }
 
-export function publicAuthCookie(maxAge = AUTH_TOKEN_MAX_AGE) {
-  return { ...authCookieBase(maxAge), httpOnly: false as const };
+export function publicAuthCookie(maxAge = AUTH_TOKEN_MAX_AGE, requestHost?: string) {
+  return { ...authCookieBase(maxAge, requestHost), httpOnly: false as const };
 }
 
 /** Non-sensitive flag readable by marketing site JS on bisonstechs.com */
-export function loggedInCookieOptions(maxAge = AUTH_TOKEN_MAX_AGE) {
-  return publicAuthCookie(maxAge);
+export function loggedInCookieOptions(maxAge = AUTH_TOKEN_MAX_AGE, requestHost?: string) {
+  return publicAuthCookie(maxAge, requestHost);
 }
 
-export function clearCookieOptions(httpOnly: boolean) {
+export function clearCookieOptions(httpOnly: boolean, requestHost?: string) {
   return {
-    ...authCookieBase(0),
+    ...authCookieBase(0, requestHost),
     httpOnly,
     maxAge: 0,
   };

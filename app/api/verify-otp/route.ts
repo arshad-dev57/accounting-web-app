@@ -52,13 +52,14 @@ export async function POST(request: NextRequest) {
 
       console.log('🍪 [OTP API] Setting cookies');
 
-      // Also set httpOnly cookies (for server-side authentication)
-      // COOKIE_DOMAIN=.bisonstechs.com enables marketing site session awareness
+      const requestHost = request.headers.get('host') || '';
+
+      // Host-only cookies on Vercel; .bisonstechs.com only when actually on that domain
       if (token) {
         nextResponse.cookies.set(
           'auth_token',
           token,
-          httpOnlyAuthCookie(AUTH_TOKEN_MAX_AGE)
+          httpOnlyAuthCookie(AUTH_TOKEN_MAX_AGE, requestHost)
         );
         console.log('✅ [OTP API] Auth token cookie set');
       }
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
         nextResponse.cookies.set(
           'refresh_token',
           refreshToken,
-          httpOnlyAuthCookie(REFRESH_TOKEN_MAX_AGE)
+          httpOnlyAuthCookie(REFRESH_TOKEN_MAX_AGE, requestHost)
         );
         console.log('✅ [OTP API] Refresh token cookie set');
       }
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
         nextResponse.cookies.set(
           'user_data',
           JSON.stringify(data.user),
-          httpOnlyAuthCookie(AUTH_TOKEN_MAX_AGE)
+          httpOnlyAuthCookie(AUTH_TOKEN_MAX_AGE, requestHost)
         );
         console.log('✅ [OTP API] User data cookie set');
       }
@@ -87,14 +88,13 @@ export async function POST(request: NextRequest) {
       nextResponse.cookies.set(
         'subscription_access',
         hintActive ? '1' : '0',
-        publicAuthCookie(AUTH_TOKEN_MAX_AGE)
+        publicAuthCookie(AUTH_TOKEN_MAX_AGE, requestHost)
       );
 
-      // Readable by bisonstechs.com so Sign In ↔ Dashboard can switch
       nextResponse.cookies.set(
         LOGGED_IN_COOKIE,
         '1',
-        loggedInCookieOptions(AUTH_TOKEN_MAX_AGE)
+        loggedInCookieOptions(AUTH_TOKEN_MAX_AGE, requestHost)
       );
 
       console.log('✅ [OTP API] Returning successful response');

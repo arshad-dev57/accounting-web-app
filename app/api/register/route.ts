@@ -33,12 +33,13 @@ export async function POST(request: NextRequest) {
     }
 
     const nextResponse = NextResponse.json(data, { status: response.status });
+    const requestHost = request.headers.get('host') || '';
 
     if (data.token) {
       nextResponse.cookies.set(
         'auth_token',
         data.token,
-        httpOnlyAuthCookie(AUTH_TOKEN_MAX_AGE)
+        httpOnlyAuthCookie(AUTH_TOKEN_MAX_AGE, requestHost)
       );
     }
 
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
       nextResponse.cookies.set(
         'refresh_token',
         data.refreshToken,
-        httpOnlyAuthCookie(REFRESH_TOKEN_MAX_AGE)
+        httpOnlyAuthCookie(REFRESH_TOKEN_MAX_AGE, requestHost)
       );
     }
 
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
       nextResponse.cookies.set(
         'user_data',
         JSON.stringify(data.user),
-        httpOnlyAuthCookie(AUTH_TOKEN_MAX_AGE)
+        httpOnlyAuthCookie(AUTH_TOKEN_MAX_AGE, requestHost)
       );
     }
 
@@ -62,13 +63,13 @@ export async function POST(request: NextRequest) {
     nextResponse.cookies.set(
       'subscription_access',
       '1',
-      publicAuthCookie(AUTH_TOKEN_MAX_AGE)
+      publicAuthCookie(AUTH_TOKEN_MAX_AGE, requestHost)
     );
 
     nextResponse.cookies.set(
       LOGGED_IN_COOKIE,
       '1',
-      loggedInCookieOptions(AUTH_TOKEN_MAX_AGE)
+      loggedInCookieOptions(AUTH_TOKEN_MAX_AGE, requestHost)
     );
 
     return nextResponse;

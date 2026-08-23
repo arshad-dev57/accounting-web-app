@@ -13,9 +13,11 @@ export function setMarketingLoggedInFlag() {
     host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
   if (isLocal) return;
 
-  const domain =
-    process.env.NEXT_PUBLIC_COOKIE_DOMAIN?.trim() || '.bisonstechs.com';
-  document.cookie = `${LOGGED_IN_COOKIE}=1; path=/; domain=${domain}; max-age=${AUTH_TOKEN_MAX_AGE}; SameSite=Lax${secure}`;
+  const configured = process.env.NEXT_PUBLIC_COOKIE_DOMAIN?.trim();
+  const bare = configured?.replace(/^\./, '') || '';
+  if (configured && (host === bare || host.endsWith(`.${bare}`))) {
+    document.cookie = `${LOGGED_IN_COOKIE}=1; path=/; domain=${configured}; max-age=${AUTH_TOKEN_MAX_AGE}; SameSite=Lax${secure}`;
+  }
 }
 
 export function clearMarketingLoggedInFlag() {
