@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { MapPin, Settings2 } from 'lucide-react';
 import { ALL_LOCATIONS_VALUE } from '../lib/location-service';
 import { useLocation } from '../lib/location-context';
+import { usePermissions } from '../lib/usePermissions';
 
 export default function LocationSelect({
   compact = true,
@@ -27,6 +28,7 @@ export default function LocationSelect({
     setSelectedLocationId,
     allowAll: providerAllowAll,
   } = useLocation();
+  const { isAdmin } = usePermissions();
 
   const showAll = allowAll ?? providerAllowAll;
 
@@ -42,6 +44,14 @@ export default function LocationSelect({
   }
 
   if (locations.length === 0) {
+    if (!isAdmin) {
+      return (
+        <div className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-gray-200 bg-gray-50 text-gray-600 ${className}`}>
+          <MapPin className="w-4 h-4" />
+          No store assigned
+        </div>
+      );
+    }
     return (
       <Link
         href="/warehouse/locations"
@@ -105,7 +115,7 @@ export default function LocationSelect({
           </span>
         )}
       </div>
-      {showManageLink && (
+      {showManageLink && isAdmin && (
         <Link
           href="/warehouse/locations"
           className="p-1.5 rounded-lg text-gray-400 hover:text-[#014582] hover:bg-gray-100"

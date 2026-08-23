@@ -96,6 +96,12 @@ export async function performLogout(redirectTo = '/login') {
   clearLocalAuthData();
 
   if (typeof window !== 'undefined') {
-    window.location.href = redirectTo;
+    try {
+      sessionStorage.setItem('bt_logged_out', '1');
+    } catch {
+      /* ignore */
+    }
+    // replace() drops this page from history so Back does not reopen the app
+    window.location.replace(redirectTo);
   }
 }

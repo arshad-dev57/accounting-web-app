@@ -71,6 +71,7 @@ function WarehouseSidebar() {
   // Filter menu items based on permissions
   const filteredMenuItems = menuItems.filter(item => {
     if (item.path === '/plans') return isAdmin;
+    if (item.path === '/warehouse/locations') return isAdmin;
     return item.permission === '*' || isAdmin || hasSubPageAccess('warehouse', item.permission);
   });
 

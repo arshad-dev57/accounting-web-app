@@ -102,6 +102,7 @@ function TerminalsTab({
   }, []);
 
   const create = async () => {
+    if (!isAdmin) { setError('Only admin can create terminals'); return; }
     if (!form.name || !form.code) { setError('Name and Code are required'); return; }
     if (!form.locationId) { setError('Select a warehouse/shop location'); return; }
     setSaving(true); setError('');
@@ -135,7 +136,7 @@ function TerminalsTab({
 
       {error && <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'10px', padding:'10px 14px', color:'#dc2626', fontSize:'13px', marginBottom:'14px' }}>{error}</div>}
 
-      {showCreate && (
+      {showCreate && isAdmin && (
         <div style={{ ...card, marginBottom:'20px', border:'1px solid rgba(1,69,130,0.25)' }}>
           <h3 style={{ color:'#0f172a', marginTop:0, marginBottom:'16px', fontSize:'15px' }}>Create Terminal</h3>
           <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' as const }}>

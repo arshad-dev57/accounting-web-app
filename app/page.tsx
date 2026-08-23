@@ -1,6 +1,10 @@
 import { redirect } from 'next/navigation';
 
-/** App root → login (token check is in proxy; logged-in users go to dashboard there) */
+const MARKETING_URL =
+  process.env.NEXT_PUBLIC_MARKETING_URL?.replace(/\/$/, '') ||
+  'https://bisonstechs.com';
+
+/** Fallback if proxy does not run: marketing site first. Session routing is in proxy. */
 export default function Home() {
-  redirect('/login');
+  redirect(MARKETING_URL);
 }

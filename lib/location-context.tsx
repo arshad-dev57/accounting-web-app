@@ -20,6 +20,13 @@ import {
   locationService,
   setStoredLocationId,
 } from './location-service';
+import { isAdminRole, loadUserFromLocal } from './permission-service';
+
+function canUseAllLocations(allowAll: boolean): boolean {
+  if (!allowAll) return false;
+  if (typeof window === 'undefined') return false;
+  return isAdminRole(loadUserFromLocal()?.role);
+}
 
 interface LocationContextValue {
   locations: Location[];
@@ -96,12 +103,14 @@ export function LocationProvider({
     () => (typeof window === 'undefined' ? false : getCachedLocations().length > 0)
   );
 
+  const allowAllEnabled = canUseAllLocations(allowAll);
+
   const refresh = useCallback(async () => {
     setError('');
     try {
       const list = await locationService.list();
       setLocations(list);
-      applySelection(list, allowAll, setSelectedId);
+      applySelection(list, allowAllEnabled, setSelectedId);
     } catch (e: any) {
       setError(e?.message || 'Failed to load locations');
       const cached = getCachedLocations();
@@ -111,13 +120,13 @@ export function LocationProvider({
       setLoading(false);
       setReady(true);
     }
-  }, [allowAll]);
+  }, [allowAllEnabled]);
 
   useEffect(() => {
     const cached = getCachedLocations();
     if (cached.length) {
       setLocations(cached);
-      applySelection(cached, allowAll, setSelectedId);
+      applySelection(cached, allowAllEnabled, setSelectedId);
       setLoading(false);
       setReady(true);
       return;
@@ -130,17 +139,17 @@ export function LocationProvider({
     const onCache = () => {
       const list = getCachedLocations();
       setLocations(list);
-      applySelection(list, allowAll, setSelectedId);
+      applySelection(list, allowAllEnabled, setSelectedId);
     };
     window.addEventListener(LOCATIONS_CACHE_EVENT, onCache);
     return () => window.removeEventListener(LOCATIONS_CACHE_EVENT, onCache);
-  }, [allowAll]);
+  }, [allowAllEnabled]);
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === LOCATION_STORAGE_KEY) {
         const next = e.newValue || '';
-        if (allowAll && isAllLocationsId(next)) {
+        if (allowAllEnabled && isAllLocationsId(next)) {
           setSelectedId(ALL_LOCATIONS_VALUE);
         } else if (next) {
           setSelectedId(next);
@@ -150,13 +159,13 @@ export function LocationProvider({
       if (e.key === 'cached_locations') {
         const list = getCachedLocations();
         setLocations(list);
-        applySelection(list, allowAll, setSelectedId);
+        applySelection(list, allowAllEnabled, setSelectedId);
       }
     };
     const onLocal = (e: Event) => {
       const id = (e as CustomEvent)?.detail?.id;
       if (typeof id !== 'string') return;
-      if (allowAll && isAllLocationsId(id)) {
+      if (allowAllEnabled && isAllLocationsId(id)) {
         setSelectedId(ALL_LOCATIONS_VALUE);
       } else if (id) {
         setSelectedId(id);
@@ -168,12 +177,12 @@ export function LocationProvider({
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('location-changed', onLocal as EventListener);
     };
-  }, [allowAll]);
+  }, [allowAllEnabled]);
 
   const setSelectedLocationId = useCallback(
     (id: string) => {
       const next = String(id || '').trim();
-      if (allowAll && isAllLocationsId(next)) {
+      if (allowAllEnabled && isAllLocationsId(next)) {
         if (selectedLocationId === ALL_LOCATIONS_VALUE) return;
         setSelectedId(ALL_LOCATIONS_VALUE);
         setStoredLocationId(ALL_LOCATIONS_VALUE);
@@ -196,7 +205,7 @@ export function LocationProvider({
         );
       }
     },
-    [allowAll, locations, selectedLocationId]
+    [allowAllEnabled, locations, selectedLocationId]
   );
 
   const selectedLocation = useMemo(
@@ -208,7 +217,7 @@ export function LocationProvider({
   );
 
   const resolvedId = ready ? selectedLocationId : '';
-  const isAll = allowAll && isAllLocationsId(resolvedId);
+  const isAll = allowAllEnabled && isAllLocationsId(resolvedId);
 
   const value = useMemo(
     () => ({
@@ -217,7 +226,7 @@ export function LocationProvider({
       selectedLocationId: resolvedId,
       locationIdForApi: effectiveLocationId(resolvedId),
       isAllLocations: isAll,
-      allowAll,
+      allowAll: allowAllEnabled,
       loading: loading || !ready,
       error,
       setSelectedLocationId,
@@ -228,7 +237,7 @@ export function LocationProvider({
       selectedLocation,
       resolvedId,
       isAll,
-      allowAll,
+      allowAllEnabled,
       ready,
       loading,
       error,

@@ -47,6 +47,15 @@ export const usersService = {
           isActive: item.isActive ?? true,
           createdAt: item.createdAt || '',
           managerId: item.managerId,
+          locationIds: Array.isArray(item.locationIds)
+            ? item.locationIds
+            : (item.locations || []).map((l: any) => l.id),
+          locations: (item.locations || []).map((l: any) => ({
+            id: l.id,
+            name: l.name,
+            code: l.code,
+            type: l.type,
+          })),
           userRole: item.userRole ? {
             id: item.userRole.id || '',
             name: item.userRole.name || '',

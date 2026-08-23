@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Marketing site disconnected — app starts at /login.
-// const MARKETING_URL =
-//   process.env.NEXT_PUBLIC_MARKETING_URL?.replace(/\/$/, '') ||
-//   'https://bisonstechs.com';
+const MARKETING_URL =
+  process.env.NEXT_PUBLIC_MARKETING_URL?.replace(/\/$/, '') ||
+  'https://bisonstechs.com';
 
 function redirectToAppLogin(request: NextRequest) {
   const url = request.nextUrl.clone();
@@ -38,8 +37,19 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // App root / enter: token → dashboard, else login
-  if (pathname === '/' || pathname === '/enter') {
+  // Marketing first: no session on `/` → website. /enter is the app gate.
+  if (pathname === '/') {
+    if (!token) {
+      return NextResponse.redirect(MARKETING_URL);
+    }
+    const access = request.cookies.get('subscription_access')?.value;
+    if (access === '0') {
+      return NextResponse.redirect(new URL('/plans', request.url));
+    }
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  if (pathname === '/enter') {
     if (!token) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
@@ -70,9 +80,8 @@ export async function proxy(request: NextRequest) {
   }
 
   const response = NextResponse.next();
-  if (isPublicRoute) {
-    response.headers.set('Cache-Control', 'no-store, must-revalidate');
-  }
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  response.headers.set('Pragma', 'no-cache');
   return response;
 }
 

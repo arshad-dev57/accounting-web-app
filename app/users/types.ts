@@ -29,6 +29,13 @@ export interface UserRole {
   description?: string;
 }
 
+export interface AssignedLocation {
+  id: string;
+  name: string;
+  code?: string;
+  type?: string;
+}
+
 export interface User {
   id: string;
   firstName: string;
@@ -42,6 +49,8 @@ export interface User {
   managerId?: string;
   userRole?: UserRole;
   permissions: UserPermission[];
+  locationIds?: string[];
+  locations?: AssignedLocation[];
 }
 
 export interface Role {
@@ -73,6 +82,7 @@ export interface CreateUserRequest {
   roleId?: string;
   managerId?: string;
   permissions?: UserPermission[];
+  locationIds?: string[];
 }
 
 export interface UpdateUserRequest {
@@ -86,4 +96,5 @@ export interface UpdateUserRequest {
   managerId?: string;
   isActive?: boolean;
   permissions?: UserPermission[];
+  locationIds?: string[];
 }

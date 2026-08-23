@@ -27,9 +27,11 @@ import {
   Loader2,
   Eye,
   CreditCard,
+  MapPin,
 } from 'lucide-react';
 import { usersService } from './service';
 import { User, Role } from './types';
+import UserFormModal from './UserFormModal';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { performLogout } from '../../lib/auth-logout';
 import { useRouter } from 'next/navigation';
@@ -48,6 +50,8 @@ export default function UsersDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
 
   // Load data on mount
   useEffect(() => {
@@ -460,7 +464,14 @@ export default function UsersDashboard() {
               </p>
             </div>
             {activeTab === 'users' && (
-              <button className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6c3ae8] transition-all">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingUser(null);
+                  setFormOpen(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6c3ae8] transition-all"
+              >
                 <UserPlus className="w-4 h-4" />
                 <span>Add User</span>
               </button>
@@ -583,6 +594,7 @@ export default function UsersDashboard() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">User</th>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Role</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Locations</th>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created</th>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
@@ -618,6 +630,27 @@ export default function UsersDashboard() {
                           </span>
                         </td>
                         <td className="px-6 py-4">
+                          {user.role === 'admin' || user.role === 'owner' || user.role === 'superadmin' ? (
+                            <span className="text-xs text-gray-500">All locations</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {(user.locations || []).length === 0 ? (
+                                <span className="text-xs text-amber-600">None assigned</span>
+                              ) : (
+                                (user.locations || []).map((loc) => (
+                                  <span
+                                    key={loc.id}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-sky-50 text-sky-700"
+                                  >
+                                    <MapPin className="w-3 h-3" />
+                                    {loc.name}
+                                  </span>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.isActive)}`}>
                             {getStatusIcon(user.isActive)}
                             {user.isActive ? 'Active' : 'Inactive'}
@@ -626,7 +659,15 @@ export default function UsersDashboard() {
                         <td className="px-6 py-4 text-sm text-gray-600">{new Date(user.createdAt).toLocaleDateString()}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Edit">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingUser(user);
+                                setFormOpen(true);
+                              }}
+                              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                              title="Edit"
+                            >
                               <Edit className="w-4 h-4 text-gray-600" />
                             </button>
                             <button className="p-2 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
@@ -790,6 +831,15 @@ export default function UsersDashboard() {
         )}
         </div>
       </div>
+      <UserFormModal
+        open={formOpen}
+        user={editingUser}
+        onClose={() => {
+          setFormOpen(false);
+          setEditingUser(null);
+        }}
+        onSaved={loadData}
+      />
     </>
   );
 }

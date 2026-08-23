@@ -2,9 +2,8 @@
 import { useState, useEffect } from 'react';
 import { posTerminalService, posShiftService } from '../../../lib/pos-service';
 import { useLocation } from '../../../lib/location-context';
-import { locationService, type Location } from '../../../lib/location-service';
 import LocationSelect from '../../../components/LocationSelect';
-import { Monitor, ArrowLeft, Plus, Settings, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Monitor, ArrowLeft, Settings, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import Image from 'next/image';
 
 interface Props { onShiftOpened: (shift: any) => void; isAdmin?: boolean; }
@@ -13,17 +12,12 @@ export default function ShiftGate({ onShiftOpened, isAdmin }: Props) {
   const { locationIdForApi, isAllLocations, selectedLocation } = useLocation();
   const [step, setStep] = useState<'terminal' | 'cash'>('terminal');
   const [terminals, setTerminals] = useState<any[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
   const [selectedTerminal, setSelectedTerminal] = useState<any>(null);
   const [openingCash, setOpeningCash] = useState('0');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [loadingTerminals, setLoadingTerminals] = useState(false);
-
-  // Create terminal inline
-  const [showCreateTerminal, setShowCreateTerminal] = useState(false);
-  const [newTerminal, setNewTerminal] = useState({ name: '', code: '', locationId: '' });
 
   const loadTerminals = async () => {
     setLoadingTerminals(true);
@@ -33,32 +27,10 @@ export default function ShiftGate({ onShiftOpened, isAdmin }: Props) {
       if (locationIdForApi) qs.set('locationId', locationIdForApi);
       const res = await posTerminalService.list(qs.toString() || undefined);
       setTerminals(res.data || []);
-      if ((res.data || []).length === 0) setShowCreateTerminal(true);
-      else setShowCreateTerminal(false);
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoadingTerminals(false);
-    }
-  };
-
-  const createTerminal = async () => {
-    if (!newTerminal.name || !newTerminal.code) { setError('Terminal name and code are required'); return; }
-    const locId = newTerminal.locationId || locationIdForApi;
-    if (!locId) {
-      setError('Select a warehouse/shop location for this terminal');
-      return;
-    }
-    setLoading(true);
-    try {
-      await posTerminalService.create({ ...newTerminal, locationId: locId });
-      setShowCreateTerminal(false);
-      setNewTerminal({ name: '', code: '', locationId: '' });
-      await loadTerminals();
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -80,10 +52,6 @@ export default function ShiftGate({ onShiftOpened, isAdmin }: Props) {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    locationService.listCached().then(setLocations).catch(() => setLocations([]));
-  }, []);
 
   useEffect(() => {
     loadTerminals();
@@ -149,99 +117,55 @@ export default function ShiftGate({ onShiftOpened, isAdmin }: Props) {
                 <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
                 <p>Loading terminals...</p>
               </div>
-            ) : showCreateTerminal ? (
-              <>
-                <p className="text-gray-500 text-sm text-center mb-4">No terminals found. Create one to get started.</p>
-                <div className="mb-4">
-                  <label className="block text-gray-600 text-xs font-medium mb-2">Terminal Name</label>
-                  <input
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[#014582] transition-colors"
-                    value={newTerminal.name}
-                    onChange={e=>setNewTerminal(p=>({...p,name:e.target.value}))}
-                    placeholder="e.g. Main Counter"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-gray-600 text-xs font-medium mb-2">Terminal Code</label>
-                  <input
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[#014582] transition-colors"
-                    value={newTerminal.code}
-                    onChange={e=>setNewTerminal(p=>({...p,code:e.target.value.toUpperCase()}))}
-                    placeholder="e.g. TERM-01"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-gray-600 text-xs font-medium mb-2">Location (warehouse / shop)</label>
-                  <select
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[#014582] transition-colors"
-                    value={newTerminal.locationId || locationIdForApi || ''}
-                    onChange={(e) => setNewTerminal((p) => ({ ...p, locationId: e.target.value }))}
-                  >
-                    <option value="" className="text-gray-900">Select location…</option>
-                    {locations.map((l) => (
-                      <option key={l.id} value={l.id} className="text-gray-900">
-                        {l.name} ({l.code}) · {l.type}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#014582] to-[#01366a] text-white font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-                  onClick={createTerminal}
-                  disabled={loading}
-                >
-                  {loading ? 'Creating...' : 'Create Terminal'}
-                </button>
-                {terminals.length > 0 && (
-                  <button
-                    className="w-full py-3.5 rounded-xl border border-gray-200 bg-transparent text-gray-500 text-sm mt-2 hover:bg-gray-50 transition-colors"
-                    onClick={()=>setShowCreateTerminal(false)}
-                  >
-                    Back to list
-                  </button>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-3 mt-5">
-                  {terminals.map((t:any) => (
-                    <div
-                      key={t.id}
-                      className={`p-5 rounded-xl cursor-pointer transition-all border text-center shadow-sm ${
-                        selectedTerminal?.id === t.id
-                          ? 'bg-[#014582]/10 border-[#014582]'
-                          : 'bg-white border-gray-200 hover:bg-sky-50'
-                      }`}
-                      onClick={()=>selectTerminal(t)}
-                    >
-                      <Monitor className="w-7 h-7 mx-auto mb-2 text-gray-500" />
-                      <div className="text-gray-900 font-semibold text-sm">{t.name}</div>
-                      <div className="text-gray-500 text-xs mt-1">{t.code}</div>
-                      {t.location?.name && (
-                        <div className="text-[#014582] text-[10px] mt-1">{t.location.name}</div>
-                      )}
-                      <div className="mt-2">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold ${
-                          t.isActive
-                            ? 'bg-green-500/15 text-emerald-600 border border-green-500/20'
-                            : 'bg-red-500/15 text-red-600 border border-red-500/20'
-                        }`}>
-                          {t.isActive ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                          {t.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            ) : terminals.length === 0 ? (
+              <div className="text-center py-8 px-2">
+                <Monitor className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                <p className="text-gray-800 font-semibold text-sm mb-1">No terminal assigned here</p>
+                <p className="text-gray-500 text-sm">
+                  {isAdmin
+                    ? 'Create a terminal in POS Management, then come back to open a shift.'
+                    : 'Ask an admin to create a terminal for this store in POS Management.'}
+                </p>
                 {isAdmin && (
-                  <button
-                    className="w-full py-3.5 rounded-xl border border-gray-200 bg-transparent text-gray-500 text-sm mt-4 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                    onClick={() => setShowCreateTerminal(true)}
+                  <a
+                    href="/pos/management"
+                    className="inline-flex items-center justify-center gap-2 mt-4 px-4 py-2.5 rounded-xl bg-[#014582] text-white text-sm font-semibold hover:opacity-90"
                   >
-                    <Plus className="w-4 h-4" /> New Terminal
-                  </button>
+                    <Settings className="w-4 h-4" /> Open POS Management
+                  </a>
                 )}
-              </>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 mt-5">
+                {terminals.map((t:any) => (
+                  <div
+                    key={t.id}
+                    className={`p-5 rounded-xl cursor-pointer transition-all border text-center shadow-sm ${
+                      selectedTerminal?.id === t.id
+                        ? 'bg-[#014582]/10 border-[#014582]'
+                        : 'bg-white border-gray-200 hover:bg-sky-50'
+                    }`}
+                    onClick={()=>selectTerminal(t)}
+                  >
+                    <Monitor className="w-7 h-7 mx-auto mb-2 text-gray-500" />
+                    <div className="text-gray-900 font-semibold text-sm">{t.name}</div>
+                    <div className="text-gray-500 text-xs mt-1">{t.code}</div>
+                    {t.location?.name && (
+                      <div className="text-[#014582] text-[10px] mt-1">{t.location.name}</div>
+                    )}
+                    <div className="mt-2">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold ${
+                        t.isActive
+                          ? 'bg-green-500/15 text-emerald-600 border border-green-500/20'
+                          : 'bg-red-500/15 text-red-600 border border-red-500/20'
+                      }`}>
+                        {t.isActive ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        {t.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </>
         ) : (

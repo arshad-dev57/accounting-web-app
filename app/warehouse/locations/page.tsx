@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Plus,
   Search,
@@ -18,6 +19,7 @@ import {
   type Location,
 } from '@/lib/location-service';
 import { useLocation } from '@/lib/location-context';
+import { usePermissions } from '@/lib/usePermissions';
 
 const LOCATION_TYPES = ['Warehouse', 'Shop', 'POS_Store'] as const;
 
@@ -42,6 +44,8 @@ const emptyForm: FormState = {
 };
 
 export default function LocationsPage() {
+  const router = useRouter();
+  const { isAdmin, loading: permLoading } = usePermissions();
   const { refresh: refreshContext } = useLocation();
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +66,12 @@ export default function LocationsPage() {
     notes: '',
   });
   const [transferring, setTransferring] = useState(false);
+
+  useEffect(() => {
+    if (!permLoading && !isAdmin) {
+      router.replace('/warehouse/dashboard');
+    }
+  }, [isAdmin, permLoading, router]);
 
   const load = useCallback(async (fromApi = false) => {
     setError('');
@@ -225,6 +235,10 @@ export default function LocationsPage() {
       l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       l.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (!permLoading && !isAdmin) {
+    return null;
+  }
 
   return (
     <div className="space-y-4">
