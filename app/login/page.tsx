@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, Suspense } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Mail, Lock, Eye, EyeOff, LogIn, CheckCircle2 } from 'lucide-react';
+import AuthSplitLayout from '../../components/AuthSplitLayout';
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -75,73 +75,17 @@ function LoginForm() {
     }
   };
 
-  const pills = ['Inventory Tracking', 'Invoicing', 'Financial Reports', 'Warehouse Ops'];
-
   return (
-    <div className="min-h-screen flex bg-white">
-      {/* Left Side - Image Section */}
-      <div className="hidden lg:flex lg:w-1/2 relative">
-        <div className="absolute inset-0">
-          <Image
-            src="https://images.unsplash.com/photo-1553413077-190dd305871c?w=900&q=80&fit=crop"
-            alt="Warehouse"
-            fill
-            sizes="50vw"
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
-          <div className="absolute inset-0 bg-blue-600/20" />
-        </div>
-
-        <div className="relative z-10 flex flex-col justify-end p-12 text-white">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-32 h-16 bg-white rounded-xl flex items-center justify-center p-2">
-              <Image
-                src="/bisontechs.png"
-                alt="Bisonstechs"
-                width={120}
-                height={40}
-                className="object-contain"
-              />
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold tracking-wide">Bisonstechs</p>
-              <p className="text-xs text-white/70">Business Suite</p>
-            </div>
-          </div>
-
-          <h1 className="text-4xl font-bold leading-tight mb-3">
-            Complete Warehouse &<br />Accounting Management
-          </h1>
-          <p className="text-white/70 text-sm leading-relaxed mb-8 max-w-sm">
-            Track inventory, manage ledgers, and generate financial reports — all in one platform.
-          </p>
-
-          <div className="flex flex-wrap gap-2">
-            {pills.map((p) => (
-              <span key={p} className="px-4 py-2 bg-white/10 border border-white/25 rounded-full text-xs font-semibold backdrop-blur-sm">
-                {p}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
+    <AuthSplitLayout
+      title="Complete warehouse & accounting management"
+      subtitle="Track inventory, manage ledgers, and generate financial reports — all in one platform."
+    >
         <div className="w-full max-w-md">
 
           {/* Mobile Logo */}
           <div className="lg:hidden flex flex-col items-center mb-8">
             <div className="w-40 h-20 bg-white rounded-xl flex items-center justify-center mb-3 p-2 shadow-lg">
-              <Image
-                src="/bisontechs.png"
-                alt="Bisonstechs"
-                width={150}
-                height={50}
-                className="object-contain"
-              />
+              <img src="/bisontechs.png" alt="Bisonstechs" width={150} height={50} className="object-contain" />
             </div>
             <p className="text-xl font-extrabold text-gray-800">Bisonstechs</p>
             <p className="text-xs text-gray-500">Business Suite</p>
@@ -249,8 +193,7 @@ function LoginForm() {
             </Link>
           </p>
         </div>
-      </div>
-    </div>
+    </AuthSplitLayout>
   );
 }
 
@@ -258,9 +201,14 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <AuthSplitLayout
+          title="Complete warehouse & accounting management"
+          subtitle="Track inventory, manage ledgers, and generate financial reports — all in one platform."
+        >
+          <div className="w-full max-w-md flex justify-center py-20">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        </AuthSplitLayout>
       }
     >
       <LoginForm />

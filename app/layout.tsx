@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import SubscriptionGuard from '../components/SubscriptionGuard';
 import AppToaster from '../components/AppToaster';
+import HostingerNavFix from '../components/HostingerNavFix';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -23,6 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
+        <HostingerNavFix />
         <SubscriptionGuard>{children}</SubscriptionGuard>
         <AppToaster />
       </body>

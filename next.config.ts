@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Many client API service modules live under app/api/**/route.ts without
-  // GET/POST handlers (they call the backend via rewrites). Next 16 typed-routes
-  // flags those files during `next build` — ignore until services are moved to /lib.
+  output: 'standalone',
+  skipTrailingSlashRedirect: true,
+  generateEtags: false,
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -25,6 +25,14 @@ const nextConfig: NextConfig = {
       {
         source: '/api/:path*',
         destination: `${backendUrl}/api/:path*`,
+      },
+    ];
+  },
+  async headers() {
+    return [
+      {
+        source: '/((?!_next/static|_next/image).*)',
+        headers: [{ key: 'Cache-Control', value: 'no-store, must-revalidate' }],
       },
     ];
   },

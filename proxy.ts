@@ -4,6 +4,37 @@ const MARKETING_URL =
   process.env.NEXT_PUBLIC_MARKETING_URL?.replace(/\/$/, '') ||
   'https://bisonstechs.com';
 
+function isNextDataRequest(request: NextRequest) {
+  return (
+    request.headers.get('RSC') === '1' ||
+    request.headers.get('Next-Router-Prefetch') === '1' ||
+    request.headers.get('Next-Router-State-Tree') != null ||
+    request.headers.get('Sec-Purpose')?.includes('prefetch') === true ||
+    request.headers.get('Purpose') === 'prefetch' ||
+    request.nextUrl.searchParams.has('_rsc')
+  );
+}
+
+function redirectToAppLogin(request: NextRequest) {
+  const url = request.nextUrl.clone();
+  const nextPath = request.nextUrl.pathname + request.nextUrl.search;
+  url.pathname = '/login';
+  url.search = '';
+  if (nextPath && nextPath !== '/login') {
+    url.searchParams.set('next', nextPath);
+  }
+  return NextResponse.redirect(url);
+}
+
+function redirectUnauthenticated(request: NextRequest) {
+  // Cross-origin 302 (marketing site) on RSC/prefetch makes Chrome show
+  // "This page couldn't load" until a hard reload. Stay on the app origin.
+  if (isNextDataRequest(request)) {
+    return redirectToAppLogin(request);
+  }
+  return NextResponse.redirect(MARKETING_URL);
+}
+
 export async function proxy(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   const { pathname } = request.nextUrl;
@@ -29,7 +60,7 @@ export async function proxy(request: NextRequest) {
   // Brand / smart entry: session → dashboard path, else marketing website
   if (pathname === '/' || pathname === '/enter') {
     if (!token) {
-      return NextResponse.redirect(MARKETING_URL);
+      return redirectUnauthenticated(request);
     }
     const access = request.cookies.get('subscription_access')?.value;
     if (access === '0') {
@@ -38,16 +69,13 @@ export async function proxy(request: NextRequest) {
     if (pathname === '/') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
-    // /enter with token — page also redirects; pass through
     return NextResponse.next();
   }
 
-  // Unauthenticated app access -> public website
   if (!token && !isPublicRoute) {
-    return NextResponse.redirect(MARKETING_URL);
+    return redirectUnauthenticated(request);
   }
 
-  // Authenticated users shouldn't sit on login
   if (token && pathname === '/login') {
     const access = request.cookies.get('subscription_access')?.value;
     if (access === '0') {
@@ -56,7 +84,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // Known-expired sessions: block app routes until they purchase/renew
   if (token && !isPublicRoute && !isSubscriptionRoute) {
     const access = request.cookies.get('subscription_access')?.value;
     if (access === '0') {
@@ -64,11 +91,15 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  if (isPublicRoute) {
+    response.headers.set('Cache-Control', 'no-store, must-revalidate');
+  }
+  return response;
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.png|.*\\.jpg).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.png|.*\\.jpg|.*\\.svg|.*\\.ico|.*\\.webp|.*\\.woff2?).*)',
   ],
 };

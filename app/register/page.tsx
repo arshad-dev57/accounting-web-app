@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import AuthSplitLayout from '../../components/AuthSplitLayout';
 import {
   ArrowLeft,
   Building2,
@@ -333,46 +334,10 @@ export default function RegisterPage() {
     'w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20';
 
   return (
-    <div className="min-h-screen flex bg-white">
-      <div className="hidden lg:flex lg:w-1/2 relative">
-        <div className="absolute inset-0">
-          <Image
-            src="https://images.unsplash.com/photo-1553413077-190dd305871c?w=900&q=80&fit=crop"
-            alt="Warehouse"
-            fill
-            sizes="50vw"
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
-          <div className="absolute inset-0 bg-blue-600/20" />
-        </div>
-        <div className="relative z-10 flex flex-col justify-end p-12 text-white">
-          <div className="mb-6 flex items-center gap-3">
-            <div className="w-32 h-16 bg-white rounded-xl flex items-center justify-center p-2">
-              <Image
-                src="/bisontechs.png"
-                alt="Bisonstechs"
-                width={120}
-                height={40}
-                className="object-contain"
-              />
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold tracking-wide">Bisonstechs</p>
-              <p className="text-xs text-white/70">Business Suite</p>
-            </div>
-          </div>
-          <h2 className="text-3xl font-bold leading-tight mb-3">
-            Create your workspace
-          </h2>
-          <p className="text-white/70 text-sm leading-relaxed max-w-sm">
-            Register once — inventory, sales, purchases, and accounting stay connected.
-          </p>
-        </div>
-      </div>
-
-      <div className="flex-1 flex items-center justify-center px-4 py-8 sm:px-8">
+    <AuthSplitLayout
+      title="Create your workspace"
+      subtitle="Register once — inventory, sales, purchases, and accounting stay connected."
+    >
         <div className="w-full max-w-lg">
           <div className="mb-6 flex items-center justify-between">
             <Link
@@ -823,7 +788,6 @@ export default function RegisterPage() {
             </p>
           )}
         </div>
-      </div>
 
       <SignaturePadModal
         open={signatureOpen}
@@ -834,6 +798,6 @@ export default function RegisterPage() {
           setSignaturePreview(previewUrl);
         }}
       />
-    </div>
+    </AuthSplitLayout>
   );
 }
