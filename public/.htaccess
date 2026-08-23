@@ -1,0 +1,9 @@
+# Hostinger / LiteSpeed: do not cache App Router HTML or RSC payloads.
+# Cached RSC/HTML is why first click shows "This page couldn't load" and reload works.
+<IfModule LiteSpeed>
+  CacheDisable public /
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set Cache-Control "no-store, must-revalidate"
+</IfModule>

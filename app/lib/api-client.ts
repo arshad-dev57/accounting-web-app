@@ -24,7 +24,6 @@ class ApiClient {
 
   constructor() {
     this.loadTokens();
-    console.log('🔵 ApiClient initialized, token:', this.token);
 
     this.client = axios.create({
       baseURL: API_BASE_URL,

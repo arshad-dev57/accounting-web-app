@@ -302,9 +302,6 @@ function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; 
   );
 }
 
-// ============================================================
-// PRODUCT DETAIL VIEW
-// ============================================================
 function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose: () => void; onEdit: () => void }) {
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -380,7 +377,6 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
             </button>
           </div>
         </div>
-
         {/* Quick Stats */}
         <div className="grid grid-cols-4 divide-x divide-gray-100 border-b border-gray-100">
           {[
@@ -415,11 +411,9 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
           })}
         </div>
 
-        {/* Tab Content */}
         <div className="p-6 max-h-[50vh] overflow-y-auto">
 
-          {/* ── OVERVIEW ── */}
-          {activeTab === 'overview' && (
+            {activeTab === 'overview' && (
             <div className="space-y-6">
               {(product.mainImage || (product.images && product.images.length > 0)) && (
                 <div>
@@ -1231,7 +1225,6 @@ const handleSubmit = async (e: React.FormEvent) => {
             </div>
           )}
 
-        {/* CATEGORY & SUPPLIER */}
 {activeTab === 'category' && (
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>
