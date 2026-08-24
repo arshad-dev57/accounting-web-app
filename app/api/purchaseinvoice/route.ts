@@ -131,21 +131,39 @@ export interface AccountsPayable {
 export interface GRNSource {
   id: string;
   grnNumber: string;
+  purchaseOrderId?: string;
+  purchaseOrderNumber?: string;
   supplierId: string;
   supplierName: string;
+  supplierEmail?: string;
+  supplierPhone?: string;
+  supplierAddress?: string;
   receivingDate: string;
   status: string;
+  locationId?: string;
+  locationName?: string;
+  locationCode?: string;
   items: Array<{
     productId: string;
     productName: string;
     sku: string;
+    quantity?: number;
     receivingQuantity: number;
     unitPrice: number;
+    discount?: number;
     taxRate: number;
     notes?: string;
   }>;
   hasInvoice?: boolean;
   invoiceCount?: number;
+  hasReceivedItems?: boolean;
+  totalQuantity?: number;
+  invoiceSubtotal?: number;
+  totalDiscount?: number;
+  totalTax?: number;
+  grandTotal?: number;
+  itemCount?: number;
+  itemPreview?: string;
 }
 
 export interface POSource {
@@ -153,19 +171,37 @@ export interface POSource {
   orderNumber: string;
   supplierId: string;
   supplierName: string;
+  supplierEmail?: string;
+  supplierPhone?: string;
+  supplierAddress?: string;
   orderDate: string;
+  expectedDeliveryDate?: string;
   status: string;
+  locationId?: string;
+  locationName?: string;
+  locationCode?: string;
+  subtotal?: number;
+  totalDiscount?: number;
+  totalTax?: number;
+  grandTotal?: number;
+  notes?: string;
   items: Array<{
     productId: string;
     productName: string;
     sku: string;
     quantity: number;
     unitPrice: number;
+    discount?: number;
     taxRate: number;
     notes?: string;
   }>;
   hasInvoice?: boolean;
   invoiceCount?: number;
+  hasReceivedItems?: boolean;
+  totalQuantity?: number;
+  invoiceSubtotal?: number;
+  itemCount?: number;
+  itemPreview?: string;
 }
 
 export interface PurchaseInvoiceStats {

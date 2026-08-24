@@ -3,7 +3,7 @@
 ## Overview
 This guide explains how to use the Point of Sale (POS) system for processing sales and managing operations.
 
----
+
 
 ## For Cashiers (Daily Operations)
 

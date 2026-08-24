@@ -152,6 +152,9 @@ export default function PurchasesDashboardPage() {
       const result = await response.json();
       if (result.success && result.data) {
         setData(result.data);
+      } else {
+        console.error('Purchases dashboard error:', result.message || response.status);
+        setData(result.data || null);
       }
     } catch (e) {
       console.error('Failed to load purchases dashboard:', e);
@@ -193,7 +196,7 @@ export default function PurchasesDashboardPage() {
     return trend.map((p) => ({
       label: p.label || p.date,
       date: p.date,
-      invoiced: p.invoiceAmount,
+      invoiced: p.invoiceAmount ?? 0,
       ordered: p.orderValue,
       paid: p.paidAmount,
     }));

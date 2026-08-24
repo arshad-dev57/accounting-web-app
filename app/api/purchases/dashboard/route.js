@@ -89,11 +89,29 @@ export async function GET(request) {
         fetchBackend('/api/purchase/dashboard/activities', token, qs),
       ]);
 
+    const failures = [
+      ['metrics', metricsRes],
+      ['spend-trend', trendRes],
+      ['order-status', statusRes],
+      ['top-suppliers', suppliersRes],
+      ['activities', activitiesRes],
+    ].filter(([, r]) => r.status === 'rejected');
+    for (const [name, r] of failures) {
+      console.error(`GET /api/purchases/dashboard ${name} failed:`, r.reason);
+    }
+    if (metricsRes.status === 'rejected') {
+      return NextResponse.json(
+        {
+          success: false,
+          message: metricsRes.reason?.message || 'Failed to load purchase metrics',
+          data: emptyDashboard(),
+        },
+        { status: 502 }
+      );
+    }
+
     const base = emptyDashboard();
-    const metrics =
-      metricsRes.status === 'fulfilled'
-        ? metricsRes.value?.data || {}
-        : {};
+    const metrics = metricsRes.value?.data || {};
 
     const spendTrend =
       trendRes.status === 'fulfilled' && Array.isArray(trendRes.value?.data)

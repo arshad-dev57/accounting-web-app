@@ -240,6 +240,7 @@ export default function PurchaseInvoicesPage() {
   const openCreateWizard = () => {
     resetWizard();
     setShowCreateWizard(true);
+    void searchSource('', 'grn');
   };
 
   const closeCreateWizard = () => {
@@ -271,17 +272,17 @@ export default function PurchaseInvoicesPage() {
       sourceSearchResults: [],
       lineDrafts: []
     }));
+    void searchSource('', type);
   };
 
-  const searchSource = async (query: string) => {
-    if (query.trim().length < 2) {
-      setWizardState(prev => ({ ...prev, sourceSearchResults: [] }));
+  const searchSource = async (query: string, type?: 'grn' | 'po') => {
+    if (query.trim().length === 1) {
       return;
     }
     setWizardState(prev => ({ ...prev, isSearchingSource: true }));
     try {
       const results = await purchaseInvoiceService.searchAvailableSource(
-        wizardState.sourceType,
+        type || wizardState.sourceType,
         query
       );
       setWizardState(prev => ({ ...prev, sourceSearchResults: results }));
