@@ -87,7 +87,13 @@ export default function SupportTicketsPage() {
         limit: 50,
       });
       if (!res.success) throw new Error(res.message || 'Failed to load tickets');
-      setTickets(res.data || []);
+      const payload = res.data;
+      const list = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+      setTickets(list);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load tickets');
     } finally {

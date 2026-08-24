@@ -7,6 +7,7 @@ import {
   type StoredUser,
   type UserPermission,
 } from './permission-service';
+import { canViewRegisteredUsers } from './platform-owners';
 
 export type { UserPermission };
 export type UserData = StoredUser;
@@ -85,6 +86,7 @@ export function usePermissions() {
     hasSubPageAccess,
     hasAnyModuleAccess,
     isAdmin: admin,
+    canViewRegisteredUsers: canViewRegisteredUsers(user?.email),
     reload: loadUserData,
   };
 }

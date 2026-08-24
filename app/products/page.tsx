@@ -415,11 +415,16 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
 
             {activeTab === 'overview' && (
             <div className="space-y-6">
-              {(product.mainImage || (product.images && product.images.length > 0)) && (
+              {(product.mainImage || (product.images && product.images.length > 0) || (product.imageUrls && product.imageUrls.length > 0)) && (
                 <div>
                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Images</h4>
                   <div className="flex flex-wrap gap-3">
-                    {(product.images && product.images.length > 0 ? product.images : [product.mainImage!]).map((url, idx) => (
+                    {(product.images && product.images.length > 0
+                      ? product.images
+                      : product.imageUrls && product.imageUrls.length > 0
+                        ? product.imageUrls
+                        : [product.mainImage!]
+                    ).map((url: string, idx: number) => (
                       <a key={`${url}-${idx}`} href={url} target="_blank" rel="noreferrer" className="block w-24 h-24 rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
                         <img src={url} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
                       </a>
@@ -867,7 +872,11 @@ function ProductForm({
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>(
-    () => editingProduct?.images || (editingProduct?.mainImage ? [editingProduct.mainImage] : [])
+    () => editingProduct?.images?.length
+      ? editingProduct.images
+      : editingProduct?.imageUrls?.length
+        ? editingProduct.imageUrls
+        : (editingProduct?.mainImage ? [editingProduct.mainImage] : [])
   );
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [subCategories, setSubCategories] = useState<Category[]>(() => {
@@ -877,7 +886,13 @@ function ProductForm({
   useEffect(() => {
     setFormData(buildProductFormState(editingProduct, categoryList));
     setSubCategories(resolveCategorySelection(categoryList, editingProduct?.categoryId).subCategories);
-    setExistingImages(editingProduct?.images || (editingProduct?.mainImage ? [editingProduct.mainImage] : []));
+    setExistingImages(
+      editingProduct?.images?.length
+        ? editingProduct.images
+        : editingProduct?.imageUrls?.length
+          ? editingProduct.imageUrls
+          : (editingProduct?.mainImage ? [editingProduct.mainImage] : [])
+    );
     setImageFiles([]);
     setImagePreviews([]);
   }, [editingProduct, categories]);

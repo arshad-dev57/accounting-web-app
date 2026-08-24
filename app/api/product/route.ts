@@ -97,6 +97,7 @@ export interface Product {
   supplierSku?: string;
   landingCost?: number;
   mainImage?: string;
+  images?: string[];
 }
 
 export interface ProductListResponse {

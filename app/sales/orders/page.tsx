@@ -10,28 +10,14 @@ import {
 } from 'lucide-react';
 import { customerService } from '../../api/customer/route';
 import { productService } from '../../api/product/route';
-import { salesOrderService } from '../../api/orders/sales/route';
+import { salesOrderService, type Order as SalesOrder } from '../../api/orders/sales/route';
 import { useLocation } from '@/lib/location-context';
 import { findProductFromScan, useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 import { matchScannedProduct } from '@/lib/pos-scanner';
 
-interface Order {
-  _id: string;
-  orderNumber: string;
-  customerName: string;
-  customerEmail?: string;
-  customerPhone?: string;
-  orderStatus: string;
-  paymentStatus: string;
-  orderType: string;
-  priority: string;
-  totalAmount: number;
-  orderDate: string;
-  expectedDeliveryDate?: string;
-  items: OrderItem[];
-  shippingAddress?: Address;
-  billingAddress?: Address;
-}
+type Order = SalesOrder & {
+  totalAmount?: number;
+};
 
 interface OrderItem {
   productId: string;
@@ -207,8 +193,8 @@ function CustomerPickerModal({
     setError('');
     try {
       const response = await customerService.searchCustomers(search, 20);
-      const list = Array.isArray(response) ? response : (response.data || []);
-      const pag = response.pagination || { page: 1, limit: 20, total: list.length, pages: 1, hasNext: false, hasPrev: false };
+      const list = Array.isArray(response) ? response : [];
+      const pag = { page: 1, limit: 20, total: list.length, pages: 1, hasNext: false, hasPrev: false };
       setCustomers(prev => append ? [...prev, ...list] : list);
       setPagination(pag);
     } catch (err: any) {
@@ -436,7 +422,12 @@ export default function SalesOrdersPage() {
         locationId: selectedLocationId || undefined,
       });
       
-      setOrders(response.data || []);
+      setOrders(
+        (response.data || []).map((order) => ({
+          ...order,
+          totalAmount: order.grandTotal,
+        }))
+      );
       setTotalRecords(response.pagination.total || 0);
       setTotalPages(response.pagination.pages || 1);
       setHasNext(response.pagination.hasNext || false);
@@ -647,7 +638,7 @@ export default function SalesOrdersPage() {
                     <td className="px-6 py-3"><span className={pill(STATUS_COLORS, order.orderStatus)}>{order.orderStatus}</span></td>
                     <td className="px-6 py-3"><span className={pill(PAYMENT_COLORS, order.paymentStatus)}>{order.paymentStatus}</span></td>
                     <td className="px-6 py-3"><span className={pill(PRIORITY_COLORS, order.priority)}>{order.priority}</span></td>
-                    <td className="px-6 py-3 font-semibold text-gray-700">Rs. {Number(order.totalAmount).toLocaleString()}</td>
+                    <td className="px-6 py-3 font-semibold text-gray-700">Rs. {Number(order.totalAmount ?? order.grandTotal).toLocaleString()}</td>
                     <td className="px-6 py-3 text-gray-600">{new Date(order.orderDate).toLocaleDateString()}</td>
                     <td className="px-6 py-3">
                       <div className="flex items-center gap-1">
@@ -660,7 +651,7 @@ export default function SalesOrdersPage() {
                         </button>
                         <select
                           value={order.orderStatus}
-                          onChange={(e) => handleUpdateStatus(order._id || order.id, e.target.value)}
+                          onChange={(e) => handleUpdateStatus(order._id || order.id || '', e.target.value)}
                           disabled={actionLoading?.startsWith('status-') || getValidTransitions(order.orderStatus).length === 0}
                           className="text-xs px-2 py-1 border border-gray-200 rounded hover:border-[#014582] focus:ring-2 focus:ring-[#014582] outline-none disabled:opacity-50"
                         >
@@ -671,7 +662,7 @@ export default function SalesOrdersPage() {
                         </select>
                         {['Draft', 'Pending', 'Processing'].includes(order.orderStatus) && (
                           <button
-                            onClick={() => handleCancelOrder(order._id || order.id)}
+                            onClick={() => handleCancelOrder(order._id || order.id || '')}
                             disabled={actionLoading?.startsWith('cancel-')}
                             className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all disabled:opacity-50"
                             title="Cancel"
@@ -681,7 +672,7 @@ export default function SalesOrdersPage() {
                         )}
                         {['Draft', 'Cancelled'].includes(order.orderStatus) && (
                           <button
-                            onClick={() => handleDeleteOrder(order._id || order.id)}
+                            onClick={() => handleDeleteOrder(order._id || order.id || '')}
                             disabled={actionLoading?.startsWith('delete-')}
                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
                             title="Delete"
@@ -1173,10 +1164,14 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
           ...item,
           productId: String(item.productId || ''),
         })),
-        orderType, priority, source, salesPerson,
-        expectedDeliveryDate: expectedDeliveryDate || null,
+        orderType,
+        priority: priority as SalesOrder['priority'],
+        source,
+        salesPerson,
+        expectedDeliveryDate: expectedDeliveryDate || undefined,
         shippingMethod, shippingCarrier, shippingCost,
-        paymentMethod, paymentStatus,
+        paymentMethod,
+        paymentStatus: paymentStatus as SalesOrder['paymentStatus'],
         couponCode, discountType, discountPercentage, discountAmount,
         customerNotes, internalNotes,
         tags: tags.split(',').map((t) => t.trim()).filter(Boolean),

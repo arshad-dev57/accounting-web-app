@@ -32,7 +32,12 @@ export const USER_STORAGE_KEY = 'user';
 
 export function isAdminRole(role?: string | null): boolean {
   const r = (role || '').toLowerCase().trim();
-  return r === 'admin' || r === 'owner' || r === 'superadmin';
+  return (
+    r === 'admin' ||
+    r === 'owner' ||
+    r === 'superadmin' ||
+    r === 'company_admin'
+  );
 }
 
 function normalizePermissions(raw: unknown): UserPermission[] {

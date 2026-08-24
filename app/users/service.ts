@@ -85,6 +85,28 @@ export const usersService = {
     }
   },
 
+  getRegisteredUsers: async (): Promise<UsersResponse> => {
+    const response = await apiClient.get('/api/admin/users/registered');
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to fetch registered users');
+    }
+    let data = response.data;
+    if (data && data.data) data = data.data;
+    const usersArray = Array.isArray(data) ? data : [];
+    const users: User[] = usersArray.map((item: any) => ({
+      id: item.id || '',
+      firstName: item.firstName || '',
+      lastName: item.lastName || '',
+      email: item.email || '',
+      phone: item.phone,
+      role: item.role || 'user',
+      isActive: item.isActive ?? true,
+      createdAt: item.createdAt || '',
+      permissions: [],
+    }));
+    return { success: true, data: users, message: response.message };
+  },
+
   // Get all roles
   getRoles: async (): Promise<RolesResponse> => {
     try {
