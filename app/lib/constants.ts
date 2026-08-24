@@ -5,4 +5,4 @@ function normalizeApiBase(raw?: string) {
   return `https://${value}`;
 }
 
-export const API_BASE_URL = normalizeApiBase(process.env.NEXT_PUBLIC_API_URL);
+export const API_BASE_URL = normalizeApiBase(process.env.API_URL);

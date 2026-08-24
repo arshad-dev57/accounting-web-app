@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').trim();
+const API_BASE_URL = (process.env.API_URL || 'http://localhost:5000').trim();
 
 function toNum(v: unknown) {
   const n = Number(v);

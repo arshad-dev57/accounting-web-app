@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call backend email service
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const backendUrl = process.env.API_URL || 'http://localhost:5000';
     
     const response = await fetch(`${backendUrl}/api/email/send`, {
       method: 'POST',

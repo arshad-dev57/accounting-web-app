@@ -106,7 +106,7 @@ function resolveAssetUrl(path: string) {
   ) {
     return path;
   }
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+  const apiBase = process.env.API_URL || '';
   if (apiBase) return `${apiBase.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
   return `/${path.replace(/^\//, '')}`;
 }
