@@ -28,7 +28,7 @@ function hasAuthToken() {
 
 function goToLogin() {
   if (window.location.pathname.startsWith('/login')) return;
-  window.location.replace('/login');
+  window.location.replace('/login?logout=1');
 }
 
 /**

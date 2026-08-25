@@ -1,25 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LOGGED_IN_COOKIE, clearCookieOptions } from '@/lib/auth-cookies';
+import { applyClearedAuthCookies } from '@/lib/auth-cookies';
 
-export async function POST(_request: NextRequest) {
-  try {
-    const response = NextResponse.json({
-      success: true,
-      message: 'Logged out successfully',
-    });
+function loginUrl(request: NextRequest) {
+  const url = new URL('/login', request.url);
+  url.searchParams.set('logout', '1');
+  return url;
+}
 
-    response.cookies.set('auth_token', '', clearCookieOptions(true));
-    response.cookies.set('refresh_token', '', clearCookieOptions(true));
-    response.cookies.set('user_data', '', clearCookieOptions(true));
-    response.cookies.set('subscription_access', '', clearCookieOptions(false));
-    response.cookies.set(LOGGED_IN_COOKIE, '', clearCookieOptions(false));
+function logoutResponse(request: NextRequest) {
+  const host = request.headers.get('host') || '';
+  const response = NextResponse.redirect(loginUrl(request), 303);
+  applyClearedAuthCookies(response, host);
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  return response;
+}
 
-    return response;
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Logout failed';
-    return NextResponse.json(
-      { success: false, message },
-      { status: 500 }
-    );
-  }
+export async function POST(request: NextRequest) {
+  return logoutResponse(request);
+}
+
+export async function GET(request: NextRequest) {
+  return logoutResponse(request);
 }

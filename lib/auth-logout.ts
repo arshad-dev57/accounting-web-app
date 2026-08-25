@@ -1,7 +1,7 @@
 'use client';
 
 import { apiClient } from '../app/lib/api-client';
-import { LOGGED_IN_COOKIE } from './auth-cookies';
+import { LOGGED_IN_COOKIE, LOGOUT_FLAG_COOKIE } from './auth-cookies';
 import { clearMarketingLoggedInFlag } from './marketing-session';
 
 /** Known app keys — also wiped via localStorage.clear() as a safety net. */
@@ -33,14 +33,26 @@ export const LOGOUT_STORAGE_KEYS = [
 function expireCookie(name: string) {
   if (typeof document === 'undefined') return;
   const expires = 'Thu, 01 Jan 1970 00:00:00 GMT';
-  const domain =
-    typeof process !== 'undefined' && process.env.NEXT_PUBLIC_COOKIE_DOMAIN
-      ? process.env.NEXT_PUBLIC_COOKIE_DOMAIN
-      : '.bisonstechs.com';
+  const host = window.location.hostname;
+  const isLocal =
+    host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+
   document.cookie = `${name}=; expires=${expires}; Max-Age=0; path=/`;
   document.cookie = `${name}=; expires=${expires}; Max-Age=0; path=/; SameSite=Lax`;
-  // Also clear parent-domain cookie used for marketing ↔ app session bridge
+
+  if (isLocal) return;
+
+  const domain =
+    process.env.NEXT_PUBLIC_COOKIE_DOMAIN?.trim() || '.bisonstechs.com';
   document.cookie = `${name}=; expires=${expires}; Max-Age=0; path=/; domain=${domain}; SameSite=Lax`;
+}
+
+function loginRedirectUrl(redirectTo: string) {
+  if (!redirectTo.startsWith('/login')) return redirectTo;
+  if (redirectTo.includes('logout=')) return redirectTo;
+  return redirectTo.includes('?')
+    ? `${redirectTo}&logout=1`
+    : `${redirectTo}?logout=1`;
 }
 
 /** Wipe all browser-stored app/auth data (local + session). */
@@ -58,6 +70,7 @@ export function clearLocalAuthData() {
 
   try {
     sessionStorage.clear();
+    sessionStorage.setItem('bt_logged_out', '1');
   } catch {
     /* ignore */
   }
@@ -78,21 +91,34 @@ export function clearLocalAuthData() {
 
 /**
  * Full logout: clear client storage, clear httpOnly cookies via API, then go to login.
+ *
+ * Always land on /login?logout=1 so proxy.ts strips leftover auth cookies
+ * instead of bouncing a still-valid cookie back to /dashboard (reload loop).
  */
 export async function performLogout(redirectTo = '/login') {
   clearLocalAuthData();
 
   try {
+    document.cookie = `${LOGOUT_FLAG_COOKIE}=1; path=/; SameSite=Lax; Max-Age=120`;
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 4000);
     await fetch('/api/logout', {
       method: 'POST',
       credentials: 'include',
       cache: 'no-store',
+      redirect: 'manual',
+      signal: controller.signal,
     });
+    window.clearTimeout(timer);
   } catch {
     /* still redirect even if API fails */
   }
 
-  // Clear again in case anything was re-written during the request
   clearLocalAuthData();
 
   if (typeof window !== 'undefined') {
@@ -101,7 +127,6 @@ export async function performLogout(redirectTo = '/login') {
     } catch {
       /* ignore */
     }
-    // replace() drops this page from history so Back does not reopen the app
-    window.location.replace(redirectTo);
+    window.location.replace(loginRedirectUrl(redirectTo));
   }
 }

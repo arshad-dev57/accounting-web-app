@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  LOGOUT_FLAG_COOKIE,
+  applyClearedAuthCookies,
+} from '@/lib/auth-cookies';
 
 const MARKETING_URL =
   process.env.NEXT_PUBLIC_MARKETING_URL?.replace(/\/$/, '') ||
@@ -13,6 +17,33 @@ function redirectToAppLogin(request: NextRequest) {
     url.searchParams.set('next', nextPath);
   }
   return NextResponse.redirect(url);
+}
+
+function isLoggingOut(request: NextRequest) {
+  return (
+    request.nextUrl.searchParams.get('logout') === '1' ||
+    request.cookies.get(LOGOUT_FLAG_COOKIE)?.value === '1'
+  );
+}
+
+function allowLoginAndStripCookies(request: NextRequest) {
+  const host = request.headers.get('host') || '';
+  const response = NextResponse.next();
+  applyClearedAuthCookies(response, host, [
+    { name: LOGOUT_FLAG_COOKIE, httpOnly: false },
+  ]);
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  return response;
+}
+
+function redirectToLoginAndStripCookies(request: NextRequest) {
+  const host = request.headers.get('host') || '';
+  const url = request.nextUrl.clone();
+  url.pathname = '/login';
+  url.search = 'logout=1';
+  const response = NextResponse.redirect(url);
+  applyClearedAuthCookies(response, host);
+  return response;
 }
 
 export async function proxy(request: NextRequest) {
@@ -35,6 +66,15 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith('/api')) {
     return NextResponse.next();
+  }
+
+  // Logout in progress: never bounce /login → /dashboard, and expire leftover
+  // httpOnly auth cookies on this response so the reload loop cannot continue.
+  if (isLoggingOut(request)) {
+    if (isPublicRoute && pathname !== '/' && pathname !== '/enter') {
+      return allowLoginAndStripCookies(request);
+    }
+    return redirectToLoginAndStripCookies(request);
   }
 
   // Marketing first: no session on `/` → website. /enter is the app gate.

@@ -2,8 +2,17 @@
 // Shared cookie options so auth works across bisonstechs.com ↔ app.bisonstechs.com
 
 export const LOGGED_IN_COOKIE = 'bt_logged_in';
+export const LOGOUT_FLAG_COOKIE = 'bt_logged_out';
 export const AUTH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60;
 export const REFRESH_TOKEN_MAX_AGE = 30 * 24 * 60 * 60;
+
+const AUTH_COOKIES_TO_CLEAR: { name: string; httpOnly: boolean }[] = [
+  { name: 'auth_token', httpOnly: true },
+  { name: 'refresh_token', httpOnly: true },
+  { name: 'user_data', httpOnly: true },
+  { name: 'subscription_access', httpOnly: false },
+  { name: LOGGED_IN_COOKIE, httpOnly: false },
+];
 
 type SameSite = 'lax' | 'strict' | 'none';
 
@@ -67,5 +76,58 @@ export function clearCookieOptions(httpOnly: boolean, requestHost?: string) {
     ...authCookieBase(0, requestHost),
     httpOnly,
     maxAge: 0,
+    expires: new Date(0),
   };
+}
+
+function expiredSetCookieHeader(
+  name: string,
+  httpOnly: boolean,
+  domain?: string
+): string {
+  const parts = [
+    `${name}=`,
+    'Path=/',
+    'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+    'Max-Age=0',
+    'SameSite=Lax',
+  ];
+  if (httpOnly) parts.push('HttpOnly');
+  if (process.env.NODE_ENV === 'production') parts.push('Secure');
+  if (domain) parts.push(`Domain=${domain}`);
+  return parts.join('; ');
+}
+
+type CookieWritable = {
+  headers: { append: (name: string, value: string) => void };
+};
+
+/**
+ * Expire auth cookies on a response. Emits host-only AND Domain= variants
+ * because Next.js `cookies.set` can only store one cookie per name, and a
+ * leftover cookie on the other scope is enough to bounce /login → dashboard.
+ */
+export function applyClearedAuthCookies(
+  response: CookieWritable,
+  requestHost?: string,
+  extraNames: { name: string; httpOnly: boolean }[] = []
+) {
+  const domain = cookieDomain(requestHost);
+  const envDomain = process.env.COOKIE_DOMAIN?.trim();
+  const domains = new Set<string | undefined>([undefined]);
+  if (domain) domains.add(domain);
+  if (envDomain) domains.add(envDomain);
+
+  const names = [...AUTH_COOKIES_TO_CLEAR, ...extraNames];
+
+  for (const { name, httpOnly } of names) {
+    for (const d of domains) {
+      // headers.append (not cookies.set) so host-only AND Domain= cookies
+      // can both be expired — Next's cookie jar only keeps one entry per name.
+      response.headers.append(
+        'Set-Cookie',
+        expiredSetCookieHeader(name, httpOnly, d)
+      );
+    }
+  }
 }
