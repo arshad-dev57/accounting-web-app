@@ -102,28 +102,36 @@ function BarcodeDisplay({ value, productName }: { value: string; productName: st
   );
 }
 
-/** Flutter-style Product QR: JSON { id, type: "product" } */
+/** Keep a short, stable QR number for POS / warehouse scanning. */
+function normalizeQrPayload(raw: string): string {
+  const text = String(raw || '').trim();
+  if (!text) return '';
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === 'object') {
+      const sku = String(parsed.sku || '').trim();
+      const id = String(parsed.id || '').trim();
+      return sku || id || text;
+    }
+  } catch {
+    /* not JSON — use the scanned text as the QR number */
+  }
+  return text;
+}
+
 function QRDisplay({
-  productId,
-  sku,
+  value,
   productName,
 }: {
   value?: string;
-  productId?: string;
-  sku?: string;
   productName: string;
 }) {
   const [dataUrl, setDataUrl] = useState('');
   const [error, setError] = useState('');
-  const payload = JSON.stringify({
-    id: productId || sku || '',
-    sku: sku || '',
-    name: productName || '',
-    type: 'product',
-  });
+  const payload = String(value || '').trim();
 
   useEffect(() => {
-    if (!productId && !sku) {
+    if (!payload) {
       setDataUrl('');
       return;
     }
@@ -148,12 +156,12 @@ function QRDisplay({
     return () => {
       cancelled = true;
     };
-  }, [payload, productId, sku]);
+  }, [payload]);
 
   const handleDownload = () => {
     if (!dataUrl) return;
     const link = document.createElement('a');
-    link.download = `qr-${sku || productName || 'product'}.png`;
+    link.download = `qr-${productName || 'product'}.png`;
     link.href = dataUrl;
     link.click();
   };
@@ -166,17 +174,17 @@ function QRDisplay({
       <html><head><title>QR - ${productName}</title>
       <style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;}
       p{margin-top:8px;font-size:14px;color:#555;}</style></head>
-      <body><img src="${dataUrl}" /><p>${productName}</p><p>${sku || ''}</p></body></html>
+      <body><img src="${dataUrl}" /><p>${productName}</p></body></html>
     `);
     win.document.close();
     win.print();
   };
 
-  if (!productId && !sku) {
+  if (!payload) {
     return (
       <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl text-gray-400">
         <QrCode className="w-8 h-8 mb-2" />
-        <p className="text-sm">QR will generate after SKU is created</p>
+        <p className="text-sm text-center">No QR assigned. Scan the product QR to attach it.</p>
       </div>
     );
   }
@@ -192,7 +200,7 @@ function QRDisplay({
       ) : (
         <Loader2 className="w-8 h-8 animate-spin text-[#014582]" />
       )}
-      <p className="text-[11px] font-mono text-gray-500">{sku}</p>
+      <p className="text-[11px] font-mono text-gray-500 break-all max-w-[220px] text-center">{payload}</p>
       <div className="flex gap-2">
         <button type="button" onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all text-gray-600">
           <Download className="w-3.5 h-3.5" /> Download
@@ -208,7 +216,7 @@ function QRDisplay({
 // ============================================================
 // BARCODE SCANNER COMPONENT
 // ============================================================
-function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; onClose: () => void }) {
+function BarcodeScanner({ onScan, onClose, title = 'Scan QR / barcode' }: { onScan: (value: string) => void; onClose: () => void; title?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState('');
@@ -222,7 +230,18 @@ function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; 
         setScanning(true);
         // @ts-ignore
         const { BrowserMultiFormatReader } = await import('@zxing/browser');
-        const codeReader = new BrowserMultiFormatReader();
+        const { DecodeHintType, BarcodeFormat } = await import('@zxing/library');
+        const hints = new Map();
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.QR_CODE,
+          BarcodeFormat.DATA_MATRIX,
+          BarcodeFormat.CODE_128,
+          BarcodeFormat.EAN_13,
+          BarcodeFormat.EAN_8,
+          BarcodeFormat.CODE_39,
+        ]);
+        hints.set(DecodeHintType.TRY_HARDER, true);
+        const codeReader = new BrowserMultiFormatReader(hints);
         const devices = await BrowserMultiFormatReader.listVideoInputDevices();
         if (!devices.length) { setError('No camera found'); setScanning(false); return; }
         const deviceId = devices[devices.length - 1].deviceId;
@@ -230,7 +249,7 @@ function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; 
         const controls = await codeReader.decodeFromVideoDevice(
           deviceId,
           videoRef.current!,
-          (result: any, err: any) => {
+          (result: any) => {
             if (result && active) {
               active = false;
               onScan(result.getText());
@@ -263,7 +282,7 @@ function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; 
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Camera className="w-5 h-5 text-[#014582]" />
-            <h3 className="text-base font-bold text-gray-800">Scan Barcode</h3>
+            <h3 className="text-base font-bold text-gray-800">{title}</h3>
           </div>
           <button onClick={() => { stopRef.current?.(); onClose(); }} className="p-1.5 hover:bg-gray-100 rounded-lg">
             <X className="w-5 h-5 text-gray-500" />
@@ -279,7 +298,7 @@ function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; 
             <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
               <video ref={videoRef} className="w-full h-full object-cover" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-48 h-24 border-2 border-[#014582] rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+                <div className="w-44 h-44 border-2 border-[#014582] rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
               </div>
               {scanning && (
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full">
@@ -295,7 +314,7 @@ function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; 
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="Type barcode..."
+              placeholder="Type QR / barcode..."
               value={manualInput}
               onChange={(e) => setManualInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
@@ -746,12 +765,11 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
               <div className="flex flex-col items-center">
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 text-center">Product QR</h4>
                 <QRDisplay
-                  productId={product.id || product._id}
-                  sku={product.sku}
+                  value={product.qrCode || product.sku}
                   productName={product.name}
                 />
                 <p className="mt-3 text-[11px] text-gray-400 text-center max-w-xs">
-                  Same Flutter payload: product id + type, for scan lookup.
+                  QR number: {product.qrCode || product.sku}. Scan this same code on sales / POS.
                 </p>
               </div>
               <div className="flex flex-col items-center">
@@ -1027,10 +1045,12 @@ function ProductForm({
   const [activeTab, setActiveTab] = useState('basic');
   const [loadingSubs, setLoadingSubs] = useState(false);
   const [generatingSku, setGeneratingSku] = useState(false);
+  const [showQrScanner, setShowQrScanner] = useState(false);
   const [formData, setFormData] = useState({
     name: editingProduct?.name || '',
     sku: editingProduct?.sku || '',
     barcode: editingProduct?.barcode?.number || editingProduct?.barcodeNumber || '',
+    qrCode: editingProduct?.qrCode || '',
     productType: editingProduct?.productType || '',
     description: editingProduct?.description || '',
     tags: Array.isArray(editingProduct?.tags) ? editingProduct!.tags!.join(', ') : (editingProduct?.tags ? String(editingProduct.tags) : ''),
@@ -1156,14 +1176,22 @@ function ProductForm({
 
   const handleInputChange = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
 
+  useHardwareBarcodeScanner((code) => {
+    const value = String(code || '').trim();
+    if (!value) return;
+    handleInputChange('qrCode', normalizeQrPayload(value));
+  }, !showQrScanner);
+
   const fetchAutoSku = async () => {
-    if (isEditing) return;
+    if (isEditing) return formData.sku || '';
     setGeneratingSku(true);
     try {
       const sku = await productService.generateSku(formData.name, formData.category);
       if (sku) handleInputChange('sku', sku);
+      return sku || '';
     } catch (err) {
       console.error('SKU generate failed:', err);
+      return '';
     } finally {
       setGeneratingSku(false);
     }
@@ -1236,12 +1264,17 @@ function ProductForm({
           handleInputChange('sku', sku);
         }
       }
+      if (!String(formData.qrCode || '').trim() && formData.sku) {
+        formData.qrCode = formData.sku;
+        handleInputChange('qrCode', formData.sku);
+      }
       const payload = new FormData();
       
       const fieldMapping: Record<string, string> = {
         name: 'name',
         sku: 'sku',
         barcode: 'barcodeNumber',
+        qrCode: 'qrCode',
         description: 'description',
         costPrice: 'costPrice',
         sellingPrice: 'sellingPrice',
@@ -1434,11 +1467,6 @@ function ProductForm({
                 </div>
                 <p className="text-[10px] md:text-xs text-gray-400 mt-1">Company name + number. Duplicate SKUs get the next number automatically.</p>
               </div>
-              {formData.sku && (
-                <div className="md:col-span-2 flex justify-center py-2">
-                  <QRDisplay sku={formData.sku} productName={formData.name || 'Product'} />
-                </div>
-              )}
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Barcode</label>
                 <div className="relative">
@@ -1446,6 +1474,50 @@ function ProductForm({
                   <input type="text" placeholder="Enter barcode or leave blank to use SKU" value={formData.barcode} onChange={(e) => handleInputChange('barcode', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
                 <p className="text-[10px] md:text-xs text-gray-400 mt-1">Leave blank — SKU will be used as barcode automatically</p>
+              </div>
+              <div className="md:col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-3 md:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                  <div>
+                    <label className="block text-xs md:text-sm font-semibold text-gray-700">Product QR</label>
+                    <p className="text-[10px] md:text-xs text-gray-400 mt-0.5">
+                      Scan an existing QR, or auto-generate from SKU. This number is used on sales.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowQrScanner(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#014582] text-white text-xs font-semibold hover:bg-[#01366a]"
+                    >
+                      <Camera className="w-3.5 h-3.5" /> Scan QR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        let sku = String(formData.sku || '').trim();
+                        if (!sku) sku = (await fetchAutoSku()) || '';
+                        if (sku) handleInputChange('qrCode', sku);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#014582] text-[#014582] text-xs font-semibold hover:bg-[#014582]/10"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" /> Auto generate
+                    </button>
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="block text-[10px] font-semibold text-gray-500 mb-1">QR number</label>
+                  <input
+                    type="text"
+                    value={formData.qrCode}
+                    onChange={(e) => handleInputChange('qrCode', e.target.value.trim())}
+                    placeholder="Scan or auto-generate a QR number"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs md:text-sm font-mono bg-white text-gray-800 outline-none"
+                  />
+                </div>
+                <QRDisplay value={formData.qrCode} productName={formData.name || 'Product'} />
+                {formData.qrCode ? (
+                  <p className="text-[10px] text-emerald-700 text-center mt-2">QR ready for POS / sales scanning.</p>
+                ) : null}
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Product Type</label>
@@ -2142,6 +2214,18 @@ function ProductForm({
           </div>
         </form>
       </div>
+      {showQrScanner && (
+        <BarcodeScanner
+          title="Scan product QR"
+          onScan={(value) => {
+            const code = String(value || '').trim();
+            if (!code) return;
+            handleInputChange('qrCode', normalizeQrPayload(code));
+            setShowQrScanner(false);
+          }}
+          onClose={() => setShowQrScanner(false)}
+        />
+      )}
     </div>
   );
 }

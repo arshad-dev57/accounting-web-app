@@ -98,6 +98,7 @@ export interface Product {
   landingCost?: number;
   mainImage?: string;
   images?: string[];
+  qrCode?: string;
 }
 
 export interface ProductListResponse {
@@ -163,6 +164,7 @@ export function normalizeProduct(raw: any): Product {
     images: Array.isArray(raw.images) ? raw.images : [],
     mainImage: raw.mainImage || (Array.isArray(raw.images) && raw.images[0]) || undefined,
     barcodeImage: raw.barcodeImage || raw.barcode?.image || undefined,
+    qrCode: raw.qrCode || '',
     currentStock: locationQty,
     minimumStock: Number(raw.minimumStock ?? 0),
   };

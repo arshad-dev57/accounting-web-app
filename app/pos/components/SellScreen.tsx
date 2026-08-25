@@ -18,7 +18,6 @@ import {
   reconnectPaymentTerminal,
   requestPaymentTerminalSale,
 } from '../../../lib/pos-payment-terminal';
-import { newOfflineSaleId, posOfflineQueue } from '../../../lib/pos-offline-queue';
 import POSReceipt from './POSReceipt';
 import {
   barcodePngDataUrl,
@@ -922,7 +921,6 @@ export default function SellScreen({ shift }: { shift: any }) {
       setSaleError(`${oversold.productName} only has ${sellableQty(oversold)} available`);
       return;
     }
-    if (!customerName || customerName.trim() === '') { setSaleError('Customer is required'); return; }
     if (paidTotal < grandTotal) { setSaleError(`Insufficient payment. Need ${money(grandTotal)}, got ${money(paidTotal)}`); return; }
     const uncharged = payments.find((p) => methodNeedsPaymentDevice(p.paymentMethod) && !p.terminalApproved && p.amount > 0);
     if (uncharged) {
@@ -947,14 +945,14 @@ export default function SellScreen({ shift }: { shift: any }) {
         (discountMode === 'amount' && subtotal > 0 && (discountTotal / subtotal) * 100 > settings.discountThresholdPct));
 
     const doSubmit = async () => {
+      if (submitting) return;
       setSubmitting(true);
       setSaleError('');
-      const saleId = heldSaleId || newOfflineSaleId();
       const payload = {
-        id: saleId,
+        id: heldSaleId || undefined,
         terminalId: shift.terminalId,
         locationId: saleLocationId || undefined,
-        customerName,
+        customerName: customerName.trim() || 'Walk-in Customer',
         customerPhone: customerPhone || null,
         customerEmail: selectedCustomer?.email || null,
         customerId: selectedCustomer?.id || null,
@@ -962,7 +960,7 @@ export default function SellScreen({ shift }: { shift: any }) {
           productId: i.productId,
           productName: i.productName,
           sku: i.sku,
-          quantity: i.quantity,
+          quantity: Math.max(1, Math.round(Number(i.quantity) || 0)),
           unitPrice: i.unitPrice,
           discount: i.discount,
           taxRate: i.taxRate,
@@ -977,37 +975,9 @@ export default function SellScreen({ shift }: { shift: any }) {
         discountTotal,
         taxTotal,
         notes: '',
-        isOffline: !navigator.onLine,
-        offlineCreatedAt: new Date().toISOString(),
       };
 
       try {
-        if (!navigator.onLine && settings.enableOfflineMode) {
-          posOfflineQueue.enqueue({ ...payload, isOffline: true as const });
-          window.dispatchEvent(new Event('pos:offline-queue-changed'));
-          setLastSale({
-            ...payload,
-            invoiceNumber: `OFFLINE-${Date.now()}`,
-            subtotal,
-            grandTotal,
-            items: cart,
-            payments: payload.payments,
-            paidAmount: paidTotal,
-            changeAmount: changeDue,
-            createdAt: new Date().toISOString(),
-            cashierName: `${shift.cashier?.firstName || ''} ${shift.cashier?.lastName || ''}`.trim(),
-            terminalName: shift.terminal?.name,
-            terminalCode: shift.terminal?.code,
-          });
-          setShowReceipt(true);
-          setShowCheckout(false);
-          if (heldSaleId) {
-            try { await posSaleService.deleteHeld(heldSaleId); } catch { /* ignore */ }
-          }
-          clearCart();
-          return;
-        }
-
         const res: any = await posSaleService.complete(payload);
         const completedSale = {
           ...res.data?.sale,
@@ -1028,30 +998,7 @@ export default function SellScreen({ shift }: { shift: any }) {
         clearCart();
         loadProducts(query, selectedCategoryId);
       } catch (e: any) {
-        if (settings.enableOfflineMode && !navigator.onLine) {
-          posOfflineQueue.enqueue({ ...payload, isOffline: true as const });
-          window.dispatchEvent(new Event('pos:offline-queue-changed'));
-          setLastSale({
-            ...payload,
-            invoiceNumber: `OFFLINE-${Date.now()}`,
-            subtotal,
-            grandTotal,
-            items: cart,
-            payments: payload.payments,
-            paidAmount: paidTotal,
-            changeAmount: changeDue,
-            createdAt: new Date().toISOString(),
-            cashierName: `${shift.cashier?.firstName || ''} ${shift.cashier?.lastName || ''}`.trim(),
-            terminalName: shift.terminal?.name,
-            terminalCode: shift.terminal?.code,
-          });
-          setShowReceipt(true);
-          setShowCheckout(false);
-          clearCart();
-          setSaleError(`Queued offline: ${e.message}`);
-        } else {
-          setSaleError(e.message);
-        }
+        setSaleError(e.message || 'Sale failed');
       } finally {
         setSubmitting(false);
       }
@@ -1332,9 +1279,9 @@ export default function SellScreen({ shift }: { shift: any }) {
             </div>
           </div>
           
-          {/* Customer Selection - Mandatory */}
+          {/* Customer Selection — optional */}
           <div className="mt-3 relative">
-            <label className="block text-gray-700 text-sm font-medium mb-1.5">Customer *</label>
+            <label className="block text-gray-700 text-sm font-medium mb-1.5">Customer <span className="text-gray-400 font-normal">(optional)</span></label>
             <div className="relative">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                 <User className="w-4 h-4" />
@@ -1710,6 +1657,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={completeSale}
                 disabled={submitting||changeDue<0||payments.some((p)=>methodNeedsPaymentDevice(p.paymentMethod)&&!p.terminalApproved&&p.amount>0)}
                 className={`flex-[2] py-3 rounded-lg bg-gradient-to-r from-green-500 to-green-600 border-none text-white text-sm font-bold cursor-pointer hover:opacity-90 transition-opacity flex items-center justify-center gap-2 ${changeDue<0?'opacity-50':''}`}

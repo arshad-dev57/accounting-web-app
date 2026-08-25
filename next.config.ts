@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
     ).trim();
     return [
       {
-        source: '/api/:path*',
+        source: '/api/:path((?!pos/).*)',
         destination: `${backendUrl}/api/:path*`,
       },
     ];
