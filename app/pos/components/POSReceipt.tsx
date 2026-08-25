@@ -59,16 +59,17 @@ export default function POSReceipt({
     maxWidth: '100%',
     margin: '0 auto',
     background: '#ffffff',
-    color: '#111827',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+    color: '#000000',
+    fontFamily: '"Courier New", Courier, ui-monospace, monospace',
   };
   const inner: CSSProperties = {
     padding: '16px 14px',
-    fontSize: 11,
-    lineHeight: 1.45,
+    fontSize: 13,
+    lineHeight: 1.35,
+    fontWeight: 700,
   };
   const center: CSSProperties = { textAlign: 'center' };
-  const muted: CSSProperties = { fontSize: 10, color: '#4b5563' };
+  const muted: CSSProperties = { fontSize: 12, color: '#000000', fontWeight: 700 };
 
   return (
     <div className="pos-receipt-paper" style={wrap}>
@@ -106,7 +107,7 @@ export default function POSReceipt({
           {tpl.receiptHeader || 'TAX INVOICE / SALES RECEIPT'}
         </div>
         {tpl.copyLabel ? (
-          <div style={{ ...center, fontSize: 9, color: '#6b7280', marginTop: 2 }}>{tpl.copyLabel}</div>
+          <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 2, fontWeight: 700 }}>{tpl.copyLabel}</div>
         ) : null}
         <Dash />
 
@@ -129,7 +130,7 @@ export default function POSReceipt({
         {sale.customerEmail ? <div>Email: {sale.customerEmail}</div> : null}
 
         <Dash />
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, fontWeight: 700, borderBottom: '1px dashed #9ca3af' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontWeight: 700, borderBottom: '1px dashed #000000' }}>
           <tbody>
             <tr>
               <td style={{ padding: '0 0 4px', textAlign: 'left' }}>ITEM</td>
@@ -148,7 +149,7 @@ export default function POSReceipt({
                 {item.barcodeNumber ? `  ·  ${item.barcodeNumber}` : ''}
               </div>
             ) : null}
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, color: '#4b5563' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, color: '#000000', fontWeight: 700 }}>
               <tbody>
                 <tr>
                   <td style={{ paddingTop: 2, textAlign: 'left' }}>
@@ -226,7 +227,7 @@ export default function POSReceipt({
                 />
               ) : null}
             </div>
-            <div style={{ ...center, fontSize: 9, color: '#6b7280', marginBottom: 4 }}>
+            <div style={{ ...center, fontSize: 11, color: '#000000', marginBottom: 4, fontWeight: 700 }}>
               Barcode = receipt # · QR = sale details
             </div>
           </>
@@ -234,12 +235,12 @@ export default function POSReceipt({
 
         <Dash />
         {tpl.receiptReturnPolicy ? (
-          <div style={{ ...center, fontSize: 9, color: '#374151', whiteSpace: 'pre-wrap' }}>
+          <div style={{ ...center, fontSize: 11, color: '#000000', whiteSpace: 'pre-wrap', fontWeight: 700 }}>
             {tpl.receiptReturnPolicy}
           </div>
         ) : null}
         {tpl.receiptNotes ? (
-          <div style={{ ...center, fontSize: 9, color: '#4b5563', marginTop: 8, whiteSpace: 'pre-wrap' }}>
+          <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 8, whiteSpace: 'pre-wrap', fontWeight: 700 }}>
             {tpl.receiptNotes}
           </div>
         ) : null}
@@ -247,15 +248,15 @@ export default function POSReceipt({
           <div style={{ ...center, fontWeight: 700, marginTop: 12 }}>{tpl.receiptFooter}</div>
         ) : null}
         {tpl.servedByPrefix ? (
-          <div style={{ ...center, fontSize: 9, color: '#6b7280', marginTop: 8 }}>
+          <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 8, fontWeight: 700 }}>
             {tpl.servedByPrefix} {meta.cashier || 'our team'}
           </div>
         ) : null}
-        <div style={{ ...center, fontSize: 9, color: '#9ca3af', marginTop: 4 }}>
+        <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 4, fontWeight: 700 }}>
           Generated {new Date().toLocaleString()}
         </div>
         {tpl.poweredBy ? (
-          <div style={{ ...center, fontSize: 9, color: '#9ca3af', marginTop: 2 }}>{tpl.poweredBy}</div>
+          <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 2, fontWeight: 700 }}>{tpl.poweredBy}</div>
         ) : null}
       </div>
     </div>
@@ -266,7 +267,7 @@ function Dash() {
   return (
     <div
       style={{
-        borderTop: '1px dashed #9ca3af',
+        borderTop: '1px dashed #000000',
         margin: '10px 0',
       }}
     />

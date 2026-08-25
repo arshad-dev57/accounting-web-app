@@ -438,10 +438,16 @@ export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
       background: #fff;
       color: #000;
     }
+    html, body, .pos-receipt-paper, .pos-receipt-paper * {
+      color: #000 !important;
+      font-weight: 700 !important;
+      -webkit-text-stroke: 0.25px #000;
+    }
     body {
       font-family: "Courier New", Courier, monospace;
-      font-size: 11px;
-      line-height: 1.4;
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 700;
     }
     .pos-receipt-paper {
       width: 100% !important;

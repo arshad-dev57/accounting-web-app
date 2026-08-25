@@ -1,11 +1,10 @@
 /**
  * POS thermal printer — ESC/POS (Web Serial) + browser thermal print fallback.
- * Works with common USB/Serial printers: Xprinter, Rongta, Epson TM, Black Copper, etc.
+ * USB/Serial: Xprinter, Rongta, Epson TM, Black Copper / clones.
  */
 import {
   loadPosSettings,
   loadReceiptTemplate,
-  openCashDrawer,
   getDrawerPulse,
   type PosSettings,
 } from './pos-settings';
@@ -21,11 +20,14 @@ import {
 } from './pos-receipt';
 
 type SerialPortLike = {
-  open: (opts: { baudRate: number }) => Promise<void>;
+  open: (opts: {
+    baudRate: number;
+    flowControl?: 'none' | 'hardware';
+    bufferSize?: number;
+  }) => Promise<void>;
   close: () => Promise<void>;
   readable: ReadableStream<Uint8Array> | null;
   writable: WritableStream<Uint8Array> | null;
-  getInfo?: () => { usbVendorId?: number; usbProductId?: number };
 };
 
 declare global {
@@ -142,9 +144,17 @@ class EscPosBuilder {
   }
 
   init() {
-    // ESC @ = initialize printer
-    // 0x00 x2 = null bytes to wake up printer (Black Copper / clone printers need this)
-    return this.raw(ESC, 0x40, 0x00, 0x00);
+    this.raw(ESC, 0x40);
+    this.raw(LF);
+    this.dark();
+    return this;
+  }
+
+  dark() {
+    this.raw(ESC, 0x47, 1);
+    this.raw(GS, 0x28, 0x4b, 2, 0, 49, 8);
+    this.raw(ESC, 0x37, 7, 140, 2);
+    return this;
   }
 
   align(mode: 'left' | 'center' | 'right') {
@@ -162,9 +172,9 @@ class EscPosBuilder {
   }
 
   cut() {
-    // GS V 0x41 0x00 = partial cut — Black Copper aur most clone printers ke saath compatible
-    // Fallback: GS V 0x00 full cut bhi send karo
-    return this.raw(GS, 0x56, 0x41, 0x00);
+    this.raw(GS, 0x56, 0x41, 0x00);
+    this.raw(GS, 0x56, 0x00);
+    return this;
   }
 
   feed(n = 4) {
@@ -173,17 +183,16 @@ class EscPosBuilder {
 
   drawer() {
     const { t1, t2 } = getDrawerPulse();
-    // Pulse both drawer pins (2 and 5) — Black Copper / clones vary which jack is wired
     return this.raw(ESC, 0x70, 0x00, t1, t2).raw(ESC, 0x70, 0x01, t1, t2);
   }
 
   barcode(value: string) {
-    const data = encodeText(value.slice(0, 40));
-    this.raw(GS, 0x68, 60); // height
-    this.raw(GS, 0x77, 2);  // module width
-    this.raw(GS, 0x48, 2);  // HRI below
-    this.raw(GS, 0x66, 0);  // HRI font A
-    // CODE128: GS k 73 n data
+    const payload = `{B${String(value || 'RECEIPT').slice(0, 38)}`;
+    const data = encodeText(payload);
+    this.raw(GS, 0x68, 70);
+    this.raw(GS, 0x77, 3);
+    this.raw(GS, 0x48, 2);
+    this.raw(GS, 0x66, 0);
     this.raw(GS, 0x6b, 73, data.length);
     this.chunks.push(data);
     this.raw(LF);
@@ -193,18 +202,11 @@ class EscPosBuilder {
   qr(value: string, moduleSize = 5) {
     const data = encodeText(value);
     const storeLen = data.length + 3;
-    const pL = storeLen & 0xff;
-    const pH = (storeLen >> 8) & 0xff;
-    // Model 2
     this.raw(GS, 0x28, 0x6b, 4, 0, 49, 65, 50, 0);
-    // Module size
     this.raw(GS, 0x28, 0x6b, 3, 0, 49, 67, Math.min(8, Math.max(3, moduleSize)));
-    // Error correction Q
     this.raw(GS, 0x28, 0x6b, 3, 0, 49, 69, 50);
-    // Store
-    this.raw(GS, 0x28, 0x6b, pL, pH, 49, 80, 48);
+    this.raw(GS, 0x28, 0x6b, storeLen & 0xff, storeLen >> 8, 49, 80, 48);
     this.chunks.push(data);
-    // Print
     this.raw(GS, 0x28, 0x6b, 3, 0, 49, 81, 48);
     this.raw(LF);
     return this;
@@ -215,15 +217,22 @@ class EscPosBuilder {
   }
 }
 
+export function saleHasCashPayment(sale: PosReceiptSale) {
+  const methods = (sale.payments || []).map((p) => String(p.paymentMethod || '').toLowerCase());
+  if (methods.some((m) => m.includes('cash'))) return true;
+  return methods.length === 0;
+}
+
 export function buildEscPosReceipt(opts: {
   sale: PosReceiptSale;
   companyProfile?: any;
   shift?: any;
   settings?: PosSettings;
+  kickDrawer?: boolean;
 }): Uint8Array {
   const settings = opts.settings || loadPosSettings();
   const tpl = loadReceiptTemplate();
-  const widthMm = tpl.thermalPaperWidthMm || settings.thermalPaperWidthMm || 80;
+  const widthMm = (tpl.thermalPaperWidthMm || settings.thermalPaperWidthMm || 80) as 58 | 80;
   const cols = charsPerLine(widthMm);
   const company = resolveReceiptCompany(opts.companyProfile, tpl);
   const meta = resolveReceiptMeta(opts.sale, opts.shift);
@@ -235,31 +244,27 @@ export function buildEscPosReceipt(opts: {
   const b = new EscPosBuilder();
 
   b.init();
-
-  // Black Copper aur clone printers ke liye: init ke baad line feed dو
-  // taake printer command buffer settle ho jaye
-  b.raw(LF);
-
   b.align('center');
   b.bold(true);
   b.size(2, 2);
   for (const row of wrapText(company.name || 'STORE', Math.floor(cols / 2))) b.line(row);
   b.size(1, 1);
-  b.bold(false);
+  b.bold(true);
   if (tpl.showAddress && company.address) wrapText(company.address, cols).forEach((r) => b.line(r));
   if (tpl.showPhone && company.phone) b.line(`Tel: ${company.phone}`);
   if (tpl.showEmail && company.email) b.line(company.email);
   if (tpl.showWebsite && company.website) b.line(company.website.replace(/^https?:\/\//, ''));
   if (tpl.showTaxId && company.taxId) b.line(`NTN: ${company.taxId}`);
   b.line(dashLine(cols));
-  b.bold(true);
   b.line(tpl.receiptHeader || 'TAX INVOICE / SALES RECEIPT');
   b.bold(false);
   if (tpl.copyLabel) b.line(tpl.copyLabel);
   b.line(dashLine(cols));
 
   b.align('left');
+  b.bold(true);
   b.line(padLine('Receipt #', invoice, cols));
+  b.bold(false);
   b.line(padLine('Date', soldAt.toLocaleDateString(), cols));
   b.line(padLine('Time', soldAt.toLocaleTimeString(), cols));
   if (tpl.showTerminal && meta.terminal) {
@@ -283,7 +288,9 @@ export function buildEscPosReceipt(opts: {
   b.line(dashLine(cols));
 
   items.forEach((item) => {
+    b.bold(true);
     wrapText(String(item.productName || 'Item').toUpperCase(), cols).forEach((r) => b.line(r));
+    b.bold(false);
     if (tpl.showSku) {
       const skuBits = [item.sku ? `SKU ${item.sku}` : '', item.barcodeNumber || ''].filter(Boolean).join(' · ');
       if (skuBits) wrapText(skuBits, cols).forEach((r) => b.line(r));
@@ -339,7 +346,7 @@ export function buildEscPosReceipt(opts: {
       const qrPayload = receiptQrValue(sale, opts.shift);
       b.qr(qrPayload.length > 400 ? receiptBarcodeValue(sale) : qrPayload, widthMm === 58 ? 4 : 5);
     } catch {
-      /* ignore QR failures on older printers */
+      /* older printers may skip QR */
     }
     b.line('Scan for receipt details');
   }
@@ -355,26 +362,29 @@ export function buildEscPosReceipt(opts: {
   if (tpl.poweredBy) b.line(tpl.poweredBy);
   b.line(new Date().toLocaleString());
 
-  // Feed lines badhe kiye: 4 → 6 (Black Copper pe cut se pehle enough paper chahiye)
   b.feed(settings.thermalFeedLines ?? 6);
-
   if (settings.thermalCutPaper !== false) b.cut();
-  if (settings.openDrawerOnCashSale && saleHasCashPayment(sale)) b.drawer();
+
+  const shouldKick =
+    opts.kickDrawer !== false &&
+    settings.openDrawerOnCashSale !== false &&
+    saleHasCashPayment(sale);
+  if (shouldKick) b.drawer();
 
   return b.build();
-}
-
-function saleHasCashPayment(sale: PosReceiptSale) {
-  const methods = (sale.payments || []).map((p) => String(p.paymentMethod || '').toLowerCase());
-  if (methods.some((m) => m.includes('cash'))) return true;
-  return methods.length === 0;
 }
 
 async function writeToPort(data: Uint8Array) {
   if (!printerPort?.writable) throw new Error('Thermal printer is not connected');
   const writer = printerPort.writable.getWriter();
   try {
-    await writer.write(data);
+    const chunk = 512;
+    for (let i = 0; i < data.length; i += chunk) {
+      await writer.write(data.slice(i, i + chunk));
+      if (i + chunk < data.length) {
+        await new Promise((r) => setTimeout(r, 20));
+      }
+    }
   } finally {
     writer.releaseLock();
   }
@@ -387,13 +397,16 @@ export async function connectThermalPrinter(baudRate?: number) {
   const settings = loadPosSettings();
   const port = await navigator.serial!.requestPort();
   try {
-    await port.open({ baudRate: baudRate || settings.thermalPrinterBaudRate || 9600 });
+    await port.open({
+      baudRate: baudRate || settings.thermalPrinterBaudRate || 9600,
+      flowControl: 'none',
+      bufferSize: 255,
+    });
     printerPort = port;
     printerConnected = true;
     return true;
   } catch (e: any) {
-    // Port already open by OS/driver — treat as connected
-    if (e?.name === 'InvalidStateError' || e?.message?.toLowerCase().includes('already open')) {
+    if (e?.name === 'InvalidStateError' || String(e?.message || '').toLowerCase().includes('already open')) {
       printerPort = port;
       printerConnected = true;
       return true;
@@ -404,7 +417,6 @@ export async function connectThermalPrinter(baudRate?: number) {
 
 export async function reconnectThermalPrinter() {
   if (!thermalPrinterSupportsSerial()) return false;
-
   if (printerConnected && printerPort) return true;
 
   const settings = loadPosSettings();
@@ -413,15 +425,16 @@ export async function reconnectThermalPrinter() {
   const port = ports[0];
 
   try {
-    await port.open({ baudRate: settings.thermalPrinterBaudRate || 9600 });
+    await port.open({
+      baudRate: settings.thermalPrinterBaudRate || 9600,
+      flowControl: 'none',
+      bufferSize: 255,
+    });
     printerPort = port;
     printerConnected = true;
     return true;
   } catch (e: any) {
-    if (
-      e?.message?.toLowerCase().includes('already open') ||
-      e?.name === 'InvalidStateError'
-    ) {
+    if (String(e?.message || '').toLowerCase().includes('already open') || e?.name === 'InvalidStateError') {
       printerPort = port;
       printerConnected = true;
       return true;
@@ -442,7 +455,6 @@ export async function disconnectThermalPrinter() {
   printerConnected = false;
 }
 
-/** Open drawer through the thermal printer only (no browser print dialog). */
 export async function kickCashDrawer() {
   const payload = new EscPosBuilder().init().drawer().build();
 
@@ -477,6 +489,17 @@ export async function kickCashDrawer() {
   }
 }
 
+async function maybeOpenDrawer(sale: PosReceiptSale) {
+  const settings = loadPosSettings();
+  if (settings.openDrawerOnCashSale === false) return;
+  if (!saleHasCashPayment(sale)) return;
+  try {
+    await kickCashDrawer();
+  } catch {
+    /* drawer only works when the printer is connected over ESC/POS */
+  }
+}
+
 export async function printEscPosReceipt(opts: {
   sale: PosReceiptSale;
   companyProfile?: any;
@@ -486,8 +509,7 @@ export async function printEscPosReceipt(opts: {
     const reconnected = await reconnectThermalPrinter();
     if (!reconnected) throw new Error('Connect the thermal printer first (POS Management → Printer)');
   }
-  const payload = buildEscPosReceipt(opts);
-  await writeToPort(payload);
+  await writeToPort(buildEscPosReceipt(opts));
 }
 
 export async function printTestThermalPage() {
@@ -497,13 +519,12 @@ export async function printTestThermalPage() {
   const b = new EscPosBuilder();
 
   b.init();
-  b.raw(LF); // settle delay
-
   b.align('center');
   b.bold(true);
   b.size(2, 2);
   b.line('PRINTER TEST');
   b.size(1, 1);
+  b.line('DARK TEXT CHECK');
   b.bold(false);
   b.line(dashLine(cols));
   b.line('BisonTechs POS');
@@ -515,10 +536,13 @@ export async function printTestThermalPage() {
   b.line('If you can read this, ESC/POS works.');
   b.feed(settings.thermalFeedLines ?? 6);
   if (settings.thermalCutPaper !== false) b.cut();
+  if (!printerConnected || !printerPort?.writable) {
+    const ok = await reconnectThermalPrinter();
+    if (!ok) throw new Error('Connect the thermal printer first (POS Management → Printer)');
+  }
   await writeToPort(b.build());
 }
 
-/** Unified print: ESC/POS when configured & connected, else browser thermal window. */
 export async function printPosReceipt(opts: {
   sale: PosReceiptSale;
   companyProfile?: any;
@@ -528,7 +552,7 @@ export async function printPosReceipt(opts: {
 }) {
   const settings = loadPosSettings();
   const tpl = loadReceiptTemplate();
-  const widthMm = tpl.thermalPaperWidthMm || settings.thermalPaperWidthMm || 80;
+  const widthMm = (tpl.thermalPaperWidthMm || settings.thermalPaperWidthMm || 80) as 58 | 80;
   const mode = opts.forceMode || settings.thermalPrintMode || 'browser';
 
   if (mode === 'escpos') {
@@ -536,9 +560,9 @@ export async function printPosReceipt(opts: {
       await printEscPosReceipt(opts);
       return { mode: 'escpos' as const };
     } catch (e) {
-      // Fall back to browser so sale still prints
       if (opts.paperNode) {
         printReceiptNode(opts.paperNode, widthMm);
+        await maybeOpenDrawer(opts.sale);
         return { mode: 'browser' as const, fallback: true, error: e };
       }
       throw e;
@@ -551,9 +575,6 @@ export async function printPosReceipt(opts: {
     throw new Error('Receipt paper is not ready for browser print');
   }
 
-  if (settings.openDrawerOnCashSale && saleHasCashPayment(opts.sale) && mode === 'browser') {
-    setTimeout(() => openCashDrawer(), 400);
-  }
-
+  await maybeOpenDrawer(opts.sale);
   return { mode: 'browser' as const };
 }
