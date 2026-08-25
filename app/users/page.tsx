@@ -33,6 +33,7 @@ import { usersService } from './service';
 import { User, Role } from './types';
 import UserFormModal from './UserFormModal';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
+import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import { performLogout } from '../../lib/auth-logout';
 import { useRouter } from 'next/navigation';
 
@@ -478,6 +479,8 @@ export default function UsersDashboard() {
             )}
           </div>
         </header>
+
+        <AppBreadcrumbs extra={activeTab === 'users' ? [] : [{ label: 'Permissions' }]} />
 
         {/* Content */}
         <div className="flex-1 p-6 overflow-auto">

@@ -11,7 +11,7 @@ import {
   Settings, Loader2, ChevronLeft, ChevronRight, Barcode,
   Camera, Download, Printer, CheckCircle, XCircle, ZoomIn,
   Thermometer, Package2, ShoppingCart, RotateCcw, Star,
-  Globe, AlertTriangle, Archive, Boxes
+  Globe, AlertTriangle, Archive, Boxes, QrCode, RefreshCw
 } from 'lucide-react';
 import { productService, Product, getProductId } from '../../api/product/route';
 import { categoryService, Category } from '../../api/category/route';
@@ -20,6 +20,7 @@ import { settingService } from '../../api/settings/route';
 import { ProductTaxFields } from '../../../components/TaxRateSelect';
 import QuickAddSelect from '../../../components/QuickAddSelect';
 import { useLocation } from '@/lib/location-context';
+import { useCurrency } from '@/lib/currency-context';
 import { useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 
 // ============================================================
@@ -94,6 +95,109 @@ function BarcodeDisplay({ value, productName }: { value: string; productName: st
           <Download className="w-3.5 h-3.5" /> Download
         </button>
         <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all text-gray-600">
+          <Printer className="w-3.5 h-3.5" /> Print
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Flutter-style Product QR: JSON { id, type: "product" } */
+function QRDisplay({
+  productId,
+  sku,
+  productName,
+}: {
+  value?: string;
+  productId?: string;
+  sku?: string;
+  productName: string;
+}) {
+  const [dataUrl, setDataUrl] = useState('');
+  const [error, setError] = useState('');
+  const payload = JSON.stringify({
+    id: productId || sku || '',
+    sku: sku || '',
+    name: productName || '',
+    type: 'product',
+  });
+
+  useEffect(() => {
+    if (!productId && !sku) {
+      setDataUrl('');
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const QRCode = (await import('qrcode')).default;
+        const url = await QRCode.toDataURL(payload, {
+          width: 240,
+          margin: 2,
+          errorCorrectionLevel: 'M',
+          color: { dark: '#111111', light: '#ffffff' },
+        });
+        if (!cancelled) {
+          setDataUrl(url);
+          setError('');
+        }
+      } catch {
+        if (!cancelled) setError('QR render failed');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [payload, productId, sku]);
+
+  const handleDownload = () => {
+    if (!dataUrl) return;
+    const link = document.createElement('a');
+    link.download = `qr-${sku || productName || 'product'}.png`;
+    link.href = dataUrl;
+    link.click();
+  };
+
+  const handlePrint = () => {
+    if (!dataUrl) return;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`
+      <html><head><title>QR - ${productName}</title>
+      <style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;}
+      p{margin-top:8px;font-size:14px;color:#555;}</style></head>
+      <body><img src="${dataUrl}" /><p>${productName}</p><p>${sku || ''}</p></body></html>
+    `);
+    win.document.close();
+    win.print();
+  };
+
+  if (!productId && !sku) {
+    return (
+      <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl text-gray-400">
+        <QrCode className="w-8 h-8 mb-2" />
+        <p className="text-sm">QR will generate after SKU is created</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+      {error ? (
+        <p className="text-red-500 text-sm">{error}</p>
+      ) : dataUrl ? (
+        <div className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
+          <img src={dataUrl} alt={`QR ${productName}`} className="w-52 h-52" />
+        </div>
+      ) : (
+        <Loader2 className="w-8 h-8 animate-spin text-[#014582]" />
+      )}
+      <p className="text-[11px] font-mono text-gray-500">{sku}</p>
+      <div className="flex gap-2">
+        <button type="button" onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all text-gray-600">
+          <Download className="w-3.5 h-3.5" /> Download
+        </button>
+        <button type="button" onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all text-gray-600">
           <Printer className="w-3.5 h-3.5" /> Print
         </button>
       </div>
@@ -207,10 +311,117 @@ function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; 
   );
 }
 
+function productImageList(product?: Product | null): string[] {
+  if (!product) return [];
+  const fromArray = Array.isArray(product.images)
+    ? product.images.map((u) => String(u || '').trim()).filter(Boolean)
+    : [];
+  if (fromArray.length) return Array.from(new Set(fromArray));
+  const main = String(product.mainImage || '').trim();
+  return main ? [main] : [];
+}
+
+function ProductThumb({
+  product,
+  size = 44,
+  className = '',
+}: {
+  product: Product;
+  size?: number;
+  className?: string;
+}) {
+  const images = productImageList(product);
+  const url = images[0];
+  const [broken, setBroken] = useState(false);
+
+  useEffect(() => {
+    setBroken(false);
+  }, [url]);
+
+  return (
+    <div
+      className={`relative flex-shrink-0 rounded-xl overflow-hidden bg-[#014582]/10 flex items-center justify-center ${className}`}
+      style={{ width: size, height: size }}
+    >
+      {url && !broken ? (
+        <img
+          src={url}
+          alt={product.name || 'Product'}
+          className="w-full h-full object-cover"
+          onError={() => setBroken(true)}
+        />
+      ) : (
+        <Package className="text-[#014582]" style={{ width: size * 0.45, height: size * 0.45 }} />
+      )}
+      {images.length > 1 && !broken && (
+        <span className="absolute bottom-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded bg-black/65 text-white text-[9px] font-bold leading-none flex items-center justify-center">
+          {images.length}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ProductImageStrip({ product }: { product: Product }) {
+  const images = productImageList(product);
+  const [active, setActive] = useState(0);
+  const [broken, setBroken] = useState(false);
+
+  useEffect(() => {
+    setActive(0);
+    setBroken(false);
+  }, [product.id, images.join('|')]);
+
+  if (!images.length) return null;
+  const current = images[Math.min(active, images.length - 1)];
+
+  return (
+    <div className="px-6 pt-4 pb-1 space-y-3">
+      <div className="w-full h-44 md:h-52 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex items-center justify-center">
+        {current && !broken ? (
+          <img
+            src={current}
+            alt={product.name || 'Product'}
+            className="w-full h-full object-contain"
+            onError={() => setBroken(true)}
+          />
+        ) : (
+          <Package className="w-10 h-10 text-gray-300" />
+        )}
+      </div>
+      {images.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {images.map((url, i) => (
+            <button
+              key={`${url}-${i}`}
+              type="button"
+              onClick={() => {
+                setActive(i);
+                setBroken(false);
+              }}
+              className={`relative flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 ${
+                i === active ? 'border-[#014582]' : 'border-gray-200'
+              }`}
+            >
+              <img src={url} alt="" className="w-full h-full object-cover" />
+              {i === 0 && (
+                <span className="absolute bottom-1 left-1 text-[8px] font-bold bg-[#014582] text-white px-1 py-0.5 rounded">
+                  Main
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============================================================
 // PRODUCT DETAIL VIEW
 // ============================================================
 function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose: () => void; onEdit: () => void }) {
+  const { formatAmount } = useCurrency();
   const [activeTab, setActiveTab] = useState('overview');
 
   const tabs = [
@@ -220,7 +431,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
     { id: 'physical', label: 'Physical', icon: Ruler },
     { id: 'batch', label: 'Batch & Expiry', icon: Clock },
     { id: 'shipping', label: 'Shipping', icon: Truck },
-    { id: 'barcode', label: 'Barcode', icon: Barcode },
+    { id: 'barcode', label: 'Barcode / QR', icon: QrCode },
   ];
 
   const stockStatus =
@@ -261,9 +472,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Package className="w-6 h-6 text-[#014582]" />
-            </div>
+            <ProductThumb product={product} size={56} />
             <div>
               <h2 className="text-xl font-bold text-gray-900">{product.name}</h2>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -286,11 +495,13 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
           </div>
         </div>
 
+        <ProductImageStrip product={product} />
+
         {/* Quick Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-gray-100 border-b border-gray-100">
           {[
-            { label: 'Cost Price', value: `Rs. ${Number(product.costPrice || 0).toLocaleString()}`, icon: DollarSign, color: 'text-blue-600' },
-            { label: 'Selling Price', value: `Rs. ${Number(product.sellingPrice || 0).toLocaleString()}`, icon: ShoppingCart, color: 'text-green-600' },
+            { label: 'Cost Price', value: formatAmount(Number(product.costPrice || 0)), icon: DollarSign, color: 'text-blue-600' },
+            { label: 'Selling Price', value: formatAmount(Number(product.sellingPrice || 0)), icon: ShoppingCart, color: 'text-green-600' },
             { label: 'Current Stock', value: `${Number(product.currentStock || 0).toLocaleString()} ${product.stockUnit || 'Pcs'}`, icon: Boxes, color: 'text-purple-600' },
             { label: 'Min Stock', value: `${Number(product.minimumStock || 0).toLocaleString()} ${product.stockUnit || 'Pcs'}`, icon: AlertTriangle, color: 'text-orange-600' },
           ].map(({ label, value, icon: Icon, color }) => (
@@ -362,9 +573,9 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Pricing</h4>
-                <DetailRow label="Cost Price" value={`Rs. ${Number(product.costPrice || 0).toLocaleString()}`} />
-                <DetailRow label="Selling Price" value={`Rs. ${Number(product.sellingPrice || 0).toLocaleString()}`} />
-                <DetailRow label="Landing Cost" value={product.landingCost ? `Rs. ${Number(product.landingCost).toLocaleString()}` : undefined} />
+                <DetailRow label="Cost Price" value={formatAmount(Number(product.costPrice || 0))} />
+                <DetailRow label="Selling Price" value={formatAmount(Number(product.sellingPrice || 0))} />
+                <DetailRow label="Landing Cost" value={product.landingCost ? formatAmount(Number(product.landingCost)) : undefined} />
                 <DetailRow label="Currency" value={product.currency || 'PKR'} />
                 <DetailRow label="Tax Rate" value={product.taxRate ? `${product.taxRate}%` : undefined} />
                 <DetailRow label="Tax Type" value={product.taxType} />
@@ -374,7 +585,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
                     <p className="text-lg font-bold text-green-700">
                       {(((Number(product.sellingPrice) - Number(product.costPrice)) / Number(product.costPrice)) * 100).toFixed(1)}%
                       <span className="text-sm font-normal ml-2 text-green-600">
-                        (Rs. {(Number(product.sellingPrice) - Number(product.costPrice)).toLocaleString()})
+                        ({formatAmount(Number(product.sellingPrice) - Number(product.costPrice))})
                       </span>
                     </p>
                   </div>
@@ -531,14 +742,25 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
 
           {/* ── BARCODE ── */}
           {activeTab === 'barcode' && (
-            <div className="flex flex-col items-center gap-6">
-              <div className="w-full max-w-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="flex flex-col items-center">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 text-center">Product QR</h4>
+                <QRDisplay
+                  productId={product.id || product._id}
+                  sku={product.sku}
+                  productName={product.name}
+                />
+                <p className="mt-3 text-[11px] text-gray-400 text-center max-w-xs">
+                  Same Flutter payload: product id + type, for scan lookup.
+                </p>
+              </div>
+              <div className="flex flex-col items-center">
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 text-center">Barcode</h4>
                 <BarcodeDisplay
                   value={product.barcode?.number || product.barcodeNumber || product.sku}
                   productName={product.name}
                 />
-                <div className="mt-4 space-y-1">
+                <div className="mt-4 w-full max-w-sm space-y-1">
                   <DetailRow label="Barcode No." value={product.barcode?.number || product.barcodeNumber || product.sku} mono />
                   <DetailRow label="Format" value="CODE128" />
                   <DetailRow label="SKU" value={product.sku} mono />
@@ -580,6 +802,7 @@ function ProductList({
   categories: Category[];
   locationName?: string;
 }) {
+  const { formatAmount } = useCurrency();
   const statusOptions = [
     { label: 'All Products', value: 'all' },
     { label: 'In Stock (here)', value: 'in' },
@@ -661,6 +884,7 @@ function ProductList({
           <table className="w-full text-xs md:text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Image</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">SKU</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Product Name</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Category</th>
@@ -675,12 +899,12 @@ function ProductList({
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="text-center py-8 md:py-12">
+                <tr><td colSpan={9} className="text-center py-8 md:py-12">
                   <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                   <p className="mt-2 text-xs md:text-sm text-gray-500">Loading...</p>
                 </td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-8 md:py-12 text-gray-400">
+                <tr><td colSpan={9} className="text-center py-8 md:py-12 text-gray-400">
                   <Package className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-3 text-gray-300" />
                   <p className="text-sm md:text-lg font-medium text-gray-500">No products found</p>
                   <p className="text-xs md:text-sm text-gray-400">Try adjusting your search or filters</p>
@@ -688,11 +912,21 @@ function ProductList({
               ) : (
                 products.map((product) => (
                   <tr key={product.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td className="px-3 md:px-6 py-2 md:py-3">
+                      <button
+                        type="button"
+                        onClick={() => onViewClick(product)}
+                        className="block"
+                        title="View product"
+                      >
+                        <ProductThumb product={product} size={44} />
+                      </button>
+                    </td>
                     <td className="px-3 md:px-6 py-2 md:py-3 font-mono text-[10px] md:text-xs font-semibold text-gray-700">{product.sku}</td>
                     <td className="px-3 md:px-6 py-2 md:py-3 font-medium text-gray-800 text-xs md:text-sm">{product.name}</td>
                     <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden sm:table-cell">{product.categoryName || '-'}</td>
                     <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden md:table-cell">{product.supplierName || '-'}</td>
-                    <td className="px-3 md:px-6 py-2 md:py-3 font-semibold text-gray-700 text-xs md:text-sm">Rs. {Number(product.sellingPrice).toLocaleString()}</td>
+                    <td className="px-3 md:px-6 py-2 md:py-3 font-semibold text-gray-700 text-xs md:text-sm">{formatAmount(Number(product.sellingPrice))}</td>
                     <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden lg:table-cell">
                       {Number(product.currentStock || 0).toLocaleString()}
                     </td>
@@ -792,6 +1026,7 @@ function ProductForm({
 
   const [activeTab, setActiveTab] = useState('basic');
   const [loadingSubs, setLoadingSubs] = useState(false);
+  const [generatingSku, setGeneratingSku] = useState(false);
   const [formData, setFormData] = useState({
     name: editingProduct?.name || '',
     sku: editingProduct?.sku || '',
@@ -921,6 +1156,26 @@ function ProductForm({
 
   const handleInputChange = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
 
+  const fetchAutoSku = async () => {
+    if (isEditing) return;
+    setGeneratingSku(true);
+    try {
+      const sku = await productService.generateSku(formData.name, formData.category);
+      if (sku) handleInputChange('sku', sku);
+    } catch (err) {
+      console.error('SKU generate failed:', err);
+    } finally {
+      setGeneratingSku(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isEditing && !formData.sku) {
+      void fetchAutoSku();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing]);
+
   const handleCategoryChange = async (categoryId: string) => {
     handleInputChange('category', categoryId);
     handleInputChange('subCategory', '');
@@ -974,6 +1229,13 @@ function ProductForm({
     setLoading(true);
     setError('');
     try {
+      if (!isEditing) {
+        const sku = await productService.generateSku(formData.name, formData.category);
+        if (sku) {
+          formData.sku = sku;
+          handleInputChange('sku', sku);
+        }
+      }
       const payload = new FormData();
       
       const fieldMapping: Record<string, string> = {
@@ -1073,7 +1335,21 @@ function ProductForm({
       if (isEditing && editId) {
         await productService.updateProduct(editId, payload);
       } else {
-        await productService.createProduct(payload);
+        try {
+          await productService.createProduct(payload);
+        } catch (createErr: any) {
+          const msg = String(createErr?.message || '');
+          if (/sku/i.test(msg)) {
+            const sku = await productService.generateSku(formData.name, formData.category);
+            if (sku) {
+              payload.set('sku', sku);
+              handleInputChange('sku', sku);
+            }
+            await productService.createProduct(payload);
+          } else {
+            throw createErr;
+          }
+        }
       }
       console.log('✅ [ProductForm] Product saved successfully');
       onSuccess();
@@ -1132,12 +1408,37 @@ function ProductForm({
                 </div>
               </div>
               <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">SKU *</label>
-                <div className="relative">
-                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="text" placeholder="e.g., COT-001" value={formData.sku} onChange={(e) => handleInputChange('sku', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" required />
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">SKU (auto)</label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Generating…"
+                      value={formData.sku}
+                      readOnly
+                      className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm bg-gray-100 text-gray-700 font-mono outline-none"
+                    />
+                  </div>
+                  {!isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => void fetchAutoSku()}
+                      disabled={generatingSku}
+                      className="w-10 h-[38px] md:h-[42px] flex items-center justify-center rounded-lg border border-[#014582]/30 bg-[#014582]/10 text-[#014582] hover:bg-[#014582]/20 disabled:opacity-50"
+                      title="Generate new unique SKU"
+                    >
+                      {generatingSku ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                    </button>
+                  )}
                 </div>
+                <p className="text-[10px] md:text-xs text-gray-400 mt-1">Company name + number. Duplicate SKUs get the next number automatically.</p>
               </div>
+              {formData.sku && (
+                <div className="md:col-span-2 flex justify-center py-2">
+                  <QRDisplay sku={formData.sku} productName={formData.name || 'Product'} />
+                </div>
+              )}
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Barcode</label>
                 <div className="relative">

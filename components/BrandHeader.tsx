@@ -52,7 +52,14 @@ function authToken() {
 }
 
 export function useCompanyBranding() {
-  const [branding, setBranding] = useState<CompanyBranding>(readCachedBranding);
+  const [branding, setBranding] = useState<CompanyBranding>({
+    logo: APP_LOGO_FALLBACK,
+    organizationName: APP_NAME,
+  });
+
+  useEffect(() => {
+    setBranding(readCachedBranding());
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

@@ -28,6 +28,7 @@ import {
   YAxis,
 } from 'recharts';
 import { useLocation } from '@/lib/location-context';
+import { loadCurrencyLocal } from '@/lib/currency-service';
 
 type Metrics = {
   totalProducts: number;
@@ -103,25 +104,16 @@ function emptyMetrics(): Metrics {
 }
 
 function formatCurrency(amount: number) {
-  let code = 'PKR';
-  try {
-    const saved = localStorage.getItem('sales_selected_currency');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed?.code) code = parsed.code;
-    }
-  } catch {
-    /* ignore */
-  }
+  const { code, symbol } = loadCurrencyLocal();
   try {
     return new Intl.NumberFormat('en', {
       style: 'currency',
-      currency: code,
+      currency: code || 'PKR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount || 0);
   } catch {
-    return `Rs ${(amount || 0).toLocaleString()}`;
+    return `${symbol || 'Rs'} ${(amount || 0).toLocaleString()}`;
   }
 }
 

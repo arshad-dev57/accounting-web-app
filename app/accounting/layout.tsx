@@ -41,6 +41,7 @@ import ProfileDropdown from '../../components/ProfileDropdown';
 import FiscalYearSelect from '../../components/FiscalYearSelect';
 import LocationSelect from '../../components/LocationSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
+import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 import { LocationProvider } from '../../lib/location-context';
@@ -393,6 +394,8 @@ export default function AccountingLayout({
               <ProfileDropdown accentClassName="bg-[#091746]" />
             </div>
           </header>
+
+          <AppBreadcrumbs />
 
           {/* Page Content */}
           <div className="flex-1 p-6">

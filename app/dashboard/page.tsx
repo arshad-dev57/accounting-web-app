@@ -15,6 +15,7 @@ import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import SubscriptionStatusBanner from '../../components/SubscriptionStatusBanner';
 import { MainHubSidebar } from '../../components/MainHubSidebar';
+import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 
 // ============================================================
 // BANNER SLIDER
@@ -92,6 +93,8 @@ export default function DashboardPage() {
             <ProfileDropdown accentClassName="bg-[#014582]" />
           </div>
         </header>
+
+        <AppBreadcrumbs />
 
         <SubscriptionStatusBanner />
 

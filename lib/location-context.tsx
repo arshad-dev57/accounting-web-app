@@ -89,19 +89,11 @@ export function LocationProvider({
   /** When true, "All locations" is a valid selection (accounting). */
   allowAll?: boolean;
 }) {
-  const [locations, setLocations] = useState<Location[]>(() =>
-    typeof window === 'undefined' ? [] : getCachedLocations()
-  );
-  const [selectedLocationId, setSelectedId] = useState(() =>
-    typeof window === 'undefined' ? '' : getStoredLocationId() || ''
-  );
-  const [loading, setLoading] = useState(
-    () => (typeof window === 'undefined' ? true : getCachedLocations().length === 0)
-  );
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [selectedLocationId, setSelectedId] = useState('');
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [ready, setReady] = useState(
-    () => (typeof window === 'undefined' ? false : getCachedLocations().length > 0)
-  );
+  const [ready, setReady] = useState(false);
 
   const allowAllEnabled = canUseAllLocations(allowAll);
 

@@ -37,6 +37,8 @@ import {
 } from '../../../lib/tax-service';
 import { effectiveLocationId } from '../../../lib/location-service';
 import { useLocation } from '../../../lib/location-context';
+import { useCurrency } from '../../../lib/currency-context';
+import { loadCurrencyLocal } from '../../../lib/currency-service';
 
 function getAuthToken() {
   if (typeof window === 'undefined') return '';
@@ -312,6 +314,8 @@ function ReceiptModal({ sale, companyProfile, shift, onClose, onDownloadReport, 
 
 export default function SellScreen({ shift }: { shift: any }) {
   const { locationIdForApi, selectedLocation, isAllLocations } = useLocation();
+  const { symbol } = useCurrency();
+  const money = (n: number | undefined | null) => `${symbol}${Number(n || 0).toFixed(2)}`;
   const terminalLocationId = effectiveLocationId(
     shift?.terminal?.locationId || shift?.terminal?.location?.id
   );
@@ -919,7 +923,7 @@ export default function SellScreen({ shift }: { shift: any }) {
       return;
     }
     if (!customerName || customerName.trim() === '') { setSaleError('Customer is required'); return; }
-    if (paidTotal < grandTotal) { setSaleError(`Insufficient payment. Need $${grandTotal.toFixed(2)}, got $${paidTotal.toFixed(2)}`); return; }
+    if (paidTotal < grandTotal) { setSaleError(`Insufficient payment. Need ${money(grandTotal)}, got ${money(paidTotal)}`); return; }
     const uncharged = payments.find((p) => methodNeedsPaymentDevice(p.paymentMethod) && !p.terminalApproved && p.amount > 0);
     if (uncharged) {
       setSaleError(`Charge ${uncharged.paymentMethod} on the ${loadPosSettings().paymentTerminalModel} before completing the sale`);
@@ -930,7 +934,7 @@ export default function SellScreen({ shift }: { shift: any }) {
       const newOutstanding = customerCreditInfo.outstandingBalance + grandTotal;
       if (newOutstanding > customerCreditInfo.creditLimit) {
         const overAmount = newOutstanding - customerCreditInfo.creditLimit;
-        setSaleError(`Credit limit exceeded. Available: $${customerCreditInfo.availableCredit.toFixed(2)}, Over by: $${overAmount.toFixed(2)}`);
+        setSaleError(`Credit limit exceeded. Available: ${money(customerCreditInfo.availableCredit)}, Over by: ${money(overAmount)}`);
         return;
       }
     }
@@ -1106,9 +1110,7 @@ export default function SellScreen({ shift }: { shift: any }) {
           receiptMeta: {
             barcodeDataUrl: barcodePngDataUrl(receiptBarcodeValue(lastSale)),
             qrDataUrl: await receiptQrPngDataUrl(lastSale, shift),
-            currencySymbol: (typeof window !== 'undefined'
-              ? JSON.parse(localStorage.getItem('sales_selected_currency') || '{}')?.symbol
-              : null) || '$',
+            currencySymbol: loadCurrencyLocal().symbol || '$',
             footer: loadReceiptTemplate().receiptFooter,
             header: loadReceiptTemplate().receiptHeader,
             returnPolicy: loadReceiptTemplate().receiptReturnPolicy,
@@ -1297,7 +1299,7 @@ export default function SellScreen({ shift }: { shift: any }) {
               {p.categoryName && (
                 <div className="text-gray-600 text-xs truncate">{p.categoryName}</div>
               )}
-              <div className="text-[#014582] font-bold text-lg">${p.sellingPrice?.toFixed(2)}</div>
+              <div className="text-[#014582] font-bold text-lg">{money(p.sellingPrice)}</div>
               <div className={`text-xs font-semibold ${p.currentStock <= 0 ? 'text-red-600' : p.currentStock <= 5 ? 'text-amber-700' : 'text-emerald-700'}`}>
                 Stock: {p.currentStock}
               </div>
@@ -1391,16 +1393,16 @@ export default function SellScreen({ shift }: { shift: any }) {
             <div className="mt-2.5 bg-white border border-gray-200 rounded-lg p-2.5">
               <div className="flex justify-between items-center text-xs mb-1.5">
                 <span className="text-gray-600">Credit Limit:</span>
-                <span className="text-gray-900 font-medium">${customerCreditInfo.creditLimit.toFixed(2)}</span>
+                <span className="text-gray-900 font-medium">{money(customerCreditInfo.creditLimit)}</span>
               </div>
               <div className="flex justify-between items-center text-xs mb-1.5">
                 <span className="text-gray-600">Outstanding:</span>
-                <span className="text-gray-900 font-medium">${customerCreditInfo.outstandingBalance.toFixed(2)}</span>
+                <span className="text-gray-900 font-medium">{money(customerCreditInfo.outstandingBalance)}</span>
               </div>
               <div className="flex justify-between items-center text-xs mb-1.5">
                 <span className="text-gray-600">Available:</span>
                 <span className={`${customerCreditInfo.availableCredit >= 0 ? 'text-emerald-600' : 'text-red-600'} font-medium`}>
-                  ${customerCreditInfo.availableCredit.toFixed(2)}
+                  {money(customerCreditInfo.availableCredit)}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
@@ -1447,7 +1449,7 @@ export default function SellScreen({ shift }: { shift: any }) {
               <div key={item.productId} className="bg-white border border-gray-200 rounded-xl p-2.5 mb-2 flex gap-2.5 items-start">
                 <div className="flex-1">
                   <div className="text-gray-900 font-bold text-sm mb-1">{item.productName}</div>
-                  <div className="text-gray-700 text-sm">${item.unitPrice.toFixed(2)} each</div>
+                  <div className="text-gray-700 text-sm">{money(item.unitPrice)} each</div>
                   {/* discount input */}
                   <div className="flex items-center gap-1.5 mt-1.5">
                     <span className="text-gray-600 text-xs">Disc%:</span>
@@ -1465,7 +1467,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                   <button onClick={()=>removeFromCart(item.productId)} className="bg-transparent border-none text-red-600 cursor-pointer text-sm">
                     <X className="w-4 h-4" />
                   </button>
-                  <div className="text-[#014582] font-bold text-base">${item.lineTotal.toFixed(2)}</div>
+                  <div className="text-[#014582] font-bold text-base">{money(item.lineTotal)}</div>
                   <div className="flex items-center gap-1">
                     <button className="w-7 h-7 rounded-lg border border-gray-300 bg-transparent text-gray-900 cursor-pointer text-sm flex items-center justify-center" onClick={()=>updateQty(item.productId,item.quantity-1)}>
                       <Minus className="w-3 h-3" />
@@ -1484,7 +1486,7 @@ export default function SellScreen({ shift }: { shift: any }) {
         <div className="p-3 border-t border-gray-200 bg-white">
           <div className="flex flex-col gap-1 mb-3">
             <div className="flex justify-between text-gray-700 text-sm">
-              <span>Subtotal</span><span>${subtotal.toFixed(2)}</span>
+              <span>Subtotal</span><span>{money(subtotal)}</span>
             </div>
             <div className="flex justify-between text-gray-700 text-sm items-center gap-2">
               <span className="flex items-center gap-1">
@@ -1509,7 +1511,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                   className="w-12 bg-transparent border-none border-b border-gray-300 text-amber-600 outline-none text-xs text-center"
                 />
               </span>
-              <span className="text-amber-600">-${discountTotal.toFixed(2)}</span>
+              <span className="text-amber-600">-{money(discountTotal)}</span>
             </div>
             {loyaltyPreview > 0 && (
               <div className="flex justify-between text-sky-700 text-xs">
@@ -1521,11 +1523,11 @@ export default function SellScreen({ shift }: { shift: any }) {
             )}
             {taxTotal > 0 && (
               <div className="flex justify-between text-gray-700 text-sm">
-                <span>{taxContext?.regime || 'Tax'}{pricingModel === 'inclusive' ? ' (incl.)' : ''}</span><span>${taxTotal.toFixed(2)}</span>
+                <span>{taxContext?.regime || 'Tax'}{pricingModel === 'inclusive' ? ' (incl.)' : ''}</span><span>{money(taxTotal)}</span>
               </div>
             )}
             <div className="flex justify-between text-gray-900 text-xl font-bold border-t border-gray-200 pt-2 mt-1">
-              <span>Total</span><span className="text-[#014582]">${grandTotal.toFixed(2)}</span>
+              <span>Total</span><span className="text-[#014582]">{money(grandTotal)}</span>
             </div>
           </div>
 
@@ -1535,7 +1537,7 @@ export default function SellScreen({ shift }: { shift: any }) {
             onClick={()=>{ setPayments([{ paymentMethod:'Cash', amount:grandTotal, reference:'' }]); setSaleError(''); setShowCheckout(true); }}
           >
             <CreditCard className="w-4 h-4" />
-            Checkout — ${grandTotal.toFixed(2)}
+            Checkout — {money(grandTotal)}
           </button>
           <button
             className="w-full py-3 rounded-xl border border-[#014582]/30 bg-[#014582]/5 text-[#014582] text-sm font-semibold cursor-pointer mt-2 hover:bg-[#014582]/10 transition-colors"
@@ -1559,7 +1561,7 @@ export default function SellScreen({ shift }: { shift: any }) {
       <div className="lg:hidden fixed left-0 right-0 bottom-16 z-30 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
         <div>
           <p className="text-xs text-gray-600">{cart.length} items</p>
-          <p className="text-lg font-bold text-[#014582]">${grandTotal.toFixed(2)}</p>
+          <p className="text-lg font-bold text-[#014582]">{money(grandTotal)}</p>
         </div>
         <button
           type="button"
@@ -1588,7 +1590,7 @@ export default function SellScreen({ shift }: { shift: any }) {
               {cart.map(item=>(
                 <div key={item.productId} className="flex justify-between text-xs mb-1.5">
                   <span className="text-gray-600">{item.productName} × {item.quantity}</span>
-                  <span className="text-gray-900 font-semibold">${item.lineTotal.toFixed(2)}</span>
+                  <span className="text-gray-900 font-semibold">{money(item.lineTotal)}</span>
                 </div>
               ))}
             </div>
@@ -1596,16 +1598,16 @@ export default function SellScreen({ shift }: { shift: any }) {
             <div className="border-t border-gray-200 pt-3 mb-4">
               {overallDiscount > 0 && (
                 <div className="flex justify-between text-amber-600 text-xs mb-1">
-                  <span>Discount ({overallDiscount}%)</span><span>-${discountTotal.toFixed(2)}</span>
+                  <span>Discount ({overallDiscount}%)</span><span>-{money(discountTotal)}</span>
                 </div>
               )}
               {taxTotal > 0 && (
                 <div className="flex justify-between text-gray-400 text-xs mb-1">
-                  <span>{taxContext?.regime || 'Tax'}{pricingModel === 'inclusive' ? ' (incl.)' : ''}</span><span>${taxTotal.toFixed(2)}</span>
+                  <span>{taxContext?.regime || 'Tax'}{pricingModel === 'inclusive' ? ' (incl.)' : ''}</span><span>{money(taxTotal)}</span>
                 </div>
               )}
               <div className="flex justify-between text-gray-900 text-xl font-bold">
-                <span>Total</span><span className="text-[#014582]">${grandTotal.toFixed(2)}</span>
+                <span>Total</span><span className="text-[#014582]">{money(grandTotal)}</span>
               </div>
             </div>
 
@@ -1670,7 +1672,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                 onClick={setExactAmount}
                 className="w-full py-2 rounded-lg border border-dashed border-[#014582]/40 bg-transparent text-[#014582] cursor-pointer text-xs mt-1 hover:bg-[#014582]/5 transition-colors"
               >
-                💡 Set exact amount: ${grandTotal.toFixed(2)}
+                💡 Set exact amount: {money(grandTotal)}
               </button>
             </div>
 
@@ -1685,7 +1687,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                   {changeDue>=0?'Change Due':'Still Owed'}
                 </span>
                 <span className={`${changeDue>=0?'text-emerald-600':'text-red-600'} font-bold text-lg`}>
-                  ${Math.abs(changeDue).toFixed(2)}
+                  {money(Math.abs(changeDue))}
                 </span>
               </div>
             )}
@@ -1735,7 +1737,7 @@ export default function SellScreen({ shift }: { shift: any }) {
                 </div>
                 <p className="text-gray-900 text-lg font-semibold m-0">Present card on {loadPosSettings().paymentTerminalModel}</p>
                 <p className="text-[#014582] text-2xl font-bold mt-2 mb-1">
-                  ${(payments[chargingIndex]?.amount || grandTotal).toFixed(2)}
+                  {money(payments[chargingIndex]?.amount || grandTotal)}
                 </p>
                 <p className="text-gray-400 text-xs mb-5">Chip, tap or swipe — waiting for the payment device</p>
                 {chargeError ? <p className="text-red-600 text-xs mb-3">{chargeError}</p> : null}

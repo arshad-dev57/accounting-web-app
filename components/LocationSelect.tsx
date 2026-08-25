@@ -36,9 +36,11 @@ export default function LocationSelect({
 
   if (loading && locations.length === 0) {
     return (
-      <div className={`flex items-center gap-2 text-sm ${dark ? 'text-white/80' : 'text-gray-500'} ${className}`}>
-        <MapPin className="w-4 h-4" />
-        <span>Loading location…</span>
+      <div className={`flex items-center gap-2 ${className}`}>
+        <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border overflow-hidden isolate ${dark ? 'border-white/25 bg-white/10 text-white/80' : 'border-gray-200 bg-white text-gray-500'}`}>
+          <MapPin className={`w-4 h-4 flex-shrink-0 ${dark ? 'text-white' : 'text-[#014582]'}`} />
+          <span className="text-sm">Loading location…</span>
+        </div>
       </div>
     );
   }

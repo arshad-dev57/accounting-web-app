@@ -17,6 +17,7 @@ import {
 import { journalEntryService, JournalEntry, JournalLine, JournalEntryStats } from '../../../lib/journal-entries-service';
 import { chartOfAccountService } from '../../../lib/chart-of-accounts-service';
 import { useLocation } from '../../../lib/location-context';
+import { useCurrency } from '../../../lib/currency-context';
 
 const PAGE_LIMIT = 10;
 
@@ -59,16 +60,9 @@ export default function JournalEntriesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [entryToActOn, setEntryToActOn] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<any[]>([]);
-  const [currencySymbol, setCurrencySymbol] = useState('Rs.');
+  const { symbol: currencySymbol } = useCurrency();
 
   const filters = ['All', 'Posted', 'Draft'];
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('sales_selected_currency');
-      if (saved) { const c = JSON.parse(saved); setCurrencySymbol(c.symbol || 'Rs.'); }
-    } catch (e) {}
-  }, []);
 
   useEffect(() => {
     chartOfAccountService.getAccounts({ limit: 100 }).then(r => {

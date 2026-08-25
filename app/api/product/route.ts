@@ -270,4 +270,13 @@ export const productService = {
     if (!response.success) throw new Error('Failed to check barcode');
     return response.data.exists;
   },
+
+  generateSku: async (productName?: string, categoryId?: string): Promise<string> => {
+    const response = await apiClient.post('/api/warehouse/products/generate-sku', {
+      productName,
+      categoryId,
+    });
+    if (!response.success) throw new Error(response.message || 'Failed to generate SKU');
+    return response.data?.data?.sku || response.data?.sku || '';
+  },
 };

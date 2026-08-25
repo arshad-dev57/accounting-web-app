@@ -326,7 +326,8 @@ export async function requestPaymentTerminalSale(opts: {
   const currency =
     opts.currency ||
     (typeof window !== 'undefined'
-      ? JSON.parse(localStorage.getItem('sales_selected_currency') || '{}')?.code
+      ? (JSON.parse(localStorage.getItem('sales_selected_currency') || '{}')?.code
+        || localStorage.getItem('app_currency_code'))
       : null) ||
     'USD';
 

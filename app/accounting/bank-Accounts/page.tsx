@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCurrency } from '../../../lib/currency-context';
 import Link from 'next/link';
 import {
   ArrowLeft, Search, Plus, Eye, Banknote, Users,
@@ -62,7 +63,7 @@ export default function BankAccountsPage() {
   const [viewingAccount, setViewingAccount] = useState<BankAccount | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
-  const [currencySymbol, setCurrencySymbol] = useState('Rs.');
+  const { symbol: currencySymbol, code: currencyCode } = useCurrency();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const statusOptions = ['All', 'Active', 'Inactive'];
@@ -70,40 +71,7 @@ export default function BankAccountsPage() {
     '#1AB4F5', '#E74C3C', '#2ECC71', '#F39C12', '#9B59B6', '#3498DB', '#E67E22'
   ];
 
-  // ─── Get Currency Symbol from Local Storage ──────────────────
-
-  const getCurrencySymbol = () => {
-    try {
-      const saved = localStorage.getItem('sales_selected_currency');
-      if (saved) {
-        const currency = JSON.parse(saved);
-        return currency.symbol || 'Rs.';
-      }
-    } catch (e) {
-      console.error('Error getting currency:', e);
-    }
-    return 'Rs.';
-  };
-
-  const getCurrencyCode = () => {
-    try {
-      const saved = localStorage.getItem('sales_selected_currency');
-      if (saved) {
-        const currency = JSON.parse(saved);
-        return currency.code || 'PKR';
-      }
-    } catch (e) {
-      console.error('Error getting currency:', e);
-    }
-    return 'PKR';
-  };
-
-  const [currencyCode, setCurrencyCode] = useState('PKR');
-
-  useEffect(() => {
-    setCurrencySymbol(getCurrencySymbol());
-    setCurrencyCode(getCurrencyCode());
-  }, []);
+  const getCurrencyCode = () => currencyCode || 'PKR';
 
   // ─── Get Color for Account ───────────────────────────────────
 

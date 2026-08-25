@@ -378,10 +378,17 @@ export async function deleteCustomer(id: string): Promise<void> {
 
 // Helper: Get currency symbol (must be called from client)
 export function getCurrencySymbol(): string {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('sales_selected_currency') || 'Rs.';
+  if (typeof window === 'undefined') return 'Rs.';
+  try {
+    const saved = localStorage.getItem('sales_selected_currency');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed?.symbol) return parsed.symbol;
+    }
+    return localStorage.getItem('app_currency_symbol') || 'Rs.';
+  } catch {
+    return 'Rs.';
   }
-  return 'Rs.';
 }
 
 // Helper: Format amount

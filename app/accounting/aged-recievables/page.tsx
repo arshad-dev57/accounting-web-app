@@ -17,6 +17,7 @@ import {
 import { agedReceivablesService, AgedCustomer, AgedInvoice, AgedSummary } from '../../api/aged-recievables/route';
 import { toast } from 'react-hot-toast';
 import { useLocation } from '../../../lib/location-context';
+import { useCurrency } from '../../../lib/currency-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -41,7 +42,7 @@ export default function AgedReceivablesPage() {
     totalOutstanding: 0
   });
   const [asAtDate, setAsAtDate] = useState(new Date());
-  const [currencySymbol, setCurrencySymbol] = useState('Rs.');
+  const { symbol: currencySymbol } = useCurrency();
   const [filter, setFilter] = useState<FilterState>({
     bucket: 'All',
     search: ''
@@ -50,24 +51,6 @@ export default function AgedReceivablesPage() {
   const [showCustomerDetail, setShowCustomerDetail] = useState(false);
 
   const bucketOptions = ['All', 'Current', '1-30 Days', '31-60 Days', '61-90 Days', '90+ Days'];
-
-
-  const getCurrencySymbol = () => {
-    try {
-      const saved = localStorage.getItem('sales_selected_currency');
-      if (saved) {
-        const currency = JSON.parse(saved);
-        return currency.symbol || 'Rs.';
-      }
-    } catch (e) {
-      console.error('Error getting currency:', e);
-    }
-    return 'Rs.';
-  };
-
-  useEffect(() => {
-    setCurrencySymbol(getCurrencySymbol());
-  }, []);
 
 
   const calculateAging = useCallback((customersData: AgedCustomer[], asOfDate: Date) => {

@@ -31,6 +31,7 @@ import {
 import { accountsReceivableService, Customer, Summary, BankAccount, Invoice } from '../../api/account-recievables/route';
 import { toast } from 'react-hot-toast';
 import { useLocation } from '../../../lib/location-context';
+import { useCurrency } from '../../../lib/currency-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -72,29 +73,12 @@ export default function AccountsReceivablePage() {
   const [showAddCustomerForm, setShowAddCustomerForm] = useState(false);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
 
-  const [currencySymbol, setCurrencySymbol] = useState('Rs.');
+  const { symbol: currencySymbol } = useCurrency();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const statusOptions = ['All', 'Active', 'Overdue', 'Paid'];
 
   // ─── Get Currency Symbol from Local Storage ──────────────────
-
-  const getCurrencySymbol = () => {
-    try {
-      const saved = localStorage.getItem('sales_selected_currency');
-      if (saved) {
-        const currency = JSON.parse(saved);
-        return currency.symbol || 'Rs.';
-      }
-    } catch (e) {
-      console.error('Error getting currency:', e);
-    }
-    return 'Rs.';
-  };
-
-  useEffect(() => {
-    setCurrencySymbol(getCurrencySymbol());
-  }, []);
 
   // ─── Fetch Customers ─────────────────────────────────────────
 

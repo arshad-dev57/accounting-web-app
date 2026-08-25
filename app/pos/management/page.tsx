@@ -8,6 +8,7 @@ import { usePermissions } from '../../../lib/usePermissions';
 import { useLocation } from '../../../lib/location-context';
 import { locationService, type Location } from '../../../lib/location-service';
 import LocationSelect from '../../../components/LocationSelect';
+import AppBreadcrumbs from '../../../components/AppBreadcrumbs';
 import { Download, Printer, Mail, Loader2, FileSpreadsheet, Calendar, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import POSReceipt from '../components/POSReceipt';
@@ -1140,14 +1141,10 @@ export default function POSManagementPage() {
 
   return (
     <div style={{ minHeight:'100vh', background:'#f3f6fa', fontFamily:"'Inter',sans-serif", color:'#0f172a' }}>
+      <AppBreadcrumbs extra={[{ label: activeTab }]} />
       {/* Header */}
       <div style={{ padding:'24px 32px', borderBottom:'1px solid #e5e7eb', background:'#ffffff', display:'flex', justifyContent:'space-between', alignItems:'center', gap:16, flexWrap:'wrap' as const }}>
         <div>
-          <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'4px' }}>
-            <Link href="/dashboard" style={{ color:'#64748b', fontSize:'13px', textDecoration:'none' }}>← Dashboard</Link>
-            <span style={{ color:'#64748b' }}>/</span>
-            <span style={{ color:'#014582', fontSize:'13px', fontWeight:600 }}>POS Management</span>
-          </div>
           <h1 style={{ margin:0, fontSize:'26px', fontWeight:800 }}>🏪 Point of Sale Management</h1>
           <p style={{ color:'#64748b', margin:'6px 0 0', fontSize:'14px' }}>
             {isAllLocations

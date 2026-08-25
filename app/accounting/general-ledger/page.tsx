@@ -23,6 +23,7 @@ import {
 import { generalLedgerService, AccountSummary, LedgerEntry, LedgerStats } from '../../../lib/general-ledger-service';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { useLocation } from '../../../lib/location-context';
+import { useCurrency } from '../../../lib/currency-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -71,7 +72,7 @@ export default function GeneralLedgerPage() {
   });
   const [viewingEntry, setViewingEntry] = useState<LedgerEntry | null>(null);
 
-  const [currencySymbol, setCurrencySymbol] = useState('Rs.');
+  const { symbol: currencySymbol } = useCurrency();
   const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
   const { locationIdForApi } = useLocation();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -79,23 +80,6 @@ export default function GeneralLedgerPage() {
   const latestRequestRef = useRef(0);
 
   // ─── Get Currency Symbol from Local Storage ──────────────────
-
-  const getCurrencySymbol = () => {
-    try {
-      const saved = localStorage.getItem('sales_selected_currency');
-      if (saved) {
-        const currency = JSON.parse(saved);
-        return currency.symbol || 'Rs.';
-      }
-    } catch (e) {
-      console.error('Error getting currency:', e);
-    }
-    return 'Rs.';
-  };
-
-  useEffect(() => {
-    setCurrencySymbol(getCurrencySymbol());
-  }, []);
 
   // ─── Fetch Account Summaries ─────────────────────────────────
 

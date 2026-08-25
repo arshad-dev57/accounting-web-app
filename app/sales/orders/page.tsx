@@ -12,8 +12,17 @@ import { customerService } from '../../api/customer/route';
 import { productService } from '../../api/product/route';
 import { salesOrderService, type Order as SalesOrder } from '../../api/orders/sales/route';
 import { useLocation } from '@/lib/location-context';
+import { useCurrency } from '../../../lib/currency-context';
 import { findProductFromScan, useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 import { matchScannedProduct } from '@/lib/pos-scanner';
+import TaxRateSelect from '../../../components/TaxRateSelect';
+import {
+  computeTaxLine,
+  resolveProductTaxRate,
+  taxService,
+  type TaxContext,
+  type TaxPricingModel,
+} from '../../../lib/tax-service';
 
 type Order = SalesOrder & {
   totalAmount?: number;
@@ -26,6 +35,8 @@ interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  taxRate?: number;
+  taxAmount?: number;
 }
 
 interface Address {
@@ -94,6 +105,8 @@ interface Product {
   sku: string;
   sellingPrice: number;
   currentStock: number;
+  taxRate?: number;
+  taxType?: string;
 }
 
 const normalizeId = (item: any) => ({
@@ -387,6 +400,7 @@ function CustomerPickerModal({
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SalesOrdersPage() {
   const { selectedLocationId, selectedLocation } = useLocation();
+  const { symbol, formatAmount } = useCurrency();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -628,8 +642,11 @@ export default function SalesOrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order) => (
-                  <tr key={order._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                {orders.map((order, index) => (
+                  <tr
+                    key={String(order._id || order.id || order.orderNumber || `order-${index}`)}
+                    className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
+                  >
                     <td className="px-6 py-3 font-mono text-xs font-semibold text-[#014582]">{order.orderNumber}</td>
                     <td className="px-6 py-3">
                       <p className="font-medium text-gray-800">{order.customerName}</p>
@@ -638,7 +655,7 @@ export default function SalesOrdersPage() {
                     <td className="px-6 py-3"><span className={pill(STATUS_COLORS, order.orderStatus)}>{order.orderStatus}</span></td>
                     <td className="px-6 py-3"><span className={pill(PAYMENT_COLORS, order.paymentStatus)}>{order.paymentStatus}</span></td>
                     <td className="px-6 py-3"><span className={pill(PRIORITY_COLORS, order.priority)}>{order.priority}</span></td>
-                    <td className="px-6 py-3 font-semibold text-gray-700">Rs. {Number(order.totalAmount ?? order.grandTotal).toLocaleString()}</td>
+                    <td className="px-6 py-3 font-semibold text-gray-700">{formatAmount(Number(order.totalAmount ?? order.grandTotal))}</td>
                     <td className="px-6 py-3 text-gray-600">{new Date(order.orderDate).toLocaleDateString()}</td>
                     <td className="px-6 py-3">
                       <div className="flex items-center gap-1">
@@ -720,6 +737,7 @@ export default function SalesOrdersPage() {
 // ORDER DETAIL MODAL
 // ─────────────────────────────────────────────────────────────────────────────
 function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => void }) {
+  const { formatAmount } = useCurrency();
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -761,7 +779,7 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    {['Product', 'SKU', 'Qty', 'Price', 'Total'].map((h) => (
+                    {['Product', 'SKU', 'Qty', 'Price', 'Tax', 'Total'].map((h) => (
                       <th key={h} className={`px-4 py-2 text-xs font-semibold text-gray-500 ${h === 'Product' || h === 'SKU' ? 'text-left' : 'text-right'}`}>{h}</th>
                     ))}
                   </tr>
@@ -772,8 +790,18 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
                       <td className="px-4 py-2">{item.productName}</td>
                       <td className="px-4 py-2 font-mono text-xs">{item.sku}</td>
                       <td className="px-4 py-2 text-right">{item.quantity}</td>
-                      <td className="px-4 py-2 text-right">Rs. {Number(item.unitPrice).toLocaleString()}</td>
-                      <td className="px-4 py-2 text-right font-semibold">Rs. {Number(item.totalPrice).toLocaleString()}</td>
+                      <td className="px-4 py-2 text-right">{formatAmount(Number(item.unitPrice))}</td>
+                      <td className="px-4 py-2 text-right text-gray-600">
+                        {item.taxRate ? `${item.taxRate}%` : '—'}
+                        {item.taxAmount ? (
+                          <span className="block text-[11px] text-gray-400">
+                            {formatAmount(Number(item.taxAmount))}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-2 text-right font-semibold">
+                        {formatAmount(Number((item.totalPrice || 0) + (item.taxAmount || 0)))}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -782,9 +810,16 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
           </div>
 
           <div className="flex justify-end">
-            <div className="text-right">
+            <div className="text-right space-y-1">
+              {Number(order.taxTotal) > 0 && (
+                <p className="text-sm text-gray-500">
+                  GST: {formatAmount(Number(order.taxTotal))}
+                </p>
+              )}
               <p className="text-sm text-gray-500">Total Amount</p>
-              <p className="text-2xl font-bold text-gray-800">Rs. {Number(order.totalAmount).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-800">
+                {formatAmount(Number(order.totalAmount ?? order.grandTotal))}
+              </p>
             </div>
           </div>
 
@@ -806,6 +841,7 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
 
 function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) {
   const { selectedLocationId, selectedLocation } = useLocation();
+  const { symbol, formatAmount } = useCurrency();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -862,6 +898,8 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   const [customerNotes, setCustomerNotes] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
   const [tags, setTags] = useState('');
+  const [taxContext, setTaxContext] = useState<TaxContext | null>(null);
+  const [pricingModel, setPricingModel] = useState<TaxPricingModel>('exclusive');
 
   const getNormalizedId = (item: any): string => {
     if (!item) return '';
@@ -925,6 +963,25 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
     };
   }, [selectedLocationId]);
 
+  useEffect(() => {
+    taxService
+      .context()
+      .then((r: any) => {
+        const ctx = (r?.data || r) as TaxContext;
+        setTaxContext(ctx);
+        if (ctx?.pricingModel) setPricingModel(ctx.pricingModel);
+      })
+      .catch(() => {});
+  }, []);
+
+  const lineWithTax = (item: OrderItem): OrderItem => {
+    const tax = computeTaxLine(item.quantity, item.unitPrice, 0, item.taxRate || 0, pricingModel);
+    return { ...item, taxAmount: tax.taxAmount, totalPrice: item.unitPrice * item.quantity };
+  };
+
+  const lineTotal = (item: OrderItem) =>
+    computeTaxLine(item.quantity, item.unitPrice, 0, item.taxRate || 0, pricingModel).lineTotal;
+
   // ── computed ────────────────────────────────────────────────────────────
   const filteredProducts = productSearchQuery.trim()
     ? products.filter(
@@ -937,11 +994,25 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       )
     : products;
 
-  const subtotal = orderItems.reduce((s, i) => s + i.totalPrice, 0);
+  const subtotal = orderItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+  const taxTotal = orderItems.reduce((s, i) => s + (i.taxAmount || 0), 0);
   const calculatedDiscount =
     discountType === 'Percentage' ? (subtotal * discountPercentage) / 100 : discountAmount;
-  const grandTotal = subtotal + shippingCost - calculatedDiscount;
-  const previewTotal = selectedProduct ? selectedProduct.sellingPrice * quantity : 0;
+  const grandTotal =
+    pricingModel === 'inclusive'
+      ? subtotal + shippingCost - calculatedDiscount
+      : subtotal + taxTotal + shippingCost - calculatedDiscount;
+  const previewTaxRate = selectedProduct
+    ? resolveProductTaxRate(Number(selectedProduct.taxRate) || 0, taxContext)
+    : 0;
+  const previewTax = selectedProduct
+    ? computeTaxLine(quantity, selectedProduct.sellingPrice, 0, previewTaxRate, pricingModel)
+    : null;
+  const previewTotal = previewTax
+    ? previewTax.lineTotal
+    : selectedProduct
+      ? selectedProduct.sellingPrice * quantity
+      : 0;
 
   // ── Reset Customer Fields ──────────────────────────────────────────────
   const resetCustomerFields = () => {
@@ -1078,6 +1149,10 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       return itemProductId === selectedProductId;
     });
 
+    const productRate = Number((product as any).taxRate) || 0;
+    const taxRate =
+      productRate > 0 ? productRate : resolveProductTaxRate(0, taxContext);
+
     if (idx >= 0) {
       const newQty = orderItems[idx].quantity + qty;
       if (newQty > product.currentStock) {
@@ -1085,19 +1160,25 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         return;
       }
       const updated = [...orderItems];
-      updated[idx] = { ...updated[idx], quantity: newQty, totalPrice: updated[idx].unitPrice * newQty };
+      updated[idx] = lineWithTax({
+        ...updated[idx],
+        quantity: newQty,
+        taxRate: updated[idx].taxRate || taxRate,
+      });
       setOrderItems(updated);
     } else {
       setOrderItems([
         ...orderItems,
-        {
+        lineWithTax({
           productId: getNormalizedId(product),
           productName: product.name,
           sku: product.sku,
           quantity: qty,
           unitPrice: product.sellingPrice,
           totalPrice: product.sellingPrice * qty,
-        },
+          taxRate,
+          taxAmount: 0,
+        }),
       ]);
     }
 
@@ -1136,7 +1217,13 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   const handleUpdateQty = (i: number, qty: number) => {
     if (qty < 1) return;
     const updated = [...orderItems];
-    updated[i] = { ...updated[i], quantity: qty, totalPrice: updated[i].unitPrice * qty };
+    updated[i] = lineWithTax({ ...updated[i], quantity: qty });
+    setOrderItems(updated);
+  };
+
+  const handleUpdateTaxRate = (i: number, rate: number) => {
+    const updated = [...orderItems];
+    updated[i] = lineWithTax({ ...updated[i], taxRate: rate });
     setOrderItems(updated);
   };
 
@@ -1160,10 +1247,15 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         customerCompany, customerTaxId,
         shippingAddress: shippingAddr,
         billingAddress: billingAddr,
-        items: orderItems.map((item) => ({
-          ...item,
-          productId: String(item.productId || ''),
-        })),
+        items: orderItems.map((item) => {
+          const taxed = lineWithTax(item);
+          return {
+            ...taxed,
+            productId: String(item.productId || ''),
+            taxRate: taxed.taxRate || 0,
+            taxAmount: taxed.taxAmount || 0,
+          };
+        }),
         orderType,
         priority: priority as SalesOrder['priority'],
         source,
@@ -1175,7 +1267,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         couponCode, discountType, discountPercentage, discountAmount,
         customerNotes, internalNotes,
         tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
-        subtotal, discountTotal: calculatedDiscount, grandTotal,
+        subtotal, discountTotal: calculatedDiscount, taxTotal, grandTotal,
         locationId: selectedLocationId,
       });
       onSuccess();
@@ -1438,7 +1530,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
               const uniqueKey = productId || `product-${index}-${Date.now()}`;
               return (
                 <option key={uniqueKey} value={productId}>
-                  {p.name} ({p.sku}) — Rs. {p.sellingPrice.toLocaleString()} | Stock: {p.currentStock}
+                  {p.name} ({p.sku}) — {formatAmount(p.sellingPrice)} | Stock: {p.currentStock}
                 </option>
               );
             })}
@@ -1463,10 +1555,18 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         {selectedProduct && (
           <div className="flex flex-wrap items-center gap-4 bg-[#014582]/5 border border-[#014582]/20 rounded-lg px-4 py-3 text-sm">
             <span className="text-gray-500">
-              Unit price: <strong className="text-gray-800">Rs. {selectedProduct.sellingPrice.toLocaleString()}</strong>
+              Unit price: <strong className="text-gray-800">{formatAmount(selectedProduct.sellingPrice)}</strong>
             </span>
+            {previewTaxRate > 0 && (
+              <span className="text-gray-500">
+                GST {previewTaxRate}%{pricingModel === 'inclusive' ? ' incl.' : ''}
+                {previewTax ? (
+                  <> · <strong className="text-gray-800">{formatAmount(previewTax.taxAmount)}</strong></>
+                ) : null}
+              </span>
+            )}
             <span className="text-gray-500">
-              × {quantity} = <strong className="text-[#014582]">Rs. {previewTotal.toLocaleString()}</strong>
+              × {quantity} = <strong className="text-[#014582]">{formatAmount(previewTotal)}</strong>
             </span>
             <span className="ml-auto text-xs">
               Stock:{' '}
@@ -1490,7 +1590,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Product', 'SKU', 'Unit Price', 'Qty', 'Total', ''].map((h, i) => (
+                  {['Product', 'SKU', 'Unit Price', 'Qty', 'Tax', 'Total', ''].map((h, i) => (
                     <th key={i} className={`px-4 py-2 text-xs font-semibold text-gray-500 ${i === 0 || i === 1 ? 'text-left' : 'text-right'}`}>{h}</th>
                   ))}
                 </tr>
@@ -1500,7 +1600,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
                   <tr key={item.productId || item.sku || `order-item-${i}`} className="border-t border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-2 font-medium text-gray-800">{item.productName}</td>
                     <td className="px-4 py-2 font-mono text-xs text-gray-500">{item.sku}</td>
-                    <td className="px-4 py-2 text-right text-gray-600">Rs. {item.unitPrice.toLocaleString()}</td>
+                    <td className="px-4 py-2 text-right text-gray-600">{formatAmount(item.unitPrice)}</td>
                     <td className="px-4 py-2 text-right">
                       <input
                         type="number" min="1" value={item.quantity}
@@ -1508,7 +1608,20 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
                         className="w-16 text-center px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] outline-none"
                       />
                     </td>
-                    <td className="px-4 py-2 text-right font-semibold text-gray-800">Rs. {item.totalPrice.toLocaleString()}</td>
+                    <td className="px-4 py-2 text-right min-w-[140px]">
+                      <TaxRateSelect
+                        value={item.taxRate || 0}
+                        autoDefault
+                        onChange={(rate) => handleUpdateTaxRate(i, rate)}
+                        className="w-full px-2 py-1 border border-gray-200 rounded text-xs focus:ring-2 focus:ring-[#014582] outline-none"
+                      />
+                      {(item.taxAmount || 0) > 0 && (
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          {formatAmount(Number(item.taxAmount))}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-right font-semibold text-gray-800">{formatAmount(lineTotal(item))}</td>
                     <td className="px-4 py-2 text-right">
                       <button type="button" onClick={() => handleRemoveItem(i)}
                         className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all">
@@ -1520,8 +1633,8 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
               </tbody>
               <tfoot className="bg-gray-50 border-t-2 border-gray-200">
                 <tr>
-                  <td colSpan={4} className="px-4 py-2 text-right text-sm font-semibold text-gray-600">Items Subtotal</td>
-                  <td className="px-4 py-2 text-right font-bold text-gray-800">Rs. {subtotal.toLocaleString()}</td>
+                  <td colSpan={5} className="px-4 py-2 text-right text-sm font-semibold text-gray-600">Items Subtotal</td>
+                  <td className="px-4 py-2 text-right font-bold text-gray-800">{formatAmount(subtotal)}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -1587,7 +1700,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
             <input type="text" value={shippingCarrier} onChange={(e) => setShippingCarrier(e.target.value)} className={inp} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Cost (Rs.)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Cost ({symbol})</label>
             <input type="number" min="0" step="0.01" value={shippingCost}
               onChange={(e) => setShippingCost(parseFloat(e.target.value) || 0)} className={inp} />
           </div>
@@ -1627,7 +1740,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              {discountType === 'Percentage' ? 'Discount %' : 'Discount Amount (Rs.)'}
+              {discountType === 'Percentage' ? 'Discount %' : `Discount Amount (${symbol})`}
             </label>
             <input
               type="number" min="0" step={discountType === 'Percentage' ? 0.1 : 1}
@@ -1676,23 +1789,31 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         <div className="max-w-sm ml-auto space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Subtotal ({orderItems.length} item{orderItems.length !== 1 ? 's' : ''})</span>
-            <span className="font-semibold text-gray-800">Rs. {subtotal.toLocaleString()}</span>
+            <span className="font-semibold text-gray-800">{formatAmount(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Shipping ({shippingMethod})</span>
-            <span className="font-semibold text-gray-800">Rs. {shippingCost.toLocaleString()}</span>
+            <span className="font-semibold text-gray-800">{formatAmount(shippingCost)}</span>
           </div>
+          {taxTotal > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">
+                GST {pricingModel === 'inclusive' ? '(included)' : ''}
+              </span>
+              <span className="font-semibold text-gray-800">{formatAmount(taxTotal)}</span>
+            </div>
+          )}
           {calculatedDiscount > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">
                 Discount {discountType === 'Percentage' ? `(${discountPercentage}%)` : '(Fixed)'}
               </span>
-              <span className="font-semibold text-red-500">− Rs. {calculatedDiscount.toLocaleString()}</span>
+              <span className="font-semibold text-red-500">− {formatAmount(calculatedDiscount)}</span>
             </div>
           )}
           <div className="border-t-2 border-gray-200 pt-3 flex justify-between items-center">
             <span className="font-bold text-gray-800">Grand Total</span>
-            <span className="font-bold text-2xl text-[#014582]">Rs. {grandTotal.toLocaleString()}</span>
+            <span className="font-bold text-2xl text-[#014582]">{formatAmount(grandTotal)}</span>
           </div>
         </div>
       </section>

@@ -91,7 +91,7 @@ function BillsPageContent() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
 
-  const [currencySymbol, setCurrencySymbol] = useState('Rs.');
+  const { symbol: currencySymbol } = useCurrency();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const statusOptions = ['All', 'Unpaid', 'Paid', 'Overdue', 'Partial'];
@@ -105,23 +105,6 @@ function BillsPageContent() {
   }, [supplierIdFromUrl]);
 
   // ─── Get Currency Symbol from Local Storage ──────────────────
-
-  const getCurrencySymbol = () => {
-    try {
-      const saved = localStorage.getItem('sales_selected_currency');
-      if (saved) {
-        const currency = JSON.parse(saved);
-        return currency.symbol || 'Rs.';
-      }
-    } catch (e) {
-      console.error('Error getting currency:', e);
-    }
-    return 'Rs.';
-  };
-
-  useEffect(() => {
-    setCurrencySymbol(getCurrencySymbol());
-  }, []);
 
   // ─── Fetch Bills ─────────────────────────────────────────────
 

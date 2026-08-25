@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import ReturnsScreen from './ReturnsScreen';
 import { TopBarBrand } from '../../../components/BrandHeader';
+import AppBreadcrumbs from '../../../components/AppBreadcrumbs';
 import LocationSelect from '../../../components/LocationSelect';
 import { useLocation } from '../../../lib/location-context';
 
@@ -272,6 +273,11 @@ export default function POSLayout({ shift, onShiftClose, children }: Props) {
           </div>
         )}
       </div>
+
+      <AppBreadcrumbs
+        variant="dark"
+        extra={[{ label: tabs.find((t) => t.id === activeTab)?.label || 'Sell' }]}
+      />
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden pb-16 md:pb-0">

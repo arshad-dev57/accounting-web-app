@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCurrency } from '../../../lib/currency-context';
 import Link from 'next/link';
 import {
   ArrowLeft, Search, Plus, Eye, Users, Receipt,
@@ -87,29 +88,12 @@ export default function CapitalEquityPage() {
   const [showDrawingsForm, setShowDrawingsForm] = useState(false);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
 
-  const [currencySymbol, setCurrencySymbol] = useState('Rs.');
+  const { symbol: currencySymbol } = useCurrency();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const typeOptions = ['All', 'Capital', 'Retained Earnings', 'Drawings', 'Reserves'];
 
   // ─── Get Currency Symbol from Local Storage ──────────────────
-
-  const getCurrencySymbol = () => {
-    try {
-      const saved = localStorage.getItem('sales_selected_currency');
-      if (saved) {
-        const currency = JSON.parse(saved);
-        return currency.symbol || 'Rs.';
-      }
-    } catch (e) {
-      console.error('Error getting currency:', e);
-    }
-    return 'Rs.';
-  };
-
-  useEffect(() => {
-    setCurrencySymbol(getCurrencySymbol());
-  }, []);
 
   // ─── Fetch Equity Accounts (same source as Flutter: COA type=Equity) ──
 

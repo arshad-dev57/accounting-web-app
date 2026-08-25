@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { MainHubSidebar } from '../../components/MainHubSidebar';
 import { TopBarBrand } from '../../components/BrandHeader';
+import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import { usePermissions } from '../../lib/usePermissions';
 import { usersService } from '../users/service';
@@ -129,6 +130,8 @@ export default function RegisteredUsersPage() {
             <ProfileDropdown accentClassName="bg-[#014582]" />
           </div>
         </header>
+
+        <AppBreadcrumbs />
 
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-5xl mx-auto space-y-5">

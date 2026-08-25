@@ -13,6 +13,7 @@ import { profitLossService, ReportItem, PLData } from '../../api/profit-loss/rou
 import { toast } from 'react-hot-toast';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { useLocation } from '../../../lib/location-context';
+import { useCurrency } from '../../../lib/currency-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -26,7 +27,7 @@ interface PeriodOption {
 export default function ProfitLossPage() {
   const [reportData, setReportData] = useState<PLData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currencySymbol, setCurrencySymbol] = useState('Rs.');
+  const { symbol: currencySymbol } = useCurrency();
   const [selectedPeriod, setSelectedPeriod] = useState('This Year');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -44,23 +45,6 @@ export default function ProfitLossPage() {
   ];
 
   // ─── Get Currency Symbol from Local Storage ──────────────────
-
-  const getCurrencySymbol = () => {
-    try {
-      const saved = localStorage.getItem('sales_selected_currency');
-      if (saved) {
-        const currency = JSON.parse(saved);
-        return currency.symbol || 'Rs.';
-      }
-    } catch (e) {
-      console.error('Error getting currency:', e);
-    }
-    return 'Rs.';
-  };
-
-  useEffect(() => {
-    setCurrencySymbol(getCurrencySymbol());
-  }, []);
 
   // ─── Fetch Report Data ──────────────────────────────────────
 

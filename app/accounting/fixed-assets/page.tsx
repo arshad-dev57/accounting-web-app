@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCurrency } from '../../../lib/currency-context';
 import Link from 'next/link';
 import {
   ArrowLeft, Search, Plus, Eye, Users, Receipt,
@@ -74,30 +75,13 @@ export default function FixedAssetsPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccountOption[]>([]);
 
-  const [currencySymbol, setCurrencySymbol] = useState('Rs.');
+  const { symbol: currencySymbol } = useCurrency();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const statusOptions = ['All', 'Active', 'Fully Depreciated', 'Disposed'];
   const categoryOptions = ['Building', 'Vehicle', 'IT Equipment', 'Furniture', 'Machinery', 'Equipment'];
 
   // ─── Get Currency Symbol from Local Storage ──────────────────
-
-  const getCurrencySymbol = () => {
-    try {
-      const saved = localStorage.getItem('sales_selected_currency');
-      if (saved) {
-        const currency = JSON.parse(saved);
-        return currency.symbol || 'Rs.';
-      }
-    } catch (e) {
-      console.error('Error getting currency:', e);
-    }
-    return 'Rs.';
-  };
-
-  useEffect(() => {
-    setCurrencySymbol(getCurrencySymbol());
-  }, []);
 
   // ─── Fetch Assets ─────────────────────────────────────────────
 

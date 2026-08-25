@@ -5,6 +5,7 @@ import { useLocation } from '../../../lib/location-context';
 import LocationSelect from '../../../components/LocationSelect';
 import { Monitor, ArrowLeft, Settings, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import Image from 'next/image';
+import AppBreadcrumbs from '../../../components/AppBreadcrumbs';
 
 interface Props { onShiftOpened: (shift: any) => void; isAdmin?: boolean; }
 
@@ -77,7 +78,9 @@ export default function ShiftGate({ onShiftOpened, isAdmin }: Props) {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#014582]">
+    <div className="min-h-screen bg-[#014582]">
+      <AppBreadcrumbs variant="dark" extra={[{ label: 'Open Shift' }]} />
+      <div className="min-h-[calc(100vh-40px)] flex items-center justify-center">
       <div className="bg-white border border-gray-200 rounded-3xl shadow-xl p-6 sm:p-12 max-w-xl w-[92%] my-6">
         {/* Logo */}
         <div className="flex flex-col items-center justify-center gap-2 mb-6">
@@ -225,6 +228,7 @@ export default function ShiftGate({ onShiftOpened, isAdmin }: Props) {
             <Settings className="w-3.5 h-3.5" /> POS Management
           </a>
         )}
+      </div>
       </div>
     </div>
   );

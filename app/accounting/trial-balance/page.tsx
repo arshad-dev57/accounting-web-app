@@ -24,6 +24,7 @@ import {
 import { trialBalanceService, TrialBalanceAccount, TrialBalanceStats } from '../../api/trail-balance/route';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { useLocation } from '../../../lib/location-context';
+import { useCurrency } from '../../../lib/currency-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -71,29 +72,12 @@ export default function TrialBalancePage() {
   const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
   const { locationIdForApi } = useLocation();
 
-  const [currencySymbol, setCurrencySymbol] = useState('Rs.');
+  const { symbol: currencySymbol } = useCurrency();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const accountTypes = ['All', 'Assets', 'Liabilities', 'Equity', 'Income', 'Expenses'];
 
   // ─── Get Currency Symbol from Local Storage ──────────────────
-
-  const getCurrencySymbol = () => {
-    try {
-      const saved = localStorage.getItem('sales_selected_currency');
-      if (saved) {
-        const currency = JSON.parse(saved);
-        return currency.symbol || 'Rs.';
-      }
-    } catch (e) {
-      console.error('Error getting currency:', e);
-    }
-    return 'Rs.';
-  };
-
-  useEffect(() => {
-    setCurrencySymbol(getCurrencySymbol());
-  }, []);
 
   // ─── Fetch Trial Balance ─────────────────────────────────────
 

@@ -26,6 +26,7 @@ import { usePermissions } from '../../lib/usePermissions';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import FiscalYearSelect from '../../components/FiscalYearSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
+import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 
@@ -156,6 +157,7 @@ export default function TaxLayout({ children }: { children: React.ReactNode }) {
             <ProfileDropdown accentClassName="bg-[#091746]" />
           </div>
         </header>
+        <AppBreadcrumbs />
         <div className="flex-1 p-6">{children}</div>
       </div>
     </FiscalYearProvider>
