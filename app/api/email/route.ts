@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call backend email service
-    const backendUrl = process.env.API_URL || 'http://localhost:5000';
+    const backendUrl = process.env.API_URL || 'https://account-backend-five.vercel.app';
     
     const response = await fetch(`${backendUrl}/api/email/send`, {
       method: 'POST',

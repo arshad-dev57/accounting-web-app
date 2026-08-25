@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     const backendUrl = (
-      process.env.API_URL || 'http://localhost:5000'
+      process.env.API_URL || 'https://account-backend-five.vercel.app'
     ).trim();
     return [
       {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_BASE_URL = process.env.API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.API_URL || 'https://account-backend-five.vercel.app';
 
 export async function PUT(request: NextRequest) {
   try {
