@@ -111,7 +111,7 @@ function ManagerPinModal({
   );
 }
 
-interface CartItem { productId:string; productName:string; sku:string; barcodeNumber?:string; quantity:number; unitPrice:number; discount:number; taxRate:number; taxAmount:number; lineTotal:number; mainImage?:string; currentStock:number; availableStock?:number; }
+interface CartItem { productId:string; productName:string; sku:string; barcodeNumber?:string; quantity:number; unitPrice:number; discount:number; taxRate:number; taxAmount:number; lineTotal:number; mainImage?:string; currentStock:number; availableStock?:number; isCustom?: boolean; }
 interface Payment {
   paymentMethod: string;
   amount: number;
@@ -339,6 +339,10 @@ export default function SellScreen({ shift }: { shift: any }) {
 
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [customName, setCustomName] = useState('');
+  const [customPrice, setCustomPrice] = useState('');
+  const [customQty, setCustomQty] = useState('1');
+  const [customError, setCustomError] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
@@ -673,6 +677,57 @@ export default function SellScreen({ shift }: { shift: any }) {
     setSelectedCategoryId(categoryId);
   };
 
+  const addCustomItem = () => {
+    const name = customName.trim();
+    const price = parseFloat(customPrice);
+    const qty = Math.max(1, Math.round(Number(customQty) || 0));
+    if (!name) {
+      setCustomError('Enter item name');
+      return;
+    }
+    if (!Number.isFinite(price) || price < 0) {
+      setCustomError('Enter a valid price');
+      return;
+    }
+    const model = taxContextRef.current?.pricingModel || 'exclusive';
+    const rate = resolveProductTaxRate(undefined, taxContextRef.current);
+    const { lineTotal, taxAmount } = computeLineTotal(qty, price, 0, rate, model);
+    const lineId = `custom-${Date.now()}`;
+    setCart((prev) => {
+      const existing = prev.find(
+        (i) => i.isCustom && i.productName.toLowerCase() === name.toLowerCase() && Number(i.unitPrice) === price
+      );
+      if (existing) {
+        return prev.map((i) =>
+          i.productId === existing.productId
+            ? { ...i, quantity: i.quantity + qty, ...computeLineTotal(i.quantity + qty, i.unitPrice, i.discount, i.taxRate, model) }
+            : i
+        );
+      }
+      return [
+        ...prev,
+        {
+          productId: lineId,
+          productName: name,
+          sku: 'CUSTOM',
+          quantity: qty,
+          unitPrice: price,
+          discount: 0,
+          taxRate: rate,
+          taxAmount,
+          lineTotal,
+          currentStock: 999999,
+          availableStock: 999999,
+          isCustom: true,
+        },
+      ];
+    });
+    setCustomName('');
+    setCustomPrice('');
+    setCustomQty('1');
+    setCustomError('');
+  };
+
   const addToCart = (p: Product) => {
     const model = taxContextRef.current?.pricingModel || 'exclusive';
     const rate = resolveProductTaxRate(p.taxRate, taxContextRef.current);
@@ -745,7 +800,7 @@ export default function SellScreen({ shift }: { shift: any }) {
     if (qty <= 0) { removeFromCart(productId); return; }
     setCart(prev=>prev.map(i=>{
       if(i.productId!==productId) return i;
-      if(qty>sellableQty(i)) return i;
+      if(!i.isCustom && qty>sellableQty(i)) return i;
       return { ...i, quantity:qty, ...computeLineTotal(qty,i.unitPrice,i.discount,i.taxRate, pricingModel) };
     }));
   };
@@ -782,9 +837,10 @@ export default function SellScreen({ shift }: { shift: any }) {
             taxContextRef.current?.pricingModel || 'exclusive'
           );
           return {
-            productId: item.productId,
+            productId: item.productId || `custom-${item.productName}-${item.unitPrice}`,
             productName: item.productName,
             sku: item.sku || '',
+            isCustom: !item.productId || item.sku === 'CUSTOM' || item.isCustom,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             discount: item.discount || 0,
@@ -916,7 +972,7 @@ export default function SellScreen({ shift }: { shift: any }) {
   // Complete Sale
   const completeSale = async () => {
     if (cart.length===0) { setSaleError('Cart is empty'); return; }
-    const oversold = cart.find((i) => i.quantity > sellableQty(i));
+    const oversold = cart.find((i) => !i.isCustom && i.quantity > sellableQty(i));
     if (oversold) {
       setSaleError(`${oversold.productName} only has ${sellableQty(oversold)} available`);
       return;
@@ -957,15 +1013,16 @@ export default function SellScreen({ shift }: { shift: any }) {
         customerEmail: selectedCustomer?.email || null,
         customerId: selectedCustomer?.id || null,
         items: cart.map((i) => ({
-          productId: i.productId,
+          productId: i.isCustom ? null : i.productId,
           productName: i.productName,
-          sku: i.sku,
+          sku: i.isCustom ? 'CUSTOM' : i.sku,
           quantity: Math.max(1, Math.round(Number(i.quantity) || 0)),
           unitPrice: i.unitPrice,
           discount: i.discount,
           taxRate: i.taxRate,
           pricingModel,
           taxType: pricingModel === 'inclusive' ? 'Inclusive' : 'Exclusive',
+          isCustom: Boolean(i.isCustom),
         })),
         payments: payments.map((p) => ({
           paymentMethod: p.paymentMethod,
@@ -1385,17 +1442,58 @@ export default function SellScreen({ shift }: { shift: any }) {
         </div>
 
         {/* Cart items */}
+        <div className="px-3 pt-2 pb-1 border-b border-gray-100">
+          <p className="text-[11px] font-semibold text-gray-500 mb-1.5">Add without product</p>
+          <div className="flex flex-col gap-1.5">
+            <input
+              className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-900 text-xs outline-none focus:border-[#014582]"
+              placeholder="Item name"
+              value={customName}
+              onChange={(e) => { setCustomName(e.target.value); setCustomError(''); }}
+            />
+            <div className="flex gap-1.5">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="flex-1 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-900 text-xs outline-none focus:border-[#014582]"
+                placeholder="Price"
+                value={customPrice}
+                onChange={(e) => { setCustomPrice(e.target.value); setCustomError(''); }}
+              />
+              <input
+                type="number"
+                min="1"
+                className="w-16 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-900 text-xs outline-none focus:border-[#014582]"
+                placeholder="Qty"
+                value={customQty}
+                onChange={(e) => setCustomQty(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={addCustomItem}
+                className="px-3 rounded-lg bg-[#014582] text-white text-xs font-semibold hover:bg-[#01366a]"
+              >
+                Add
+              </button>
+            </div>
+            {customError ? <p className="text-[10px] text-red-600">{customError}</p> : null}
+          </div>
+        </div>
         <div className="flex-1 overflow-y-auto p-2">
           {cart.length === 0 ? (
             <div className="text-center py-16 text-gray-600">
               <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-              <p className="text-base">Tap a product to add it to the cart</p>
+              <p className="text-base">Tap a product, or add a custom item above</p>
             </div>
           ) : (
             cart.map(item=>(
               <div key={item.productId} className="bg-white border border-gray-200 rounded-xl p-2.5 mb-2 flex gap-2.5 items-start">
                 <div className="flex-1">
-                  <div className="text-gray-900 font-bold text-sm mb-1">{item.productName}</div>
+                  <div className="text-gray-900 font-bold text-sm mb-1">
+                    {item.productName}
+                    {item.isCustom ? <span className="ml-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 py-0.5">Custom</span> : null}
+                  </div>
                   <div className="text-gray-700 text-sm">{money(item.unitPrice)} each</div>
                   {/* discount input */}
                   <div className="flex items-center gap-1.5 mt-1.5">
