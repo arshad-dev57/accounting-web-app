@@ -30,6 +30,47 @@ export type SubscriptionSnapshot = {
   subscription: SubscriptionInfo;
 };
 
+export type BillingInvoice = {
+  id: string;
+  invoiceNumber: string;
+  plan: string;
+  status: string;
+  amount: number;
+  currency: string;
+  paymentMethod: string;
+  transactionId: string;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+  productTier?: string;
+  licensedUsers?: number;
+  licensedBranches?: number;
+  type?: string;
+  delta?: number;
+  previousAmount?: number;
+  paidBy?: { name: string; email: string } | null;
+};
+
+export type CompanyBilling = {
+  company: {
+    id: string;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
+  };
+  capacity: import('./subscription-pricing').SubscriptionCapacity;
+  subscription: SubscriptionInfo;
+  stats: {
+    currentAmount: number;
+    totalPaid: number;
+    paidThisMonth: number;
+    invoiceCount: number;
+  };
+  monthlyStats: { month: string; label: string; total: number; count: number }[];
+  invoices: BillingInvoice[];
+};
+
 const STORAGE_KEYS = {
   hasAccess: 'has_active_subscription',
   plan: 'subscription_plan',
@@ -173,7 +214,54 @@ export async function startTrial(): Promise<{ success: boolean; message?: string
   };
 }
 
-export async function subscribeToPlan(plan: string, amount: number): Promise<{
+export async function fetchSubscriptionCapacity(): Promise<{
+  success: boolean;
+  data?: import('./subscription-pricing').SubscriptionCapacity;
+  message?: string;
+}> {
+  const res = await fetch('/api/subscription/capacity', {
+    headers: authHeaders(),
+    cache: 'no-store',
+  });
+  const data = await parseJson(res);
+  return {
+    success: !!data.success,
+    data: data.data,
+    message: data.message,
+  };
+}
+
+export async function upgradeSubscription(body: {
+  licensedUsers?: number;
+  licensedBranches?: number;
+  addUsers?: number;
+  addBranches?: number;
+}): Promise<{ success: boolean; message?: string; data?: unknown }> {
+  const res = await fetch('/api/subscription/upgrade', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+  const data = await parseJson(res);
+  if (res.ok && data.success) {
+    await fetchSubscriptionStatus();
+  }
+  return {
+    success: !!data.success,
+    message: data.message,
+    data: data.data,
+  };
+}
+
+export async function subscribeToPlan(
+  plan: string,
+  amount: number,
+  options?: {
+    productTier?: 'pos' | 'erp_pos';
+    licensedUsers?: number;
+    licensedBranches?: number;
+  }
+): Promise<{
   success: boolean;
   message?: string;
   data?: unknown;
@@ -184,6 +272,9 @@ export async function subscribeToPlan(plan: string, amount: number): Promise<{
     body: JSON.stringify({
       plan,
       amount,
+      productTier: options?.productTier || 'erp_pos',
+      licensedUsers: options?.licensedUsers ?? 1,
+      licensedBranches: options?.licensedBranches ?? 1,
       paymentMethod: 'direct',
       transactionId: `TXN-${Date.now()}`,
     }),
@@ -213,6 +304,23 @@ export async function cancelSubscription(): Promise<{
   }
   return {
     success: !!data.success,
+    message: data.message,
+  };
+}
+
+export async function fetchCompanyBilling(): Promise<{
+  success: boolean;
+  data?: CompanyBilling;
+  message?: string;
+}> {
+  const res = await fetch('/api/subscription/billing', {
+    headers: authHeaders(),
+    cache: 'no-store',
+  });
+  const data = await parseJson(res);
+  return {
+    success: !!data.success,
+    data: data.data,
     message: data.message,
   };
 }

@@ -68,6 +68,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Desktop installer files in public/downloads — no login required
+  if (pathname.startsWith('/downloads/')) {
+    return NextResponse.next();
+  }
+
   // Logout in progress: never bounce /login → /dashboard, and expire leftover
   // httpOnly auth cookies on this response so the reload loop cannot continue.
   if (isLoggingOut(request)) {
@@ -127,6 +132,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.png|.*\\.jpg|.*\\.svg|.*\\.ico|.*\\.webp|.*\\.woff2?).*)',
+    '/((?!_next/static|_next/image|favicon.ico|downloads/|.*\\.png|.*\\.jpg|.*\\.svg|.*\\.ico|.*\\.webp|.*\\.woff2?).*)',
   ],
 };

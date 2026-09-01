@@ -32,6 +32,10 @@ import {
 import { usersService } from './service';
 import { User, Role } from './types';
 import UserFormModal from './UserFormModal';
+import SubscriptionUpgradeModal from '../../components/SubscriptionUpgradeModal';
+import { fetchSubscriptionCapacity } from '../../lib/subscription-service';
+import type { SubscriptionCapacity, UpgradeQuote } from '../../lib/subscription-pricing';
+import { calculatePrice } from '../../lib/subscription-pricing';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import { performLogout } from '../../lib/auth-logout';
@@ -53,6 +57,11 @@ export default function UsersDashboard() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [formOpen, setFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [upgradeModal, setUpgradeModal] = useState<{
+    reason: 'user_seat';
+    capacity: SubscriptionCapacity;
+    upgrade: UpgradeQuote;
+  } | null>(null);
 
   // Load data on mount
   useEffect(() => {
@@ -76,6 +85,39 @@ export default function UsersDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddUser = async () => {
+    try {
+      const capRes = await fetchSubscriptionCapacity();
+      const capacity = capRes.data;
+      if (capacity && !capacity.canAddUser) {
+        const upgrade = {
+          current: calculatePrice(
+            capacity.productTier,
+            capacity.billingCycle,
+            capacity.licensedUsers,
+            capacity.licensedBranches
+          ),
+          next: calculatePrice(
+            capacity.productTier,
+            capacity.billingCycle,
+            capacity.licensedUsers + 1,
+            capacity.licensedBranches
+          ),
+          delta: 0,
+          licensedUsers: capacity.licensedUsers + 1,
+          licensedBranches: capacity.licensedBranches,
+        };
+        upgrade.delta = upgrade.next.amount - upgrade.current.amount;
+        setUpgradeModal({ reason: 'user_seat', capacity, upgrade });
+        return;
+      }
+    } catch {
+      /* proceed — backend will enforce */
+    }
+    setEditingUser(null);
+    setFormOpen(true);
   };
 
   const filteredUsers = users.filter(user => {
@@ -467,10 +509,7 @@ export default function UsersDashboard() {
             {activeTab === 'users' && (
               <button
                 type="button"
-                onClick={() => {
-                  setEditingUser(null);
-                  setFormOpen(true);
-                }}
+                onClick={handleAddUser}
                 className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6c3ae8] transition-all"
               >
                 <UserPlus className="w-4 h-4" />
@@ -842,7 +881,22 @@ export default function UsersDashboard() {
           setEditingUser(null);
         }}
         onSaved={loadData}
+        onUpgradeRequired={(payload) => setUpgradeModal(payload)}
       />
+      {upgradeModal && (
+        <SubscriptionUpgradeModal
+          open
+          reason={upgradeModal.reason}
+          capacity={upgradeModal.capacity}
+          upgrade={upgradeModal.upgrade}
+          onClose={() => setUpgradeModal(null)}
+          onUpgraded={() => {
+            setUpgradeModal(null);
+            setEditingUser(null);
+            setFormOpen(true);
+          }}
+        />
+      )}
     </>
   );
 }

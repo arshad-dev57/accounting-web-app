@@ -277,7 +277,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
       const payload: any = {
         productId: productId,
         stockType: stockType,
-        quantity: stockType === 'box' ? parseInt(boxCount) : parseInt(quantity),
+        quantity: stockType === 'box' ? parseFloat(boxCount) : parseFloat(quantity),
         stockSourceReason,
         unitCost: unitCost ? parseFloat(unitCost) : undefined,
         supplierName: selectedSupplierObj?.name || undefined,
@@ -395,12 +395,19 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
         <div className="mb-4">
           <label className="block text-sm font-semibold text-gray-700 mb-1.5">
             Quantity *
+            {selectedProduct?.stockUnitName || selectedProduct?.stockUnit ? (
+              <span className="ml-2 text-xs font-normal text-[#014582] bg-blue-50 px-2 py-0.5 rounded-full">
+                {selectedProduct.stockUnitName || selectedProduct.stockUnit}
+              </span>
+            ) : null}
           </label>
           <div className="relative">
             <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="number"
-              placeholder="Enter quantity..."
+              step="any"
+              min="0"
+              placeholder="Enter quantity (decimals allowed)..."
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
@@ -625,7 +632,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
       const productId = selectedProduct._id || selectedProduct.id;
       await stockService.removeStock({
         productId,
-        quantity: parseInt(quantity),
+        quantity: parseFloat(quantity),
         stockOutReason,
         customerName: customer || 'Walk-in Customer',
         reference: reference || '',

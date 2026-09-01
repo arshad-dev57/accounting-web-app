@@ -30,7 +30,8 @@ class ApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: 15000,
+      // No client timeout — slow APIs (user create, reports, sync) must not fail at 15s
+      timeout: 0,
     });
 
     // Request interceptor

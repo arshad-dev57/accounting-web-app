@@ -1,25 +1,34 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, MapPin, X } from 'lucide-react';
 import { locationService, type Location } from '@/lib/location-service';
-import { usersService } from './service';
+import { rolesForPosMode } from '@/lib/pos-roles';
+import { loadUserFromLocal } from '@/lib/permission-service';
+import { usersService, SubscriptionUpgradeError } from './service';
 import type { User } from './types';
+import type { SubscriptionCapacity, UpgradeQuote } from '@/lib/subscription-pricing';
 
 type Props = {
   open: boolean;
   user?: User | null;
   onClose: () => void;
   onSaved: () => Promise<void> | void;
+  onUpgradeRequired?: (payload: {
+    reason: 'user_seat';
+    capacity: SubscriptionCapacity;
+    upgrade: UpgradeQuote;
+  }) => void;
 };
 
-const ROLES = [
-  { value: 'user', label: 'User' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'admin', label: 'Admin (all locations)' },
-];
 
-export default function UserFormModal({ open, user, onClose, onSaved }: Props) {
+function resolvePosMode(): string {
+  const user = loadUserFromLocal();
+  const company = user?.company as { posMode?: string } | undefined;
+  return company?.posMode || (user?.posMode as string | undefined) || 'retail';
+}
+
+export default function UserFormModal({ open, user, onClose, onSaved, onUpgradeRequired }: Props) {
   const editing = Boolean(user?.id);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -31,9 +40,13 @@ export default function UserFormModal({ open, user, onClose, onSaved }: Props) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [posMode, setPosMode] = useState('retail');
+
+  const roleOptions = useMemo(() => rolesForPosMode(posMode), [posMode]);
 
   useEffect(() => {
     if (!open) return;
+    setPosMode(resolvePosMode());
     setError('');
     setFirstName(user?.firstName || '');
     setLastName(user?.lastName || '');
@@ -48,9 +61,19 @@ export default function UserFormModal({ open, user, onClose, onSaved }: Props) {
       .catch(() => setLocations([]));
   }, [open, user]);
 
+  useEffect(() => {
+    if (!roleOptions.some((r) => r.value === role)) {
+      setRole(roleOptions[0]?.value || 'user');
+    }
+  }, [posMode, roleOptions, role]);
+
   if (!open) return null;
 
-  const isAdminRole = role === 'admin' || role === 'owner' || role === 'superadmin';
+  const isAdminRole =
+    role === 'admin' ||
+    role === 'owner' ||
+    role === 'superadmin' ||
+    role === 'manager';
 
   const toggleLocation = (id: string) => {
     setLocationIds((prev) =>
@@ -98,6 +121,15 @@ export default function UserFormModal({ open, user, onClose, onSaved }: Props) {
       await onSaved();
       onClose();
     } catch (err: any) {
+      if (err instanceof SubscriptionUpgradeError && onUpgradeRequired) {
+        onUpgradeRequired({
+          reason: 'user_seat',
+          capacity: err.capacity,
+          upgrade: err.upgrade,
+        });
+        onClose();
+        return;
+      }
       setError(err?.message || 'Failed to save user');
     } finally {
       setSaving(false);
@@ -174,12 +206,22 @@ export default function UserFormModal({ open, user, onClose, onSaved }: Props) {
               onChange={(e) => setRole(e.target.value)}
               className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-[#014582]"
             >
-              {ROLES.map((r) => (
+              {roleOptions.map((r) => (
                 <option key={r.value} value={r.value}>
                   {r.label}
                 </option>
               ))}
             </select>
+            {roleOptions.find((r) => r.value === role)?.description && (
+              <p className="mt-1.5 text-xs text-gray-500">
+                {roleOptions.find((r) => r.value === role)?.description}
+              </p>
+            )}
+            {posMode === 'retail' && (
+              <p className="mt-1 text-xs text-gray-400">
+                Restaurant roles (waiter, kitchen) appear after you set POS type to Restaurant on the POS page.
+              </p>
+            )}
           </label>
           <div>
             <p className="text-sm font-medium text-gray-800 flex items-center gap-2 mb-2">

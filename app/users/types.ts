@@ -51,6 +51,13 @@ export interface User {
   permissions: UserPermission[];
   locationIds?: string[];
   locations?: AssignedLocation[];
+  assignedTerminalId?: string | null;
+  assignedTerminal?: {
+    id: string;
+    name?: string;
+    code?: string;
+    locationId?: string;
+  } | null;
 }
 
 export interface Role {
@@ -83,6 +90,7 @@ export interface CreateUserRequest {
   managerId?: string;
   permissions?: UserPermission[];
   locationIds?: string[];
+  assignedTerminalId?: string | null;
 }
 
 export interface UpdateUserRequest {
@@ -97,4 +105,5 @@ export interface UpdateUserRequest {
   isActive?: boolean;
   permissions?: UserPermission[];
   locationIds?: string[];
+  assignedTerminalId?: string | null;
 }

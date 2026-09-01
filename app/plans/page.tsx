@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import {
   cancelSubscription,
+  fetchSubscriptionCapacity,
   fetchSubscriptionStatus,
   startTrial,
   subscribeToPlan,
@@ -21,6 +22,9 @@ import {
 import { supportTicketService } from '../../lib/support-ticket-service';
 import { performLogout } from '../../lib/auth-logout';
 import { usePermissions } from '../../lib/usePermissions';
+import PricingSection from './PricingSection';
+import CurrentSubscriptionPanel from '../../components/CurrentSubscriptionPanel';
+import { TRIAL_DAYS, type SubscriptionCapacity } from '../../lib/subscription-pricing';
 
 type DisplayPlan = {
   id: 'trial' | 'monthly' | 'yearly' | 'custom';
@@ -277,6 +281,7 @@ export default function PlansPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [snapshot, setSnapshot] = useState<SubscriptionSnapshot | null>(null);
+  const [capacity, setCapacity] = useState<SubscriptionCapacity | null>(null);
 
   const [customOpen, setCustomOpen] = useState(false);
   const [customTitle, setCustomTitle] = useState('');
@@ -295,6 +300,14 @@ export default function PlansPage() {
       }
       const status = await fetchSubscriptionStatus();
       setSnapshot(status);
+      if (status.hasAccess) {
+        const capRes = await fetchSubscriptionCapacity();
+        if (capRes.success && capRes.data) {
+          setCapacity(capRes.data);
+        }
+      } else {
+        setCapacity(null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load subscription');
     } finally {
@@ -349,7 +362,7 @@ export default function PlansPage() {
       if (planId === 'trial') {
         const res = await startTrial();
         if (!res.success) throw new Error(res.message || 'Could not start trial');
-        setSuccess(res.message || '30-day free trial started');
+        setSuccess(res.message || `${TRIAL_DAYS}-day free trial started`);
         await load();
         setTimeout(goDashboard, 700);
         return;
@@ -578,7 +591,17 @@ export default function PlansPage() {
           </div>
         )}
 
-        {(isTrial || isPaid) && (
+        {(isTrial || isPaid) && capacity && (
+          <CurrentSubscriptionPanel
+            capacity={capacity}
+            trialDaysRemaining={snapshot?.subscription.trialDaysRemaining}
+            subscriptionDaysRemaining={snapshot?.subscription.subscriptionDaysRemaining}
+            trialEndDate={snapshot?.subscription.trialEndDate}
+            subscriptionEndDate={snapshot?.subscription.endDate}
+          />
+        )}
+
+        {(isTrial || isPaid) && !capacity && (
           <div
             className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3"
             style={{ borderColor: BRAND_BORDER, backgroundColor: BRAND_SOFT }}
@@ -617,16 +640,59 @@ export default function PlansPage() {
           </div>
         )}
 
+        {(isTrial || isPaid) && capacity && (
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            {hasAccess && (
+              <button
+                type="button"
+                onClick={goDashboard}
+                className="rounded-md px-3 py-1.5 text-xs font-semibold text-white"
+                style={{ backgroundColor: BRAND }}
+              >
+                Continue to ERP
+              </button>
+            )}
+            {isPaid && (
+              <button
+                type="button"
+                disabled={processing}
+                onClick={handleCancel}
+                className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-600 hover:bg-white disabled:opacity-50"
+              >
+                Cancel plan
+              </button>
+            )}
+          </div>
+        )}
+
         <p className="mt-12 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
-          Individual plans
+          Subscription plans
         </p>
 
-        {/* Plan cards */}
         {loading ? (
           <div className="flex justify-center py-24">
             <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
           </div>
         ) : (
+          <div className="mt-5">
+            <PricingSection
+              processing={processing}
+              setProcessing={setProcessing}
+              setError={setError}
+              setSuccess={setSuccess}
+              onComplete={() => {
+                void load();
+                setTimeout(goDashboard, 700);
+              }}
+              isTrial={isTrial}
+              isPaid={isPaid}
+              capacity={capacity}
+            />
+          </div>
+        )}
+
+        {/* Legacy compare — hidden old cards replaced by PricingSection above */}
+        {false && (
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {DISPLAY_PLANS.map((p) => {
               const current =

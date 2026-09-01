@@ -14,6 +14,7 @@ import {
   CreditCard,
   Scale,
   CalendarDays,
+  Receipt,
 } from 'lucide-react';
 import { usePermissions } from '../lib/usePermissions';
 import { BrandHeader } from './BrandHeader';
@@ -33,6 +34,7 @@ export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: str
     { icon: <User className="w-5 h-5" />, label: 'Users', path: '/users', show: isAdmin },
     { icon: <CalendarDays className="w-5 h-5" />, label: 'Registered Users', path: '/registered-users', show: canViewRegisteredUsers },
     { icon: <CreditCard className="w-5 h-5" />, label: 'Subscription Plans', path: '/plans', show: isAdmin },
+    { icon: <Receipt className="w-5 h-5" />, label: 'Billing', path: '/billing', show: isAdmin },
   ];
 
   const filteredMenuItems = menuItems.filter((item) => item.show);

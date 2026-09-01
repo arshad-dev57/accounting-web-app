@@ -2272,7 +2272,10 @@ export default function ProductsPage() {
       try {
         const [cats, supps] = await Promise.all([
           // Flat list: parents + children with parentId (needed for subcategory filter)
-          categoryService.getCategories({ tree: false }),
+          categoryService.getCategories({
+            tree: false,
+            locationId: selectedLocationId || undefined,
+          }),
           supplierService.getSuppliers({ limit: 100 }),
         ]);
 

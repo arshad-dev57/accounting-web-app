@@ -31,6 +31,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        source: '/downloads/:file*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400' },
+          { key: 'Content-Disposition', value: 'attachment' },
+        ],
+      },
+      {
         source: '/((?!_next/static|_next/image).*)',
         headers: [{ key: 'Cache-Control', value: 'no-store, must-revalidate' }],
       },

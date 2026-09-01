@@ -77,17 +77,37 @@ export default function DeliveriesPage() {
       });
       const result = await response.json();
 
-      if (result.success && result.data) {
-        setDeliveries(result.data);
-        if (result.pagination) {
-          setTotalRecords(result.pagination.total);
-          setTotalPages(result.pagination.pages);
-          setHasNext(result.pagination.hasNext);
-          setHasPrev(result.pagination.hasPrev);
-        }
-        if (result.kpi) {
-          setStats(result.kpi);
-        }
+      if (!response.ok || result.success === false) {
+        console.error('Failed to fetch deliveries:', result.message || response.status);
+        setDeliveries([]);
+        return;
+      }
+
+      const rows = Array.isArray(result.data)
+        ? result.data
+        : Array.isArray(result.data?.data)
+          ? result.data.data
+          : [];
+      setDeliveries(rows);
+
+      const pagination = result.pagination || result.data?.pagination;
+      if (pagination) {
+        setTotalRecords(pagination.total || 0);
+        setTotalPages(pagination.pages || 1);
+        setHasNext(Boolean(pagination.hasNext));
+        setHasPrev(Boolean(pagination.hasPrev));
+      } else {
+        setTotalRecords(rows.length);
+      }
+
+      const kpi = result.kpi || result.data?.kpi;
+      if (kpi) {
+        setStats({
+          total: kpi.total || 0,
+          pending: kpi.pending || 0,
+          partiallyDelivered: kpi.partiallyDelivered || 0,
+          delivered: kpi.delivered || 0,
+        });
       }
     } catch (error) {
       console.error('Failed to fetch deliveries:', error);
@@ -311,13 +331,13 @@ export default function DeliveriesPage() {
           <tbody className="divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center">
+                <td colSpan={8} className="px-6 py-12 text-center">
                   <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#014582]" />
                 </td>
               </tr>
             ) : deliveries.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                   No deliveries found
                 </td>
               </tr>

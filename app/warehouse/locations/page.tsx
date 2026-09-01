@@ -18,6 +18,9 @@ import {
   locationService,
   type Location,
 } from '@/lib/location-service';
+import SubscriptionUpgradeModal from '@/components/SubscriptionUpgradeModal';
+import { fetchSubscriptionCapacity } from '@/lib/subscription-service';
+import { calculatePrice, type SubscriptionCapacity, type UpgradeQuote } from '@/lib/subscription-pricing';
 import { useLocation } from '@/lib/location-context';
 import { usePermissions } from '@/lib/usePermissions';
 
@@ -66,6 +69,11 @@ export default function LocationsPage() {
     notes: '',
   });
   const [transferring, setTransferring] = useState(false);
+  const [upgradeModal, setUpgradeModal] = useState<{
+    reason: 'branch';
+    capacity: SubscriptionCapacity;
+    upgrade: UpgradeQuote;
+  } | null>(null);
 
   useEffect(() => {
     if (!permLoading && !isAdmin) {
@@ -91,7 +99,35 @@ export default function LocationsPage() {
     load();
   }, [load]);
 
-  const openCreate = () => {
+  const openCreate = async () => {
+    try {
+      const capRes = await fetchSubscriptionCapacity();
+      const capacity = capRes.data;
+      if (capacity && !capacity.canAddBranch) {
+        const upgrade = {
+          current: calculatePrice(
+            capacity.productTier,
+            capacity.billingCycle,
+            capacity.licensedUsers,
+            capacity.licensedBranches
+          ),
+          next: calculatePrice(
+            capacity.productTier,
+            capacity.billingCycle,
+            capacity.licensedUsers,
+            capacity.licensedBranches + 1
+          ),
+          delta: 0,
+          licensedUsers: capacity.licensedUsers,
+          licensedBranches: capacity.licensedBranches + 1,
+        };
+        upgrade.delta = upgrade.next.amount - upgrade.current.amount;
+        setUpgradeModal({ reason: 'branch', capacity, upgrade });
+        return;
+      }
+    } catch {
+      /* backend enforces */
+    }
     setEditing(null);
     setForm(emptyForm);
     setShowForm(true);
@@ -637,6 +673,21 @@ export default function LocationsPage() {
             </div>
           </div>
         </div>
+      )}
+      {upgradeModal && (
+        <SubscriptionUpgradeModal
+          open
+          reason={upgradeModal.reason}
+          capacity={upgradeModal.capacity}
+          upgrade={upgradeModal.upgrade}
+          onClose={() => setUpgradeModal(null)}
+          onUpgraded={() => {
+            setUpgradeModal(null);
+            setEditing(null);
+            setForm(emptyForm);
+            setShowForm(true);
+          }}
+        />
       )}
     </div>
   );

@@ -9,6 +9,21 @@ import {
   UpdateUserRequest,
 } from './types';
 
+export class SubscriptionUpgradeError extends Error {
+  code = 'SUBSCRIPTION_UPGRADE_REQUIRED';
+  reason: 'user_seat' | 'branch';
+  capacity: any;
+  upgrade: any;
+
+  constructor(message: string, payload: { reason: 'user_seat' | 'branch'; capacity: any; upgrade: any }) {
+    super(message);
+    this.name = 'SubscriptionUpgradeError';
+    this.reason = payload.reason;
+    this.capacity = payload.capacity;
+    this.upgrade = payload.upgrade;
+  }
+}
+
 export const usersService = {
   // Get all users
   getUsers: async (): Promise<UsersResponse> => {
@@ -69,6 +84,15 @@ export const usersService = {
             canEdit: p.canEdit ?? false,
             canDelete: p.canDelete ?? false,
           })),
+          assignedTerminalId: item.assignedTerminalId || null,
+          assignedTerminal: item.assignedTerminal
+            ? {
+                id: item.assignedTerminal.id || '',
+                name: item.assignedTerminal.name,
+                code: item.assignedTerminal.code,
+                locationId: item.assignedTerminal.locationId,
+              }
+            : null,
         };
       });
 
@@ -146,6 +170,18 @@ export const usersService = {
   createUser: async (userData: CreateUserRequest): Promise<boolean> => {
     try {
       const response = await apiClient.post('/api/admin/users', userData);
+
+      if (response.statusCode === 402 || response.data?.code === 'SUBSCRIPTION_UPGRADE_REQUIRED') {
+        const body = response.data?.data ? response.data : response.data;
+        throw new SubscriptionUpgradeError(
+          response.message || response.data?.message || 'Subscription upgrade required',
+          {
+            reason: 'user_seat',
+            capacity: body?.data?.capacity || body?.capacity,
+            upgrade: body?.data?.upgrade || body?.upgrade,
+          }
+        );
+      }
       
       if (!response.success) {
         throw new Error(response.message || 'Failed to create user');
@@ -153,6 +189,7 @@ export const usersService = {
       
       return true;
     } catch (error: any) {
+      if (error instanceof SubscriptionUpgradeError) throw error;
       console.error('Create user error:', error);
       throw new Error(error.message || 'Failed to create user');
     }

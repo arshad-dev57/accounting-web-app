@@ -25,11 +25,13 @@ export const categoryService = {
     tree?: boolean;
     includeInactive?: boolean;
     parentId?: string;
+    locationId?: string;
   }): Promise<Category[]> => {
     const query = new URLSearchParams();
     if (params?.tree) query.append('tree', 'true');
     if (params?.includeInactive) query.append('includeInactive', 'true');
     if (params?.parentId) query.append('parentId', params.parentId);
+    if (params?.locationId) query.append('locationId', params.locationId);
     const url = `/api/warehouse/categories${query.toString() ? `?${query.toString()}` : ''}`;
     const response = await apiClient.get(url);
     if (!response.success) {

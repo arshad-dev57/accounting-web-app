@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { customerService } from '../../api/customer/route';
 import { productService } from '../../api/product/route';
-import { salesOrderService, type Order as SalesOrder } from '../../api/orders/sales/route';
+import { salesOrderService, type Order as SalesOrder } from '@/lib/sales-order-service';
 import { useLocation } from '@/lib/location-context';
 import { useCurrency } from '../../../lib/currency-context';
 import { findProductFromScan, useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
@@ -442,10 +442,10 @@ export default function SalesOrdersPage() {
           totalAmount: order.grandTotal,
         }))
       );
-      setTotalRecords(response.pagination.total || 0);
-      setTotalPages(response.pagination.pages || 1);
-      setHasNext(response.pagination.hasNext || false);
-      setHasPrev(response.pagination.hasPrev || false);
+      setTotalRecords(response.pagination?.total || 0);
+      setTotalPages(response.pagination?.pages || 1);
+      setHasNext(response.pagination?.hasNext || false);
+      setHasPrev(response.pagination?.hasPrev || false);
     } catch (err) {
       console.error('Failed to fetch orders:', err);
     } finally {

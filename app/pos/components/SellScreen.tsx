@@ -603,7 +603,10 @@ export default function SellScreen({ shift }: { shift: any }) {
   const loadCategories = useCallback(async () => {
     setLoadingCategories(true);
     try {
-      const data = await categoryService.getCategories({ tree: true });
+      const data = await categoryService.getCategories({
+        tree: true,
+        locationId: saleLocationId || undefined,
+      });
       setCategoryTree(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error('Failed to load categories:', e);
@@ -611,7 +614,7 @@ export default function SellScreen({ shift }: { shift: any }) {
     } finally {
       setLoadingCategories(false);
     }
-  }, []);
+  }, [saleLocationId]);
 
   const loadProducts = useCallback(async (q: string, categoryId: string) => {
     setLoadingProducts(true);
@@ -650,9 +653,12 @@ export default function SellScreen({ shift }: { shift: any }) {
   useEffect(() => {
     if (prevSaleLocationRef.current && prevSaleLocationRef.current !== saleLocationId) {
       setCart([]);
+      if (activeParent || query.trim()) {
+        void loadProducts(query, selectedCategoryId);
+      }
     }
     prevSaleLocationRef.current = saleLocationId;
-  }, [saleLocationId]);
+  }, [saleLocationId, activeParent, query, selectedCategoryId, loadProducts]);
 
   const mains = rootCategories(categoryTree);
   const selectedSub = subcategories.find((c) => categoryIdOf(c) === selectedCategoryId) || null;

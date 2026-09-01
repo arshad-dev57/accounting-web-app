@@ -9,6 +9,7 @@ import AuthSplitLayout from '../../components/AuthSplitLayout';
 function LoginForm() {
   const searchParams = useSearchParams();
   const resetSuccess = searchParams.get('reset') === 'success';
+  const accessMessage = searchParams.get('msg');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -98,6 +99,12 @@ function LoginForm() {
             <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm font-medium flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               Password reset successfully. Please sign in with your new password.
+            </div>
+          )}
+
+          {accessMessage && (
+            <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-sm font-medium">
+              {decodeURIComponent(accessMessage)}
             </div>
           )}
 

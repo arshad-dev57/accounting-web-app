@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { posTerminalService, posShiftService, posSaleService, asPosArray, asPosTotal } from '../../../lib/pos-service';
 import { loadPosSettings, loadReceiptTemplate } from '../../../lib/pos-settings';
 import { usePermissions } from '../../../lib/usePermissions';
@@ -26,6 +27,8 @@ import ThermalPrinterTab from '../components/ThermalPrinterTab';
 import PaymentTerminalTab from '../components/PaymentTerminalTab';
 import { taxService } from '../../../lib/tax-service';
 import TaxUseToggle from '../../../components/TaxUseToggle';
+import { usersService } from '../../users/service';
+import type { User } from '../../users/types';
 
 // ─── Utility styles ───────────────────────────────────────────────────────────
 const card   = { background:'#ffffff', border:'1px solid #e5e7eb', borderRadius:'16px', padding:'20px', boxShadow:'0 1px 2px rgba(15,23,42,0.04)' };
@@ -39,6 +42,28 @@ function emptyHint(label: string, locationIdForApi?: string) {
   return locationIdForApi
     ? `No ${label} for this location. Switch to All locations.`
     : `No ${label} found`;
+}
+
+function userDisplayName(u: User) {
+  const name = [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+  return name || u.email || 'User';
+}
+
+function usersEligibleForLocation(users: User[], locationId: string) {
+  const active = users.filter((u) => u.isActive !== false);
+  if (!locationId) return active;
+  const loc = String(locationId);
+  return active.filter((u) => {
+    const locIds = (u.locationIds?.length ? u.locationIds : (u.locations || []).map((l) => l.id))
+      .map(String)
+      .filter(Boolean);
+    if (!locIds.length) return true;
+    return locIds.includes(loc);
+  });
+}
+
+function assignedUserForTerminal(users: User[], terminalId: string) {
+  return users.find((u) => String(u.assignedTerminalId || '') === String(terminalId));
 }
 
 // ─── Status badge helper ──────────────────────────────────────────────────────
@@ -76,9 +101,10 @@ function TerminalsTab({
 }) {
   const [terminals, setTerminals]         = useState<any[]>([]);
   const [locations, setLocations]         = useState<Location[]>([]);
+  const [companyUsers, setCompanyUsers]   = useState<User[]>([]);
   const [loading, setLoading]             = useState(true);
   const [showCreate, setShowCreate]       = useState(false);
-  const [form, setForm]                   = useState({ name:'', code:'', locationId:'' });
+  const [form, setForm]                   = useState({ name:'', code:'', locationId:'', userId:'' });
   const [saving, setSaving]               = useState(false);
   const [error, setError]                 = useState('');
   const [confirm, setConfirm]             = useState<string|null>(null);
@@ -88,8 +114,12 @@ function TerminalsTab({
     try {
       const qs = new URLSearchParams();
       if (locationIdForApi) qs.set('locationId', locationIdForApi);
-      const r:any = await posTerminalService.list(qs.toString() || undefined);
-      setTerminals(asPosArray(r));
+      const [termRes, usersRes] = await Promise.all([
+        posTerminalService.list(qs.toString() || undefined),
+        usersService.getUsers().catch(() => ({ success: false, data: [] as User[] })),
+      ]);
+      setTerminals(asPosArray(termRes));
+      setCompanyUsers(usersRes.success ? usersRes.data : []);
       setError('');
     }
     catch(e:any){ setError(e.message); }
@@ -108,14 +138,32 @@ function TerminalsTab({
     if (!form.locationId) { setError('Select a warehouse/shop location'); return; }
     setSaving(true); setError('');
     try {
-      await posTerminalService.create(form);
+      const created: any = await posTerminalService.create({
+        name: form.name,
+        code: form.code,
+        locationId: form.locationId,
+      });
+      const terminalId = created?.data?.id ?? created?.id;
+      if (form.userId && terminalId) {
+        try {
+          await usersService.updateUser(form.userId, { assignedTerminalId: terminalId });
+        } catch (assignErr: any) {
+          setError(`Terminal created but user assignment failed: ${assignErr.message || 'Unknown error'}`);
+          setShowCreate(false);
+          setForm({ name: '', code: '', locationId: '', userId: '' });
+          await load();
+          return;
+        }
+      }
       setShowCreate(false);
-      setForm({ name: '', code: '', locationId: '' });
+      setForm({ name: '', code: '', locationId: '', userId: '' });
       await load();
     }
     catch(e:any){ setError(e.message); }
     finally { setSaving(false); }
   };
+
+  const eligibleUsers = usersEligibleForLocation(companyUsers, form.locationId);
 
   const toggle = async (id:string, isActive:boolean) => {
     await posTerminalService.update(id, { isActive:!isActive });
@@ -139,14 +187,26 @@ function TerminalsTab({
 
       {showCreate && isAdmin && (
         <div style={{ ...card, marginBottom:'20px', border:'1px solid rgba(1,69,130,0.25)' }}>
-          <h3 style={{ color:'#0f172a', marginTop:0, marginBottom:'16px', fontSize:'15px' }}>Create Terminal</h3>
+          <h3 style={{ color:'#0f172a', marginTop:0, marginBottom:'8px', fontSize:'15px' }}>Create Terminal</h3>
+          <p style={{ color:'#64748b', fontSize:'13px', marginTop:0, marginBottom:'16px' }}>
+            Optionally assign a cashier to this terminal. They will only see this terminal on the desktop POS app.
+          </p>
           <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' as const }}>
             <input style={{ ...input, flex:1, minWidth:'150px' }} placeholder="Terminal Name (e.g. Main Counter)" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} />
             <input style={{ ...input, flex:1, minWidth:'120px' }} placeholder="Code (e.g. TERM-01)" value={form.code} onChange={e=>setForm(p=>({...p,code:e.target.value.toUpperCase()}))} />
             <select
               style={{ ...input, flex:1, minWidth:'180px' }}
               value={form.locationId}
-              onChange={(e) => setForm((p) => ({ ...p, locationId: e.target.value }))}
+              onChange={(e) => {
+                const locationId = e.target.value;
+                setForm((p) => ({
+                  ...p,
+                  locationId,
+                  userId: p.userId && usersEligibleForLocation(companyUsers, locationId).some((u) => u.id === p.userId)
+                    ? p.userId
+                    : '',
+                }));
+              }}
             >
               <option value="">Select location…</option>
               {locations.map((l) => (
@@ -154,6 +214,24 @@ function TerminalsTab({
                   {l.name} ({l.code}) · {l.type}
                 </option>
               ))}
+            </select>
+            <select
+              style={{ ...input, flex:1, minWidth:'200px' }}
+              value={form.userId}
+              onChange={(e) => setForm((p) => ({ ...p, userId: e.target.value }))}
+              disabled={!form.locationId}
+            >
+              <option value="">{form.locationId ? 'Assign user (optional)…' : 'Select location first…'}</option>
+              {eligibleUsers.map((u) => {
+                const onOther = u.assignedTerminalId && u.assignedTerminal
+                  ? ` (on ${u.assignedTerminal.name || u.assignedTerminal.code})`
+                  : '';
+                return (
+                  <option key={u.id} value={u.id} style={{ color: '#111' }}>
+                    {userDisplayName(u)}{onOther}
+                  </option>
+                );
+              })}
             </select>
             <button style={btn('#014582')} onClick={create} disabled={saving}>{saving?'Saving...':'Create'}</button>
             <button style={btn('#f1f5f9','#475569')} onClick={()=>setShowCreate(false)}>Cancel</button>
@@ -165,10 +243,12 @@ function TerminalsTab({
         <div style={{ overflowX:'auto' as const }}>
           <table style={{ width:'100%', borderCollapse:'collapse' as const }}>
             <thead style={tHead}>
-              <tr>{['Name','Code','Location','Status','Shifts','Last Sync','Actions'].map(h=><th key={h} style={{ ...tCell, color:'#64748b', fontSize:'11px', fontWeight:700, textTransform:'uppercase' as const, textAlign:'left' as const }}>{h}</th>)}</tr>
+              <tr>{['Name','Code','Location','Assigned user','Status','Shifts','Last Sync','Actions'].map(h=><th key={h} style={{ ...tCell, color:'#64748b', fontSize:'11px', fontWeight:700, textTransform:'uppercase' as const, textAlign:'left' as const }}>{h}</th>)}</tr>
             </thead>
             <tbody>
-              {terminals.map((t:any) => (
+              {terminals.map((t:any) => {
+                const assigned = assignedUserForTerminal(companyUsers, t.id);
+                return (
                 <tr key={t.id} style={{ transition:'background 0.15s' }} onMouseEnter={e=>(e.currentTarget.style.background='#f8fafc')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                   <td style={tCell}><span style={{ color:'#0f172a', fontWeight:600 }}>{t.name}</span></td>
                   <td style={tCell}><code style={{ background:'rgba(1,69,130,0.08)', color:'#014582', padding:'2px 8px', borderRadius:'6px', fontSize:'12px' }}>{t.code}</code></td>
@@ -177,6 +257,14 @@ function TerminalsTab({
                     {t.location?.code ? (
                       <span style={{ color:'#64748b', marginLeft:6, fontSize:11 }}>({t.location.code})</span>
                     ) : null}
+                  </td>
+                  <td style={tCell}>
+                    {assigned ? (
+                      <>
+                        <span style={{ color:'#0f172a', fontWeight:600 }}>{userDisplayName(assigned)}</span>
+                        <div style={{ color:'#64748b', fontSize:11 }}>{assigned.email}</div>
+                      </>
+                    ) : '—'}
                   </td>
                   <td style={tCell}><StatusBadge status={t.isActive?'Active':'Inactive'} /></td>
                   <td style={tCell}>{t._count?.shifts || 0}</td>
@@ -190,8 +278,8 @@ function TerminalsTab({
                     )}
                   </td>
                 </tr>
-              ))}
-              {terminals.length === 0 && <tr><td colSpan={7} style={{ ...tCell, textAlign:'center', color:'#64748b', padding:'40px' }}>{emptyHint('terminals', locationIdForApi)}</td></tr>}
+              );})}
+              {terminals.length === 0 && <tr><td colSpan={8} style={{ ...tCell, textAlign:'center', color:'#64748b', padding:'40px' }}>{emptyHint('terminals', locationIdForApi)}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -1129,15 +1217,34 @@ function TaxTab() {
 
 // ─── Main POS Management Page ─────────────────────────────────────────────────
 export default function POSManagementPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('Terminals');
   const { user, loading, isAdmin } = usePermissions();
   const { locationIdForApi, isAllLocations, selectedLocation } = useLocation();
 
-  if (loading) return (
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+      return;
+    }
+    if (!loading && user && !isAdmin) {
+      router.replace('/pos');
+    }
+  }, [loading, user, isAdmin, router]);
+
+  if (loading || !user) return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f3f6fa', color:'#64748b', fontFamily:"'Inter',sans-serif" }}>
       Loading POS Management...
     </div>
   );
+
+  if (!isAdmin) {
+    return (
+      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f3f6fa', color:'#64748b', fontFamily:"'Inter',sans-serif" }}>
+        Redirecting…
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight:'100vh', background:'#f3f6fa', fontFamily:"'Inter',sans-serif", color:'#0f172a' }}>
@@ -1154,8 +1261,8 @@ export default function POSManagementPage() {
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' as const }}>
           <LocationSelect allowAll showManageLink={false} />
-          <Link href="/pos" style={{ ...btn('#014582'), textDecoration:'none', display:'inline-block' }}>
-            🛒 Open POS
+          <Link href="/pos" style={{ ...btn('#f1f5f9','#475569'), textDecoration:'none', display:'inline-block' }}>
+            ← Back to POS
           </Link>
         </div>
       </div>

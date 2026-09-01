@@ -92,7 +92,6 @@ export interface OrderListResponse {
 }
 
 export const salesOrderService = {
-  // ─── Get all sales orders with pagination and filters ──────────
   getOrders: async (params: {
     page?: number;
     limit?: number;
@@ -113,12 +112,11 @@ export const salesOrderService = {
         query.append(key, String(value));
       }
     });
-    
-    // Default to sales orders if not specified
+
     if (!params.orderType) {
       query.append('orderType', 'Sales Order');
     }
-    
+
     const url = `/api/orders/sales${query.toString() ? `?${query.toString()}` : ''}`;
     const response = await apiClient.get(url);
     if (!response.success) {
@@ -127,7 +125,6 @@ export const salesOrderService = {
     return response.data;
   },
 
-  // ─── Get sales order by ID ─────────────────────────────────────
   getOrderById: async (id: string): Promise<Order> => {
     const response = await apiClient.get(`/api/orders/${id}`);
     if (!response.success) {
@@ -136,7 +133,6 @@ export const salesOrderService = {
     return response.data.data;
   },
 
-  // ─── Create sales order ──────────────────────────────────────
   createOrder: async (data: Partial<Order>): Promise<Order> => {
     const response = await apiClient.post('/api/orders/sales', data);
     if (!response.success) {
@@ -145,7 +141,6 @@ export const salesOrderService = {
     return response.data.data;
   },
 
-  // ─── Update sales order ──────────────────────────────────────
   updateOrder: async (id: string, data: Partial<Order>): Promise<Order> => {
     const response = await apiClient.put(`/api/orders/${id}`, data);
     if (!response.success) {
@@ -161,7 +156,6 @@ export const salesOrderService = {
     }
   },
 
-  // ─── Update sales order status ──────────────────────────────
   updateOrderStatus: async (id: string, status: string, reason?: string): Promise<Order> => {
     const response = await apiClient.patch(`/api/orders/${id}/status`, { status, reason });
     if (!response.success) {
@@ -170,7 +164,6 @@ export const salesOrderService = {
     return response.data.data;
   },
 
-  // ─── Update sales order payment status ───────────────────────
   updatePaymentStatus: async (id: string, paymentStatus: string, paymentReference?: string): Promise<Order> => {
     const response = await apiClient.patch(`/api/orders/${id}/payment`, { paymentStatus, paymentReference });
     if (!response.success) {
@@ -179,7 +172,6 @@ export const salesOrderService = {
     return response.data.data;
   },
 
-  // ─── Cancel sales order ───────────────────────────────────────
   cancelOrder: async (id: string, reason?: string): Promise<Order> => {
     const response = await apiClient.post(`/api/orders/${id}/cancel`, { reason });
     if (!response.success) {
@@ -188,7 +180,6 @@ export const salesOrderService = {
     return response.data.data;
   },
 
-  // ─── Get sales order statistics ──────────────────────────────
   getStats: async (type?: 'sales' | 'purchase'): Promise<any> => {
     const query = type ? `?type=${type}` : '';
     const response = await apiClient.get(`/api/orders/stats${query}`);
@@ -198,7 +189,6 @@ export const salesOrderService = {
     return response.data.data;
   },
 
-  // ─── Get sales order KPI ──────────────────────────────────────
   getKPI: async (type?: 'sales' | 'purchase'): Promise<any> => {
     const query = type ? `?type=${type}` : '';
     const response = await apiClient.get(`/api/orders/kpi${query}`);
@@ -208,7 +198,6 @@ export const salesOrderService = {
     return response.data.data;
   },
 
-  // ─── Search sales orders ──────────────────────────────────────
   searchOrders: async (query: string, limit: number = 10): Promise<Order[]> => {
     const encodedQuery = encodeURIComponent(query);
     const response = await apiClient.get(`/api/orders/sales/search?q=${encodedQuery}&limit=${limit}`);
@@ -216,5 +205,5 @@ export const salesOrderService = {
       throw new Error(response.message || 'Failed to search sales orders');
     }
     return response.data.data || [];
-  }
+  },
 };

@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { performLogout } from '../lib/auth-logout';
+import { fetchSessionAccess } from '../lib/session-access';
 import {
-  fetchSubscriptionStatus,
   isSubscriptionExemptPath,
   readCachedHasAccess,
 } from '../lib/subscription-service';
@@ -11,9 +12,10 @@ import {
 const POLL_MS = 5 * 60 * 1000;
 
 /**
- * Client-side subscription gate:
- * - On app start / route change, verifies access via API
- * - Redirects expired users to /plans
+ * Client-side account gate:
+ * - On app start / route change, verifies user, company, and subscription via API
+ * - Deactivated user/company → logout
+ * - Expired subscription → /plans
  * - Polls every 5 minutes while inside the app
  */
 export default function SubscriptionGuard({
@@ -52,9 +54,17 @@ export default function SubscriptionGuard({
       if (checking.current) return;
       checking.current = true;
       try {
-        const snapshot = await fetchSubscriptionStatus();
+        const access = await fetchSessionAccess();
         if (cancelled) return;
-        if (!snapshot.hasAccess) {
+
+        if (access.code === 'USER_INACTIVE' || access.code === 'COMPANY_INACTIVE') {
+          setBlocking(true);
+          const msg = encodeURIComponent(access.message || 'Access denied');
+          await performLogout(`/login?msg=${msg}`);
+          return;
+        }
+
+        if (!access.hasAccess) {
           setBlocking(true);
           router.replace('/plans');
         } else {
