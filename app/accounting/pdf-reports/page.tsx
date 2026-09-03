@@ -46,7 +46,7 @@ const ACCENT_PRESETS = [
   '#1088dd',
 ];
 
-export default function PdfReportSettingsPage() {
+export function PdfReportSettingsPage() {
   const [settings, setSettings] = useState<PdfReportSettings>({
     ...DEFAULT_PDF_REPORT_SETTINGS,
   });
@@ -698,4 +698,8 @@ function UploadBox({
       </button>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

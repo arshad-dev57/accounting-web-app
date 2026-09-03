@@ -673,7 +673,7 @@ function SupplierForm({
 // ============================================================
 // MAIN SUPPLIERS PAGE
 // ============================================================
-export default function SuppliersPage() {
+export function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -818,4 +818,8 @@ export default function SuppliersPage() {
       )}
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

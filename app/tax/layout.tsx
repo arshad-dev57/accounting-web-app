@@ -29,6 +29,11 @@ import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
+import ModuleViewHost from '../../components/ModuleViewHost';
+import {
+  taxViewHostConfig,
+} from '../../lib/module-view-host/registries';
+import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
 
 function TaxSidebar() {
   const pathname = usePathname();
@@ -55,6 +60,7 @@ function TaxSidebar() {
           <Link
             key={page.path}
             href={page.path}
+            {...keepAliveNavProps(taxViewHostConfig, page.path)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
               isActive(page.path) ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/5'
             }`}
@@ -158,7 +164,9 @@ export default function TaxLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <AppBreadcrumbs />
-        <div className="flex-1 p-6">{children}</div>
+        <div className="flex-1 p-6">
+          <ModuleViewHost config={taxViewHostConfig}>{children}</ModuleViewHost>
+        </div>
       </div>
     </FiscalYearProvider>
   );

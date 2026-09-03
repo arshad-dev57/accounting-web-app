@@ -22,7 +22,7 @@ function formatDate(iso: string) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function ExpiryReportPage() {
+export function ExpiryReportPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'expiring' | 'expired'>('expiring');
   const [expired, setExpired] = useState<ExpiryProduct[]>([]);
@@ -159,4 +159,8 @@ export default function ExpiryReportPage() {
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

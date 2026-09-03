@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useDashboardFiltersReady } from '../../../lib/use-dashboard-filters-ready';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
-import { useLocation } from '../../../lib/location-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
 import {
@@ -53,6 +53,7 @@ type DashboardData = {
   kpi: {
     totalRevenue?: KpiMetric;
     totalSales?: KpiMetric;
+    salesCollections?: KpiMetric;
     posSales?: KpiMetric;
     totalPurchases?: KpiMetric;
     totalExpenses?: KpiMetric;
@@ -151,20 +152,26 @@ function formatDate(iso?: string) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function AccountingDashboard() {
+export function AccountingDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
-  const [period, setPeriod] = useState<string>('This Year');
+  const [period, setPeriod] = useState<string>('This Month');
   const [error, setError] = useState<string | null>(null);
-  const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
-  const { locationIdForApi } = useLocation();
+  const { selectedFiscalYear } = useFiscalYear();
+  const { ready: filtersReady, selectedFiscalYearId, locationIdForApi } =
+    useDashboardFiltersReady();
+  const fetchAbortRef = useRef<AbortController | null>(null);
 
-  const fetchDashboard = async (timePeriod = period, options?: { refresh?: boolean }) => {
+  const fetchDashboard = async (
+    timePeriod = period,
+    options?: { refresh?: boolean; signal?: AbortSignal }
+  ) => {
     try {
       if (options?.refresh) setRefreshing(true);
-      else setLoading(true);
+      else if (!data) setLoading(true);
+      else setRefreshing(true);
       setError(null);
 
       const fyId = selectedFiscalYearId || getStoredFiscalYearId() || '';
@@ -175,8 +182,12 @@ export default function AccountingDashboard() {
       if (fyId) qs.set('fiscalYearId', fyId);
       if (locationIdForApi) qs.set('locationId', locationIdForApi);
 
-      const response = await fetch(`/api/dashboard/overview?${qs.toString()}`);
+      const response = await fetch(`/api/dashboard/overview?${qs.toString()}`, {
+        signal: options?.signal,
+      });
       const result = await response.json();
+
+      if (options?.signal?.aborted) return;
 
       if (result.success && result.data) {
         setData(result.data);
@@ -184,18 +195,28 @@ export default function AccountingDashboard() {
         setError(result.message || 'Failed to load dashboard');
       }
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error('Failed to load accounting dashboard:', e);
       setError('Failed to load dashboard');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!options?.signal?.aborted) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchDashboard(period);
+    if (!filtersReady) return;
+
+    fetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
+    void fetchDashboard(period, { signal: controller.signal });
+
+    return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFiscalYearId, locationIdForApi]);
+  }, [filtersReady, selectedFiscalYearId, locationIdForApi]);
 
   const selectPeriod = (label: string) => {
     if (loading || refreshing) return;
@@ -207,6 +228,7 @@ export default function AccountingDashboard() {
   const revenue = toNum(kpi.totalRevenue?.amount);
   const expenses = toNum(kpi.totalExpenses?.amount);
   const sales = toNum(kpi.totalSales?.amount);
+  const salesCollected = toNum(kpi.salesCollections?.amount);
   const posSales = toNum(kpi.posSales?.amount);
   const purchases = toNum(kpi.totalPurchases?.amount);
   const bankBalance = toNum(kpi.bankBalance?.amount ?? kpi.cashBalance?.amount);
@@ -254,16 +276,17 @@ export default function AccountingDashboard() {
   const expenseTotal = expenseCats.reduce((s, c) => s + c.amount, 0);
 
   const overviewRows = [
-    { label: 'Revenue', value: revenue, color: '#22c55e', source: 'Sales + Income − Credit Notes' },
-    { label: 'Invoice Sales', value: sales, color: ACCENT, source: `${toNum(kpi.totalSales?.count)} invoice(s) · Paid` },
-    { label: 'POS Sales', value: posSales, color: '#7c3aed', source: `${toNum(kpi.posSales?.count)} sale(s) · Completed` },
-    { label: 'Purchases', value: purchases, color: '#f59e0b', source: 'Purchase invoices (period)' },
-    { label: 'Expenses', value: expenses, color: '#ef4444', source: 'Posted expenses (period)' },
-    { label: 'Bank Balance', value: bankBalance, color: '#3b82f6', source: 'Bank accounts' },
+    { label: 'Revenue', value: revenue, color: '#22c55e', source: 'Posted ledger (accrual · same as P&L)' },
+    { label: 'Invoiced Sales', value: sales, color: ACCENT, source: `${toNum(kpi.totalSales?.count)} invoice(s) · Invoiced amount` },
+    { label: 'Collections', value: salesCollected, color: '#0ea5e9', source: 'Cash collected on invoices (period)' },
+    { label: 'POS Sales', value: posSales, color: '#7c3aed', source: `${toNum(kpi.posSales?.count)} sale(s) · Posted at sale` },
+    { label: 'Purchases', value: purchases, color: '#f59e0b', source: 'Purchase invoices invoiced (period)' },
+    { label: 'Expenses', value: expenses, color: '#ef4444', source: 'Posted ledger incl. COGS (accrual · same as P&L)' },
+    { label: 'Bank Balance', value: bankBalance, color: '#3b82f6', source: 'Bank accounts (current balance)' },
     { label: 'Cash', value: cashInHand, color: '#22c55e', source: 'Cash in Hand (Chart of Accounts)' },
-    { label: 'Receivables', value: receivables, color: '#f59e0b', source: 'Sales invoices outstanding' },
-    { label: 'Payables', value: payables, color: '#f97316', source: 'Bills + purchase invoices' },
-    { label: 'Net Profit', value: Math.abs(netProfit), color: netProfit >= 0 ? '#22c55e' : '#ef4444', source: 'Revenue − Expenses', display: formatCurrency(netProfit) },
+    { label: 'Receivables', value: receivables, color: '#f59e0b', source: 'Outstanding sales invoices (current)' },
+    { label: 'Payables', value: payables, color: '#f97316', source: 'Outstanding bills + purchase invoices (current)' },
+    { label: 'Net Profit', value: Math.abs(netProfit), color: netProfit >= 0 ? '#22c55e' : '#ef4444', source: 'Ledger P&L: Revenue − COGS − Expenses', display: formatCurrency(netProfit) },
   ];
   const overviewMax = Math.max(1, ...overviewRows.map((r) => r.value));
 
@@ -330,7 +353,7 @@ export default function AccountingDashboard() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Accounting Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Revenue, expenses, cash and receivables for {period.toLowerCase()}
+            Accrual P&L (posted ledger) for {period.toLowerCase()}
             {selectedFiscalYear ? ` · ${selectedFiscalYear.name}` : ''}
           </p>
         </div>
@@ -362,13 +385,13 @@ export default function AccountingDashboard() {
         </div>
       </div>
 
-      {loading ? (
+      {loading && !data ? (
         <div className="flex flex-col items-center justify-center min-h-[420px] bg-white rounded-xl border border-gray-100 shadow-sm">
           <Loader2 className="w-8 h-8 animate-spin text-[#1088dd] mb-3" />
           <p className="text-sm font-medium text-gray-700">Loading {period.toLowerCase()} data...</p>
           <p className="text-xs text-gray-400 mt-1">Please wait while we update the dashboard</p>
         </div>
-      ) : error ? (
+      ) : error && !data ? (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600">{error}</div>
       ) : (
         <>
@@ -387,8 +410,8 @@ export default function AccountingDashboard() {
                   {formatCurrency(netProfit)}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  Margin {profitMargin.toFixed(1)}% · Revenue {formatCurrency(revenue)} − Expenses{' '}
-                  {formatCurrency(expenses)}
+                  Margin {profitMargin.toFixed(1)}% · Ledger revenue {formatCurrency(revenue)} −
+                  ledger expenses {formatCurrency(expenses)}
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-6">
@@ -552,7 +575,7 @@ export default function AccountingDashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="font-bold text-gray-800">Revenue Trend</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Revenue vs expenses over time</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Posted ledger revenue vs expenses (same as P&L)</p>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-gray-500">
                   <span className="inline-flex items-center gap-1.5">
@@ -863,4 +886,8 @@ function QuickAction({
       </div>
     </button>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

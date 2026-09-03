@@ -57,7 +57,7 @@ interface TransactionFormData {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function CapitalEquityPage() {
+export function CapitalEquityPage() {
   const [equityAccounts, setEquityAccounts] = useState<EquityAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -1255,4 +1255,8 @@ function AccountDetailModal({
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

@@ -553,7 +553,7 @@ function Tabs({ tabs, activeTab, onChange }: { tabs: string[]; activeTab: string
 // ============================================================
 // MAIN CATEGORIES PAGE
 // ============================================================
-export default function CategoriesPage() {
+export function CategoriesPage() {
   const [categories, setCategories] = useState<CategoryWithSubs[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -751,4 +751,8 @@ export default function CategoriesPage() {
       )}
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

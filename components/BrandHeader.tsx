@@ -1,6 +1,11 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
+import {
+  fetchProfileCached,
+  invalidateProfileCache,
+  profileToBranding,
+} from '../lib/profile-cache';
 
 export const APP_NAME = 'Bisonstechs';
 export const APP_LOGO_FALLBACK = '/bisontechs.png';
@@ -66,16 +71,9 @@ export function useCompanyBranding() {
 
     const load = async () => {
       try {
-        const res = await fetch('/api/profile', {
-          headers: { Authorization: `Bearer ${authToken()}` },
-          cache: 'no-store',
-        });
-        const data = await res.json();
-        if (!res.ok || !data.success || cancelled) return;
-        const next: CompanyBranding = {
-          logo: data.data?.businessDetails?.logo || APP_LOGO_FALLBACK,
-          organizationName: data.data?.organizationName || APP_NAME,
-        };
+        const profile = await fetchProfileCached();
+        if (cancelled || !profile) return;
+        const next = profileToBranding(profile);
         writeCachedBranding(next);
         setBranding(next);
       } catch {
@@ -84,7 +82,16 @@ export function useCompanyBranding() {
     };
 
     load();
-    const onRefresh = () => load();
+    const onRefresh = () => {
+      invalidateProfileCache();
+      void (async () => {
+        const profile = await fetchProfileCached(true);
+        if (cancelled || !profile) return;
+        const next = profileToBranding(profile);
+        writeCachedBranding(next);
+        setBranding(next);
+      })();
+    };
     window.addEventListener('company-branding-updated', onRefresh);
     return () => {
       cancelled = true;

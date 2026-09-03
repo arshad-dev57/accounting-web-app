@@ -2,6 +2,10 @@
 
 import CurrencySettingsScreen from '../../../components/CurrencySettingsScreen';
 
-export default function AccountingCurrencyPage() {
+export function AccountingCurrencyPage() {
   return <CurrencySettingsScreen />;
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

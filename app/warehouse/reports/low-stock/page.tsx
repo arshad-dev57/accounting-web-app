@@ -18,7 +18,7 @@ type LowStockProduct = {
   supplier?: { name?: string };
 };
 
-export default function LowStockReportPage() {
+export function LowStockReportPage() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<LowStockProduct[]>([]);
   const [summary, setSummary] = useState({ lowStockCount: 0, criticalCount: 0, totalProducts: 0 });
@@ -130,4 +130,8 @@ export default function LowStockReportPage() {
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

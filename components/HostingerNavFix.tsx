@@ -17,6 +17,8 @@ export default function HostingerNavFix() {
 
       const anchor = (event.target as HTMLElement | null)?.closest?.('a');
       if (!anchor) return;
+      // Allow soft client navigation for keep-alive sidebars (Flutter-style).
+      if (anchor.hasAttribute('data-keep-alive-nav')) return;
       if (anchor.target && anchor.target !== '_self') return;
       if (anchor.hasAttribute('download')) return;
 

@@ -23,10 +23,13 @@ export type SubscriptionInfo = {
   endDate?: string | null;
   trialStartDate?: string | null;
   trialEndDate?: string | null;
+  productTier?: 'pos' | 'erp_pos' | string | null;
 };
 
 export type SubscriptionSnapshot = {
   hasAccess: boolean;
+  trialEligible?: boolean;
+  productTier?: 'pos' | 'erp_pos' | string | null;
   subscription: SubscriptionInfo;
 };
 
@@ -79,6 +82,7 @@ const STORAGE_KEYS = {
   subDays: 'subscription_days_remaining',
   endDate: 'subscription_end_date',
   trialEndDate: 'trial_end_date',
+  productTier: 'product_tier',
 } as const;
 
 function authHeaders(): HeadersInit {
@@ -105,6 +109,11 @@ function emptySubscription(): SubscriptionInfo {
 export function cacheSubscriptionSnapshot(snapshot: SubscriptionSnapshot) {
   if (typeof window === 'undefined') return;
   const sub = snapshot.subscription || emptySubscription();
+  const tier =
+    snapshot.productTier ||
+    sub.productTier ||
+    (sub.plan === 'trial' ? 'erp_pos' : null);
+
   localStorage.setItem(STORAGE_KEYS.hasAccess, snapshot.hasAccess ? '1' : '0');
   localStorage.setItem(STORAGE_KEYS.plan, String(sub.plan || 'none'));
   localStorage.setItem(STORAGE_KEYS.status, String(sub.status || 'expired'));
@@ -114,15 +123,23 @@ export function cacheSubscriptionSnapshot(snapshot: SubscriptionSnapshot) {
   else localStorage.removeItem(STORAGE_KEYS.endDate);
   if (sub.trialEndDate) localStorage.setItem(STORAGE_KEYS.trialEndDate, String(sub.trialEndDate));
   else localStorage.removeItem(STORAGE_KEYS.trialEndDate);
+  if (tier) localStorage.setItem(STORAGE_KEYS.productTier, String(tier));
+  else localStorage.removeItem(STORAGE_KEYS.productTier);
 
   // Non-httpOnly hint for proxy / fast client reads (source of truth remains API)
   document.cookie = `subscription_access=${snapshot.hasAccess ? '1' : '0'}; path=/; SameSite=Lax; max-age=${7 * 24 * 60 * 60}`;
+  if (tier) {
+    document.cookie = `product_tier=${tier}; path=/; SameSite=Lax; max-age=${7 * 24 * 60 * 60}`;
+  } else {
+    document.cookie = 'product_tier=; path=/; Max-Age=0';
+  }
 }
 
 export function clearSubscriptionCache() {
   if (typeof window === 'undefined') return;
   Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k));
   document.cookie = 'subscription_access=; path=/; Max-Age=0';
+  document.cookie = 'product_tier=; path=/; Max-Age=0';
 }
 
 export function readCachedHasAccess(): boolean | null {
@@ -132,12 +149,32 @@ export function readCachedHasAccess(): boolean | null {
   return v === '1';
 }
 
+export function readCachedProductTier(): 'pos' | 'erp_pos' | null {
+  if (typeof window === 'undefined') return null;
+  const v = localStorage.getItem(STORAGE_KEYS.productTier);
+  if (v === 'pos' || v === 'erp_pos') return v;
+  return null;
+}
+
+/** True when paid POS-only (not trial / not ERP). */
+export function isPosOnlyTier(
+  tier?: string | null,
+  plan?: string | null,
+  hasAccess = true
+): boolean {
+  if (!hasAccess) return false;
+  if (plan === 'trial') return false;
+  return tier === 'pos';
+}
+
 export function readCachedSubscription(): SubscriptionSnapshot {
   if (typeof window === 'undefined') {
     return { hasAccess: false, subscription: emptySubscription() };
   }
+  const productTier = localStorage.getItem(STORAGE_KEYS.productTier);
   return {
     hasAccess: localStorage.getItem(STORAGE_KEYS.hasAccess) === '1',
+    productTier,
     subscription: {
       plan: localStorage.getItem(STORAGE_KEYS.plan) || 'none',
       status: localStorage.getItem(STORAGE_KEYS.status) || 'expired',
@@ -145,6 +182,7 @@ export function readCachedSubscription(): SubscriptionSnapshot {
       subscriptionDaysRemaining: Number(localStorage.getItem(STORAGE_KEYS.subDays) || 0),
       endDate: localStorage.getItem(STORAGE_KEYS.endDate),
       trialEndDate: localStorage.getItem(STORAGE_KEYS.trialEndDate),
+      productTier,
     },
   };
 }
@@ -186,9 +224,19 @@ export async function fetchSubscriptionStatus(token?: string): Promise<Subscript
     ...(data?.data?.subscription || {}),
   };
 
+  const productTier =
+    data?.data?.capacity?.productTier ||
+    subscription.productTier ||
+    (subscription.plan === 'trial' ? 'erp_pos' : null);
+
   const snapshot: SubscriptionSnapshot = {
     hasAccess: data?.data?.hasAccess === true,
-    subscription,
+    trialEligible: data?.data?.trialEligible === true,
+    productTier,
+    subscription: {
+      ...subscription,
+      productTier: productTier || subscription.productTier,
+    },
   };
 
   if (res.ok && data.success) {
@@ -224,6 +272,20 @@ export async function fetchSubscriptionCapacity(): Promise<{
     cache: 'no-store',
   });
   const data = await parseJson(res);
+  if (res.ok && data.success && data.data) {
+    const cached = readCachedSubscription();
+    cacheSubscriptionSnapshot({
+      ...cached,
+      hasAccess: data.data.hasAccess === true ? true : cached.hasAccess,
+      productTier: data.data.productTier || cached.productTier,
+      subscription: {
+        ...cached.subscription,
+        productTier: data.data.productTier || cached.subscription.productTier,
+        plan: data.data.subscriptionPlan || cached.subscription.plan,
+        status: data.data.subscriptionStatus || cached.subscription.status,
+      },
+    });
+  }
   return {
     success: !!data.success,
     data: data.data,
@@ -281,6 +343,21 @@ export async function subscribeToPlan(
   });
   const data = await parseJson(res);
   if (res.ok && data.success) {
+    const tier =
+      options?.productTier ||
+      (data.data as { productTier?: string } | undefined)?.productTier ||
+      'erp_pos';
+    const cached = readCachedSubscription();
+    cacheSubscriptionSnapshot({
+      hasAccess: true,
+      productTier: tier,
+      subscription: {
+        ...cached.subscription,
+        plan,
+        status: 'active',
+        productTier: tier,
+      },
+    });
     await fetchSubscriptionStatus();
   }
   return {
@@ -325,11 +402,23 @@ export async function fetchCompanyBilling(): Promise<{
   };
 }
 
-/** After login/register: go to dashboard if active, otherwise pricing. */
-export async function resolvePostAuthDestination(token?: string): Promise<'/dashboard' | '/plans'> {
+/** After login/register: POS-only → /pos, ERP → /dashboard, else /plans. */
+export async function resolvePostAuthDestination(
+  token?: string
+): Promise<'/dashboard' | '/plans' | '/pos'> {
   try {
     const snapshot = await fetchSubscriptionStatus(token);
-    return snapshot.hasAccess ? '/dashboard' : '/plans';
+    if (!snapshot.hasAccess) return '/plans';
+    if (
+      isPosOnlyTier(
+        snapshot.productTier || snapshot.subscription.productTier,
+        snapshot.subscription.plan,
+        snapshot.hasAccess
+      )
+    ) {
+      return '/pos';
+    }
+    return '/dashboard';
   } catch {
     // Fail closed to pricing so expired users never land in the app
     return '/plans';
@@ -339,4 +428,29 @@ export async function resolvePostAuthDestination(token?: string): Promise<'/dash
 export function isSubscriptionExemptPath(pathname: string): boolean {
   const exempt = ['/login', '/login-otp', '/register', '/plans'];
   return exempt.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+/** ERP module paths blocked for POS-only subscribers. */
+export function isErpOnlyPath(pathname: string): boolean {
+  const erpPrefixes = [
+    '/dashboard',
+    '/accounting',
+    '/sales',
+    '/warehouse',
+    '/purchases',
+    '/tax',
+    '/users',
+    '/registered-users',
+  ];
+  return erpPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+export function resolveAppHomePath(opts: {
+  hasAccess: boolean;
+  productTier?: string | null;
+  plan?: string | null;
+}): '/plans' | '/pos' | '/dashboard' {
+  if (!opts.hasAccess) return '/plans';
+  if (isPosOnlyTier(opts.productTier, opts.plan, opts.hasAccess)) return '/pos';
+  return '/dashboard';
 }

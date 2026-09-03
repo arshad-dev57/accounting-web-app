@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ShoppingCart,
@@ -31,9 +31,10 @@ import {
   Cell,
 } from 'recharts';
 import { usePermissions } from '../../../lib/usePermissions';
+import { useDashboardFiltersReady } from '../../../lib/use-dashboard-filters-ready';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
-import { useLocation } from '@/lib/location-context';
+import { useModulePageVisible } from '../../../components/ModuleViewHost';
 
 type TrendPoint = {
   date: string;
@@ -176,23 +177,31 @@ function toNum(v: unknown) {
   return Number.isFinite(n) ? n : 0;
 }
 
-export default function SalesDashboardPage() {
+export function SalesDashboardPage() {
   const router = useRouter();
   const { isAdmin, hasSubPageAccess } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Loading dashboard...');
   const [data, setData] = useState<DashboardData | null>(null);
-  const [periodLabel, setPeriodLabel] = useState('This Year');
-  const [period, setPeriod] = useState('year');
-  const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
-  const { selectedLocationId } = useLocation();
+  const [periodLabel, setPeriodLabel] = useState('This Month');
+  const [period, setPeriod] = useState('month');
+  const { selectedFiscalYear } = useFiscalYear();
+  const { ready: filtersReady, selectedFiscalYearId, selectedLocationId } =
+    useDashboardFiltersReady();
+  const fetchAbortRef = useRef<AbortController | null>(null);
+  const isPageVisible = useModulePageVisible();
 
   const canSeeCredits = isAdmin || hasSubPageAccess('sales', 'credits');
 
-  const fetchDashboard = async (p = period, options?: { refresh?: boolean }) => {
+  const fetchDashboard = async (
+    p = period,
+    options?: { refresh?: boolean; signal?: AbortSignal }
+  ) => {
     try {
       if (options?.refresh) setRefreshing(true);
-      else setLoading(true);
+      else if (!data) setLoading(true);
+      else setRefreshing(true);
 
       const fyId = selectedFiscalYearId || getStoredFiscalYearId() || '';
       const qs = new URLSearchParams({ period: p });
@@ -203,28 +212,47 @@ export default function SalesDashboardPage() {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
         },
+        signal: options?.signal,
       });
       const result = await response.json();
+
+      if (options?.signal?.aborted) return;
+
       if (result.success && result.data) {
         setData(result.data);
       }
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error('Failed to load sales dashboard:', e);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!options?.signal?.aborted) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchDashboard(period);
+    if (!filtersReady) return;
+
+    setLoadingMessage('Updating dashboard for selected filters...');
+    setRefreshing(true);
+
+    fetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
+    void fetchDashboard(period, { signal: controller.signal });
+
+    return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFiscalYearId, selectedLocationId]);
+  }, [filtersReady, selectedFiscalYearId, selectedLocationId]);
 
   const selectPeriod = (label: string, value: string) => {
     if (loading || refreshing) return;
     setPeriodLabel(label);
     setPeriod(value);
+    setLoadingMessage(`Loading ${label.toLowerCase()} data...`);
+    setRefreshing(true);
     fetchDashboard(value);
   };
 
@@ -349,13 +377,32 @@ export default function SalesDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {refreshing && (
+        <div
+          className="fixed top-0 left-0 right-0 z-[100] h-1 overflow-hidden bg-[#014582]/10"
+          role="progressbar"
+          aria-label="Loading dashboard"
+        >
+          <div className="h-full w-full animate-pulse bg-[#014582]" />
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Sales Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
-            POS, orders, invoices and collections for {periodLabel.toLowerCase()}
-            {selectedFiscalYear?.name ? ` · ${selectedFiscalYear.name}` : ''}
+            {isBusy && data ? (
+              <span className="inline-flex items-center gap-1.5 text-[#014582] font-medium">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                {loadingMessage}
+              </span>
+            ) : (
+              <>
+                POS, orders, invoices and collections for {periodLabel.toLowerCase()}
+                {selectedFiscalYear?.name ? ` · ${selectedFiscalYear.name}` : ''}
+              </>
+            )}
           </p>
         </div>
 
@@ -375,7 +422,11 @@ export default function SalesDashboardPage() {
             </button>
           ))}
           <button
-            onClick={() => fetchDashboard(period, { refresh: true })}
+            onClick={() => {
+              setLoadingMessage('Refreshing dashboard...');
+              setRefreshing(true);
+              fetchDashboard(period, { refresh: true });
+            }}
             disabled={isBusy}
             className="p-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             aria-label="Refresh dashboard"
@@ -385,14 +436,35 @@ export default function SalesDashboardPage() {
         </div>
       </div>
 
-      {loading ? (
+      {loading && !data ? (
         <div className="flex flex-col items-center justify-center min-h-[420px] bg-white rounded-xl border border-gray-100 shadow-sm">
           <Loader2 className="w-8 h-8 animate-spin text-[#014582] mb-3" />
           <p className="text-sm font-medium text-gray-700">Loading {periodLabel.toLowerCase()} data...</p>
           <p className="text-xs text-gray-400 mt-1">Please wait while we update the dashboard</p>
         </div>
       ) : (
-      <>
+      <div className="relative">
+        {refreshing && (
+          <div
+            className="absolute inset-0 z-20 flex items-start justify-center pt-28 rounded-xl bg-white/55 backdrop-blur-[1px]"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-5 py-3 shadow-lg">
+              <Loader2 className="w-5 h-5 animate-spin text-[#014582]" />
+              <div>
+                <p className="text-sm font-semibold text-gray-800">{loadingMessage}</p>
+                <p className="text-xs text-gray-500">Please wait while data updates</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div
+          className={`space-y-6 transition-opacity duration-200 ${
+            refreshing ? 'opacity-50 pointer-events-none select-none' : ''
+          }`}
+        >
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {kpis.map((kpi) => {
@@ -475,6 +547,7 @@ export default function SalesDashboardPage() {
             </div>
           </div>
           <div className="h-[280px]">
+            {isPageVisible ? (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
@@ -547,6 +620,7 @@ export default function SalesDashboardPage() {
                 />
               </AreaChart>
             </ResponsiveContainer>
+            ) : null}
           </div>
         </div>
 
@@ -564,7 +638,7 @@ export default function SalesDashboardPage() {
               <div className="h-full flex items-center justify-center text-sm text-gray-400">
                 No orders for this period
               </div>
-            ) : (
+            ) : isPageVisible ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={statusData} margin={{ top: 10, right: 8, left: 0, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -603,7 +677,7 @@ export default function SalesDashboardPage() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -855,7 +929,8 @@ export default function SalesDashboardPage() {
           )}
         </div>
       </div>
-      </>
+      </div>
+      </div>
       )}
     </div>
   );
@@ -924,4 +999,9 @@ function QuickAction({
       </div>
     </button>
   );
+}
+
+/** Next.js route shell — real UI mounts via SalesViewHost. */
+export default function SalesRoutePlaceholder() {
+  return null;
 }

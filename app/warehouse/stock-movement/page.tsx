@@ -952,7 +952,7 @@ function StockHistory({ movements, loading, onRefresh }: {
 // ============================================================
 // MAIN PAGE
 // ============================================================
-export default function StockMovementPage() {
+export function StockMovementPage() {
   const { selectedLocationId, selectedLocation } = useLocation();
   const [activeTab, setActiveTab] = useState<'in' | 'out'>('in');
   const [movements, setMovements] = useState<StockMovement[]>([]);
@@ -1059,4 +1059,8 @@ export default function StockMovementPage() {
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

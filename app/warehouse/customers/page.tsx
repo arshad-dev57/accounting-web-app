@@ -795,7 +795,7 @@ function CustomerDetailView({
 // ============================================================
 // MAIN PAGE
 // ============================================================
-export default function CustomersPage() {
+export function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -927,4 +927,8 @@ export default function CustomersPage() {
       />
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

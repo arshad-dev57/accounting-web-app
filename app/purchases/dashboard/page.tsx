@@ -128,7 +128,7 @@ function formatRelativeTime(iso: string) {
   return 'Just now';
 }
 
-export default function PurchasesDashboardPage() {
+export function PurchasesDashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -758,4 +758,8 @@ function QuickAction({
       </div>
     </button>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

@@ -91,7 +91,10 @@ export async function proxy(request: NextRequest) {
     if (access === '0') {
       return NextResponse.redirect(new URL('/plans', request.url));
     }
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    const tier = request.cookies.get('product_tier')?.value;
+    return NextResponse.redirect(
+      new URL(tier === 'pos' ? '/pos' : '/dashboard', request.url)
+    );
   }
 
   if (pathname === '/enter') {
@@ -102,7 +105,10 @@ export async function proxy(request: NextRequest) {
     if (access === '0') {
       return NextResponse.redirect(new URL('/plans', request.url));
     }
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    const tier = request.cookies.get('product_tier')?.value;
+    return NextResponse.redirect(
+      new URL(tier === 'pos' ? '/pos' : '/dashboard', request.url)
+    );
   }
 
   if (!token && !isPublicRoute) {
@@ -114,7 +120,10 @@ export async function proxy(request: NextRequest) {
     if (access === '0') {
       return NextResponse.redirect(new URL('/plans', request.url));
     }
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    const tier = request.cookies.get('product_tier')?.value;
+    return NextResponse.redirect(
+      new URL(tier === 'pos' ? '/pos' : '/dashboard', request.url)
+    );
   }
 
   if (token && !isPublicRoute && !isSubscriptionRoute) {

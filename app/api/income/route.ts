@@ -95,6 +95,7 @@ export interface CreateIncomeRequest {
   reference?: string;
   paymentMethod: string;
   bankAccountId?: string;
+  locationId?: string;
 }
 
 // ─── SERVICE ──────────────────────────────────────────────────
@@ -153,6 +154,7 @@ export const incomeService = {
     endDate?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    locationId?: string;
   } = {}): Promise<IncomeListResponse> => {
     const query = new URLSearchParams();
     

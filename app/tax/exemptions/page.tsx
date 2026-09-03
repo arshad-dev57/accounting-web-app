@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { taxService } from '../../../lib/tax-service';
 
-export default function TaxExemptionsPage() {
+export function TaxExemptionsPage() {
   const [types, setTypes] = useState<any[]>([]);
   const [exemptions, setExemptions] = useState<any[]>([]);
   const [typeForm, setTypeForm] = useState({ code: '', name: '', percentage: 100, requiresCertificate: true });
@@ -87,4 +87,8 @@ export default function TaxExemptionsPage() {
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

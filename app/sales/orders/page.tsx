@@ -398,7 +398,7 @@ function CustomerPickerModal({
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-export default function SalesOrdersPage() {
+export function SalesOrdersPage() {
   const { selectedLocationId, selectedLocation } = useLocation();
   const { symbol, formatAmount } = useCurrency();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -1840,4 +1840,9 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       />
     </form>
   );
+}
+
+/** Next.js route shell — real UI mounts via SalesViewHost. */
+export default function SalesRoutePlaceholder() {
+  return null;
 }

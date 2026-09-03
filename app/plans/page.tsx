@@ -19,12 +19,15 @@ import {
   subscribeToPlan,
   type SubscriptionSnapshot,
 } from '../../lib/subscription-service';
-import { supportTicketService } from '../../lib/support-ticket-service';
 import { performLogout } from '../../lib/auth-logout';
 import { usePermissions } from '../../lib/usePermissions';
 import PricingSection from './PricingSection';
 import CurrentSubscriptionPanel from '../../components/CurrentSubscriptionPanel';
 import { TRIAL_DAYS, type SubscriptionCapacity } from '../../lib/subscription-pricing';
+
+const CUSTOM_CONTACT_EMAIL = 'support@bisonstechs.com';
+const CUSTOM_CONTACT_PHONE = '+92 325 3411482';
+const CUSTOM_CONTACT_PHONE_TEL = '+923253411482';
 
 type DisplayPlan = {
   id: 'trial' | 'monthly' | 'yearly' | 'custom';
@@ -284,10 +287,6 @@ export default function PlansPage() {
   const [capacity, setCapacity] = useState<SubscriptionCapacity | null>(null);
 
   const [customOpen, setCustomOpen] = useState(false);
-  const [customTitle, setCustomTitle] = useState('');
-  const [customFeatures, setCustomFeatures] = useState('');
-  const [customCompany, setCustomCompany] = useState('');
-  const [customSubmitting, setCustomSubmitting] = useState(false);
 
   const load = async () => {
     try {
@@ -299,14 +298,24 @@ export default function PlansPage() {
         return;
       }
       const status = await fetchSubscriptionStatus();
-      setSnapshot(status);
-      if (status.hasAccess) {
-        const capRes = await fetchSubscriptionCapacity();
-        if (capRes.success && capRes.data) {
-          setCapacity(capRes.data);
-        }
+      const capRes = await fetchSubscriptionCapacity();
+      const cap = capRes.success ? capRes.data ?? null : null;
+      setCapacity(cap);
+
+      if (cap?.hasAccess && !status.hasAccess) {
+        setSnapshot({
+          ...status,
+          hasAccess: true,
+          productTier: cap.productTier,
+          subscription: {
+            ...status.subscription,
+            plan: cap.subscriptionPlan || status.subscription.plan,
+            status: cap.subscriptionStatus || 'active',
+            productTier: cap.productTier,
+          },
+        });
       } else {
-        setCapacity(null);
+        setSnapshot(status);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load subscription');
@@ -333,6 +342,9 @@ export default function PlansPage() {
   const isTrial = plan === 'trial' && status === 'active' && hasAccess;
   const isPaid =
     (plan === 'monthly' || plan === 'yearly') && status === 'active' && hasAccess;
+  const isPosOnly =
+    capacity?.productTier === 'pos' ||
+    (snapshot?.productTier === 'pos' && !isTrial);
 
   const statusLine = useMemo(() => {
     if (loading) return 'Loading your subscription…';
@@ -345,7 +357,10 @@ export default function PlansPage() {
     return 'No active plan — choose a plan below to unlock the ERP';
   }, [loading, isTrial, isPaid, plan, snapshot]);
 
-  const goDashboard = () => window.location.replace('/dashboard');
+  const goHome = () => {
+    if (isPosOnly) window.location.replace('/pos');
+    else window.location.replace('/dashboard');
+  };
 
   const handlePlanAction = async (planId: DisplayPlan['id']) => {
     if (processing) return;
@@ -364,7 +379,7 @@ export default function PlansPage() {
         if (!res.success) throw new Error(res.message || 'Could not start trial');
         setSuccess(res.message || `${TRIAL_DAYS}-day free trial started`);
         await load();
-        setTimeout(goDashboard, 700);
+        setTimeout(goHome, 700);
         return;
       }
 
@@ -373,7 +388,7 @@ export default function PlansPage() {
       if (!res.success) throw new Error(res.message || 'Subscription failed');
       setSuccess(res.message || 'Subscription activated');
       await load();
-      setTimeout(goDashboard, 700);
+      setTimeout(goHome, 700);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Action failed');
     } finally {
@@ -460,50 +475,6 @@ export default function PlansPage() {
     );
   }
 
-  const submitCustomRequest = async () => {
-    if (!customTitle.trim() || !customFeatures.trim()) {
-      setError('Please describe the features you want for a custom plan');
-      return;
-    }
-    setCustomSubmitting(true);
-    setError('');
-    try {
-      const description = [
-        'Custom plan / feature request from Subscription page.',
-        customCompany.trim() ? `Company / context: ${customCompany.trim()}` : null,
-        '',
-        'Requested features / requirements:',
-        customFeatures.trim(),
-      ]
-        .filter(Boolean)
-        .join('\n');
-
-      const res = await supportTicketService.create({
-        title: customTitle.trim(),
-        description,
-        category: 'Feature Request',
-        priority: 'Medium',
-        module: 'Subscription',
-      });
-
-      if (!res.success) {
-        throw new Error(res.message || 'Failed to submit request');
-      }
-
-      setSuccess(
-        'Custom plan request sent. Our team will contact you to discuss features and pricing.'
-      );
-      setCustomOpen(false);
-      setCustomTitle('');
-      setCustomFeatures('');
-      setCustomCompany('');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to submit custom request');
-    } finally {
-      setCustomSubmitting(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-white text-neutral-900">
       {/* Top bar */}
@@ -528,18 +499,18 @@ export default function PlansPage() {
             {hasAccess && (
               <button
                 type="button"
-                onClick={goDashboard}
+                onClick={goHome}
                 className="rounded-md px-3 py-2 text-sm font-medium hover:bg-[rgba(1,69,130,0.08)]"
                 style={{ color: BRAND }}
               >
-                Dashboard
+                {isPosOnly ? 'POS' : 'Dashboard'}
               </button>
             )}
             <Link
-              href="/support"
+              href={`mailto:${CUSTOM_CONTACT_EMAIL}`}
               className="hidden rounded-md px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-[rgba(1,69,130,0.08)] sm:inline-flex"
             >
-              Support
+              Contact
             </Link>
             <button
               type="button"
@@ -619,11 +590,11 @@ export default function PlansPage() {
               {hasAccess && (
                 <button
                   type="button"
-                  onClick={goDashboard}
+                  onClick={goHome}
                   className="rounded-md px-3 py-1.5 text-xs font-semibold text-white"
                   style={{ backgroundColor: BRAND }}
                 >
-                  Continue to ERP
+                  {isPosOnly ? 'Continue to POS' : 'Continue to ERP'}
                 </button>
               )}
               {isPaid && (
@@ -645,11 +616,11 @@ export default function PlansPage() {
             {hasAccess && (
               <button
                 type="button"
-                onClick={goDashboard}
+                onClick={goHome}
                 className="rounded-md px-3 py-1.5 text-xs font-semibold text-white"
                 style={{ backgroundColor: BRAND }}
               >
-                Continue to ERP
+                {isPosOnly ? 'Continue to POS' : 'Continue to ERP'}
               </button>
             )}
             {isPaid && (
@@ -682,10 +653,11 @@ export default function PlansPage() {
               setSuccess={setSuccess}
               onComplete={() => {
                 void load();
-                setTimeout(goDashboard, 700);
+                setTimeout(goHome, 700);
               }}
               isTrial={isTrial}
               isPaid={isPaid}
+              trialEligible={snapshot?.trialEligible === true}
               capacity={capacity}
             />
           </div>
@@ -846,25 +818,36 @@ export default function PlansPage() {
           </div>
         </section>
 
-        <p className="mt-12 text-center text-xs text-neutral-400">
-          Need help choosing?{' '}
-          <Link href="/support" className="hover:underline" style={{ color: BRAND }}>
-            Open a support ticket
-          </Link>{' '}
-          or request a Custom plan above.
+        <p className="mt-12 text-center text-xs text-neutral-500">
+          Need a custom plan? Contact us at{' '}
+          <a
+            href={`mailto:${CUSTOM_CONTACT_EMAIL}`}
+            className="font-semibold hover:underline"
+            style={{ color: BRAND }}
+          >
+            {CUSTOM_CONTACT_EMAIL}
+          </a>{' '}
+          or{' '}
+          <a
+            href={`tel:${CUSTOM_CONTACT_PHONE_TEL}`}
+            className="font-semibold hover:underline"
+            style={{ color: BRAND }}
+          >
+            {CUSTOM_CONTACT_PHONE}
+          </a>
+          .
         </p>
       </main>
 
-      {/* Custom plan modal */}
+      {/* Custom plan contact */}
       {customOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-xl font-semibold text-neutral-950">Custom plan</h3>
                 <p className="mt-1 text-sm text-neutral-500">
-                  Tell us what new features or workflows you need. Our team will discuss
-                  scope and pricing with you.
+                  Contact BisonsTechs directly — we&apos;ll discuss features and pricing with you.
                 </p>
               </div>
               <button
@@ -877,61 +860,31 @@ export default function PlansPage() {
             </div>
 
             <div className="mt-5 space-y-3">
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  Request title
-                </label>
-                <input
-                  value={customTitle}
-                  onChange={(e) => setCustomTitle(e.target.value)}
-                  placeholder="e.g. Multi-branch inventory + custom payroll reports"
-                  className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm outline-none focus:border-neutral-400"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  Company / context (optional)
-                </label>
-                <input
-                  value={customCompany}
-                  onChange={(e) => setCustomCompany(e.target.value)}
-                  placeholder="Business name, industry, team size"
-                  className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-sm outline-none focus:border-neutral-400"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                  Features you want
-                </label>
-                <textarea
-                  value={customFeatures}
-                  onChange={(e) => setCustomFeatures(e.target.value)}
-                  rows={5}
-                  placeholder="List the modules, reports, integrations or workflows you need…"
-                  className="w-full resize-y rounded-lg border border-neutral-200 px-3 py-2.5 text-sm outline-none focus:border-neutral-400"
-                />
-              </div>
+              <a
+                href={`mailto:${CUSTOM_CONTACT_EMAIL}`}
+                className="flex items-center gap-3 rounded-xl border border-neutral-200 px-4 py-3 text-sm font-semibold hover:bg-neutral-50"
+                style={{ color: BRAND }}
+              >
+                <span className="text-neutral-500 font-medium w-14">Email</span>
+                {CUSTOM_CONTACT_EMAIL}
+              </a>
+              <a
+                href={`tel:${CUSTOM_CONTACT_PHONE_TEL}`}
+                className="flex items-center gap-3 rounded-xl border border-neutral-200 px-4 py-3 text-sm font-semibold hover:bg-neutral-50"
+                style={{ color: BRAND }}
+              >
+                <span className="text-neutral-500 font-medium w-14">Phone</span>
+                {CUSTOM_CONTACT_PHONE}
+              </a>
             </div>
 
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-5 flex justify-end">
               <button
                 type="button"
                 onClick={() => setCustomOpen(false)}
                 className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={customSubmitting}
-                onClick={submitCustomRequest}
-                className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                style={{ backgroundColor: BRAND }}
-              >
-                {customSubmitting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : null}
-                Send to team
+                Close
               </button>
             </div>
           </div>

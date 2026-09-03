@@ -58,7 +58,7 @@ interface InvoiceFormItem {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function InvoicesPage() {
+export function InvoicesPage() {
   const { locationIdForApi } = useLocation();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1470,4 +1470,8 @@ function InvoiceDetailModal({
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

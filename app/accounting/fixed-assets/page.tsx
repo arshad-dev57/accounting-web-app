@@ -32,7 +32,7 @@ import {
   AlertTriangle as AlertTriangleIcon, Package as InventoryIcon,
   Truck, Box, Settings
 } from 'lucide-react';
-import { fixedAssetsService, FixedAsset, Summary, Vendor, BankAccountOption } from '../../api/fixed-assets/route';
+import { fixedAssetsService, FixedAsset, Summary, Vendor, BankAccountOption } from '@/lib/fixed-assets-service';
 import { toast } from 'react-hot-toast';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ interface FilterState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function FixedAssetsPage() {
+export function FixedAssetsPage() {
   const [assets, setAssets] = useState<FixedAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -1552,4 +1552,8 @@ function AssetDetailModal({
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

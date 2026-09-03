@@ -51,7 +51,7 @@ function statusBadge(status: string) {
   return 'bg-emerald-100 text-emerald-700';
 }
 
-export default function InventoryValuationPage() {
+export function InventoryValuationPage() {
   const { selectedLocationId, selectedLocation } = useLocation();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -229,4 +229,8 @@ export default function InventoryValuationPage() {
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

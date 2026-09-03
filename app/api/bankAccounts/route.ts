@@ -47,6 +47,23 @@ export interface CreateBankAccountRequest {
   accountType: string;
   currency: string;
   openingBalance?: number;
+  offsetType?: 'source_account' | 'owner_capital';
+  sourceAccountId?: string;
+}
+
+export interface DepositToBankAccountRequest {
+  amount: number;
+  sourceAccountId: string;
+  date: string;
+  description?: string;
+  reference?: string;
+}
+
+export interface ChartOfAccountOption {
+  id: string;
+  code: string;
+  name: string;
+  type?: string;
 }
 
 // ─── SERVICE ──────────────────────────────────────────────────
@@ -187,5 +204,49 @@ export const bankAccountService = {
       console.error('Export bank accounts error:', error);
       throw new Error(error.message || 'Failed to export bank accounts');
     }
-  }
+  },
+
+  fetchDepositSourceAccounts: async (): Promise<ChartOfAccountOption[]> => {
+    try {
+      const response = await apiClient.get('/api/chart-of-accounts?limit=200&status=All');
+      if (!response.success) return [];
+
+      const root = response.data || {};
+      const list = Array.isArray(root.data) ? root.data : Array.isArray(root) ? root : [];
+
+      return list
+        .filter((account: { type?: string }) => {
+          const type = (account.type ?? '').toString();
+          return ['Equity', 'Liability', 'Revenue', 'Asset'].includes(type);
+        })
+        .map((account: { id?: string; _id?: string; code?: string; name?: string; type?: string }) => ({
+          id: (account.id ?? account._id ?? '').toString(),
+          code: account.code?.toString() ?? '',
+          name: account.name?.toString() ?? '',
+          type: account.type?.toString() ?? '',
+        }))
+        .filter((account: ChartOfAccountOption) => account.id);
+    } catch (error: unknown) {
+      console.error('Fetch deposit source accounts error:', error);
+      return [];
+    }
+  },
+
+  depositToBankAccount: async (
+    bankAccountId: string,
+    data: DepositToBankAccountRequest
+  ): Promise<void> => {
+    try {
+      const response = await apiClient.post(
+        `/api/bank-accounts/${bankAccountId}/deposit`,
+        data
+      );
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to post deposit');
+      }
+    } catch (error: any) {
+      console.error('Deposit to bank account error:', error);
+      throw new Error(error.message || 'Failed to post deposit');
+    }
+  },
 };

@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useCurrency } from '../../../lib/currency-context';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
 import {
   ArrowLeft, Search, Plus, Eye, Banknote, Users,
   ChevronDown, ChevronLeft, ChevronRight, Loader2,
@@ -23,7 +25,7 @@ import {
   Download as DownloadIcon, Printer as PrinterIcon,
   Eye as EyeIcon, EyeOff, ChevronUp, ChevronDown as ChevronDownIcon,
   History, Building as BuildingIcon, Hash,
-  Banknote as BanknoteIcon, CreditCard
+  Banknote as BanknoteIcon, CreditCard, ArrowLeftRight
 } from 'lucide-react';
 import { bankAccountService, BankAccount, BankAccountStats } from '../../api/bankAccounts/route';
 import { chartOfAccountService } from '@/lib/chart-of-accounts-service';
@@ -36,7 +38,7 @@ interface FilterState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function BankAccountsPage() {
+export function BankAccountsPage() {
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -62,6 +64,9 @@ export default function BankAccountsPage() {
   });
   const [viewingAccount, setViewingAccount] = useState<BankAccount | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [depositAccount, setDepositAccount] = useState<BankAccount | null>(null);
+
+  const router = useRouter();
 
   const { symbol: currencySymbol, code: currencyCode } = useCurrency();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -250,6 +255,13 @@ export default function BankAccountsPage() {
                 <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
               </button>
               <button
+                onClick={() => router.push('/accounting/bank-Accounts/transfer')}
+                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 border border-[#014582]/30 text-[#014582] rounded-lg text-xs md:text-sm font-semibold hover:bg-[#014582]/5 transition-all"
+              >
+                <ArrowLeftRight className="w-4 h-4" />
+                <span className="hidden sm:inline">Transfer</span>
+              </button>
+              <button
                 onClick={() => setShowCreateForm(true)}
                 className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
               >
@@ -364,11 +376,48 @@ export default function BankAccountsPage() {
                             <span className="text-[10px] md:text-xs font-semibold text-[#014582]">{account.currency}</span>
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0">
+                        <div className="text-right flex-shrink-0 hidden sm:block">
                           <p className={`text-sm md:text-base font-bold ${balancePositive ? 'text-green-600' : 'text-red-600'}`}>
                             {formatCurrency(account.currentBalance)}
                           </p>
                           <p className="text-[10px] md:text-xs text-gray-400">Balance</p>
+                        </div>
+                      </div>
+
+                      <div
+                        className="flex flex-wrap items-center gap-2 px-3 md:px-4 pb-3 pt-2 border-t border-gray-50"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setDepositAccount(account)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#014582] bg-[#014582]/10 hover:bg-[#014582]/15 transition-all"
+                        >
+                          <CreditCard className="w-3.5 h-3.5" />
+                          Add Money
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            router.push(`/accounting/bank-Accounts/transfer?from=${account.id}`)
+                          }
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
+                        >
+                          <ArrowLeftRight className="w-3.5 h-3.5" />
+                          Transfer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => viewAccountDetail(account)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all ml-auto sm:ml-0"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          View
+                        </button>
+                        <div className="sm:hidden flex-1 text-right">
+                          <p className={`text-sm font-bold ${balancePositive ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatCurrency(account.currentBalance)}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -435,6 +484,26 @@ export default function BankAccountsPage() {
           formatCompactCurrency={formatCompactCurrency}
           getColorForAccount={getColorForAccount}
           getStatusDot={getStatusDot}
+          onAddMoney={() => {
+            setDepositAccount(viewingAccount);
+            setViewingAccount(null);
+          }}
+          onTransfer={() => {
+            router.push(`/accounting/bank-Accounts/transfer?from=${viewingAccount.id}`);
+            setViewingAccount(null);
+          }}
+        />
+      )}
+
+      {depositAccount && (
+        <AddMoneyModal
+          account={depositAccount}
+          onClose={() => setDepositAccount(null)}
+          onSuccess={() => {
+            setDepositAccount(null);
+            fetchAccounts(true);
+          }}
+          currencySymbol={currencySymbol}
         />
       )}
     </div>
@@ -465,13 +534,25 @@ function CreateAccountForm({
   });
 
   const [sourceAccounts, setSourceAccounts] = useState<{ id: string; code: string; name: string }[]>([]);
+  const [loadingSources, setLoadingSources] = useState(false);
+  const [sourcesLoaded, setSourcesLoaded] = useState(false);
 
   useEffect(() => {
+    if (formData.openingBalance <= 0 || sourcesLoaded) return;
+
+    setLoadingSources(true);
     chartOfAccountService
-      .getAccounts({ type: 'Asset', limit: 100 })
-      .then((res) => setSourceAccounts(res.data || []))
-      .catch(() => setSourceAccounts([]));
-  }, []);
+      .getAccounts({ type: 'Asset', limit: 200 })
+      .then((res) => {
+        const accounts = (res.data || []).filter(
+          (a: { type?: string }) => (a.type ?? 'Asset') === 'Asset'
+        );
+        setSourceAccounts(accounts);
+        setSourcesLoaded(true);
+      })
+      .catch(() => setSourceAccounts([]))
+      .finally(() => setLoadingSources(false));
+  }, [formData.openingBalance, sourcesLoaded]);
 
   const [error, setError] = useState('');
   const accountTypes = ['Current', 'Savings', 'Business', 'Islamic'];
@@ -491,8 +572,34 @@ function CreateAccountForm({
       setError('Bank name is required');
       return;
     }
+    if (
+      formData.openingBalance > 0 &&
+      formData.offsetType === 'source_account' &&
+      !formData.sourceAccountId
+    ) {
+      setError('Select the cash/source account for this opening balance');
+      return;
+    }
+
+    const payload: Record<string, unknown> = {
+      accountName: formData.accountName.trim(),
+      accountNumber: formData.accountNumber.trim(),
+      bankName: formData.bankName.trim(),
+      branchCode: formData.branchCode,
+      accountType: formData.accountType,
+      currency: formData.currency,
+      openingBalance: formData.openingBalance,
+    };
+
+    if (formData.openingBalance > 0) {
+      payload.offsetType = formData.offsetType;
+      if (formData.offsetType === 'source_account') {
+        payload.sourceAccountId = formData.sourceAccountId;
+      }
+    }
+
     setError('');
-    onSave(formData);
+    onSave(payload);
   };
 
   return (
@@ -599,13 +706,107 @@ function CreateAccountForm({
               <input
                 type="number"
                 step="0.01"
+                min="0"
                 placeholder="0.00"
-                value={formData.openingBalance}
-                onChange={(e) => setFormData(prev => ({ ...prev, openingBalance: parseFloat(e.target.value) || 0 }))}
+                value={formData.openingBalance || ''}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    openingBalance: parseFloat(e.target.value) || 0,
+                  }))
+                }
                 className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               />
             </div>
           </div>
+
+          {formData.openingBalance > 0 && (
+            <div className="rounded-xl border border-[#014582]/15 bg-[#014582]/5 p-4 space-y-3">
+              <p className="text-sm font-bold text-gray-800">
+                Where is this opening balance from?
+              </p>
+
+              <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-gray-200 bg-white p-3 hover:border-[#014582]/30 transition-colors">
+                <input
+                  type="radio"
+                  name="offsetType"
+                  value="source_account"
+                  checked={formData.offsetType === 'source_account'}
+                  onChange={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      offsetType: 'source_account',
+                    }))
+                  }
+                  className="mt-1 accent-[#014582]"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-gray-800">
+                    Existing cash / another account
+                  </span>
+                  <span className="block text-xs text-gray-500 mt-0.5">
+                    Dr Bank / Cr source account — does not increase equity
+                  </span>
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-gray-200 bg-white p-3 hover:border-[#014582]/30 transition-colors">
+                <input
+                  type="radio"
+                  name="offsetType"
+                  value="owner_capital"
+                  checked={formData.offsetType === 'owner_capital'}
+                  onChange={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      offsetType: 'owner_capital',
+                      sourceAccountId: '',
+                    }))
+                  }
+                  className="mt-1 accent-[#014582]"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-gray-800">
+                    Owner capital / new investment
+                  </span>
+                  <span className="block text-xs text-gray-500 mt-0.5">
+                    Dr Bank / Cr Capital — only when it is new owner money
+                  </span>
+                </span>
+              </label>
+
+              {formData.offsetType === 'source_account' && (
+                <div>
+                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+                    Source account (Cash, etc.) *
+                  </label>
+                  {loadingSources ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-5 h-5 animate-spin text-[#014582]" />
+                    </div>
+                  ) : (
+                    <select
+                      value={formData.sourceAccountId}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          sourceAccountId: e.target.value,
+                        }))
+                      }
+                      className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white"
+                    >
+                      <option value="">Select source account</option>
+                      {sourceAccounts.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.code} — {account.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row items-center justify-end gap-2 sm:gap-3 pt-3 md:pt-4 border-t border-gray-100">
             <button
@@ -640,7 +841,9 @@ function AccountDetailModal({
   formatCurrency,
   formatCompactCurrency,
   getColorForAccount,
-  getStatusDot
+  getStatusDot,
+  onAddMoney,
+  onTransfer,
 }: any) {
   const color = getColorForAccount(account.accountName);
   const balancePositive = account.currentBalance >= 0;
@@ -710,8 +913,225 @@ function AccountDetailModal({
               </span>
             </div>
           </div>
+
+          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onAddMoney}
+              className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-[#014582] bg-[#014582]/10 hover:bg-[#014582]/15 transition-all"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              Add Money
+            </button>
+            <button
+              type="button"
+              onClick={onTransfer}
+              className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
+            >
+              <ArrowLeftRight className="w-3.5 h-3.5" />
+              Transfer
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADD MONEY MODAL
+// ═══════════════════════════════════════════════════════════════
+
+function AddMoneyModal({
+  account,
+  onClose,
+  onSuccess,
+  currencySymbol,
+}: {
+  account: BankAccount;
+  onClose: () => void;
+  onSuccess: () => void;
+  currencySymbol: string;
+}) {
+  const [amount, setAmount] = useState<number>(0);
+  const [sourceAccountId, setSourceAccountId] = useState('');
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [description, setDescription] = useState('');
+  const [reference, setReference] = useState('');
+  const [sources, setSources] = useState<{ id: string; code: string; name: string; type?: string }[]>([]);
+  const [loadingSources, setLoadingSources] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    bankAccountService
+      .fetchDepositSourceAccounts()
+      .then((list) =>
+        setSources(
+          list.filter((item) => item.id !== account.chartOfAccountId)
+        )
+      )
+      .finally(() => setLoadingSources(false));
+  }, [account.chartOfAccountId]);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (amount <= 0) {
+      setError('Enter a valid amount');
+      return;
+    }
+    if (!sourceAccountId) {
+      setError('Select a source account');
+      return;
+    }
+
+    setError('');
+    setSubmitting(true);
+    try {
+      await bankAccountService.depositToBankAccount(account.id, {
+        amount,
+        sourceAccountId,
+        date: new Date(`${date}T12:00:00`).toISOString(),
+        description: description.trim() || undefined,
+        reference: reference.trim() || undefined,
+      });
+      toast.success('Deposit posted successfully');
+      onSuccess();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to post deposit';
+      setError(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-hidden shadow-2xl">
+        <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Add Money</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{account.accountName}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-140px)]">
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+              Amount *
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">
+                {currencySymbol}
+              </span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={amount || ''}
+                onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] outline-none bg-gray-50"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+              Source Account *
+            </label>
+            {loadingSources ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-[#014582]" />
+              </div>
+            ) : (
+              <select
+                value={sourceAccountId}
+                onChange={(e) => setSourceAccountId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] outline-none bg-gray-50"
+                required
+              >
+                <option value="">Select source account</option>
+                {sources.map((source) => (
+                  <option key={source.id} value={source.id}>
+                    {source.code} · {source.name} ({source.type})
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+              Transaction Date *
+            </label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] outline-none bg-gray-50"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+              Description
+            </label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] outline-none bg-gray-50"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+              Reference (optional)
+            </label>
+            <input
+              type="text"
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] outline-none bg-gray-50"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-2 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting || loadingSources}
+              className="flex-1 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Post Deposit
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

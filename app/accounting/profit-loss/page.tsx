@@ -24,7 +24,7 @@ interface PeriodOption {
 }
 
 
-export default function ProfitLossPage() {
+export function ProfitLossPage() {
   const [reportData, setReportData] = useState<PLData | null>(null);
   const [loading, setLoading] = useState(true);
   const { symbol: currencySymbol } = useCurrency();
@@ -442,4 +442,8 @@ export default function ProfitLossPage() {
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

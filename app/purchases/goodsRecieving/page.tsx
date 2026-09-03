@@ -37,7 +37,7 @@ interface WizardState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function GoodsReceivingPage() {
+export function GoodsReceivingPage() {
   const { selectedLocationId } = useLocation();
   const [grns, setGrns] = useState<GoodsReceivingModel[]>([]);
   const [filteredGrns, setFilteredGrns] = useState<GoodsReceivingModel[]>([]);
@@ -1388,4 +1388,8 @@ function ConfirmationModal({
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

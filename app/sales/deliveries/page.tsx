@@ -27,7 +27,7 @@ const pill = (map: Record<string, string>, val: string) =>
 
 const STATUS_OPTIONS = ['all', 'Pending', 'Partially Delivered', 'Delivered'];
 
-export default function DeliveriesPage() {
+export function DeliveriesPage() {
   const { selectedLocationId, selectedLocation } = useLocation();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(false);
@@ -596,4 +596,9 @@ export default function DeliveriesPage() {
       )}
     </div>
   );
+}
+
+/** Next.js route shell — real UI mounts via SalesViewHost. */
+export default function SalesRoutePlaceholder() {
+  return null;
 }

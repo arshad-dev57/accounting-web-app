@@ -88,7 +88,7 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export default function SalesReportsPage() {
+export function SalesReportsPage() {
   const { selectedLocationId, selectedLocation } = useLocation();
   const [period, setPeriod] = useState('month');
   const [channel, setChannel] = useState('all');
@@ -551,4 +551,9 @@ export default function SalesReportsPage() {
       </div>
     </div>
   );
+}
+
+/** Next.js route shell — real UI mounts via SalesViewHost. */
+export default function SalesRoutePlaceholder() {
+  return null;
 }

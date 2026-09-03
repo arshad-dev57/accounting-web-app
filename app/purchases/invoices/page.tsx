@@ -42,7 +42,7 @@ interface WizardState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function PurchaseInvoicesPage() {
+export function PurchaseInvoicesPage() {
   const [invoices, setInvoices] = useState<PurchaseInvoiceModel[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<PurchaseInvoiceModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1189,4 +1189,8 @@ function ConfirmationModal({
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

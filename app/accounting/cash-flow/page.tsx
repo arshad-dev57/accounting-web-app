@@ -28,7 +28,7 @@ interface PeriodOption {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function CashFlowPage() {
+export function CashFlowPage() {
   const [reportData, setReportData] = useState<CashFlowData | null>(null);
   const [loading, setLoading] = useState(true);
   const { symbol: currencySymbol } = useCurrency();
@@ -437,4 +437,8 @@ export default function CashFlowPage() {
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

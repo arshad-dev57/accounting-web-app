@@ -41,7 +41,7 @@ interface FilterState {
 
 const PAGE_SIZE = 10;
 
-export default function GeneralLedgerPage() {
+export function GeneralLedgerPage() {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [accountSummaries, setAccountSummaries] = useState<AccountSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -797,4 +797,8 @@ function EntryDetailModal({
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

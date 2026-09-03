@@ -34,6 +34,11 @@ import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 import { LocationProvider } from '../../lib/location-context';
+import ModuleViewHost from '../../components/ModuleViewHost';
+import {
+  warehouseViewHostConfig,
+} from '../../lib/module-view-host/registries';
+import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
 
 // ============================================================
 // WAREHOUSE SIDEBAR
@@ -96,6 +101,7 @@ function WarehouseSidebar() {
           <Link
             key={item.path}
             href={item.path}
+            {...keepAliveNavProps(warehouseViewHostConfig, item.path)}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group
               ${isActive(item.path) 
                 ? 'bg-[#014582]/20 text-[#b388ff]' 
@@ -215,7 +221,9 @@ export default function WarehouseLayout({
 
         {/* Page Content */}
         <div className="flex-1 p-6">
-          {children}
+          <ModuleViewHost config={warehouseViewHostConfig}>
+            {children}
+          </ModuleViewHost>
         </div>
       </div>
       </LocationProvider>

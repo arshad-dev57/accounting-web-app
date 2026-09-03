@@ -28,8 +28,9 @@ import {
   Home as HomeIcon, Bolt, Users as UsersIcon, Megaphone, Package, Plane, Utensils,
   Shield as Security, Wrench as Build, Monitor as Computer, Receipt as ReceiptIcon2
 } from 'lucide-react';
-import { expenseService, Expense, ExpenseStats, ExpenseAccount, Vendor, BankAccount } from '../../api/expenses/route';
+import { expenseService, Expense, ExpenseStats, ExpenseAccount, Vendor, BankAccount } from '@/lib/expense-service';
 import TaxRateSelect from '../../../components/TaxRateSelect';
+import { useLocation } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -49,7 +50,8 @@ interface ExpenseItem {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function ExpensesPage() {
+export function ExpensesPage() {
+  const { locationIdForApi } = useLocation();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -122,7 +124,8 @@ export default function ExpensesPage() {
         status: filter.status !== 'All' ? filter.status : undefined,
         expenseType: filter.expenseType !== 'All' ? filter.expenseType : undefined,
         startDate: filter.startDate || undefined,
-        endDate: filter.endDate || undefined
+        endDate: filter.endDate || undefined,
+        locationId: locationIdForApi || undefined
       });
 
       setExpenses(response.data || []);
@@ -136,7 +139,7 @@ export default function ExpensesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, searchTerm, pagination.page, pagination.limit]);
+  }, [filter, searchTerm, pagination.page, pagination.limit, locationIdForApi]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -152,7 +155,8 @@ export default function ExpensesPage() {
         status: filter.status !== 'All' ? filter.status : undefined,
         expenseType: filter.expenseType !== 'All' ? filter.expenseType : undefined,
         startDate: filter.startDate || undefined,
-        endDate: filter.endDate || undefined
+        endDate: filter.endDate || undefined,
+        locationId: locationIdForApi || undefined
       });
 
       setExpenses(prev => [...prev, ...(response.data || [])]);
@@ -162,7 +166,7 @@ export default function ExpensesPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm, locationIdForApi]);
 
   // ─── Initial Fetch ──────────────────────────────────────────
 
@@ -170,6 +174,10 @@ export default function ExpensesPage() {
     fetchDropdownData();
     fetchExpenses(true);
   }, []);
+
+  useEffect(() => {
+    fetchExpenses(true);
+  }, [locationIdForApi]);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -219,7 +227,10 @@ export default function ExpensesPage() {
   const handleCreateExpense = async (data: any) => {
     setSubmitting(true);
     try {
-      await expenseService.createExpense(data);
+      await expenseService.createExpense({
+        ...data,
+        locationId: locationIdForApi || undefined,
+      });
       setShowCreateForm(false);
       fetchExpenses(true);
     } catch (error: any) {
@@ -1120,4 +1131,8 @@ function ExpenseDetailModal({
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

@@ -46,7 +46,7 @@ const emptyForm: FormState = {
   isDefault: false,
 };
 
-export default function LocationsPage() {
+export function LocationsPage() {
   const router = useRouter();
   const { isAdmin, loading: permLoading } = usePermissions();
   const { refresh: refreshContext } = useLocation();
@@ -691,4 +691,8 @@ export default function LocationsPage() {
       )}
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

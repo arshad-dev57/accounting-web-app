@@ -34,7 +34,7 @@ interface CreateFormState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function SalesRefundsPage() {
+export function SalesRefundsPage() {
   const { selectedLocationId, selectedLocation } = useLocation();
   const [refunds, setRefunds] = useState<RefundModel[]>([]);
   const [filteredRefunds, setFilteredRefunds] = useState<RefundModel[]>([]);
@@ -1317,4 +1317,9 @@ function ConfirmationModal({
       </div>
     </div>
   );
+}
+
+/** Next.js route shell — real UI mounts via SalesViewHost. */
+export default function SalesRoutePlaceholder() {
+  return null;
 }

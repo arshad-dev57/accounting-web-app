@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { taxService } from '../../../lib/tax-service';
 
-export default function TaxReportsPage() {
+export function TaxReportsPage() {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(1);
@@ -131,4 +131,8 @@ export default function TaxReportsPage() {
 
 function fmt(n: number) {
   return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

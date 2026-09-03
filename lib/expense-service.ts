@@ -1,7 +1,5 @@
 import { apiClient } from '@/lib/api-client';
 
-// ─── TYPES ─────────────────────────────────────────────────────
-
 export interface ExpenseItem {
   description: string;
   quantity: number;
@@ -98,12 +96,10 @@ export interface CreateExpenseRequest {
   reference?: string;
   paymentMethod: string;
   bankAccountId?: string;
+  locationId?: string;
 }
 
-// ─── SERVICE ──────────────────────────────────────────────────
-
 export const expenseService = {
-  // ─── Get expense accounts ─────────────────────────────────────
   getExpenseAccounts: async (): Promise<ExpenseAccount[]> => {
     try {
       const response = await apiClient.get('/api/expenses/accounts');
@@ -117,7 +113,6 @@ export const expenseService = {
     }
   },
 
-  // ─── Get vendors (suppliers) ─────────────────────────────────────
   getVendors: async (): Promise<Vendor[]> => {
     try {
       const response = await apiClient.get('/api/accounts-payable/suppliers');
@@ -131,7 +126,6 @@ export const expenseService = {
     }
   },
 
-  // ─── Get bank accounts ──────────────────────────────────────
   getBankAccounts: async (): Promise<BankAccount[]> => {
     try {
       const response = await apiClient.get('/api/bank-accounts');
@@ -145,7 +139,6 @@ export const expenseService = {
     }
   },
 
-  // ─── Get expenses with pagination and filters ────────────────
   getExpenses: async (params: {
     page?: number;
     limit?: number;
@@ -156,9 +149,9 @@ export const expenseService = {
     endDate?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    locationId?: string;
   } = {}): Promise<ExpenseListResponse> => {
     const query = new URLSearchParams();
-    
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
         query.append(key, String(value));
@@ -166,16 +159,14 @@ export const expenseService = {
     });
 
     const url = `/api/expenses${query.toString() ? `?${query.toString()}` : ''}`;
-    
+
     try {
       const response = await apiClient.get(url);
-      
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch expenses');
       }
-      
+
       const data = response.data || {};
-      
       return {
         success: response.success,
         data: data.data || [],
@@ -185,7 +176,7 @@ export const expenseService = {
           totalCount: 0,
           thisMonth: 0,
           thisWeek: 0,
-          byType: {}
+          byType: {},
         },
         pagination: data.pagination || {
           page: params.page || 1,
@@ -193,8 +184,8 @@ export const expenseService = {
           total: 0,
           pages: 0,
           hasNext: false,
-          hasPrev: false
-        }
+          hasPrev: false,
+        },
       };
     } catch (error: any) {
       console.error('Get expenses error:', error);
@@ -202,102 +193,68 @@ export const expenseService = {
     }
   },
 
-  // ─── Create expense ───────────────────────────────────────────
   createExpense: async (data: CreateExpenseRequest): Promise<Expense> => {
-    try {
-      const response = await apiClient.post('/api/expenses', data);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to create expense');
-      }
-      return response.data?.data;
-    } catch (error: any) {
-      console.error('Create expense error:', error);
-      throw new Error(error.message || 'Failed to create expense');
+    const response = await apiClient.post('/api/expenses', data);
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to create expense');
     }
+    return response.data?.data;
   },
 
-  // ─── Get expense by ID ────────────────────────────────────────
   getExpenseById: async (id: string): Promise<Expense> => {
-    try {
-      const response = await apiClient.get(`/api/expenses/${id}`);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to fetch expense');
-      }
-      return response.data?.data;
-    } catch (error: any) {
-      console.error('Get expense error:', error);
-      throw new Error(error.message || 'Failed to fetch expense');
+    const response = await apiClient.get(`/api/expenses/${id}`);
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to fetch expense');
     }
+    return response.data?.data;
   },
 
   postExpense: async (id: string): Promise<Expense> => {
-    try {
-      const response = await apiClient.post(`/api/expenses/${id}/post`);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to post expense');
-      }
-      return response.data?.data;
-    } catch (error: any) {
-      console.error('Post expense error:', error);
-      throw new Error(error.message || 'Failed to post expense');
+    const response = await apiClient.post(`/api/expenses/${id}/post`);
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to post expense');
     }
+    return response.data?.data;
   },
 
-  // ─── Delete expense ───────────────────────────────────────────
   deleteExpense: async (id: string): Promise<void> => {
-    try {
-      const response = await apiClient.delete(`/api/expenses/${id}`);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to delete expense');
-      }
-    } catch (error: any) {
-      console.error('Delete expense error:', error);
-      throw new Error(error.message || 'Failed to delete expense');
+    const response = await apiClient.delete(`/api/expenses/${id}`);
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to delete expense');
     }
   },
 
-  // ─── Update expense ───────────────────────────────────────────
   updateExpense: async (id: string, data: Partial<CreateExpenseRequest>): Promise<Expense> => {
-    try {
-      const response = await apiClient.put(`/api/expenses/${id}`, data);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to update expense');
-      }
-      return response.data?.data;
-    } catch (error: any) {
-      console.error('Update expense error:', error);
-      throw new Error(error.message || 'Failed to update expense');
+    const response = await apiClient.put(`/api/expenses/${id}`, data);
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to update expense');
     }
+    return response.data?.data;
   },
 
-  // ─── Get expense stats ────────────────────────────────────────
-  getStats: async (params?: { startDate?: string; endDate?: string }): Promise<ExpenseStats> => {
+  getStats: async (params?: { startDate?: string; endDate?: string; locationId?: string }): Promise<ExpenseStats> => {
     const query = new URLSearchParams();
     if (params?.startDate) query.append('startDate', params.startDate);
     if (params?.endDate) query.append('endDate', params.endDate);
-    
+    if (params?.locationId) query.append('locationId', params.locationId);
+
     const url = `/api/expenses/summary${query.toString() ? `?${query.toString()}` : ''}`;
-    
-    try {
-      const response = await apiClient.get(url);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to fetch expense stats');
-      }
-      return response.data?.data || {
+    const response = await apiClient.get(url);
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to fetch expense stats');
+    }
+    return (
+      response.data?.data || {
         totalExpense: 0,
         totalTax: 0,
         totalCount: 0,
         thisMonth: 0,
         thisWeek: 0,
-        byType: {}
-      };
-    } catch (error: any) {
-      console.error('Get expense stats error:', error);
-      throw new Error(error.message || 'Failed to fetch expense stats');
-    }
+        byType: {},
+      }
+    );
   },
 
-  // ─── Export expenses ──────────────────────────────────────────
   exportExpenses: async (params?: {
     format?: string;
     startDate?: string;
@@ -307,18 +264,12 @@ export const expenseService = {
     if (params?.format) query.append('format', params.format);
     if (params?.startDate) query.append('startDate', params.startDate);
     if (params?.endDate) query.append('endDate', params.endDate);
-    
+
     const url = `/api/expenses/export${query.toString() ? `?${query.toString()}` : ''}`;
-    
-    try {
-      const response = await apiClient.get(url);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to export expenses');
-      }
-      return response.data?.data || response.data?.url || '';
-    } catch (error: any) {
-      console.error('Export expenses error:', error);
-      throw new Error(error.message || 'Failed to export expenses');
+    const response = await apiClient.get(url);
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to export expenses');
     }
-  }
+    return response.data?.data || response.data?.url || '';
+  },
 };

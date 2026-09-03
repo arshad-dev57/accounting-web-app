@@ -26,7 +26,7 @@ const pill = (map: Record<string, string>, val: string) =>
 
 const STATUS_OPTIONS = ['all', 'Draft', 'Posted', 'Partially Paid', 'Paid', 'Cancelled'];
 
-export default function SalesInvoicesPage() {
+export function SalesInvoicesPage() {
   const { selectedLocationId, selectedLocation } = useLocation();
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats | null>(null);
@@ -474,4 +474,9 @@ export default function SalesInvoicesPage() {
       )}
     </div>
   );
+}
+
+/** Next.js route shell — real UI mounts via SalesViewHost. */
+export default function SalesRoutePlaceholder() {
+  return null;
 }

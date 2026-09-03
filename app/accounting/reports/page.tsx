@@ -111,7 +111,7 @@ function channelBadgeClass(channel: string) {
   }
 }
 
-export default function AccountingReportsPage() {
+export function AccountingReportsPage() {
   const { locationIdForApi } = useLocation();
   const [period, setPeriod] = useState('month');
   const [channel, setChannel] = useState('all');
@@ -582,4 +582,8 @@ export default function AccountingReportsPage() {
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

@@ -103,7 +103,7 @@ function channelBadgeClass(channel: string) {
   }
 }
 
-export default function PurchaseReportsPage() {
+export function PurchaseReportsPage() {
   const { selectedLocationId } = useLocation();
   const [period, setPeriod] = useState('month');
   const [channel, setChannel] = useState('all');
@@ -552,4 +552,8 @@ export default function PurchaseReportsPage() {
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

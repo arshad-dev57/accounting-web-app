@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { incomeService, Income, IncomeStats, IncomeAccount, Customer, BankAccount } from '../../api/income/route';
 import TaxRateSelect from '../../../components/TaxRateSelect';
+import { useLocation } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -46,7 +47,8 @@ interface IncomeItem {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function IncomePage() {
+export function IncomePage() {
+  const { locationIdForApi } = useLocation();
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -119,7 +121,8 @@ export default function IncomePage() {
         status: filter.status !== 'All' ? filter.status : undefined,
         incomeType: filter.incomeType !== 'All' ? filter.incomeType : undefined,
         startDate: filter.startDate || undefined,
-        endDate: filter.endDate || undefined
+        endDate: filter.endDate || undefined,
+        locationId: locationIdForApi || undefined
       });
 
       setIncomes(response.data || []);
@@ -133,7 +136,7 @@ export default function IncomePage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, searchTerm, pagination.page, pagination.limit]);
+  }, [filter, searchTerm, pagination.page, pagination.limit, locationIdForApi]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -149,7 +152,8 @@ export default function IncomePage() {
         status: filter.status !== 'All' ? filter.status : undefined,
         incomeType: filter.incomeType !== 'All' ? filter.incomeType : undefined,
         startDate: filter.startDate || undefined,
-        endDate: filter.endDate || undefined
+        endDate: filter.endDate || undefined,
+        locationId: locationIdForApi || undefined
       });
 
       setIncomes(prev => [...prev, ...(response.data || [])]);
@@ -159,7 +163,7 @@ export default function IncomePage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm, locationIdForApi]);
 
   // ─── Initial Fetch ──────────────────────────────────────────
 
@@ -167,6 +171,10 @@ export default function IncomePage() {
     fetchDropdownData();
     fetchIncomes(true);
   }, []);
+
+  useEffect(() => {
+    fetchIncomes(true);
+  }, [locationIdForApi]);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -216,7 +224,10 @@ export default function IncomePage() {
   const handleCreateIncome = async (data: any) => {
     setSubmitting(true);
     try {
-      await incomeService.createIncome(data);
+      await incomeService.createIncome({
+        ...data,
+        locationId: locationIdForApi || undefined,
+      });
       setShowCreateForm(false);
       fetchIncomes(true);
     } catch (error: any) {
@@ -1105,4 +1116,8 @@ function IncomeDetailModal({
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

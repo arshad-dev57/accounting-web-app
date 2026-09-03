@@ -6,7 +6,7 @@ import { Globe, Percent, ShieldCheck, FileSpreadsheet, AlertTriangle } from 'luc
 import { taxService } from '../../lib/tax-service';
 import TaxUseToggle from '../../components/TaxUseToggle';
 
-export default function TaxOverviewPage() {
+export function TaxOverviewPage() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -133,4 +133,8 @@ function NavCard({ href, icon, title, hint }: { href: string; icon: React.ReactN
       <p className="text-xs text-gray-500 mt-1">{hint}</p>
     </Link>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

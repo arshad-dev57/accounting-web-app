@@ -84,7 +84,7 @@ function suggestNextRange(
   return { ...calc, periodType: periodKey };
 }
 
-export default function FiscalYearsPage() {
+export function FiscalYearsPage() {
   const { fiscalYears, selectedFiscalYearId, setSelectedFiscalYearId, refresh, loading } =
     useFiscalYear();
   const [saving, setSaving] = useState(false);
@@ -387,4 +387,8 @@ export default function FiscalYearsPage() {
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

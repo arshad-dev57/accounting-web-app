@@ -27,7 +27,7 @@ const REPORTS = [
   },
 ] as const;
 
-export default function WarehouseReportsPage() {
+export function WarehouseReportsPage() {
   return (
     <div className="space-y-6">
       <div>
@@ -60,4 +60,8 @@ export default function WarehouseReportsPage() {
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

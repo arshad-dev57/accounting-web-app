@@ -38,7 +38,7 @@ interface CreateFormState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function PurchaseReturnsPage() {
+export function PurchaseReturnsPage() {
   const [returns, setReturns] = useState<PurchaseReturnModel[]>([]);
   const [filteredReturns, setFilteredReturns] = useState<PurchaseReturnModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1446,4 +1446,8 @@ function ConfirmationModal({
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

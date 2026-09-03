@@ -36,6 +36,11 @@ import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 import { LocationProvider } from '../../lib/location-context';
+import ModuleViewHost from '../../components/ModuleViewHost';
+import {
+  purchasesViewHostConfig,
+} from '../../lib/module-view-host/registries';
+import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
 
 // ============================================================
 // PURCHASES SIDEBAR
@@ -144,6 +149,7 @@ function PurchasesSidebar() {
                   <Link
                     key={page.path}
                     href={page.path}
+                    {...keepAliveNavProps(purchasesViewHostConfig, page.path)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
                       isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
@@ -183,6 +189,7 @@ function PurchasesSidebar() {
                   <Link
                     key={page.path}
                     href={page.path}
+                    {...keepAliveNavProps(purchasesViewHostConfig, page.path)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
                       isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
@@ -225,6 +232,7 @@ function PurchasesSidebar() {
                   <Link
                     key={page.path}
                     href={page.path}
+                    {...keepAliveNavProps(purchasesViewHostConfig, page.path)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
                       isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
@@ -376,7 +384,9 @@ export default function PurchasesLayout({
 
         {/* Page Content */}
         <div className="flex-1 p-6">
-          {children}
+          <ModuleViewHost config={purchasesViewHostConfig}>
+            {children}
+          </ModuleViewHost>
         </div>
       </div>
       </LocationProvider>

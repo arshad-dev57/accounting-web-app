@@ -21,6 +21,7 @@ import { ProductTaxFields } from '../../components/TaxRateSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { usePermissions } from '../../lib/usePermissions';
 import { useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
+import { BarcodeScannerModal } from '@/lib/barcode-scanner-modal';
 
 function resolveCategorySelection(categories: Category[], categoryId?: string) {
   if (!categoryId) return { category: '', subCategory: '', subCategories: [] as Category[] };
@@ -191,112 +192,6 @@ function BarcodeDisplay({ value, productName }: { value: string; productName: st
         <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all text-gray-600">
           <Printer className="w-3.5 h-3.5" /> Print
         </button>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// BARCODE SCANNER COMPONENT
-// ============================================================
-function BarcodeScanner({ onScan, onClose }: { onScan: (value: string) => void; onClose: () => void }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [scanning, setScanning] = useState(false);
-  const [error, setError] = useState('');
-  const [manualInput, setManualInput] = useState('');
-  const stopRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    const startScanner = async () => {
-      try {
-        setScanning(true);
-        // @ts-ignore
-        const { BrowserMultiFormatReader } = await import('@zxing/browser');
-        const codeReader = new BrowserMultiFormatReader();
-        const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-        if (!devices.length) { setError('No camera found'); setScanning(false); return; }
-        const deviceId = devices[devices.length - 1].deviceId;
-
-        const controls = await codeReader.decodeFromVideoDevice(
-          deviceId,
-          videoRef.current!,
-          (result: any, err: any) => {
-            if (result && active) {
-              active = false;
-              onScan(result.getText());
-            }
-          }
-        );
-        stopRef.current = () => controls.stop();
-      } catch (e: any) {
-        setError(e.message || 'Camera access denied');
-        setScanning(false);
-      }
-    };
-    startScanner();
-    return () => {
-      active = false;
-      stopRef.current?.();
-    };
-  }, [onScan]);
-
-  const handleManualSubmit = () => {
-    if (manualInput.trim()) {
-      stopRef.current?.();
-      onScan(manualInput.trim());
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <Camera className="w-5 h-5 text-[#014582]" />
-            <h3 className="text-base font-bold text-gray-800">Scan Barcode</h3>
-          </div>
-          <button onClick={() => { stopRef.current?.(); onClose(); }} className="p-1.5 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-        <div className="p-5 space-y-4">
-          {error ? (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              {error}
-            </div>
-          ) : (
-            <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
-              <video ref={videoRef} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-48 h-24 border-2 border-[#014582] rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
-              </div>
-              {scanning && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Scanning...
-                </div>
-              )}
-            </div>
-          )}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-            <div className="relative flex justify-center text-xs text-gray-400"><span className="bg-white px-2">or enter manually</span></div>
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Type barcode..."
-              value={manualInput}
-              onChange={(e) => setManualInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
-            />
-            <button onClick={handleManualSubmit} className="px-4 py-2 bg-[#014582] text-white text-sm font-medium rounded-lg hover:bg-[#01366a] transition-all">
-              Search
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -2005,7 +1900,8 @@ const fetchDropdowns = async () => {
         <div className="flex-1 overflow-auto p-6">
           <div className="space-y-6">
             {showScanner && (
-              <BarcodeScanner
+              <BarcodeScannerModal
+                title="Scan barcode / QR"
                 onScan={handleBarcodeScan}
                 onClose={() => setShowScanner(false)}
               />

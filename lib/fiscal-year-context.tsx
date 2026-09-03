@@ -48,15 +48,10 @@ function applyFiscalSelection(years: FiscalYear[], setSelectedId: (id: string) =
 }
 
 export function FiscalYearProvider({ children }: { children: React.ReactNode }) {
-  const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>(() =>
-    typeof window === 'undefined' ? [] : getCachedFiscalYears()
-  );
-  const [selectedFiscalYearId, setSelectedId] = useState(() =>
-    typeof window === 'undefined' ? '' : getStoredFiscalYearId() || ''
-  );
-  const [loading, setLoading] = useState(
-    () => (typeof window === 'undefined' ? true : getCachedFiscalYears().length === 0)
-  );
+  // Same initial state on server and client — cache loads in useEffect only (avoids hydration mismatch).
+  const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
+  const [selectedFiscalYearId, setSelectedId] = useState('');
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {

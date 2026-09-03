@@ -58,7 +58,7 @@ interface WizardState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function PurchaseOrdersPage() {
+export function PurchaseOrdersPage() {
   const { selectedLocationId } = useLocation();
   const [orders, setOrders] = useState<PurchaseOrderModel[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<PurchaseOrderModel[]>([]);
@@ -1776,4 +1776,8 @@ function ConfirmationModal({
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

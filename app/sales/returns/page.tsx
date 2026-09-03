@@ -36,7 +36,7 @@ interface WizardState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function SalesReturnsPage() {
+export function SalesReturnsPage() {
   const { selectedLocationId, selectedLocation } = useLocation();
   const [returns, setReturns] = useState<ReturnModel[]>([]);
   const [filteredReturns, setFilteredReturns] = useState<ReturnModel[]>([]);
@@ -1643,4 +1643,9 @@ function ConfirmationModal({
       </div>
     </div>
   );
+}
+
+/** Next.js route shell — real UI mounts via SalesViewHost. */
+export default function SalesRoutePlaceholder() {
+  return null;
 }

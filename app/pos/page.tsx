@@ -22,12 +22,26 @@ import { getDesktopDownloadUrl, hasDesktopDownload } from '../../lib/desktop-app
 import { fetchPosSettings } from '../../lib/pos-settings-service';
 import { posModeLabel, type PosMode } from '../../lib/pos-roles';
 import PosModePicker from './components/PosModePicker';
+import {
+  fetchSubscriptionCapacity,
+  isPosOnlyTier,
+  readCachedProductTier,
+  readCachedSubscription,
+} from '../../lib/subscription-service';
 
 export default function POSLandingPage() {
   const router = useRouter();
   const { user, loading, isAdmin } = usePermissions();
   const downloadUrl = getDesktopDownloadUrl();
   const canDownload = hasDesktopDownload();
+  const cached = readCachedSubscription();
+  const [posOnly, setPosOnly] = useState(() =>
+    isPosOnlyTier(
+      readCachedProductTier() || cached.productTier,
+      cached.subscription.plan,
+      cached.hasAccess
+    )
+  );
 
   const [posMode, setPosMode] = useState<PosMode>('retail');
   const [posModeConfigured, setPosModeConfigured] = useState<boolean | null>(null);
@@ -39,6 +53,24 @@ export default function POSLandingPage() {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const cap = await fetchSubscriptionCapacity();
+        if (cancelled || !cap.success || !cap.data) return;
+        setPosOnly(
+          isPosOnlyTier(cap.data.productTier, cap.data.subscriptionPlan, true)
+        );
+      } catch {
+        /* keep cached */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -230,13 +262,15 @@ export default function POSLandingPage() {
                     </p>
                   )}
 
-                  <Link
-                    href="/dashboard"
-                    className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#014582] transition-colors"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Back to dashboard
-                  </Link>
+                  {!posOnly && (
+                    <Link
+                      href="/dashboard"
+                      className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#014582] transition-colors"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      Back to dashboard
+                    </Link>
+                  )}
                 </div>
               </div>
             )}

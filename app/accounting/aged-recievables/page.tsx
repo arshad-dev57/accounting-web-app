@@ -28,7 +28,7 @@ interface FilterState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function AgedReceivablesPage() {
+export function AgedReceivablesPage() {
   const { locationIdForApi } = useLocation();
   const [customers, setCustomers] = useState<AgedCustomer[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<AgedCustomer[]>([]);
@@ -530,4 +530,8 @@ function CustomerDetailModal({
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

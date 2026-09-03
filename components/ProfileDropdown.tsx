@@ -21,6 +21,7 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { usePermissions } from '../lib/usePermissions';
 import { saveUserToLocal } from '../lib/permission-service';
 import { APP_LOGO_FALLBACK, APP_NAME, notifyCompanyBrandingUpdated } from './BrandHeader';
+import { fetchProfileCached, invalidateProfileCache } from '../lib/profile-cache';
 import { performLogout } from '../lib/auth-logout';
 import SearchableSelect from './SearchableSelect';
 import SignaturePadModal from './SignaturePadModal';
@@ -183,17 +184,12 @@ export default function ProfileDropdown({
     setSignatureFile(null);
   }, []);
 
-  const loadProfile = useCallback(async () => {
+  const loadProfile = useCallback(async (force = false) => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/profile', {
-        headers: { Authorization: `Bearer ${authToken()}` },
-        cache: 'no-store',
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to load profile');
-      const p = data.data as CompanyProfile;
+      const p = (await fetchProfileCached(force)) as CompanyProfile | null;
+      if (!p) throw new Error('Failed to load profile');
       setProfile(p);
       applyProfileToForm(p);
     } catch (e) {
@@ -204,7 +200,7 @@ export default function ProfileDropdown({
   }, [applyProfileToForm]);
 
   useEffect(() => {
-    loadProfile();
+    void loadProfile();
   }, [loadProfile]);
 
   useEffect(() => {
@@ -323,6 +319,7 @@ export default function ProfileDropdown({
         logo: updated.businessDetails?.logo || APP_LOGO_FALLBACK,
         organizationName: updated.organizationName || APP_NAME,
       });
+      invalidateProfileCache();
 
       if (user) {
         const parts = (form.personName || '').trim().split(/\s+/);

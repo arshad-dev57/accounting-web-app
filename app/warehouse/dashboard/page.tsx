@@ -136,7 +136,7 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export default function WarehouseDashboardPage() {
+export function WarehouseDashboardPage() {
   const router = useRouter();
   const { selectedLocationId, selectedLocation } = useLocation();
   const [loading, setLoading] = useState(true);
@@ -762,4 +762,8 @@ export default function WarehouseDashboardPage() {
       )}
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

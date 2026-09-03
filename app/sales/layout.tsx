@@ -35,6 +35,9 @@ import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 import { LocationProvider } from '../../lib/location-context';
+import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
+import { salesViewHostConfig } from '../../lib/module-view-host/registries';
+import SalesViewHost from '../../components/sales/SalesViewHost';
 
 // ============================================================
 // SALES SIDEBAR
@@ -153,6 +156,7 @@ function SalesSidebar() {
                   <Link
                     key={page.path}
                     href={page.path}
+                    {...keepAliveNavProps(salesViewHostConfig, page.path)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
                       isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
@@ -192,6 +196,7 @@ function SalesSidebar() {
                   <Link
                     key={page.path}
                     href={page.path}
+                    {...keepAliveNavProps(salesViewHostConfig, page.path)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
                       isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
@@ -234,6 +239,7 @@ function SalesSidebar() {
                   <Link
                     key={page.path}
                     href={page.path}
+                    {...keepAliveNavProps(salesViewHostConfig, page.path)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
                       isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
@@ -383,9 +389,9 @@ export default function SalesLayout({
 
         <AppBreadcrumbs />
 
-        {/* Page Content */}
+        {/* Page Content — keep-alive for sales sidebar routes */}
         <div className="flex-1 p-6">
-          {children}
+          <SalesViewHost>{children}</SalesViewHost>
         </div>
       </div>
       </LocationProvider>

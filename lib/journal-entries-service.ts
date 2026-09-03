@@ -56,6 +56,7 @@ export interface CreateJournalEntryRequest {
   date: string;
   description: string;
   reference?: string;
+  locationId?: string;
   lines: Array<{
     accountId: string;
     debit: number;
@@ -226,11 +227,12 @@ export const journalEntryService = {
   },
 
   // ─── Get journal entry stats ──────────────────────────────
-  getStats: async (params?: { startDate?: string; endDate?: string }): Promise<JournalEntryStats> => {
+  getStats: async (params?: { startDate?: string; endDate?: string; locationId?: string }): Promise<JournalEntryStats> => {
     try {
       const query = new URLSearchParams();
       if (params?.startDate) query.append('startDate', params.startDate);
       if (params?.endDate) query.append('endDate', params.endDate);
+      if (params?.locationId) query.append('locationId', params.locationId);
       
       const url = `/api/journal-entries/stats${query.toString() ? `?${query.toString()}` : ''}`;
       const response = await apiClient.get(url);

@@ -30,7 +30,7 @@ interface JournalLineInput {
   credit: number;
 }
 
-export default function JournalEntriesPage() {
+export function JournalEntriesPage() {
   const { locationIdForApi } = useLocation();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,7 +148,10 @@ export default function JournalEntriesPage() {
   const handleCreateEntry = async (data: any) => {
     setSubmitting(true);
     try {
-      await journalEntryService.createEntry(data);
+      await journalEntryService.createEntry({
+        ...data,
+        locationId: locationIdForApi || undefined,
+      });
       setShowCreateForm(false);
       setCurrentPage(1);
       setRefreshTick(t => t + 1);
@@ -820,4 +823,7 @@ function ConfirmationModal({ title, message, confirmLabel, confirmColor, onConfi
     </div>
   );
 }
-
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
+}

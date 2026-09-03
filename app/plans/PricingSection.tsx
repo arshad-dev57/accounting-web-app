@@ -27,6 +27,7 @@ type Props = {
   onComplete: () => void;
   isTrial: boolean;
   isPaid: boolean;
+  trialEligible?: boolean;
   capacity?: SubscriptionCapacity | null;
 };
 
@@ -38,6 +39,7 @@ export default function PricingSection({
   onComplete,
   isTrial,
   isPaid,
+  trialEligible = false,
   capacity,
 }: Props) {
   const hasActivePlan = isTrial || isPaid;
@@ -173,7 +175,7 @@ export default function PricingSection({
       )}
 
       {/* Trial banner */}
-      {!isTrial && !isPaid && (
+      {!isTrial && !isPaid && trialEligible && (
         <div
           className="rounded-2xl border p-6 text-center"
           style={{ borderColor: 'rgba(1,69,130,0.25)', background: 'rgba(1,69,130,0.06)' }}
@@ -386,6 +388,29 @@ export default function PricingSection({
           >
             {subscribeLabel('erp_pos')}
           </button>
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-center">
+        <p className="text-sm font-semibold text-neutral-800">Need a custom plan?</p>
+        <p className="mt-1 text-sm text-neutral-500">
+          Contact BisonsTechs directly — we&apos;ll discuss features and pricing.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm font-semibold">
+          <a
+            href="mailto:support@bisonstechs.com"
+            className="hover:underline"
+            style={{ color: BRAND }}
+          >
+            support@bisonstechs.com
+          </a>
+          <a
+            href="tel:+923253411482"
+            className="hover:underline"
+            style={{ color: BRAND }}
+          >
+            +92 325 3411482
+          </a>
         </div>
       </div>
     </div>

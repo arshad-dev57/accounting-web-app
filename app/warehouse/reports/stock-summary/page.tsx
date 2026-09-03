@@ -32,7 +32,7 @@ function formatMoney(amount: number) {
   }
 }
 
-export default function StockSummaryReportPage() {
+export function StockSummaryReportPage() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<ProductRow[]>([]);
 
@@ -148,4 +148,8 @@ export default function StockSummaryReportPage() {
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

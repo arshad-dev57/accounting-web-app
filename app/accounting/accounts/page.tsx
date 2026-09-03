@@ -38,7 +38,7 @@ interface AccountTypeStats {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export default function ChartOfAccountsPage() {
+export function ChartOfAccountsPage() {
   const PAGE_SIZE = 10;
   const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1130,4 +1130,8 @@ function ConfirmationModal({
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

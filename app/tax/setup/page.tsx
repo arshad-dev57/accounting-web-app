@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { taxService } from '../../../lib/tax-service';
 import TaxUseToggle from '../../../components/TaxUseToggle';
 
-export default function TaxSetupPage() {
+export function TaxSetupPage() {
   const [ctx, setCtx] = useState<any>(null);
   const [countryCode, setCountryCode] = useState('AE');
   const [reg, setReg] = useState('');
@@ -140,4 +140,8 @@ export default function TaxSetupPage() {
       </div>
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

@@ -317,7 +317,7 @@ function SettingsFormModal({
 // ============================================================
 // MAIN SETTINGS PAGE
 // ============================================================
-export default function ProductSettingsPage() {
+export function ProductSettingsPage() {
   const [activeCategory, setActiveCategory] = useState('productType');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -524,4 +524,8 @@ export default function ProductSettingsPage() {
       )}
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

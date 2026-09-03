@@ -22,6 +22,7 @@ import QuickAddSelect from '../../../components/QuickAddSelect';
 import { useLocation } from '@/lib/location-context';
 import { useCurrency } from '@/lib/currency-context';
 import { useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
+import { BarcodeScannerModal } from '@/lib/barcode-scanner-modal';
 
 // ============================================================
 // BARCODE DISPLAY COMPONENT
@@ -208,123 +209,6 @@ function QRDisplay({
         <button type="button" onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all text-gray-600">
           <Printer className="w-3.5 h-3.5" /> Print
         </button>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// BARCODE SCANNER COMPONENT
-// ============================================================
-function BarcodeScanner({ onScan, onClose, title = 'Scan QR / barcode' }: { onScan: (value: string) => void; onClose: () => void; title?: string }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [scanning, setScanning] = useState(false);
-  const [error, setError] = useState('');
-  const [manualInput, setManualInput] = useState('');
-  const stopRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    const startScanner = async () => {
-      try {
-        setScanning(true);
-        // @ts-ignore
-        const { BrowserMultiFormatReader } = await import('@zxing/browser');
-        const { DecodeHintType, BarcodeFormat } = await import('@zxing/library');
-        const hints = new Map();
-        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-          BarcodeFormat.QR_CODE,
-          BarcodeFormat.DATA_MATRIX,
-          BarcodeFormat.CODE_128,
-          BarcodeFormat.EAN_13,
-          BarcodeFormat.EAN_8,
-          BarcodeFormat.CODE_39,
-        ]);
-        hints.set(DecodeHintType.TRY_HARDER, true);
-        const codeReader = new BrowserMultiFormatReader(hints);
-        const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-        if (!devices.length) { setError('No camera found'); setScanning(false); return; }
-        const deviceId = devices[devices.length - 1].deviceId;
-
-        const controls = await codeReader.decodeFromVideoDevice(
-          deviceId,
-          videoRef.current!,
-          (result: any) => {
-            if (result && active) {
-              active = false;
-              onScan(result.getText());
-            }
-          }
-        );
-        stopRef.current = () => controls.stop();
-      } catch (e: any) {
-        setError(e.message || 'Camera access denied');
-        setScanning(false);
-      }
-    };
-    startScanner();
-    return () => {
-      active = false;
-      stopRef.current?.();
-    };
-  }, [onScan]);
-
-  const handleManualSubmit = () => {
-    if (manualInput.trim()) {
-      stopRef.current?.();
-      onScan(manualInput.trim());
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <Camera className="w-5 h-5 text-[#014582]" />
-            <h3 className="text-base font-bold text-gray-800">{title}</h3>
-          </div>
-          <button onClick={() => { stopRef.current?.(); onClose(); }} className="p-1.5 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-        <div className="p-5 space-y-4">
-          {error ? (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              {error}
-            </div>
-          ) : (
-            <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
-              <video ref={videoRef} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-44 h-44 border-2 border-[#014582] rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
-              </div>
-              {scanning && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Scanning...
-                </div>
-              )}
-            </div>
-          )}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-            <div className="relative flex justify-center text-xs text-gray-400"><span className="bg-white px-2">or enter manually</span></div>
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Type QR / barcode..."
-              value={manualInput}
-              onChange={(e) => setManualInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
-            />
-            <button onClick={handleManualSubmit} className="px-4 py-2 bg-[#014582] text-white text-sm font-medium rounded-lg hover:bg-[#01366a] transition-all">
-              Search
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -1046,6 +930,8 @@ function ProductForm({
   const [loadingSubs, setLoadingSubs] = useState(false);
   const [generatingSku, setGeneratingSku] = useState(false);
   const [showQrScanner, setShowQrScanner] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const scanTargetRef = useRef<'barcode' | 'qr'>('qr');
   const [formData, setFormData] = useState({
     name: editingProduct?.name || '',
     sku: editingProduct?.sku || '',
@@ -1179,8 +1065,12 @@ function ProductForm({
   useHardwareBarcodeScanner((code) => {
     const value = String(code || '').trim();
     if (!value) return;
+    if (scanTargetRef.current === 'barcode') {
+      handleInputChange('barcode', value);
+      return;
+    }
     handleInputChange('qrCode', normalizeQrPayload(value));
-  }, !showQrScanner);
+  }, !showQrScanner && !showBarcodeScanner);
 
   const fetchAutoSku = async () => {
     if (isEditing) return formData.sku || '';
@@ -1468,10 +1358,29 @@ function ProductForm({
                 <p className="text-[10px] md:text-xs text-gray-400 mt-1">Company name + number. Duplicate SKUs get the next number automatically.</p>
               </div>
               <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Barcode</label>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <label className="block text-xs md:text-sm font-semibold text-gray-700">Barcode</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      scanTargetRef.current = 'barcode';
+                      setShowBarcodeScanner(true);
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[#014582]/30 text-[#014582] text-[10px] md:text-xs font-semibold hover:bg-[#014582]/10"
+                  >
+                    <Camera className="w-3.5 h-3.5" /> Scan
+                  </button>
+                </div>
                 <div className="relative">
                   <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-                  <input type="text" placeholder="Enter barcode or leave blank to use SKU" value={formData.barcode} onChange={(e) => handleInputChange('barcode', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
+                  <input
+                    type="text"
+                    placeholder="Enter barcode or leave blank to use SKU"
+                    value={formData.barcode}
+                    onFocus={() => { scanTargetRef.current = 'barcode'; }}
+                    onChange={(e) => handleInputChange('barcode', e.target.value)}
+                    className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+                  />
                 </div>
                 <p className="text-[10px] md:text-xs text-gray-400 mt-1">Leave blank — SKU will be used as barcode automatically</p>
               </div>
@@ -1486,7 +1395,10 @@ function ProductForm({
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={() => setShowQrScanner(true)}
+                      onClick={() => {
+                        scanTargetRef.current = 'qr';
+                        setShowQrScanner(true);
+                      }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#014582] text-white text-xs font-semibold hover:bg-[#01366a]"
                     >
                       <Camera className="w-3.5 h-3.5" /> Scan QR
@@ -1509,6 +1421,7 @@ function ProductForm({
                   <input
                     type="text"
                     value={formData.qrCode}
+                    onFocus={() => { scanTargetRef.current = 'qr'; }}
                     onChange={(e) => handleInputChange('qrCode', e.target.value.trim())}
                     placeholder="Scan or auto-generate a QR number"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs md:text-sm font-mono bg-white text-gray-800 outline-none"
@@ -2215,7 +2128,7 @@ function ProductForm({
         </form>
       </div>
       {showQrScanner && (
-        <BarcodeScanner
+        <BarcodeScannerModal
           title="Scan product QR"
           onScan={(value) => {
             const code = String(value || '').trim();
@@ -2226,6 +2139,18 @@ function ProductForm({
           onClose={() => setShowQrScanner(false)}
         />
       )}
+      {showBarcodeScanner && (
+        <BarcodeScannerModal
+          title="Scan barcode"
+          onScan={(value) => {
+            const code = String(value || '').trim();
+            if (!code) return;
+            handleInputChange('barcode', code);
+            setShowBarcodeScanner(false);
+          }}
+          onClose={() => setShowBarcodeScanner(false)}
+        />
+      )}
     </div>
   );
 }
@@ -2233,7 +2158,7 @@ function ProductForm({
 // ============================================================
 // MAIN PAGE
 // ============================================================
-export default function ProductsPage() {
+export function ProductsPage() {
   const { selectedLocationId, selectedLocation } = useLocation();
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2497,7 +2422,7 @@ export default function ProductsPage() {
       )}
 
       {showScanner && (
-        <BarcodeScanner
+        <BarcodeScannerModal
           onScan={handleBarcodeScan}
           onClose={() => setShowScanner(false)}
         />
@@ -2568,4 +2493,8 @@ export default function ProductsPage() {
       )}
     </div>
   );
+}
+/** Next.js route shell — real UI mounts via ModuleViewHost. */
+export default function ModuleRoutePlaceholder() {
+  return null;
 }

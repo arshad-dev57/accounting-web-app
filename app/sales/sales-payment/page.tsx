@@ -16,7 +16,7 @@ import { salesPaymentService, SalesPayment, InvoiceForPayment, PaymentStats, Cus
 import { useLocation } from '@/lib/location-context';
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
-export default function SalesPaymentsPage() {
+export function SalesPaymentsPage() {
   const { selectedLocationId } = useLocation();
   const [payments, setPayments] = useState<SalesPayment[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<SalesPayment[]>([]);
@@ -1410,4 +1410,9 @@ function ConfirmationModal({
       </div>
     </div>
   );
+}
+
+/** Next.js route shell — real UI mounts via SalesViewHost. */
+export default function SalesRoutePlaceholder() {
+  return null;
 }

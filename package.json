@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@zxing/browser": "^0.2.1",
+    "@zxing/library": "^0.21.3",
     "axios": "^1.18.1",
     "country-flag-icons": "^1.6.20",
     "country-list": "^2.4.1",
