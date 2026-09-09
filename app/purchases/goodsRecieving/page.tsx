@@ -15,18 +15,18 @@ import {
   ClipboardList, ShoppingCart, Store,
   CircleCheck, CircleX, CircleAlert,
   Receipt, Send, Save, Printer, Download,
-  Layers, PackageCheck, TruckIcon, Boxes
+  Layers, PackageCheck, TruckIcon, Boxes, Edit3
 } from 'lucide-react';
 import { goodsReceivingService, GoodsReceivingModel, GoodsReceivingStats, PurchaseOrderForReceiving, GRNLineDraft } from '../../api/goodsrecieving/route';
 import PDFService from '../../../lib/pdf-service';
 import EmailService from '../../../lib/email-service';
 import { useLocation } from '@/lib/location-context';
+import { PurchaseOrderDetailCard, SupplierDetailCard } from '../../components/purchases/EnterpriseDetailCards';
 
-// ─── TYPES ─────────────────────────────────────────────────────
 
 interface WizardState {
   step: number;
-  selectedOrder: PurchaseOrderForReceiving | null;
+  selectedOrders: PurchaseOrderForReceiving[];
   orderSearchResults: PurchaseOrderForReceiving[];
   isSearchingOrders: boolean;
   lineDrafts: GRNLineDraft[];
@@ -35,7 +35,6 @@ interface WizardState {
   notes: string;
 }
 
-// ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export function GoodsReceivingPage() {
   const { selectedLocationId } = useLocation();
@@ -67,14 +66,14 @@ export function GoodsReceivingPage() {
   });
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [viewingGRN, setViewingGRN] = useState<GoodsReceivingModel | null>(null);
+  const [detailStartEditing, setDetailStartEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showConfirmConfirm, setShowConfirmConfirm] = useState(false);
   const [grnToActOn, setGrnToActOn] = useState<string | null>(null);
 
-  // ─── Wizard State ─────────────────────────────────────────────
   const [wizardState, setWizardState] = useState<WizardState>({
     step: 0,
-    selectedOrder: null,
+    selectedOrders: [],
     orderSearchResults: [],
     isSearchingOrders: false,
     lineDrafts: [],
@@ -86,13 +85,11 @@ export function GoodsReceivingPage() {
   const statusOptions = ['all', 'Draft', 'Partially Received', 'Fully Received'];
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // ─── Computed Values ─────────────────────────────────────────
 
   const totalReceivingQuantity = wizardState.lineDrafts.reduce((sum, line) => sum + line.receivingQuantity, 0);
-  const canGoToStep2 = wizardState.selectedOrder !== null;
+  const canGoToStep2 = wizardState.selectedOrders.length > 0;
   const canGoToStep3 = wizardState.lineDrafts.some(line => line.receivingQuantity > 0);
 
-  // ─── Fetch GRNs ──────────────────────────────────────────────
 
   const fetchGRNs = useCallback(async (resetPage = true) => {
     setLoading(true);
@@ -121,8 +118,6 @@ export function GoodsReceivingPage() {
       setLoading(false);
     }
   }, [searchTerm, statusFilter, fromDate, toDate, pagination.page, pagination.limit, selectedLocationId]);
-
-  // ─── Load More ──────────────────────────────────────────────
 
   const loadMore = useCallback(async () => {
     if (!pagination.hasNext || loadingMore) return;
@@ -160,7 +155,7 @@ export function GoodsReceivingPage() {
         const query = searchTerm.toLowerCase();
         const matches = item.grnNumber.toLowerCase().includes(query) ||
           item.supplierName.toLowerCase().includes(query) ||
-          item.purchaseOrderNumber.toLowerCase().includes(query);
+          (item.purchaseOrderNumbers || item.purchaseOrderNumber || '').toLowerCase().includes(query);
         if (!matches) return false;
       }
       return true;
@@ -168,7 +163,6 @@ export function GoodsReceivingPage() {
     setFilteredGrns(filtered);
   }, [grns, selectedFilter, searchTerm]);
 
-  // ─── Initial Fetch ──────────────────────────────────────────
 
   useEffect(() => {
     fetchGRNs(true);
@@ -176,17 +170,14 @@ export function GoodsReceivingPage() {
 
   useEffect(() => {
     fetchGRNs(true);
-    // clear open wizard order search when warehouse changes
     setWizardState((prev: WizardState) => ({
       ...prev,
       orderSearchResults: [],
-      selectedOrder: null,
+      selectedOrders: [],
       lineDrafts: [],
     }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLocationId]);
 
-  // ─── Search ──────────────────────────────────────────────────
 
   const handleSearch = (query: string) => {
     setSearchTerm(query);
@@ -198,7 +189,6 @@ export function GoodsReceivingPage() {
     fetchGRNs(true);
   };
 
-  // ─── Filter Changes ──────────────────────────────────────────
 
   const handleStatusFilterChange = (filter: string) => {
     setStatusFilter(filter);
@@ -222,12 +212,6 @@ export function GoodsReceivingPage() {
     fetchGRNs(false);
   };
 
-  // ─── Wizard Functions ────────────────────────────────────────
-
-  const openCreateWizard = () => {
-    resetWizard();
-    setShowCreateWizard(true);
-  };
 
   const closeCreateWizard = () => {
     setShowCreateWizard(false);
@@ -237,7 +221,7 @@ export function GoodsReceivingPage() {
   const resetWizard = () => {
     setWizardState({
       step: 0,
-      selectedOrder: null,
+      selectedOrders: [],
       orderSearchResults: [],
       isSearchingOrders: false,
       lineDrafts: [],
@@ -247,45 +231,86 @@ export function GoodsReceivingPage() {
     });
   };
 
-  const searchOrders = async (query: string) => {
-    if (query.trim().length < 2) {
-      setWizardState((prev: WizardState) => ({ ...prev, orderSearchResults: [] }));
-      return;
-    }
+  const rebuildLineDrafts = (orders: PurchaseOrderForReceiving[]): GRNLineDraft[] => {
+    return orders.flatMap((order) =>
+      order.remainingItems.map((item) => ({
+        purchaseOrderItemId: item.id,
+        purchaseOrderId: order.id,
+        purchaseOrderNumber: order.orderNumber,
+        productId: item.productId,
+        productName: item.productName,
+        sku: item.sku,
+        orderedQuantity: item.quantity,
+        remainingQuantity: item.remainingQuantity,
+        alreadyReceived: item.alreadyReceived,
+        receivingQuantity: 0,
+        unitPrice: item.unitPrice,
+        unit: item.unit || 'Pcs',
+      }))
+    );
+  };
+
+  const searchOrders = async (query: string = '', supplierId?: string) => {
     setWizardState((prev: WizardState) => ({ ...prev, isSearchingOrders: true }));
     try {
       const results = await goodsReceivingService.searchAvailableOrders(
         query,
-        10,
-        selectedLocationId || undefined
+        30,
+        selectedLocationId || undefined,
+        supplierId || undefined
       );
-      setWizardState((prev: WizardState) => ({ ...prev, orderSearchResults: results }));
+      setWizardState((prev: WizardState) => ({
+        ...prev,
+        orderSearchResults: results,
+        isSearchingOrders: false,
+      }));
     } catch (error) {
       console.error('Failed to search orders:', error);
-      setWizardState((prev: WizardState) => ({ ...prev, orderSearchResults: [] }));
-    } finally {
-      setWizardState((prev: WizardState) => ({ ...prev, isSearchingOrders: false }));
+      setWizardState((prev: WizardState) => ({
+        ...prev,
+        orderSearchResults: [],
+        isSearchingOrders: false,
+      }));
     }
   };
 
   const selectOrder = (order: PurchaseOrderForReceiving) => {
-    const lineDrafts = order.remainingItems.map(item => ({
-      purchaseOrderItemId: item.id,
-      productId: item.productId,
-      productName: item.productName,
-      sku: item.sku,
-      orderedQuantity: item.quantity,
-      remainingQuantity: item.remainingQuantity,
-      alreadyReceived: item.alreadyReceived,
-      receivingQuantity: 0,
-      unit: item.unit || 'Pcs'
-    }));
-    setWizardState((prev: WizardState) => ({
-      ...prev,
-      selectedOrder: order,
-      orderSearchResults: [],
-      lineDrafts
-    }));
+    let nextSelectedCount = 0;
+    let nextSupplierId: string | undefined;
+    setWizardState((prev: WizardState) => {
+      const already = prev.selectedOrders.find((o) => o.id === order.id);
+      if (already) {
+        const selectedOrders = prev.selectedOrders.filter((o) => o.id !== order.id);
+        nextSelectedCount = selectedOrders.length;
+        nextSupplierId = selectedOrders[0]?.supplierId;
+        return {
+          ...prev,
+          selectedOrders,
+          lineDrafts: rebuildLineDrafts(selectedOrders),
+        };
+      }
+      if (prev.selectedOrders.length > 0 && prev.selectedOrders[0].supplierId !== order.supplierId) {
+        alert('All purchase orders in one GRN must be from the same supplier');
+        nextSelectedCount = prev.selectedOrders.length;
+        nextSupplierId = prev.selectedOrders[0]?.supplierId;
+        return prev;
+      }
+      const selectedOrders = [...prev.selectedOrders, order];
+      nextSelectedCount = selectedOrders.length;
+      nextSupplierId = order.supplierId;
+      return {
+        ...prev,
+        selectedOrders,
+        lineDrafts: rebuildLineDrafts(selectedOrders),
+      };
+    });
+    void searchOrders('', nextSelectedCount > 0 ? nextSupplierId : undefined);
+  };
+
+  const openCreateWizard = () => {
+    resetWizard();
+    setShowCreateWizard(true);
+    void searchOrders('');
   };
 
   const updateReceivingQuantity = (index: number, quantity: number) => {
@@ -308,7 +333,7 @@ export function GoodsReceivingPage() {
 
   const nextStep = () => {
     if (wizardState.step === 0 && !canGoToStep2) {
-      alert('Please select a purchase order first');
+      alert('Please select at least one purchase order');
       return;
     }
     if (wizardState.step === 1 && !canGoToStep3) {
@@ -326,11 +351,10 @@ export function GoodsReceivingPage() {
     }
   };
 
-  // ─── Create GRN ─────────────────────────────────────────────
 
   const handleCreateGRN = async () => {
-    if (!wizardState.selectedOrder) {
-      alert('Please select a purchase order');
+    if (!wizardState.selectedOrders.length) {
+      alert('Please select at least one purchase order');
       return;
     }
 
@@ -348,7 +372,8 @@ export function GoodsReceivingPage() {
       }));
 
       await goodsReceivingService.createGRN({
-        purchaseOrderId: wizardState.selectedOrder.id,
+        purchaseOrderIds: wizardState.selectedOrders.map((o) => o.id),
+        purchaseOrderId: wizardState.selectedOrders[0].id,
         receivingDate: wizardState.receivingDate,
         receivedBy: wizardState.receivedBy || undefined,
         notes: wizardState.notes || undefined,
@@ -367,7 +392,6 @@ export function GoodsReceivingPage() {
     }
   };
 
-  // ─── GRN Actions ─────────────────────────────────────────────
 
   const handleConfirmGRN = async () => {
     if (!grnToActOn) return;
@@ -403,24 +427,21 @@ export function GoodsReceivingPage() {
     }
   };
 
-  // ─── View GRN Detail ────────────────────────────────────────
 
-  const viewGRNDetail = (grn: GoodsReceivingModel) => {
+  const viewGRNDetail = (grn: GoodsReceivingModel, startEditing = false) => {
+    setDetailStartEditing(startEditing);
     setViewingGRN(grn);
   };
 
-  // ─── Download GRN PDF ────────────────────────────────────────
 
   const handleDownloadGRNPDF = async (grn: GoodsReceivingModel) => {
     await PDFService.downloadGoodsReceivingPDF(grn);
   };
 
-  // ─── Send GRN Email ───────────────────────────────────────────
 
   const handleSendGRNEmail = async (grn: GoodsReceivingModel) => {
     setSubmitting(true);
     try {
-      // GRN might not have supplier email, so we need to check
       if (!grn.supplierEmail) {
         alert('Supplier email is not available for this GRN. Please add supplier email first.');
         return;
@@ -438,7 +459,6 @@ export function GoodsReceivingPage() {
     }
   };
 
-  // ─── Helper Functions ──────────────────────────────────────
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -462,7 +482,14 @@ export function GoodsReceivingPage() {
     return new Date(date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  // ─── RENDER ──────────────────────────────────────────────────
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-PK', {
+      style: 'currency',
+      currency: 'PKR',
+      maximumFractionDigits: 0,
+    }).format(amount || 0);
+  };
+
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -483,6 +510,7 @@ export function GoodsReceivingPage() {
           canGoToStep3={canGoToStep3}
           totalReceivingQuantity={totalReceivingQuantity}
           formatDate={formatDate}
+          formatCurrency={formatCurrency}
         />
       ) : (
         <>
@@ -672,7 +700,7 @@ export function GoodsReceivingPage() {
                           </div>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3 hidden sm:table-cell">
-                          <p className="text-gray-800 text-xs md:text-sm truncate max-w-[100px] md:max-w-none">{grn.purchaseOrderNumber}</p>
+                          <p className="text-gray-800 text-xs md:text-sm truncate max-w-[100px] md:max-w-none">{grn.purchaseOrderNumbers || grn.purchaseOrderNumber}</p>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3 hidden md:table-cell">
                           <p className="text-gray-800 text-xs md:text-sm truncate max-w-[120px] md:max-w-none">{grn.supplierName}</p>
@@ -724,6 +752,15 @@ export function GoodsReceivingPage() {
                             >
                               <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
                             </button>
+                            {(grn.canEdit || grn.status === 'Draft') && (
+                              <button
+                                onClick={() => viewGRNDetail(grn, true)}
+                                className="p-1 md:p-1.5 text-gray-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"
+                                title="Edit Draft"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                              </button>
+                            )}
                             {grn.canConfirm && (
                               <button
                                 onClick={() => {
@@ -819,20 +856,40 @@ export function GoodsReceivingPage() {
       {viewingGRN && (
         <GRNDetailModal
           grn={viewingGRN}
-          onClose={() => setViewingGRN(null)}
+          initialEditing={detailStartEditing}
+          onClose={() => {
+            setViewingGRN(null);
+            setDetailStartEditing(false);
+          }}
           onConfirm={(id: string) => {
             setGrnToActOn(id);
             setShowConfirmConfirm(true);
             setViewingGRN(null);
+            setDetailStartEditing(false);
           }}
           onDelete={(id: string) => {
             setGrnToActOn(id);
             setShowDeleteConfirm(true);
             setViewingGRN(null);
+            setDetailStartEditing(false);
+          }}
+          onSaveEdit={async (id: string, data: any) => {
+            setSubmitting(true);
+            try {
+              const updated = await goodsReceivingService.updateGRN(id, data);
+              setViewingGRN(updated);
+              setDetailStartEditing(false);
+              fetchGRNs(true);
+            } catch (error: any) {
+              alert(error.message || 'Failed to update goods receiving');
+            } finally {
+              setSubmitting(false);
+            }
           }}
           onDownloadPDF={handleDownloadGRNPDF}
           onSendEmail={handleSendGRNEmail}
           formatDate={formatDate}
+          formatCurrency={formatCurrency}
           getStatusColor={getStatusColor}
           getStatusIcon={getStatusIcon}
           submitting={submitting}
@@ -874,10 +931,6 @@ export function GoodsReceivingPage() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// CREATE GRN WIZARD
-// ═══════════════════════════════════════════════════════════════
-
 function CreateGRNWizard({
   wizardState,
   setWizardState,
@@ -893,13 +946,15 @@ function CreateGRNWizard({
   canGoToStep2,
   canGoToStep3,
   totalReceivingQuantity,
-  formatDate
+  formatDate,
+  formatCurrency,
 }: any) {
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
 
   const handleSearchOrders = (query: string) => {
     setOrderSearchQuery(query);
-    searchOrders(query);
+    const lockedSupplierId = wizardState.selectedOrders[0]?.supplierId;
+    searchOrders(query, lockedSupplierId);
   };
 
   return (
@@ -945,12 +1000,21 @@ function CreateGRNWizard({
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-6">
         {wizardState.step === 0 && (
           <div>
-            <h3 className="text-sm md:text-base font-bold text-gray-700 mb-3">Select Purchase Order</h3>
+            <h3 className="text-sm md:text-base font-bold text-gray-700 mb-1">Select Purchase Orders</h3>
+            <p className="text-xs text-slate-500 mb-3">
+              One GRN can include <span className="font-semibold text-[#014582]">multiple POs</span> from the same supplier.
+              Tap each PO to add/remove it from this receiving.
+            </p>
+            {wizardState.selectedOrders[0]?.supplierName && (
+              <p className="text-xs mb-2 px-2.5 py-1.5 rounded-lg bg-[#014582]/8 text-[#014582] font-medium">
+                Locked to supplier: {wizardState.selectedOrders[0].supplierName} — only their open POs are listed
+              </p>
+            )}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search order number or supplier..."
+                placeholder="Search PO number or supplier (optional)..."
                 value={orderSearchQuery}
                 onChange={(e) => handleSearchOrders(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
@@ -964,36 +1028,47 @@ function CreateGRNWizard({
             )}
 
             {wizardState.orderSearchResults.length > 0 && !wizardState.isSearchingOrders && (
-              <div className="mt-3 border border-gray-200 rounded-lg max-h-60 overflow-y-auto divide-y divide-gray-100">
-                {wizardState.orderSearchResults.map((order: PurchaseOrderForReceiving) => (
-                  <button
-                    key={order.id}
-                    onClick={() => selectOrder(order)}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
-                  >
-                    <p className="font-medium text-[#014582] text-sm">{order.orderNumber}</p>
-                    <p className="text-xs text-gray-600">{order.supplierName}</p>
-                    <p className="text-xs text-gray-400">{order.totalRemainingItems} items remaining</p>
-                  </button>
-                ))}
+              <div className="mt-3 space-y-2 max-h-72 overflow-y-auto">
+                <p className="text-[11px] text-gray-500 px-0.5">
+                  Available POs — click to multi-select ({wizardState.selectedOrders.length} selected)
+                </p>
+                {wizardState.orderSearchResults.map((order: PurchaseOrderForReceiving) => {
+                  const isSelected = wizardState.selectedOrders.some((o) => o.id === order.id);
+                  return (
+                    <PurchaseOrderDetailCard
+                      key={order.id}
+                      order={order}
+                      selected={isSelected}
+                      onClick={() => selectOrder(order)}
+                      formatCurrency={formatCurrency}
+                      formatDate={formatDate}
+                    />
+                  );
+                })}
               </div>
             )}
 
-            {wizardState.selectedOrder && (
-              <div className="mt-3 p-3 bg-[#014582]/5 border border-[#014582]/20 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-[#014582] text-sm">{wizardState.selectedOrder.orderNumber}</p>
-                    <p className="text-xs text-gray-600">{wizardState.selectedOrder.supplierName}</p>
-                    <p className="text-xs text-gray-400">{wizardState.selectedOrder.totalRemainingItems} items remaining</p>
-                  </div>
-                  <button
-                    onClick={() => setWizardState((prev: WizardState) => ({ ...prev, selectedOrder: null, lineDrafts: [] }))}
-                    className="p-1 hover:bg-gray-200 rounded-lg transition-all"
-                  >
-                    <X className="w-4 h-4 text-gray-400" />
-                  </button>
-                </div>
+            {!wizardState.isSearchingOrders && wizardState.orderSearchResults.length === 0 && (
+              <p className="mt-3 text-xs text-gray-400 text-center py-4">
+                No open purchase orders with remaining quantity found.
+              </p>
+            )}
+
+            {wizardState.selectedOrders.length > 0 && (
+              <div className="mt-4 space-y-2 border-t border-gray-100 pt-3">
+                <p className="text-xs font-semibold text-[#014582]">
+                  Selected for this GRN ({wizardState.selectedOrders.length})
+                </p>
+                {wizardState.selectedOrders.map((order) => (
+                  <PurchaseOrderDetailCard
+                    key={order.id}
+                    order={order}
+                    selected
+                    onClear={() => selectOrder(order)}
+                    formatCurrency={formatCurrency}
+                    formatDate={formatDate}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -1008,7 +1083,15 @@ function CreateGRNWizard({
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-800 text-sm truncate">{line.productName}</p>
-                      <p className="text-xs text-gray-400">SKU: {line.sku}</p>
+                      <p className="text-xs text-gray-400">
+                        SKU: {line.sku}
+                        {line.purchaseOrderNumber ? ` · PO ${line.purchaseOrderNumber}` : ''}
+                      </p>
+                      {typeof line.unitPrice === 'number' && (
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Unit price: {formatCurrency(line.unitPrice)} · Ordered {line.orderedQuantity} · Already {line.alreadyReceived}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right flex-shrink-0">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${line.remainingQuantity === 0 ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -1093,16 +1176,15 @@ function CreateGRNWizard({
                 />
               </div>
 
-              {/* Summary */}
               <div className="p-4 bg-[#014582]/5 border border-[#014582]/20 rounded-lg">
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Purchase Order</span>
-                    <span className="font-medium">{wizardState.selectedOrder?.orderNumber}</span>
+                    <span className="text-gray-500">Purchase Orders</span>
+                    <span className="font-medium text-right">{wizardState.selectedOrders.map((o) => o.orderNumber).join(', ')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Supplier</span>
-                    <span className="font-medium">{wizardState.selectedOrder?.supplierName}</span>
+                    <span className="font-medium">{wizardState.selectedOrders[0]?.supplierName}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Items</span>
@@ -1119,8 +1201,6 @@ function CreateGRNWizard({
           </div>
         )}
       </div>
-
-      {/* Navigation */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           onClick={previousStep}
@@ -1160,22 +1240,81 @@ function CreateGRNWizard({
   );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// GRN DETAIL MODAL
-// ═══════════════════════════════════════════════════════════════
-
 function GRNDetailModal({
   grn,
+  initialEditing = false,
   onClose,
   onConfirm,
   onDelete,
+  onSaveEdit,
   onDownloadPDF,
   onSendEmail,
   formatDate,
+  formatCurrency,
   getStatusColor,
   getStatusIcon,
   submitting
 }: any) {
+  const canEdit = grn.status === 'Draft' || grn.canEdit;
+  const [editing, setEditing] = useState(Boolean(initialEditing) && canEdit);
+  const [form, setForm] = useState({
+    receivingDate: grn.receivingDate?.slice?.(0, 10) || '',
+    receivedBy: grn.receivedBy || '',
+    notes: grn.notes || '',
+    items: (grn.items || []).map((item: any) => ({
+      purchaseOrderItemId: item.purchaseOrderItemId,
+      receivingQuantity: item.receivingQuantity,
+      notes: item.notes || '',
+      productName: item.productName,
+      sku: item.sku,
+      orderedQuantity: item.orderedQuantity,
+      remainingQuantity: item.remainingQuantity,
+      previouslyReceivedQty: item.previouslyReceivedQty,
+      purchaseOrderNumber: item.purchaseOrderNumber,
+      unitPrice: item.unitPrice,
+      unit: item.unit,
+    })),
+  });
+
+  useEffect(() => {
+    setEditing(Boolean(initialEditing) && (grn.status === 'Draft' || grn.canEdit));
+    setForm({
+      receivingDate: grn.receivingDate?.slice?.(0, 10) || '',
+      receivedBy: grn.receivedBy || '',
+      notes: grn.notes || '',
+      items: (grn.items || []).map((item: any) => ({
+        purchaseOrderItemId: item.purchaseOrderItemId,
+        receivingQuantity: item.receivingQuantity,
+        notes: item.notes || '',
+        productName: item.productName,
+        sku: item.sku,
+        orderedQuantity: item.orderedQuantity,
+        remainingQuantity: item.remainingQuantity,
+        previouslyReceivedQty: item.previouslyReceivedQty,
+        purchaseOrderNumber: item.purchaseOrderNumber,
+        unitPrice: item.unitPrice,
+        unit: item.unit,
+      })),
+    });
+  }, [grn.id, grn.receivingDate, grn.receivedBy, grn.notes, grn.items, initialEditing, grn.status, grn.canEdit]);
+
+  const supplier = grn.supplier
+    ? {
+        ...grn.supplier,
+        name: grn.supplier.name || grn.supplierName,
+      }
+    : {
+        name: grn.supplierName,
+        email: grn.supplierEmail,
+        phone: grn.supplierPhone,
+        address: grn.supplierAddress,
+        city: grn.supplierCity,
+        country: grn.supplierCountry,
+        contactPerson: grn.supplierContactPerson,
+        paymentTerms: grn.supplierPaymentTerms,
+        gstNumber: grn.supplierGstNumber,
+      };
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
@@ -1201,132 +1340,200 @@ function GRNDetailModal({
           </button>
         </div>
 
-        <div className="p-4 md:p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-          {/* Info Grid */}
+        <div className="p-4 md:p-6 overflow-y-auto max-h-[calc(90vh-160px)]">
+          <div className="mb-4">
+            <SupplierDetailCard supplier={supplier} />
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
             <div>
-              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Purchase Order</p>
-              <p className="text-sm md:text-base font-semibold text-[#014582] mt-1">{grn.purchaseOrderNumber}</p>
-            </div>
-            <div>
-              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Supplier</p>
-              <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{grn.supplierName}</p>
+              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Purchase Order(s)</p>
+              <p className="text-sm md:text-base font-semibold text-[#014582] mt-1">{grn.purchaseOrderNumbers || grn.purchaseOrderNumber}</p>
             </div>
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Receiving Date</p>
-              <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{formatDate(grn.receivingDate)}</p>
+              {editing ? (
+                <input
+                  type="date"
+                  className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm"
+                  value={form.receivingDate}
+                  onChange={(e) => setForm((p) => ({ ...p, receivingDate: e.target.value }))}
+                />
+              ) : (
+                <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{formatDate(grn.receivingDate)}</p>
+              )}
             </div>
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Received By</p>
-              <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{grn.receivedBy || '—'}</p>
+              {editing ? (
+                <input
+                  className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm"
+                  value={form.receivedBy}
+                  onChange={(e) => setForm((p) => ({ ...p, receivedBy: e.target.value }))}
+                />
+              ) : (
+                <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{grn.receivedBy || '—'}</p>
+              )}
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Notes</p>
+              {editing ? (
+                <textarea
+                  className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm"
+                  rows={2}
+                  value={form.notes}
+                  onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+                />
+              ) : (
+                <p className="text-sm md:text-base text-gray-600 mt-0.5 md:mt-1">{grn.notes || '—'}</p>
+              )}
             </div>
           </div>
 
-          {grn.notes && (
-            <div className="mb-3 md:mb-4">
-              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Notes</p>
-              <p className="text-sm md:text-base text-gray-600 mt-0.5 md:mt-1">{grn.notes}</p>
-            </div>
-          )}
-
-          {/* Items */}
           <div className="border-t border-gray-100 pt-3 md:pt-4 mt-3 md:mt-4">
             <div className="flex items-center justify-between mb-2 md:mb-3">
               <h4 className="text-sm md:text-base font-bold text-gray-700">Received Items</h4>
-              <span className="text-[10px] md:text-xs text-gray-400">{grn.totalItems} items</span>
+              <span className="text-[10px] md:text-xs text-gray-400">{(editing ? form.items : grn.items)?.length || 0} items</span>
             </div>
-            <div className="space-y-2 max-h-48 md:max-h-64 overflow-y-auto">
-              {grn.items?.map((item: any, index: number) => (
-                <div key={index} className="flex items-center justify-between py-1.5 md:py-2 border-b border-gray-50">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs md:text-sm font-medium text-gray-800 truncate">{item.productName}</p>
-                    <p className="text-[10px] md:text-xs text-gray-400">
-                      Ordered: {item.orderedQuantity} • Received: {item.receivingQuantity} • Remaining: {item.remainingQuantity}
-                    </p>
-                  </div>
-                  <div className={`text-xs font-semibold px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${
-                    item.isFullyReceived ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                  }`}>
-                    {item.isFullyReceived ? 'Complete' : `${item.receivingQuantity}/${item.orderedQuantity}`}
+            <div className="space-y-2 max-h-56 overflow-y-auto">
+              {(editing ? form.items : grn.items)?.map((item: any, index: number) => (
+                <div key={item.purchaseOrderItemId || index} className="bg-gray-50 rounded-lg p-2.5 md:p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs md:text-sm font-medium text-gray-800 truncate">{item.productName}</p>
+                      <p className="text-[10px] md:text-xs text-gray-400">
+                        SKU: {item.sku}
+                        {item.purchaseOrderNumber ? ` · PO ${item.purchaseOrderNumber}` : ''}
+                        {typeof item.unitPrice === 'number' ? ` · ${formatCurrency(item.unitPrice)}` : ''}
+                      </p>
+                      <p className="text-[10px] md:text-xs text-gray-400 mt-0.5">
+                        Ordered: {item.orderedQuantity}
+                        {typeof item.previouslyReceivedQty === 'number'
+                          ? ` · Already received elsewhere: ${item.previouslyReceivedQty}`
+                          : ''}
+                      </p>
+                    </div>
+                    {editing ? (
+                      <div className="w-24 flex-shrink-0">
+                        <label className="text-[10px] text-gray-500">Qty</label>
+                        <input
+                          type="number"
+                          min="1"
+                          className="w-full rounded border px-2 py-1 text-sm"
+                          value={item.receivingQuantity}
+                          onChange={(e) => {
+                            const qty = parseInt(e.target.value) || 0;
+                            setForm((p) => ({
+                              ...p,
+                              items: p.items.map((row: any, i: number) =>
+                                i === index ? { ...row, receivingQuantity: qty } : row
+                              ),
+                            }));
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className={`text-xs font-semibold px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${
+                        item.isFullyReceived ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                      }`}>
+                        {item.isFullyReceived ? 'Complete' : `${item.receivingQuantity}/${item.orderedQuantity}`}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Progress */}
-          <div className="border-t border-gray-100 pt-3 md:pt-4 mt-3 md:mt-4">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-sm font-medium text-gray-700">Receiving Progress</span>
-              <span className="text-sm font-bold text-[#014582]">
-                {(grn.receivingProgress * 100).toFixed(0)}%
-              </span>
+          {!editing && (
+            <div className="border-t border-gray-100 pt-3 md:pt-4 mt-3 md:mt-4">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm font-medium text-gray-700">Receiving Progress</span>
+                <span className="text-sm font-bold text-[#014582]">
+                  {((grn.receivingProgress || 0) * 100).toFixed(0)}%
+                </span>
+              </div>
+              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, (grn.receivingProgress || 0) * 100)}%`,
+                    backgroundColor: grn.status === 'Fully Received' ? '#22c55e' : grn.status === 'Partially Received' ? '#3b82f6' : '#f59e0b'
+                  }}
+                />
+              </div>
             </div>
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className="h-full rounded-full transition-all"
-                style={{ 
-                  width: `${Math.min(100, grn.receivingProgress * 100)}%`,
-                  backgroundColor: grn.status === 'Fully Received' ? '#22c55e' : grn.status === 'Partially Received' ? '#3b82f6' : '#f59e0b'
-                }}
-              />
-            </div>
-            <div className="flex justify-between mt-1 text-[10px] md:text-xs text-gray-400">
-              <span>Received: {grn.totalReceivedQty}</span>
-              <span>Ordered: {grn.totalOrderedQty}</span>
-            </div>
-          </div>
+          )}
+        </div>
 
-          {/* Actions */}
-          <div className="border-t border-gray-100 pt-3 md:pt-4 mt-3 md:mt-4">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => onDownloadPDF(grn)}
-                disabled={submitting}
-                className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 border border-gray-300 text-gray-700 rounded-lg text-xs md:text-sm font-semibold hover:bg-gray-50 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 md:gap-2"
-              >
-                <Download className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                Download PDF
-              </button>
-              <button
-                onClick={() => onSendEmail(grn)}
-                disabled={submitting}
-                className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 border border-[#014582] text-[#014582] rounded-lg text-xs md:text-sm font-semibold hover:bg-[#014582]/5 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 md:gap-2"
-              >
-                <Send className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                Send Email
-              </button>
-              {grn.canConfirm && (
-                <button
-                  onClick={() => onConfirm(grn.id)}
-                  disabled={submitting}
-                  className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 bg-green-500 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-green-600 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 md:gap-2"
-                >
-                  <CheckCircle className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                  Confirm
-                </button>
-              )}
-              {grn.status !== 'Draft' && grn.confirmedAt && (
-                <button
-                  disabled
-                  className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 bg-green-50 text-green-600 rounded-lg text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 md:gap-2"
-                >
-                  <PackageCheck className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                  Confirmed
-                </button>
-              )}
-              {grn.canDelete && (
-                <button
-                  onClick={() => onDelete(grn.id)}
-                  disabled={submitting}
-                  className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 border border-red-500 text-red-500 rounded-lg text-xs md:text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 md:gap-2"
-                >
-                  <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                  Delete
-                </button>
-              )}
-            </div>
-          </div>
+        <div className="flex flex-wrap gap-2 px-4 md:px-6 py-3 md:py-4 border-t border-gray-100 bg-gray-50">
+          <button
+            onClick={() => onDownloadPDF(grn)}
+            disabled={submitting}
+            className="flex-1 min-w-[100px] px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-xs md:text-sm font-semibold hover:bg-white transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" />
+            PDF
+          </button>
+          <button
+            onClick={() => onSendEmail(grn)}
+            disabled={submitting}
+            className="flex-1 min-w-[100px] px-3 py-2 border border-[#014582] text-[#014582] rounded-lg text-xs md:text-sm font-semibold hover:bg-[#014582]/5 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+          >
+            <Send className="w-3.5 h-3.5" />
+            Email
+          </button>
+          {canEdit && !editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="flex-1 min-w-[100px] px-3 py-2 bg-slate-700 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              Edit Draft
+            </button>
+          )}
+          {canEdit && editing && (
+            <button
+              onClick={async () => {
+                await onSaveEdit(grn.id, {
+                  receivingDate: form.receivingDate,
+                  receivedBy: form.receivedBy,
+                  notes: form.notes,
+                  items: form.items.map((item: any) => ({
+                    purchaseOrderItemId: item.purchaseOrderItemId,
+                    receivingQuantity: item.receivingQuantity,
+                    notes: item.notes || undefined,
+                  })),
+                });
+                setEditing(false);
+              }}
+              disabled={submitting}
+              className="flex-1 min-w-[100px] px-3 py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              Save
+            </button>
+          )}
+          {grn.canConfirm && !editing && (
+            <button
+              onClick={() => onConfirm(grn.id)}
+              disabled={submitting}
+              className="flex-1 min-w-[100px] px-3 py-2 bg-green-500 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-green-600 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              <CheckCircle className="w-3.5 h-3.5" />
+              Confirm
+            </button>
+          )}
+          {grn.canDelete && !editing && (
+            <button
+              onClick={() => onDelete(grn.id)}
+              disabled={submitting}
+              className="flex-1 min-w-[100px] px-3 py-2 border border-red-500 text-red-500 rounded-lg text-xs md:text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </button>
+          )}
         </div>
       </div>
     </div>

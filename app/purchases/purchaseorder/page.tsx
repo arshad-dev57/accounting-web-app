@@ -24,6 +24,7 @@ import PDFService from '../../../lib/pdf-service';
 import EmailService from '../../../lib/email-service';
 import TaxRateSelect from '../../../components/TaxRateSelect';
 import { useLocation } from '@/lib/location-context';
+import { SupplierDetailCard, ProductDetailCard } from '../../components/purchases/EnterpriseDetailCards';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -93,6 +94,7 @@ export function PurchaseOrdersPage() {
     total: 0
   });
   const [showCreateWizard, setShowCreateWizard] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [viewingOrder, setViewingOrder] = useState<PurchaseOrderModel | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -269,16 +271,68 @@ export function PurchaseOrdersPage() {
   // ─── Wizard Functions ────────────────────────────────────────
 
   const openCreateWizard = () => {
+    setEditingOrderId(null);
     resetWizard();
+    setShowCreateWizard(true);
+  };
+
+  const openEditOrder = (order: PurchaseOrderModel) => {
+    if (!['Draft', 'Sent'].includes(order.status)) {
+      alert('Only Draft or Sent purchase orders can be edited');
+      return;
+    }
+    setEditingOrderId(order.id);
+    setViewingOrder(null);
+    setWizardState({
+      step: 0,
+      selectedSupplier: {
+        id: order.supplierId,
+        name: order.supplierName,
+        email: order.supplierEmail,
+        phone: order.supplierPhone,
+        address: order.supplierAddress,
+        isActive: true,
+      },
+      supplierSearchResults: [],
+      isSearchingSuppliers: false,
+      lineDrafts: (order.items || []).map((item) => {
+        const subtotal = item.quantity * item.unitPrice;
+        const discountAmount = subtotal * ((item.discount || 0) / 100);
+        const taxableAmount = subtotal - discountAmount;
+        const taxAmount = taxableAmount * ((item.taxRate || 0) / 100);
+        return {
+          productId: item.productId,
+          productName: item.productName,
+          sku: item.sku,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discount: item.discount || 0,
+          taxRate: item.taxRate || 0,
+          subtotal,
+          discountAmount,
+          taxableAmount,
+          taxAmount,
+          lineTotal: taxableAmount + taxAmount,
+        };
+      }),
+      productSearchResults: [],
+      isSearchingProducts: false,
+      orderDate: order.orderDate?.slice(0, 10) || new Date().toISOString().split('T')[0],
+      expectedDeliveryDate: order.expectedDeliveryDate?.slice(0, 10) || '',
+      notes: order.notes || '',
+      termsConditions: order.termsConditions || '',
+    });
     setShowCreateWizard(true);
   };
 
   const closeCreateWizard = () => {
     setShowCreateWizard(false);
+    setEditingOrderId(null);
     resetWizard();
   };
 
   const resetWizard = () => {
+    setEditingOrderId(null);
     setWizardState({
       step: 0,
       selectedSupplier: null,
@@ -484,7 +538,7 @@ export function PurchaseOrdersPage() {
         return;
       }
 
-      await purchaseOrderService.createOrder({
+      const payload = {
         supplierId: String(supplierId),
         supplierName: wizardState.selectedSupplier.name,
         supplierEmail: wizardState.selectedSupplier.email || '',
@@ -495,9 +549,15 @@ export function PurchaseOrdersPage() {
         items,
         notes: wizardState.notes || undefined,
         termsConditions: wizardState.termsConditions || undefined,
-        status: 'Draft',
+        status: 'Draft' as const,
         locationId: selectedLocationId || undefined,
-      });
+      };
+
+      if (editingOrderId) {
+        await purchaseOrderService.updateOrder(editingOrderId, payload);
+      } else {
+        await purchaseOrderService.createOrder(payload);
+      }
 
       closeCreateWizard();
       fetchOrders(true);
@@ -703,6 +763,7 @@ export function PurchaseOrdersPage() {
           handleCreateOrder={handleCreateOrder}
           closeCreateWizard={closeCreateWizard}
           submitting={submitting}
+          isEditing={!!editingOrderId}
           canGoToStep2={canGoToStep2}
           canGoToStep3={canGoToStep3}
           selectedSubtotal={selectedSubtotal}
@@ -1034,6 +1095,7 @@ export function PurchaseOrdersPage() {
           onClose={() => setViewingOrder(null)}
           onSend={handleSendOrder}
           onApprove={handleApproveOrder}
+          onEdit={openEditOrder}
           onGenerateInvoice={handleGenerateInvoice}
           onCancel={(id: string) => {
             setOrderToActOn(id);
@@ -1117,6 +1179,7 @@ function CreateOrderWizard({
   handleCreateOrder,
   closeCreateWizard,
   submitting,
+  isEditing = false,
   canGoToStep2,
   canGoToStep3,
   selectedSubtotal,
@@ -1162,7 +1225,7 @@ function CreateOrderWizard({
           </button>
           <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
             <Receipt className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
-            Create Purchase Order
+            {isEditing ? 'Edit Purchase Order' : 'Create Purchase Order'}
           </h2>
         </div>
         <button onClick={closeCreateWizard} className="p-2 hover:bg-gray-100 rounded-lg transition-all">
@@ -1222,35 +1285,25 @@ function CreateOrderWizard({
             )}
 
             {wizardState.supplierSearchResults.length > 0 && !wizardState.isSearchingSuppliers && (
-              <div className="mt-3 border border-gray-200 rounded-lg max-h-60 overflow-y-auto divide-y divide-gray-100">
+              <div className="mt-3 space-y-2 max-h-72 overflow-y-auto">
                 {wizardState.supplierSearchResults.map((supplier: Supplier) => (
-                  <button
+                  <SupplierDetailCard
                     key={supplier.id}
+                    supplier={supplier}
+                    selected={wizardState.selectedSupplier?.id === supplier.id}
                     onClick={() => selectSupplier(supplier)}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
-                  >
-                    <p className="font-medium text-gray-800 text-sm">{supplier.name}</p>
-                    <p className="text-xs text-gray-400">{supplier.email || supplier.phone || 'No contact'}</p>
-                  </button>
+                  />
                 ))}
               </div>
             )}
 
             {wizardState.selectedSupplier && (
-              <div className="mt-3 p-3 bg-[#014582]/5 border border-[#014582]/20 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-[#014582] text-sm">{wizardState.selectedSupplier.name}</p>
-                    <p className="text-xs text-gray-500">{wizardState.selectedSupplier.email}</p>
-                    <p className="text-xs text-gray-500">{wizardState.selectedSupplier.phone}</p>
-                  </div>
-                  <button
-                    onClick={() => setWizardState((prev: WizardState) => ({ ...prev, selectedSupplier: null }))}
-                    className="p-1 hover:bg-gray-200 rounded-lg transition-all"
-                  >
-                    <X className="w-4 h-4 text-gray-400" />
-                  </button>
-                </div>
+              <div className="mt-3">
+                <SupplierDetailCard
+                  supplier={wizardState.selectedSupplier}
+                  selected
+                  onClear={() => setWizardState((prev: WizardState) => ({ ...prev, selectedSupplier: null }))}
+                />
               </div>
             )}
           </div>
@@ -1287,22 +1340,14 @@ function CreateOrderWizard({
             )}
 
             {wizardState.productSearchResults.length > 0 && !wizardState.isSearchingProducts && (
-              <div className="mt-3 border border-gray-200 rounded-lg max-h-48 overflow-y-auto divide-y divide-gray-100">
+              <div className="mt-3 border border-gray-200 rounded-lg max-h-56 overflow-y-auto">
                 {wizardState.productSearchResults.map((product: Product) => (
-                  <button
+                  <ProductDetailCard
                     key={product.id}
+                    product={product}
                     onClick={() => addProductToOrder(product)}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-800 text-sm">{product.name}</p>
-                      <p className="text-xs text-gray-400">SKU: {product.sku}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-gray-700">{formatCurrency(product.costPrice || 0)}</p>
-                      <Plus className="w-4 h-4 text-[#014582] ml-auto" />
-                    </div>
-                  </button>
+                    formatCurrency={formatCurrency}
+                  />
                 ))}
               </div>
             )}
@@ -1508,7 +1553,7 @@ function CreateOrderWizard({
               className="px-5 md:px-7 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#014582]/25 flex items-center gap-2"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              Create Order
+              {isEditing ? 'Save Changes' : 'Create Order'}
             </button>
           )}
         </div>
@@ -1526,6 +1571,7 @@ function OrderDetailModal({
   onClose,
   onSend,
   onApprove,
+  onEdit,
   onGenerateInvoice,
   onCancel,
   onDelete,
@@ -1552,6 +1598,12 @@ function OrderDetailModal({
                 </span>
                 <span className="text-[10px] md:text-xs text-gray-400">•</span>
                 <span className="text-[10px] md:text-xs text-gray-500">{formatDate(order.orderDate)}</span>
+                {order.purchaseRequisitionNumber && (
+                  <>
+                    <span className="text-[10px] md:text-xs text-gray-400">•</span>
+                    <span className="text-[10px] md:text-xs text-[#014582]">PR {order.purchaseRequisitionNumber}</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1561,6 +1613,18 @@ function OrderDetailModal({
         </div>
 
         <div className="p-4 md:p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+          <div className="mb-4">
+            <SupplierDetailCard
+              supplier={{
+                name: order.supplierName,
+                email: order.supplierEmail,
+                phone: order.supplierPhone,
+                address: order.supplierAddress,
+                ...(order.supplier || {}),
+              }}
+            />
+          </div>
+
           {/* Supplier & Order Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
             <div>
@@ -1668,6 +1732,15 @@ function OrderDetailModal({
           {/* Actions */}
           <div className="border-t border-gray-100 pt-3 md:pt-4 mt-3 md:mt-4">
             <div className="flex flex-wrap gap-2">
+              {['Draft', 'Sent'].includes(order.status) && onEdit && (
+                <button
+                  onClick={() => onEdit(order)}
+                  className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 bg-slate-700 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 md:gap-2"
+                >
+                  <Edit3 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  Edit Order
+                </button>
+              )}
               <button
                 onClick={() => onGenerateInvoice(order)}
                 className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 bg-purple-500 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-purple-600 transition-all flex items-center justify-center gap-1.5 md:gap-2"

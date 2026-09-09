@@ -14,6 +14,14 @@ export interface PurchaseInvoiceModel {
   purchaseOrderNumber?: string;
   goodsReceivingId?: string;
   grnNumber?: string;
+  sourceSummary?: string;
+  sources?: Array<{
+    id: string;
+    sourceType: string;
+    sourceNumber: string;
+    goodsReceivingId?: string;
+    purchaseOrderId?: string;
+  }>;
   invoiceDate: string;
   dueDate: string;
   paymentTerms: string;
@@ -234,6 +242,9 @@ export interface PurchaseInvoiceListResponse {
 export interface CreateInvoiceRequest {
   goodsReceivingId?: string;
   purchaseOrderId?: string;
+  goodsReceivingIds?: string[];
+  purchaseOrderIds?: string[];
+  items?: PurchaseInvoiceLineDraft[];
   supplierInvoiceNo?: string;
   invoiceDate: string;
   dueDate: string;
@@ -323,12 +334,31 @@ export const purchaseInvoiceService = {
     }
   },
 
-  // ─── Create invoice from GRN or PO ──────────────────────────
+  // ─── Create invoice from GRN or PO (supports multi-source) ──
   createInvoice: async (data: CreateInvoiceRequest): Promise<PurchaseInvoiceModel> => {
     try {
-      const endpoint = data.goodsReceivingId 
-        ? '/api/purchase/invoices/from-grn'
-        : '/api/purchase/invoices/from-po';
+      const multiGrn = (data.goodsReceivingIds || []).length > 1;
+      const multiPo = (data.purchaseOrderIds || []).length > 1;
+      const mixed =
+        (data.goodsReceivingIds || []).length > 0 && (data.purchaseOrderIds || []).length > 0;
+
+      let endpoint = '/api/purchase/invoices/from-po';
+      if (multiGrn || multiPo || mixed || ((data.goodsReceivingIds || []).length === 1 && !data.goodsReceivingId)) {
+        endpoint = '/api/purchase/invoices/from-sources';
+      } else if (data.goodsReceivingId || (data.goodsReceivingIds || []).length === 1) {
+        endpoint = '/api/purchase/invoices/from-grn';
+        if (!data.goodsReceivingId && data.goodsReceivingIds?.[0]) {
+          data = { ...data, goodsReceivingId: data.goodsReceivingIds[0] };
+        }
+      } else if ((data.purchaseOrderIds || []).length === 1 && !data.purchaseOrderId) {
+        data = { ...data, purchaseOrderId: data.purchaseOrderIds![0] };
+      }
+
+      // Prefer from-sources when caller explicitly sends arrays with items
+      if ((data.goodsReceivingIds?.length || 0) + (data.purchaseOrderIds?.length || 0) > 1) {
+        endpoint = '/api/purchase/invoices/from-sources';
+      }
+
       const response = await apiClient.post(endpoint, data);
       if (!response.success) {
         throw new Error(response.message || 'Failed to create purchase invoice');

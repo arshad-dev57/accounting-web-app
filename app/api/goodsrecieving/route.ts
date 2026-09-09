@@ -7,6 +7,8 @@ export interface GoodsReceivingModel {
   grnNumber: string;
   purchaseOrderId: string;
   purchaseOrderNumber: string;
+  purchaseOrderNumbers?: string;
+  purchaseOrders?: Array<{ purchaseOrderId: string; purchaseOrderNumber: string }>;
   supplierId: string;
   supplierName: string;
   supplierEmail?: string;
@@ -39,6 +41,8 @@ export interface GoodsReceivingItemModel {
   id: string;
   goodsReceivingId: string;
   purchaseOrderItemId: string;
+  purchaseOrderId?: string;
+  purchaseOrderNumber?: string;
   productId: string;
   productName: string;
   sku: string;
@@ -46,6 +50,7 @@ export interface GoodsReceivingItemModel {
   previouslyReceivedQty: number;
   remainingQuantity: number;
   receivingQuantity: number;
+  unitPrice?: number;
   unit: string;
   notes?: string;
   isFullyReceived: boolean;
@@ -54,6 +59,8 @@ export interface GoodsReceivingItemModel {
 
 export interface GRNLineDraft {
   purchaseOrderItemId: string;
+  purchaseOrderId?: string;
+  purchaseOrderNumber?: string;
   productId: string;
   productName: string;
   sku: string;
@@ -61,6 +68,7 @@ export interface GRNLineDraft {
   remainingQuantity: number;
   alreadyReceived: number;
   receivingQuantity: number;
+  unitPrice?: number;
   unit: string;
 }
 
@@ -69,10 +77,26 @@ export interface PurchaseOrderForReceiving {
   orderNumber: string;
   supplierId: string;
   supplierName: string;
+  supplierEmail?: string;
+  supplierPhone?: string;
+  supplierAddress?: string;
+  supplierCompanyName?: string;
+  supplierContactPerson?: string;
+  supplierPaymentTerms?: string;
+  supplierGstNumber?: string;
   orderDate: string;
+  expectedDeliveryDate?: string;
   status: string;
+  subtotal?: number;
+  totalDiscount?: number;
+  totalTax?: number;
+  grandTotal?: number;
+  notes?: string;
+  purchaseRequisitionNumber?: string;
   remainingItems: PurchaseOrderItemForReceiving[];
   totalRemainingItems: number;
+  totalRemainingQty?: number;
+  itemPreview?: string;
 }
 
 export interface PurchaseOrderItemForReceiving {
@@ -82,9 +106,14 @@ export interface PurchaseOrderItemForReceiving {
   sku: string;
   quantity: number;
   unitPrice: number;
+  discount?: number;
+  taxRate?: number;
   alreadyReceived: number;
   remainingQuantity: number;
   unit: string;
+  barcode?: string;
+  categoryName?: string;
+  notes?: string;
 }
 
 export interface GoodsReceivingStats {
@@ -111,7 +140,8 @@ export interface GoodsReceivingListResponse {
 }
 
 export interface CreateGRNRequest {
-  purchaseOrderId: string;
+  purchaseOrderId?: string;
+  purchaseOrderIds?: string[];
   receivingDate: string;
   receivedBy?: string;
   notes?: string;
@@ -120,6 +150,7 @@ export interface CreateGRNRequest {
   items: Array<{
     purchaseOrderItemId: string;
     receivingQuantity: number;
+    notes?: string;
   }>;
 }
 
@@ -185,16 +216,18 @@ export const goodsReceivingService = {
 
   // ─── Search available purchase orders for receiving ────────
   searchAvailableOrders: async (
-    query: string,
-    limit: number = 10,
-    locationId?: string
+    query: string = '',
+    limit: number = 20,
+    locationId?: string,
+    supplierId?: string
   ): Promise<PurchaseOrderForReceiving[]> => {
     try {
       const params = new URLSearchParams({
-        search: query,
         limit: String(limit),
       });
+      if (query?.trim()) params.set('search', query.trim());
       if (locationId) params.set('locationId', locationId);
+      if (supplierId) params.set('supplierId', supplierId);
       const response = await apiClient.get(
         `/api/purchase/goods-receiving/available-orders?${params.toString()}`
       );

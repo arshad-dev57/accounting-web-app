@@ -14,8 +14,6 @@ import {
   readCachedSubscription,
 } from '../lib/subscription-service';
 
-const POLL_MS = 20 * 1000;
-
 function AccessDeniedDialog({
   title,
   message,
@@ -60,7 +58,7 @@ function titleFor(code?: string) {
  * - Deactivated user/company → dialog then logout
  * - Expired subscription → /plans
  * - POS-only tier → block ERP paths, redirect to /pos
- * - Polls every 20 seconds while inside the app
+ * - No background polling / realtime
  */
 export default function SubscriptionGuard({
   children,
@@ -77,7 +75,6 @@ export default function SubscriptionGuard({
 
   useEffect(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setInterval> | null = null;
 
     const redirectPosAwayFromErp = (posOnly: boolean) => {
       if (!posOnly || !pathname) return false;
@@ -175,18 +172,10 @@ export default function SubscriptionGuard({
     };
 
     runCheck();
-    timer = setInterval(runCheck, POLL_MS);
-
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') void runCheck();
-    };
-    document.addEventListener('visibilitychange', onVisible);
 
     return () => {
       cancelled = true;
-      if (timer) clearInterval(timer);
       if (logoutTimer.current) clearTimeout(logoutTimer.current);
-      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [pathname, router]);
 

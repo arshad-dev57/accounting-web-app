@@ -153,7 +153,6 @@ class ApiClient {
     return token.trim().replace(/"/g, '').replace(/\s/g, '');
   }
 
-  // ========== PUBLIC METHODS ==========
   setTokens(token: string, refreshToken: string) {
     this.token = this.cleanToken(token);
     this.refreshToken = this.cleanToken(refreshToken);

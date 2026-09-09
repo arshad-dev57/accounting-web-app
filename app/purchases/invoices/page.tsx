@@ -29,7 +29,7 @@ import EmailService from '../../../lib/email-service';
 interface WizardState {
   step: number;
   sourceType: 'grn' | 'po';
-  selectedSource: GRNSource | POSource | null;
+  selectedSources: (GRNSource | POSource)[];
   sourceSearchResults: (GRNSource | POSource)[];
   isSearchingSource: boolean;
   lineDrafts: PurchaseInvoiceLineDraft[];
@@ -76,6 +76,7 @@ export function PurchaseInvoicesPage() {
   });
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState<PurchaseInvoiceModel | null>(null);
+  const [detailStartEditing, setDetailStartEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [invoiceToActOn, setInvoiceToActOn] = useState<string | null>(null);
@@ -85,7 +86,7 @@ export function PurchaseInvoicesPage() {
   const [wizardState, setWizardState] = useState<WizardState>({
     step: 0,
     sourceType: 'grn',
-    selectedSource: null,
+    selectedSources: [],
     sourceSearchResults: [],
     isSearchingSource: false,
     lineDrafts: [],
@@ -108,7 +109,7 @@ export function PurchaseInvoicesPage() {
   const selectedGrandTotal = selectedSubtotal - selectedTotalDiscount + selectedTotalTax;
   const totalItems = wizardState.lineDrafts.reduce((sum, line) => sum + line.quantity, 0);
 
-  const canGoToStep2 = wizardState.selectedSource !== null && wizardState.lineDrafts.length > 0;
+  const canGoToStep2 = wizardState.selectedSources.length > 0 && wizardState.lineDrafts.length > 0;
   const canGoToStep3 = wizardState.lineDrafts.length > 0;
 
   // ─── Fetch Invoices ──────────────────────────────────────────
@@ -252,7 +253,7 @@ export function PurchaseInvoicesPage() {
     setWizardState({
       step: 0,
       sourceType: 'grn',
-      selectedSource: null,
+      selectedSources: [],
       sourceSearchResults: [],
       isSearchingSource: false,
       lineDrafts: [],
@@ -268,7 +269,7 @@ export function PurchaseInvoicesPage() {
     setWizardState(prev => ({
       ...prev,
       sourceType: type,
-      selectedSource: null,
+      selectedSources: [],
       sourceSearchResults: [],
       lineDrafts: []
     }));
@@ -294,26 +295,27 @@ export function PurchaseInvoicesPage() {
     }
   };
 
-  const selectSource = (source: GRNSource | POSource) => {
-    const items = source.items || [];
-    const lineDrafts = items.map((item: any) => ({
-      productId: item.productId || '',
-      productName: item.productName || '',
-      sku: item.sku || '',
-      quantity: item.quantity || item.receivingQuantity || 0,
-      unitPrice: item.unitPrice || item.costPrice || 0,
-      discount: item.discount || 0,
-      taxRate: item.taxRate || 0,
-      subtotal: 0,
-      discountAmount: 0,
-      taxableAmount: 0,
-      taxAmount: 0,
-      lineTotal: 0,
-      notes: item.notes || null
-    }));
+  const buildLineDraftsFromSources = (sources: (GRNSource | POSource)[]) => {
+    const lineDrafts = sources.flatMap((source) => {
+      const items = source.items || [];
+      return items.map((item: any) => ({
+        productId: item.productId || '',
+        productName: item.productName || '',
+        sku: item.sku || '',
+        quantity: item.quantity || item.receivingQuantity || 0,
+        unitPrice: item.unitPrice || item.costPrice || 0,
+        discount: item.discount || 0,
+        taxRate: item.taxRate || 0,
+        subtotal: 0,
+        discountAmount: 0,
+        taxableAmount: 0,
+        taxAmount: 0,
+        lineTotal: 0,
+        notes: item.notes || null
+      }));
+    });
 
-    // Recalculate line totals
-    const updatedDrafts = lineDrafts.map((line: any) => {
+    return lineDrafts.map((line: any) => {
       const subtotal = line.quantity * line.unitPrice;
       const discountAmount = subtotal * (line.discount / 100);
       const taxableAmount = subtotal - discountAmount;
@@ -321,13 +323,28 @@ export function PurchaseInvoicesPage() {
       const lineTotal = taxableAmount + taxAmount;
       return { ...line, subtotal, discountAmount, taxableAmount, taxAmount, lineTotal };
     });
+  };
 
-    setWizardState(prev => ({
-      ...prev,
-      selectedSource: source,
-      sourceSearchResults: [],
-      lineDrafts: updatedDrafts
-    }));
+  const selectSource = (source: GRNSource | POSource) => {
+    setWizardState(prev => {
+      const exists = prev.selectedSources.find((s) => s.id === source.id);
+      let selectedSources: (GRNSource | POSource)[];
+      if (exists) {
+        selectedSources = prev.selectedSources.filter((s) => s.id !== source.id);
+      } else {
+        if (prev.selectedSources.length > 0 && prev.selectedSources[0].supplierId !== source.supplierId) {
+          alert('All selected documents must belong to the same supplier');
+          return prev;
+        }
+        selectedSources = [...prev.selectedSources, source];
+      }
+      return {
+        ...prev,
+        selectedSources,
+        sourceSearchResults: [],
+        lineDrafts: buildLineDraftsFromSources(selectedSources),
+      };
+    });
   };
 
   const nextStep = () => {
@@ -353,8 +370,8 @@ export function PurchaseInvoicesPage() {
   // ─── Create Invoice ──────────────────────────────────────────
 
   const handleCreateInvoice = async () => {
-    if (!wizardState.selectedSource) {
-      alert('Please select a source');
+    if (!wizardState.selectedSources.length) {
+      alert('Please select at least one GRN or purchase order');
       return;
     }
 
@@ -370,13 +387,20 @@ export function PurchaseInvoicesPage() {
         dueDate: wizardState.dueDate,
         paymentTerms: wizardState.paymentTerms || 'Net 30',
         notes: wizardState.notes || undefined,
-        supplierInvoiceNo: wizardState.supplierInvoiceNo || undefined
+        supplierInvoiceNo: wizardState.supplierInvoiceNo || undefined,
+        items: wizardState.lineDrafts,
       };
 
       if (wizardState.sourceType === 'grn') {
-        payload.goodsReceivingId = wizardState.selectedSource.id;
+        payload.goodsReceivingIds = wizardState.selectedSources.map((s) => s.id);
+        if (wizardState.selectedSources.length === 1) {
+          payload.goodsReceivingId = wizardState.selectedSources[0].id;
+        }
       } else {
-        payload.purchaseOrderId = wizardState.selectedSource.id;
+        payload.purchaseOrderIds = wizardState.selectedSources.map((s) => s.id);
+        if (wizardState.selectedSources.length === 1) {
+          payload.purchaseOrderId = wizardState.selectedSources[0].id;
+        }
       }
 
       await purchaseInvoiceService.createInvoice(payload);
@@ -444,7 +468,8 @@ export function PurchaseInvoicesPage() {
 
   // ─── View Invoice Detail ─────────────────────────────────────
 
-  const viewInvoiceDetail = (invoice: PurchaseInvoiceModel) => {
+  const viewInvoiceDetail = (invoice: PurchaseInvoiceModel, startEditing = false) => {
+    setDetailStartEditing(startEditing);
     setViewingInvoice(invoice);
   };
 
@@ -780,6 +805,15 @@ export function PurchaseInvoicesPage() {
                             >
                               <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
                             </button>
+                            {(invoice.canEdit || invoice.invoiceStatus === 'Draft') && (
+                              <button
+                                onClick={() => viewInvoiceDetail(invoice, true)}
+                                className="p-1 md:p-1.5 text-gray-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"
+                                title="Edit Draft"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                              </button>
+                            )}
                             {invoice.canPost && (
                               <button
                                 onClick={() => handlePostInvoice(invoice.id)}
@@ -875,17 +909,36 @@ export function PurchaseInvoicesPage() {
       {viewingInvoice && (
         <InvoiceDetailModal
           invoice={viewingInvoice}
-          onClose={() => setViewingInvoice(null)}
+          initialEditing={detailStartEditing}
+          onClose={() => {
+            setViewingInvoice(null);
+            setDetailStartEditing(false);
+          }}
           onPost={handlePostInvoice}
+          onSaveEdit={async (id: string, data: any) => {
+            setSubmitting(true);
+            try {
+              const updated = await purchaseInvoiceService.updateInvoice(id, data);
+              setViewingInvoice(updated);
+              setDetailStartEditing(false);
+              fetchInvoices(true);
+            } catch (error: any) {
+              alert(error.message || 'Failed to update invoice');
+            } finally {
+              setSubmitting(false);
+            }
+          }}
           onCancel={(id: string) => {
             setInvoiceToActOn(id);
             setShowCancelConfirm(true);
             setViewingInvoice(null);
+            setDetailStartEditing(false);
           }}
           onDelete={(id: string) => {
             setInvoiceToActOn(id);
             setShowDeleteConfirm(true);
             setViewingInvoice(null);
+            setDetailStartEditing(false);
           }}
           onDownloadPDF={handleDownloadInvoicePDF}
           onSendEmail={handleSendInvoiceEmail}
@@ -951,8 +1004,10 @@ export function PurchaseInvoicesPage() {
 
 function InvoiceDetailModal({
   invoice,
+  initialEditing = false,
   onClose,
   onPost,
+  onSaveEdit,
   onCancel,
   onDelete,
   onDownloadPDF,
@@ -963,6 +1018,49 @@ function InvoiceDetailModal({
   getStatusIcon,
   submitting
 }: any) {
+  const canEdit = invoice.invoiceStatus === 'Draft' || invoice.canEdit;
+  const [editing, setEditing] = useState(Boolean(initialEditing) && canEdit);
+  const [form, setForm] = useState({
+    supplierInvoiceNo: invoice.supplierInvoiceNo || '',
+    invoiceDate: invoice.invoiceDate?.slice?.(0, 10) || invoice.invoiceDate || '',
+    dueDate: invoice.dueDate?.slice?.(0, 10) || invoice.dueDate || '',
+    paymentTerms: invoice.paymentTerms || 'Net 30',
+    notes: invoice.notes || '',
+    items: (invoice.items || []).map((item: any) => ({
+      productId: item.productId,
+      productName: item.productName,
+      sku: item.sku,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discount || 0,
+      taxRate: item.taxRate || 0,
+      notes: item.notes || '',
+      lineTotal: item.lineTotal,
+    })),
+  });
+
+  useEffect(() => {
+    setEditing(Boolean(initialEditing) && (invoice.invoiceStatus === 'Draft' || invoice.canEdit));
+    setForm({
+      supplierInvoiceNo: invoice.supplierInvoiceNo || '',
+      invoiceDate: invoice.invoiceDate?.slice?.(0, 10) || invoice.invoiceDate || '',
+      dueDate: invoice.dueDate?.slice?.(0, 10) || invoice.dueDate || '',
+      paymentTerms: invoice.paymentTerms || 'Net 30',
+      notes: invoice.notes || '',
+      items: (invoice.items || []).map((item: any) => ({
+        productId: item.productId,
+        productName: item.productName,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || 0,
+        taxRate: item.taxRate || 0,
+        notes: item.notes || '',
+        lineTotal: item.lineTotal,
+      })),
+    });
+  }, [invoice.id, invoice.supplierInvoiceNo, invoice.invoiceDate, invoice.dueDate, invoice.paymentTerms, invoice.notes, invoice.items, initialEditing, invoice.invoiceStatus, invoice.canEdit]);
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
@@ -997,30 +1095,54 @@ function InvoiceDetailModal({
             </div>
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Supplier Invoice No</p>
-              <p className="text-sm md:text-base font-semibold text-[#014582] mt-1">{invoice.supplierInvoiceNo || '—'}</p>
+              {editing ? (
+                <input className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm" value={form.supplierInvoiceNo} onChange={(e) => setForm((p) => ({ ...p, supplierInvoiceNo: e.target.value }))} />
+              ) : (
+                <p className="text-sm md:text-base font-semibold text-[#014582] mt-1">{invoice.supplierInvoiceNo || '—'}</p>
+              )}
             </div>
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Invoice Date</p>
-              <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{formatDate(invoice.invoiceDate)}</p>
+              {editing ? (
+                <input type="date" className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm" value={form.invoiceDate} onChange={(e) => setForm((p) => ({ ...p, invoiceDate: e.target.value }))} />
+              ) : (
+                <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{formatDate(invoice.invoiceDate)}</p>
+              )}
             </div>
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Due Date</p>
-              <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{formatDate(invoice.dueDate)}</p>
+              {editing ? (
+                <input type="date" className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm" value={form.dueDate} onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))} />
+              ) : (
+                <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{formatDate(invoice.dueDate)}</p>
+              )}
             </div>
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Payment Terms</p>
-              <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{invoice.paymentTerms || '—'}</p>
+              {editing ? (
+                <input className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm" value={form.paymentTerms} onChange={(e) => setForm((p) => ({ ...p, paymentTerms: e.target.value }))} />
+              ) : (
+                <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{invoice.paymentTerms || '—'}</p>
+              )}
             </div>
             <div>
-              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Purchase Order</p>
-              <p className="text-sm md:text-base font-semibold text-[#014582] mt-1">{invoice.purchaseOrderNumber || '—'}</p>
+              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Source Documents</p>
+              <p className="text-sm md:text-base font-semibold text-[#014582] mt-1">
+                {invoice.sourceSummary ||
+                  [invoice.grnNumber, invoice.purchaseOrderNumber].filter(Boolean).join(', ') ||
+                  '—'}
+              </p>
             </div>
           </div>
 
-          {invoice.notes && (
+          {(invoice.notes || editing) && (
             <div className="mb-3 md:mb-4">
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Notes</p>
-              <p className="text-sm md:text-base text-gray-600 mt-0.5 md:mt-1">{invoice.notes}</p>
+              {editing ? (
+                <textarea className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm" rows={2} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
+              ) : (
+                <p className="text-sm md:text-base text-gray-600 mt-0.5 md:mt-1">{invoice.notes}</p>
+              )}
             </div>
           )}
 
@@ -1056,25 +1178,110 @@ function InvoiceDetailModal({
           </div>
 
           {/* Items */}
-          {invoice.items && invoice.items.length > 0 && (
+          {((editing ? form.items : invoice.items) || []).length > 0 && (
             <div className="border-t border-gray-100 pt-3 md:pt-4 mt-3 md:mt-4">
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <h4 className="text-sm md:text-base font-bold text-gray-700">Invoice Items</h4>
-                <span className="text-[10px] md:text-xs text-gray-400">{invoice.items.length} items</span>
+                <span className="text-[10px] md:text-xs text-gray-400">
+                  {(editing ? form.items : invoice.items).length} items
+                </span>
               </div>
-              <div className="space-y-2 max-h-48 md:max-h-64 overflow-y-auto">
-                {invoice.items.map((item: any, index: number) => (
-                  <div key={index} className="bg-gray-50 rounded-lg p-2 md:p-3">
+              <div className="space-y-2 max-h-56 md:max-h-72 overflow-y-auto">
+                {(editing ? form.items : invoice.items).map((item: any, index: number) => (
+                  <div key={item.productId || index} className="bg-gray-50 rounded-lg p-2 md:p-3">
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs md:text-sm font-semibold text-gray-800 truncate">{item.productName}</p>
                         <p className="text-[10px] md:text-xs text-gray-400">{item.sku}</p>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-xs md:text-sm font-semibold text-gray-800">{formatCurrency(item.lineTotal)}</p>
-                        <p className="text-[10px] md:text-xs text-gray-400">{item.quantity} × {formatCurrency(item.unitPrice)}</p>
-                      </div>
+                      {!editing && (
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs md:text-sm font-semibold text-gray-800">{formatCurrency(item.lineTotal)}</p>
+                          <p className="text-[10px] md:text-xs text-gray-400">{item.quantity} × {formatCurrency(item.unitPrice)}</p>
+                        </div>
+                      )}
                     </div>
+                    {editing && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                        <div>
+                          <label className="text-[10px] text-gray-500">Qty</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="w-full rounded border px-2 py-1 text-sm"
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const quantity = parseFloat(e.target.value) || 0;
+                              setForm((p) => ({
+                                ...p,
+                                items: p.items.map((row: any, i: number) =>
+                                  i === index ? { ...row, quantity } : row
+                                ),
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-500">Unit Price</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="w-full rounded border px-2 py-1 text-sm"
+                            value={item.unitPrice}
+                            onChange={(e) => {
+                              const unitPrice = parseFloat(e.target.value) || 0;
+                              setForm((p) => ({
+                                ...p,
+                                items: p.items.map((row: any, i: number) =>
+                                  i === index ? { ...row, unitPrice } : row
+                                ),
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-500">Disc %</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            className="w-full rounded border px-2 py-1 text-sm"
+                            value={item.discount}
+                            onChange={(e) => {
+                              const discount = parseFloat(e.target.value) || 0;
+                              setForm((p) => ({
+                                ...p,
+                                items: p.items.map((row: any, i: number) =>
+                                  i === index ? { ...row, discount } : row
+                                ),
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-500">Tax %</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            className="w-full rounded border px-2 py-1 text-sm"
+                            value={item.taxRate}
+                            onChange={(e) => {
+                              const taxRate = parseFloat(e.target.value) || 0;
+                              setForm((p) => ({
+                                ...p,
+                                items: p.items.map((row: any, i: number) =>
+                                  i === index ? { ...row, taxRate } : row
+                                ),
+                              }));
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1105,10 +1312,48 @@ function InvoiceDetailModal({
             {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
             Send Email
           </button>
+          {canEdit && !editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="px-4 md:px-5 py-2 text-xs md:text-sm font-semibold bg-slate-700 text-white hover:bg-slate-800 rounded-lg transition-all flex items-center justify-center gap-2"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              Edit Draft
+            </button>
+          )}
+          {canEdit && editing && (
+            <button
+              onClick={async () => {
+                await onSaveEdit(invoice.id, {
+                  supplierInvoiceNo: form.supplierInvoiceNo,
+                  invoiceDate: form.invoiceDate,
+                  dueDate: form.dueDate,
+                  paymentTerms: form.paymentTerms,
+                  notes: form.notes,
+                  items: form.items.map((item: any) => ({
+                    productId: item.productId,
+                    productName: item.productName,
+                    sku: item.sku,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    discount: item.discount,
+                    taxRate: item.taxRate,
+                    notes: item.notes || undefined,
+                  })),
+                });
+                setEditing(false);
+              }}
+              disabled={submitting}
+              className="px-4 md:px-5 py-2 text-xs md:text-sm font-semibold bg-[#014582] text-white hover:bg-[#01366a] rounded-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              Save Changes
+            </button>
+          )}
           {invoice.canPost && (
             <button
               onClick={() => onPost(invoice.id)}
-              disabled={submitting}
+              disabled={submitting || editing}
               className="px-4 md:px-5 py-2 text-xs md:text-sm font-semibold bg-blue-500 text-white hover:bg-blue-600 rounded-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}

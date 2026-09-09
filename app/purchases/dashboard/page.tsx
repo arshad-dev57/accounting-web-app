@@ -17,6 +17,7 @@ import {
   XCircle,
   CheckCircle2,
   FileText,
+  ClipboardList,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -681,7 +682,14 @@ export function PurchasesDashboardPage() {
           {/* Quick actions */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h2 className="font-bold text-gray-800 mb-4">Quick Actions</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <QuickAction
+                label="New Requisition"
+                description="Start purchase request"
+                icon={ClipboardList}
+                color="bg-indigo-50 text-indigo-600"
+                onClick={() => router.push('/purchases/requisitions')}
+              />
               <QuickAction
                 label="New Order"
                 description="Create purchase order"

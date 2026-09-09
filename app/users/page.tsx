@@ -204,6 +204,7 @@ export default function UsersDashboard() {
     ],
     purchases: [
       'Dashboard',
+      'Requisitions',
       'Purchase Orders',
       'Suppliers',
       'Goods Receiving',

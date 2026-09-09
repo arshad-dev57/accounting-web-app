@@ -26,6 +26,7 @@ import {
   PackageCheck,
   CreditCard,
   Scale,
+  ClipboardList,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
 import ProfileDropdown from '../../components/ProfileDropdown';
@@ -69,9 +70,9 @@ function PurchasesSidebar() {
     { path: '/purchases/dashboard', label: 'Dashboard', permission: 'dashboard' },
     { path: '/purchases/reports', label: 'Purchase Reports', permission: 'dashboard' },
     { path: '/purchases/products', label: 'Products', permission: 'products' },
+    { path: '/purchases/requisitions', label: 'Requisitions', permission: 'requisitions' },
     { path: '/purchases/purchaseorder', label: 'Purchase Orders', permission: 'purchase-orders' },
     { path: '/purchases/suppliers', label: 'Suppliers', permission: 'suppliers' },
-    { path: '/purchases/quotations', label: 'Quotations', permission: 'quotations' },
     { path: '/purchases/goodsRecieving', label: 'Goods Receiving', permission: 'goods-receiving' },
     { path: '/purchases/invoices', label: 'Purchase Invoices', permission: 'purchase-invoices' },
     { path: '/purchases/payments', label: 'Purchase Payments', permission: 'purchase-payments' },
@@ -134,6 +135,7 @@ function PurchasesSidebar() {
                 const iconMap: Record<string, React.ReactNode> = {
                   'dashboard': <Home className="w-4 h-4" />,
                   'products': <Package className="w-4 h-4" />,
+                  'requisitions': <ClipboardList className="w-4 h-4" />,
                   'purchase-orders': <ShoppingCart className="w-4 h-4" />,
                   'suppliers': <Users className="w-4 h-4" />,
                   'quotations': <FileText className="w-4 h-4" />,

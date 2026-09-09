@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { 
+import {
   ChevronRight,
   Phone,
   Headset,
@@ -10,6 +10,7 @@ import {
   ShoppingCart,
   Package,
   Scale,
+  UsersRound,
 } from 'lucide-react';
 import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
@@ -202,6 +203,35 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Purchase Orders Today</span>
+                    <span className="text-lg font-bold text-gray-800">0</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* HR Management Card */}
+              <div
+                onClick={() => window.location.href = '/hr/dashboard'}
+                className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center">
+                      <UsersRound className="w-6 h-6 text-[#014582]" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-800">HR Management</h3>
+                      <p className="text-sm text-gray-500">Employees, attendance & payroll</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Employees</span>
+                    <span className="text-lg font-bold text-gray-800">0</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Present Today</span>
                     <span className="text-lg font-bold text-gray-800">0</span>
                   </div>
                 </div>

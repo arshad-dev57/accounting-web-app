@@ -24,7 +24,8 @@ interface CreateInvoiceWizardProps {
   wizardState: {
     step: number;
     sourceType: 'grn' | 'po';
-    selectedSource: InvoiceSource | null;
+    selectedSources: InvoiceSource[];
+    selectedSource?: InvoiceSource | null;
     sourceSearchResults: InvoiceSource[];
     isSearchingSource: boolean;
     lineDrafts: PurchaseInvoiceLineDraft[];
@@ -261,6 +262,14 @@ export default function CreateInvoiceWizard({
   formatCurrency,
   formatDate
 }: CreateInvoiceWizardProps) {
+  const selectedSources =
+    wizardState.selectedSources?.length
+      ? wizardState.selectedSources
+      : wizardState.selectedSource
+        ? [wizardState.selectedSource]
+        : [];
+  const primarySource = selectedSources[0] || null;
+
   const updateLineDraft = (index: number, field: keyof PurchaseInvoiceLineDraft, value: number | string) => {
     setWizardState((prev: any) => {
       const updated = [...prev.lineDrafts];
@@ -288,7 +297,7 @@ export default function CreateInvoiceWizard({
 
   const selectedPoNumber =
     wizardState.sourceType === 'grn'
-      ? (wizardState.selectedSource as GRNSource | null)?.purchaseOrderNumber
+      ? (primarySource as GRNSource | null)?.purchaseOrderNumber
       : undefined;
 
   return (
@@ -365,6 +374,7 @@ export default function CreateInvoiceWizard({
                     key={source.id}
                     source={source}
                     sourceType={wizardState.sourceType}
+                    selected={selectedSources.some((s) => s.id === source.id)}
                     onClick={() => selectSource(source)}
                     formatCurrency={formatCurrency}
                     formatDate={formatDate}
@@ -373,22 +383,28 @@ export default function CreateInvoiceWizard({
                 {!wizardState.isSearchingSource && wizardState.sourceSearchResults.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center py-6">
                     {wizardState.sourceType === 'grn'
-                      ? 'No GRNs found. Search by GRN number, PO number, or supplier.'
-                      : 'No purchase orders found. Search by PO number or supplier.'}
+                      ? 'No GRNs found. Search by GRN number, PO number, or supplier. Select multiple GRNs from the same supplier.'
+                      : 'No purchase orders found. Search by PO number or supplier. Select multiple POs from the same supplier.'}
                   </p>
                 ) : null}
               </div>
 
-              {wizardState.selectedSource && (
-                <div>
-                  <p className="text-xs font-semibold text-[#014582] mb-2">Selected for invoicing</p>
-                  <SourceDetailCard
-                    source={wizardState.selectedSource}
-                    sourceType={wizardState.sourceType}
-                    selected
-                    formatCurrency={formatCurrency}
-                    formatDate={formatDate}
-                  />
+              {selectedSources.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-[#014582]">
+                    Selected for invoicing ({selectedSources.length})
+                  </p>
+                  {selectedSources.map((source) => (
+                    <SourceDetailCard
+                      key={source.id}
+                      source={source}
+                      sourceType={wizardState.sourceType}
+                      selected
+                      onClick={() => selectSource(source)}
+                      formatCurrency={formatCurrency}
+                      formatDate={formatDate}
+                    />
+                  ))}
                 </div>
               )}
             </div>
@@ -398,14 +414,19 @@ export default function CreateInvoiceWizard({
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Step 2: Review Items</h3>
 
-              {wizardState.selectedSource && (
-                <SourceDetailCard
-                  source={wizardState.selectedSource}
-                  sourceType={wizardState.sourceType}
-                  selected
-                  formatCurrency={formatCurrency}
-                  formatDate={formatDate}
-                />
+              {selectedSources.length > 0 && (
+                <div className="space-y-2">
+                  {selectedSources.map((source) => (
+                    <SourceDetailCard
+                      key={source.id}
+                      source={source}
+                      sourceType={wizardState.sourceType}
+                      selected
+                      formatCurrency={formatCurrency}
+                      formatDate={formatDate}
+                    />
+                  ))}
+                </div>
               )}
 
               <div className="space-y-3">
@@ -507,9 +528,9 @@ export default function CreateInvoiceWizard({
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Step 3: Invoice Details</h3>
 
-              {wizardState.selectedSource && (
+              {primarySource && (
                 <SourceDetailCard
-                  source={wizardState.selectedSource}
+                  source={primarySource}
                   sourceType={wizardState.sourceType}
                   selected
                   formatCurrency={formatCurrency}
@@ -574,25 +595,27 @@ export default function CreateInvoiceWizard({
               <div className="p-4 bg-[#014582]/10 rounded-lg space-y-2">
                 <div className="flex justify-between text-sm gap-3">
                   <span className="text-gray-600">Supplier</span>
-                  <span className="font-semibold text-right">{wizardState.selectedSource?.supplierName || ''}</span>
+                  <span className="font-semibold text-right">{primarySource?.supplierName || ''}</span>
                 </div>
-                {wizardState.selectedSource?.supplierPhone ? (
+                {primarySource?.supplierPhone ? (
                   <div className="flex justify-between text-sm gap-3">
                     <span className="text-gray-600">Phone</span>
-                    <span className="font-medium text-right">{wizardState.selectedSource.supplierPhone}</span>
+                    <span className="font-medium text-right">{primarySource.supplierPhone}</span>
                   </div>
                 ) : null}
-                {wizardState.selectedSource?.supplierEmail ? (
+                {primarySource?.supplierEmail ? (
                   <div className="flex justify-between text-sm gap-3">
                     <span className="text-gray-600">Email</span>
-                    <span className="font-medium text-right">{wizardState.selectedSource.supplierEmail}</span>
+                    <span className="font-medium text-right">{primarySource.supplierEmail}</span>
                   </div>
                 ) : null}
                 <div className="flex justify-between text-sm gap-3">
                   <span className="text-gray-600">Source</span>
                   <span className="font-semibold text-right">
-                    {wizardState.selectedSource
-                      ? sourceDocNumber(wizardState.selectedSource, wizardState.sourceType)
+                    {selectedSources.length
+                      ? selectedSources
+                          .map((s) => sourceDocNumber(s, wizardState.sourceType))
+                          .join(', ')
                       : ''}
                   </span>
                 </div>

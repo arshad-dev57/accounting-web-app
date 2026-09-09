@@ -13,7 +13,7 @@ import {
   Ban, Filter, ArrowUpDown, CreditCard as CreditCardIcon,
   Send, Save, Printer, Download, Landmark,
   ReceiptText, ReceiptIndianRupee, ShoppingCart,
-  User, Phone, Mail, Building
+  User, Phone, Mail, Building, Edit3
 } from 'lucide-react';
 import { purchasePaymentService, PurchasePaymentModel, PurchasePaymentStats, Supplier, BankAccount, PurchaseInvoiceForPayment } from '../../api/purchasepayments/route';
 
@@ -63,6 +63,7 @@ export function PurchasePaymentsPage() {
   });
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [viewingPayment, setViewingPayment] = useState<PurchasePaymentModel | null>(null);
+  const [detailStartEditing, setDetailStartEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [paymentToActOn, setPaymentToActOn] = useState<string | null>(null);
@@ -420,7 +421,8 @@ export function PurchasePaymentsPage() {
     }
   };
 
-  const viewPaymentDetail = (payment: PurchasePaymentModel) => {
+  const viewPaymentDetail = (payment: PurchasePaymentModel, startEditing = false) => {
+    setDetailStartEditing(startEditing);
     setViewingPayment(payment);
   };
 
@@ -686,6 +688,15 @@ export function PurchasePaymentsPage() {
                             >
                               <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
                             </button>
+                            {(payment.canEdit || payment.status !== 'Cancelled') && (
+                              <button
+                                onClick={() => viewPaymentDetail(payment, true)}
+                                className="p-1 md:p-1.5 text-gray-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"
+                                title="Edit Payment"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                              </button>
+                            )}
                             {payment.canCancel && (
                               <button
                                 onClick={() => {
@@ -772,14 +783,33 @@ export function PurchasePaymentsPage() {
       {viewingPayment && (
         <PaymentDetailModal
           payment={viewingPayment}
-          onClose={() => setViewingPayment(null)}
+          initialEditing={detailStartEditing}
+          onClose={() => {
+            setViewingPayment(null);
+            setDetailStartEditing(false);
+          }}
+          onSaveEdit={async (id: string, data: any) => {
+            setSubmitting(true);
+            try {
+              const updated = await purchasePaymentService.updatePayment(id, data);
+              setViewingPayment(updated);
+              setDetailStartEditing(false);
+              fetchPayments(true);
+            } catch (error: any) {
+              alert(error.message || 'Failed to update payment');
+            } finally {
+              setSubmitting(false);
+            }
+          }}
           onCancel={(id: string) => {
             setViewingPayment(null);
+            setDetailStartEditing(false);
             setPaymentToActOn(id);
             setShowCancelConfirm(true);
           }}
           onDelete={(id: string) => {
             setViewingPayment(null);
+            setDetailStartEditing(false);
             setPaymentToActOn(id);
             setShowDeleteConfirm(true);
           }}
@@ -1216,7 +1246,9 @@ function CreatePaymentForm({
 
 function PaymentDetailModal({
   payment,
+  initialEditing = false,
   onClose,
+  onSaveEdit,
   onCancel,
   onDelete,
   formatCurrency,
@@ -1225,6 +1257,25 @@ function PaymentDetailModal({
   getStatusIcon,
   submitting
 }: any) {
+  const canEdit = payment.canEdit || payment.status !== 'Cancelled';
+  const [editing, setEditing] = useState(Boolean(initialEditing) && canEdit);
+  const [form, setForm] = useState({
+    paymentDate: payment.paymentDate?.slice?.(0, 10) || '',
+    paymentMethod: payment.paymentMethod || 'Bank Transfer',
+    reference: payment.reference || '',
+    notes: payment.notes || '',
+  });
+
+  useEffect(() => {
+    setEditing(Boolean(initialEditing) && (payment.canEdit || payment.status !== 'Cancelled'));
+    setForm({
+      paymentDate: payment.paymentDate?.slice?.(0, 10) || '',
+      paymentMethod: payment.paymentMethod || 'Bank Transfer',
+      reference: payment.reference || '',
+      notes: payment.notes || '',
+    });
+  }, [payment.id, payment.paymentDate, payment.paymentMethod, payment.reference, payment.notes, payment.status, payment.canEdit, initialEditing]);
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
@@ -1250,7 +1301,7 @@ function PaymentDetailModal({
           </button>
         </div>
 
-        <div className="p-4 md:p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+        <div className="p-4 md:p-6 overflow-y-auto max-h-[calc(90vh-160px)]">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Supplier</p>
@@ -1259,37 +1310,72 @@ function PaymentDetailModal({
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Amount</p>
               <p className="text-lg md:text-xl font-bold text-[#014582] mt-1">{formatCurrency(payment.amount)}</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Amount / invoice allocation cannot be edited here</p>
             </div>
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Payment Method</p>
-              <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{payment.paymentMethod}</p>
+              {editing ? (
+                <select
+                  className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm"
+                  value={form.paymentMethod}
+                  onChange={(e) => setForm((p) => ({ ...p, paymentMethod: e.target.value }))}
+                >
+                  {['Cash', 'Bank Transfer', 'Cheque', 'Card', 'Other'].map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{payment.paymentMethod}</p>
+              )}
             </div>
             <div>
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Date</p>
-              <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{formatDate(payment.paymentDate)}</p>
+              {editing ? (
+                <input
+                  type="date"
+                  className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm"
+                  value={form.paymentDate}
+                  onChange={(e) => setForm((p) => ({ ...p, paymentDate: e.target.value }))}
+                />
+              ) : (
+                <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{formatDate(payment.paymentDate)}</p>
+              )}
             </div>
           </div>
 
-          {payment.bankAccountName && (
+          {(payment.bankAccountName || editing) && (
             <div className="mb-3 md:mb-4">
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Bank Account</p>
-              <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{payment.bankAccountName}</p>
+              <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{payment.bankAccountName || '—'}</p>
             </div>
           )}
 
-          {payment.reference && (
-            <div className="mb-3 md:mb-4">
-              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Reference</p>
-              <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{payment.reference}</p>
-            </div>
-          )}
+          <div className="mb-3 md:mb-4">
+            <p className="text-[10px] md:text-xs text-gray-400 font-medium">Reference</p>
+            {editing ? (
+              <input
+                className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm"
+                value={form.reference}
+                onChange={(e) => setForm((p) => ({ ...p, reference: e.target.value }))}
+              />
+            ) : (
+              <p className="text-sm md:text-base font-semibold text-gray-800 mt-1">{payment.reference || '—'}</p>
+            )}
+          </div>
 
-          {payment.notes && (
-            <div className="mb-3 md:mb-4">
-              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Notes</p>
-              <p className="text-sm md:text-base text-gray-600 mt-1">{payment.notes}</p>
-            </div>
-          )}
+          <div className="mb-3 md:mb-4">
+            <p className="text-[10px] md:text-xs text-gray-400 font-medium">Notes</p>
+            {editing ? (
+              <textarea
+                className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm"
+                rows={2}
+                value={form.notes}
+                onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+              />
+            ) : (
+              <p className="text-sm md:text-base text-gray-600 mt-1">{payment.notes || '—'}</p>
+            )}
+          </div>
 
           <div className="border-t border-gray-100 pt-3 md:pt-4 mt-3 md:mt-4">
             <div className="flex items-center justify-between mb-2 md:mb-3">
@@ -1332,28 +1418,48 @@ function PaymentDetailModal({
               </div>
             </div>
           )}
+        </div>
 
-          {(payment.canCancel || payment.canDelete) && (
-            <div className="border-t border-gray-100 pt-3 md:pt-4 mt-3 md:mt-4 flex flex-wrap gap-2">
-              {payment.canCancel && (
-                <button
-                  onClick={() => onCancel(payment.id)}
-                  disabled={submitting}
-                  className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 bg-orange-500 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-orange-600 transition-all disabled:opacity-50"
-                >
-                  Cancel Payment
-                </button>
-              )}
-              {payment.canDelete && (
-                <button
-                  onClick={() => onDelete(payment.id)}
-                  disabled={submitting}
-                  className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 border border-red-500 text-red-500 rounded-lg text-xs md:text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
-                >
-                  Delete
-                </button>
-              )}
-            </div>
+        <div className="flex flex-wrap gap-2 px-4 md:px-6 py-3 md:py-4 border-t border-gray-100 bg-gray-50">
+          {canEdit && !editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="flex-1 min-w-[100px] px-3 py-2 bg-slate-700 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              Edit
+            </button>
+          )}
+          {canEdit && editing && (
+            <button
+              onClick={async () => {
+                await onSaveEdit(payment.id, form);
+                setEditing(false);
+              }}
+              disabled={submitting}
+              className="flex-1 min-w-[100px] px-3 py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              Save
+            </button>
+          )}
+          {payment.canCancel && !editing && (
+            <button
+              onClick={() => onCancel(payment.id)}
+              disabled={submitting}
+              className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 bg-orange-500 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-orange-600 transition-all disabled:opacity-50"
+            >
+              Cancel Payment
+            </button>
+          )}
+          {payment.canDelete && !editing && (
+            <button
+              onClick={() => onDelete(payment.id)}
+              disabled={submitting}
+              className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 border border-red-500 text-red-500 rounded-lg text-xs md:text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
+            >
+              Delete
+            </button>
           )}
         </div>
       </div>

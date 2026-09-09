@@ -15,7 +15,7 @@ import { useCurrency } from '@/lib/currency-context';
 import {
   bankAccountService,
   BankAccount,
-} from '@/app/api/bankAccounts/route';
+} from '@/lib/bank-accounts-service';
 import { transferService } from '@/lib/transfer-service';
 
 export default function BankTransferPage() {

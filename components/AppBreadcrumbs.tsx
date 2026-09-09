@@ -22,6 +22,7 @@ const PAGE_LABELS: Record<string, string> = {
   reports: 'Reports',
   products: 'Products',
   purchaseorder: 'Purchase Orders',
+  requisitions: 'Requisitions',
   suppliers: 'Suppliers',
   quotations: 'Quotations',
   goodsRecieving: 'Goods Receiving',

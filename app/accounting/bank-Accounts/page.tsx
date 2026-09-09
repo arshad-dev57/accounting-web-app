@@ -27,7 +27,7 @@ import {
   History, Building as BuildingIcon, Hash,
   Banknote as BanknoteIcon, CreditCard, ArrowLeftRight
 } from 'lucide-react';
-import { bankAccountService, BankAccount, BankAccountStats } from '../../api/bankAccounts/route';
+import { bankAccountService, BankAccount, BankAccountStats } from '@/lib/bank-accounts-service';
 import { chartOfAccountService } from '@/lib/chart-of-accounts-service';
 
 // ─── TYPES ─────────────────────────────────────────────────────

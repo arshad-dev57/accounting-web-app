@@ -25,6 +25,9 @@ export interface PurchaseOrderModel {
   canApprove?: boolean;
   canCancel?: boolean;
   canDelete?: boolean;
+  canEdit?: boolean;
+  purchaseRequisitionId?: string;
+  purchaseRequisitionNumber?: string;
 }
 
 export interface PurchaseOrderItem {
@@ -45,11 +48,17 @@ export interface PurchaseOrderItem {
 export interface Supplier {
   id: string;
   name: string;
+  companyName?: string;
   email?: string;
   phone?: string;
   address?: string;
+  city?: string;
+  country?: string;
   contactPerson?: string;
+  paymentTerms?: string;
+  gstNumber?: string;
   taxId?: string;
+  status?: string;
   isActive: boolean;
 }
 
@@ -60,7 +69,10 @@ export interface Product {
   costPrice?: number;
   sellingPrice?: number;
   taxRate?: number;
-  category?: string;
+  category?: string | { name?: string };
+  stockUnitName?: string;
+  barcode?: string;
+  currentStock?: number;
   isActive: boolean;
 }
 

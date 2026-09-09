@@ -14,12 +14,11 @@ import {
   Send, Save, Printer, Download, Landmark,
   ReceiptText, ReceiptIndianRupee, ShoppingCart,
   User, Phone, Mail, Building, TrendingUp, TrendingDown,
-  Edit, Archive, MoreVertical, Info, Layers
+  Edit, Archive, MoreVertical, Info, Layers, FolderTree, FolderOpen, Folder
 } from 'lucide-react';
 import { chartOfAccountService, ChartOfAccount, ChartOfAccountStats } from '../../../lib/chart-of-accounts-service';
 import { TaxCodeSelect } from '../../../components/TaxRateSelect';
 
-// ─── TYPES ─────────────────────────────────────────────────────
 
 interface AccountTypeStats {
   total: number;
@@ -36,10 +35,83 @@ interface AccountTypeStats {
   };
 }
 
+interface ParentGroup {
+  parentName: string;
+  accounts: ChartOfAccount[];
+  totalBalance: number;
+}
+
+interface TypeGroup {
+  type: string;
+  parents: ParentGroup[];
+  accountCount: number;
+  totalBalance: number;
+}
+
+/** Canonical parent groups (match defaultChartOfAccountsService seed labels). */
+export const PARENT_ACCOUNTS_BY_TYPE: Record<string, string[]> = {
+  Asset: ['Current Assets', 'Non-Current Assets'],
+  Liability: ['Current Liabilities', 'Non-Current Liabilities'],
+  Equity: ['Equity'],
+  Revenue: ['Revenue'],
+  Expense: ['Cost of Sales', 'Operating Expenses'],
+};
+
+const TYPE_ORDER = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'];
+
+function buildAccountHierarchy(accounts: ChartOfAccount[]): TypeGroup[] {
+  const byType = new Map<string, ChartOfAccount[]>();
+
+  for (const account of accounts) {
+    const type = account.type || 'Other';
+    if (!byType.has(type)) byType.set(type, []);
+    byType.get(type)!.push(account);
+  }
+
+  const orderedTypes = [
+    ...TYPE_ORDER.filter((t) => byType.has(t)),
+    ...[...byType.keys()].filter((t) => !TYPE_ORDER.includes(t)).sort(),
+  ];
+
+  return orderedTypes.map((type) => {
+    const typeAccounts = byType.get(type) || [];
+    const byParent = new Map<string, ChartOfAccount[]>();
+
+    for (const account of typeAccounts) {
+      const parent = (account.parentAccount || '').trim() || 'Uncategorized';
+      if (!byParent.has(parent)) byParent.set(parent, []);
+      byParent.get(parent)!.push(account);
+    }
+
+    const preferredParents = PARENT_ACCOUNTS_BY_TYPE[type] || [];
+    const parentNames = [
+      ...preferredParents.filter((p) => byParent.has(p)),
+      ...[...byParent.keys()]
+        .filter((p) => !preferredParents.includes(p))
+        .sort((a, b) => a.localeCompare(b)),
+    ];
+
+    const parents: ParentGroup[] = parentNames.map((parentName) => {
+      const children = [...(byParent.get(parentName) || [])].sort((a, b) =>
+        String(a.code).localeCompare(String(b.code), undefined, { numeric: true })
+      );
+      const totalBalance = children.reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
+      return { parentName, accounts: children, totalBalance };
+    });
+
+    return {
+      type,
+      parents,
+      accountCount: typeAccounts.length,
+      totalBalance: parents.reduce((sum, p) => sum + p.totalBalance, 0),
+    };
+  });
+}
+
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export function ChartOfAccountsPage() {
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 100;
   const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -68,11 +140,32 @@ export function ChartOfAccountsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [accountToActOn, setAccountToActOn] = useState<string | null>(null);
   const [showFixAccounts, setShowFixAccounts] = useState(false);
+  const [expandedTypes, setExpandedTypes] = useState<Record<string, boolean>>({});
+  const [expandedParents, setExpandedParents] = useState<Record<string, boolean>>({});
 
   const filters = ['All', 'Assets', 'Liabilities', 'Equity', 'Income', 'Expenses'];
   const searchInputRef = useRef<HTMLInputElement>(null);
   const latestRequestRef = useRef(0);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hierarchy = buildAccountHierarchy(accounts);
+
+  const toggleType = (type: string) => {
+    setExpandedTypes((prev) => ({
+      ...prev,
+      [type]: !(prev[type] ?? true),
+    }));
+  };
+
+  const toggleParent = (key: string) => {
+    setExpandedParents((prev) => ({
+      ...prev,
+      [key]: !(prev[key] ?? true),
+    }));
+  };
+
+  const isTypeExpanded = (type: string) => expandedTypes[type] ?? true;
+  const isParentExpanded = (key: string) => expandedParents[key] ?? true;
 
   const fetchAccounts = useCallback(async (
     page: number,
@@ -155,19 +248,6 @@ export function ChartOfAccountsPage() {
     fetchAccounts(pagination.page, searchTerm, selectedFilter);
   };
 
-  const handlePageChange = (page: number) => {
-    if (
-      loading ||
-      page < 1 ||
-      page > pagination.pages ||
-      page === pagination.page
-    ) {
-      return;
-    }
-    fetchAccounts(page, searchTerm, selectedFilter);
-  };
-
-  // ─── Account Actions ─────────────────────────────────────────
 
   const handleCreateAccount = async (data: Partial<ChartOfAccount>) => {
     setSubmitting(true);
@@ -403,213 +483,156 @@ export function ChartOfAccountsPage() {
                   </select>
                   <ChevronDown className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 pointer-events-none" />
                 </div>
+                <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-gray-500 bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1.5">
+                  <FolderTree className="w-3.5 h-3.5 text-[#014582]" />
+                  Type → Parent → Child
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Accounts List */}
+          {/* Hierarchy: Type → Parent group → Child accounts */}
           <div className="space-y-3 md:space-y-4">
             {loading && accounts.length === 0 ? (
               <div className="text-center py-8 md:py-12">
                 <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                 <p className="mt-2 text-xs md:text-sm text-gray-500">Loading accounts...</p>
               </div>
-            ) : accounts.length === 0 ? (
+            ) : hierarchy.length === 0 ? (
               <div className="text-center py-8 md:py-12 text-gray-400">
                 <Landmark className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-3 text-gray-300" />
                 <p className="text-sm md:text-lg font-medium text-gray-500">No accounts found</p>
                 <p className="text-xs md:text-sm text-gray-400">Try adjusting your search or filters</p>
               </div>
             ) : (
-              accounts.map((account) => {
-                const Icon = getTypeIcon(account.type);
-                const colorClass = getTypeColor(account.type);
-                const balanceType = getBalanceType(account.type);
-                const isIncorrect = account.type !== 'Asset' && 
-                  (account.name?.toLowerCase().includes('cash') || 
-                   account.name?.toLowerCase().includes('bank') ||
-                   account.name?.toLowerCase().includes('money'));
+              hierarchy.map((typeGroup) => {
+                const Icon = getTypeIcon(typeGroup.type);
+                const colorClass = getTypeColor(typeGroup.type);
+                const typeOpen = isTypeExpanded(typeGroup.type);
 
                 return (
-                  <div
-                    key={account.id}
-                    className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer"
-                    onClick={() => viewAccountDetail(account)}
-                  >
-                    <div className="p-3 md:p-4">
-                      <div className="flex items-center gap-3 md:gap-4">
-                        <div className={`p-2 md:p-2.5 rounded-xl ${colorClass}`}>
-                          <Icon className="w-4 h-4 md:w-5 md:h-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-gray-800 text-sm md:text-base truncate">{account.name}</p>
-                            {isIncorrect && (
-                              <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 text-orange-500 flex-shrink-0" />
-                            )}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mt-0.5">
-                            <span className="text-[10px] md:text-xs font-mono font-semibold text-[#014582] bg-[#014582]/10 px-1.5 md:px-2 py-0.5 rounded">
-                              {account.code}
-                            </span>
-                            <span className={`text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 rounded-full ${getStatusColor(account.isActive)}`}>
-                              {account.isActive ? 'Active' : 'Archived'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className={`text-sm md:text-base font-bold ${balanceType === 'Debit' ? 'text-green-600' : 'text-red-600'}`}>
-                            {formatCurrency(account.balance)}
-                          </p>
-                          <span className={`text-[10px] md:text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full ${balanceType === 'Debit' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {balanceType}
-                          </span>
-                        </div>
+                  <div key={typeGroup.type} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => toggleType(typeGroup.type)}
+                      className="w-full flex items-center gap-3 p-3 md:p-4 hover:bg-gray-50 transition-colors text-left"
+                    >
+                      <span className="text-gray-400">
+                        {typeOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                      </span>
+                      <div className={`p-2 rounded-xl ${colorClass}`}>
+                        <Icon className="w-4 h-4 md:w-5 md:h-5" />
                       </div>
-                    </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-900 text-sm md:text-base">{typeGroup.type}</p>
+                        <p className="text-[10px] md:text-xs text-gray-400">
+                          {typeGroup.parents.length} parent group{typeGroup.parents.length === 1 ? '' : 's'} · {typeGroup.accountCount} child account{typeGroup.accountCount === 1 ? '' : 's'}
+                        </p>
+                      </div>
+                      <p className={`text-sm md:text-base font-bold ${getBalanceType(typeGroup.type) === 'Debit' ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(typeGroup.totalBalance)}
+                      </p>
+                    </button>
+
+                    {typeOpen && (
+                      <div className="border-t border-gray-100 bg-slate-50/60">
+                        {typeGroup.parents.map((parent) => {
+                          const parentKey = `${typeGroup.type}::${parent.parentName}`;
+                          const parentOpen = isParentExpanded(parentKey);
+
+                          return (
+                            <div key={parentKey} className="border-b border-gray-100 last:border-b-0">
+                              <button
+                                type="button"
+                                onClick={() => toggleParent(parentKey)}
+                                className="w-full flex items-center gap-2.5 px-3 md:px-5 py-2.5 md:py-3 hover:bg-white/80 transition-colors text-left"
+                              >
+                                <span className="text-gray-400 ml-1 md:ml-2">
+                                  {parentOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                </span>
+                                {parentOpen ? (
+                                  <FolderOpen className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                                ) : (
+                                  <Folder className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-gray-800 text-xs md:text-sm">
+                                    {parent.parentName}
+                                    <span className="ml-2 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded">
+                                      Parent
+                                    </span>
+                                  </p>
+                                  <p className="text-[10px] text-gray-400">{parent.accounts.length} child account{parent.accounts.length === 1 ? '' : 's'}</p>
+                                </div>
+                                <p className="text-xs md:text-sm font-semibold text-gray-700">
+                                  {formatCurrency(parent.totalBalance)}
+                                </p>
+                              </button>
+
+                              {parentOpen && (
+                                <div className="pb-2">
+                                  {parent.accounts.map((account) => {
+                                    const isIncorrect = account.type !== 'Asset' &&
+                                      (account.name?.toLowerCase().includes('cash') ||
+                                        account.name?.toLowerCase().includes('bank') ||
+                                        account.name?.toLowerCase().includes('money'));
+                                    const balanceType = getBalanceType(account.type);
+
+                                    return (
+                                      <div
+                                        key={account.id}
+                                        className="mx-2 md:mx-4 mb-1.5 ml-6 md:ml-10 bg-white rounded-lg border border-gray-100 hover:border-[#014582]/30 hover:shadow-sm transition-all cursor-pointer"
+                                        onClick={() => viewAccountDetail(account)}
+                                      >
+                                        <div className="flex items-center gap-2.5 md:gap-3 p-2.5 md:p-3">
+                                          <div className="w-1.5 self-stretch rounded-full bg-[#014582]/40 flex-shrink-0" />
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                              <p className="font-medium text-gray-800 text-xs md:text-sm truncate">{account.name}</p>
+                                              <span className="text-[9px] md:text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded flex-shrink-0">
+                                                Child
+                                              </span>
+                                              {isIncorrect && (
+                                                <AlertTriangle className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
+                                              )}
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                              <span className="text-[10px] font-mono font-semibold text-[#014582] bg-[#014582]/10 px-1.5 py-0.5 rounded">
+                                                {account.code}
+                                              </span>
+                                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${getStatusColor(account.isActive)}`}>
+                                                {account.isActive ? 'Active' : 'Archived'}
+                                              </span>
+                                            </div>
+                                          </div>
+                                          <div className="text-right flex-shrink-0">
+                                            <p className={`text-xs md:text-sm font-bold ${balanceType === 'Debit' ? 'text-green-600' : 'text-red-600'}`}>
+                                              {formatCurrency(account.balance)}
+                                            </p>
+                                            <span className={`text-[9px] md:text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${balanceType === 'Debit' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                              {balanceType}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })
             )}
           </div>
 
-          {pagination.total > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <p className="text-xs md:text-sm text-gray-500">
-                  Showing{' '}
-                  <span className="font-semibold text-gray-700">
-                    {pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1}
-                  </span>{' '}
-                  –{' '}
-                  <span className="font-semibold text-gray-700">
-                    {Math.min(pagination.page * pagination.limit, pagination.total)}
-                  </span>{' '}
-                  of{' '}
-                  <span className="font-semibold text-gray-700">{pagination.total}</span> accounts
-                </p>
-
-                <div className="flex items-center gap-1 md:gap-2">
-                  <button
-                    onClick={() => handlePageChange(1)}
-                    disabled={pagination.page === 1 || loading}
-                    className="hidden sm:flex p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                    title="First page"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    <ChevronLeft className="w-4 h-4 -ml-3" />
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(pagination.page - 1)}
-                    disabled={!pagination.hasPrev || loading}
-                    className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                    title="Previous page"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-
-                  <div className="flex items-center gap-1">
-                    {(() => {
-                      const pages = [];
-                      const maxVisible = 5;
-                      let startPage = Math.max(1, pagination.page - Math.floor(maxVisible / 2));
-                      let endPage = Math.min(pagination.pages, startPage + maxVisible - 1);
-
-                      if (endPage - startPage + 1 < maxVisible) {
-                        startPage = Math.max(1, endPage - maxVisible + 1);
-                      }
-
-                      if (startPage > 1) {
-                        pages.push(
-                          <button
-                            key={1}
-                            onClick={() => handlePageChange(1)}
-                            className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-xs md:text-sm font-medium transition-all"
-                          >
-                            1
-                          </button>
-                        );
-                        if (startPage > 2) {
-                          pages.push(
-                            <span key="start-ellipsis" className="px-2 text-gray-400">...</span>
-                          );
-                        }
-                      }
-
-                      for (let i = startPage; i <= endPage; i++) {
-                        pages.push(
-                          <button
-                            key={i}
-                            onClick={() => handlePageChange(i)}
-                            className={`w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg text-xs md:text-sm font-medium transition-all ${
-                              i === pagination.page
-                                ? 'bg-[#014582] text-white border-[#014582] shadow-md shadow-[#014582]/25'
-                                : 'border border-gray-200 hover:bg-gray-50'
-                            }`}
-                          >
-                            {i}
-                          </button>
-                        );
-                      }
-
-                      if (endPage < pagination.pages) {
-                        if (endPage < pagination.pages - 1) {
-                          pages.push(
-                            <span key="end-ellipsis" className="px-2 text-gray-400">...</span>
-                          );
-                        }
-                        pages.push(
-                          <button
-                            key={pagination.pages}
-                            onClick={() => handlePageChange(pagination.pages)}
-                            className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-xs md:text-sm font-medium transition-all"
-                          >
-                            {pagination.pages}
-                          </button>
-                        );
-                      }
-
-                      return pages;
-                    })()}
-                  </div>
-
-                  <button
-                    onClick={() => handlePageChange(pagination.page + 1)}
-                    disabled={!pagination.hasNext || loading}
-                    className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                    title="Next page"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(pagination.pages)}
-                    disabled={pagination.page === pagination.pages || loading}
-                    className="hidden sm:flex p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                    title="Last page"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                    <ChevronRight className="w-4 h-4 -ml-3" />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs md:text-sm text-gray-500">Go to</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={pagination.pages}
-                    value={pagination.page}
-                    onChange={(e) => {
-                      const page = parseInt(e.target.value, 10);
-                      if (page >= 1 && page <= pagination.pages) {
-                        handlePageChange(page);
-                      }
-                    }}
-                    className="w-12 md:w-16 px-2 py-1.5 border border-gray-200 rounded-lg text-xs md:text-sm text-center focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
-                  />
-                  <span className="text-xs md:text-sm text-gray-500">of {pagination.pages}</span>
-                </div>
-              </div>
+          {pagination.pages > 1 && (
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-900">
+              Showing first {accounts.length} of {pagination.total} accounts in hierarchy view. Refine search/filter if you need a specific account.
             </div>
           )}
         </>
@@ -705,12 +728,19 @@ function AccountForm({
 
   const accountTypes = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'];
   const parentAccountsMap: Record<string, string[]> = {
-    'Asset': ['Current Assets', 'Fixed Assets'],
-    'Liability': ['Current Liabilities', 'Long Term Liabilities'],
-    'Equity': ['Capital / Equity'],
-    'Revenue': ['Operating Income'],
-    'Expense': ['Operating Expenses']
+    Asset: ['Current Assets', 'Non-Current Assets'],
+    Liability: ['Current Liabilities', 'Non-Current Liabilities'],
+    Equity: ['Equity'],
+    Revenue: ['Revenue'],
+    Expense: ['Cost of Sales', 'Operating Expenses'],
   };
+
+  const parentOptions = (() => {
+    const base = parentAccountsMap[formData.type || 'Asset'] || [];
+    const current = (formData.parentAccount || '').trim();
+    if (current && !base.includes(current)) return [...base, current];
+    return base;
+  })();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -846,18 +876,21 @@ function AccountForm({
             </div>
             <div>
               <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
-                Parent Account
+                Parent Account (group)
               </label>
               <select
                 value={formData.parentAccount || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, parentAccount: e.target.value }))}
                 className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
-                <option value="">None</option>
-                {(parentAccountsMap[formData.type || 'Asset'] || []).map((parent) => (
+                <option value="">Select parent group...</option>
+                {parentOptions.map((parent) => (
                   <option key={parent} value={parent}>{parent}</option>
                 ))}
               </select>
+              <p className="mt-1 text-[10px] md:text-xs text-gray-400">
+                Child ledger account iske parent group ke under dikhega (e.g. Cash → Current Assets).
+              </p>
             </div>
           </div>
 

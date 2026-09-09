@@ -1,0 +1,42 @@
+[
+  {
+    "id": "holiday_seed_independence",
+    "name": "Independence Day",
+    "date": "2026-08-14",
+    "type": "National",
+    "createdAt": "2026-09-07T00:00:00.000Z",
+    "updatedAt": "2026-09-07T00:00:00.000Z"
+  },
+  {
+    "id": "holiday_seed_eidulfitr",
+    "name": "Eid ul Fitr",
+    "date": "2026-03-20",
+    "type": "Religious",
+    "createdAt": "2026-09-07T00:00:00.000Z",
+    "updatedAt": "2026-09-07T00:00:00.000Z"
+  },
+  {
+    "id": "holiday_seed_eiduladha",
+    "name": "Eid ul Adha",
+    "date": "2026-05-27",
+    "type": "Religious",
+    "createdAt": "2026-09-07T00:00:00.000Z",
+    "updatedAt": "2026-09-07T00:00:00.000Z"
+  },
+  {
+    "id": "holiday_seed_quaideazam",
+    "name": "Quaid-e-Azam Day",
+    "date": "2026-12-25",
+    "type": "National",
+    "createdAt": "2026-09-07T00:00:00.000Z",
+    "updatedAt": "2026-09-07T00:00:00.000Z"
+  },
+  {
+    "id": "holiday_seed_foundation",
+    "name": "Company Foundation Day",
+    "date": "2026-10-10",
+    "type": "Company",
+    "createdAt": "2026-09-07T00:00:00.000Z",
+    "updatedAt": "2026-09-07T00:00:00.000Z"
+  }
+]

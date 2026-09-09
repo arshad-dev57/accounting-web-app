@@ -27,6 +27,7 @@ export interface PurchasePaymentModel {
   totalInvoices?: number;
   canCancel?: boolean;
   canDelete?: boolean;
+  canEdit?: boolean;
 }
 
 export interface PurchaseInvoicePaymentModel {
@@ -291,6 +292,28 @@ export const purchasePaymentService = {
     } catch (error: any) {
       console.error('Delete payment error:', error);
       throw new Error(error.message || 'Failed to delete payment');
+    }
+  },
+
+  // ─── Update payment metadata ─────────────────────────────
+  updatePayment: async (
+    id: string,
+    data: {
+      paymentDate?: string;
+      paymentMethod?: string;
+      reference?: string;
+      notes?: string;
+    }
+  ): Promise<PurchasePaymentModel> => {
+    try {
+      const response = await apiClient.put(`/api/purchase/payments/${id}`, data);
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to update payment');
+      }
+      return response.data?.data;
+    } catch (error: any) {
+      console.error('Update payment error:', error);
+      throw new Error(error.message || 'Failed to update payment');
     }
   },
 

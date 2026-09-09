@@ -1,0 +1,52 @@
+[
+  {
+    "name": "Head Office",
+    "code": "HO-01",
+    "address": "Gulberg III, Lahore",
+    "geofenceRadius": 150,
+    "status": "Active",
+    "id": "office_seed_ho-01",
+    "createdAt": "2026-09-07T00:00:00.000Z",
+    "updatedAt": "2026-09-07T13:26:12.020Z"
+  },
+  {
+    "name": "North Branch",
+    "code": "NB-02",
+    "address": "Blue Area, Islamabad",
+    "geofenceRadius": 200,
+    "status": "Active",
+    "id": "office_seed_nb-02",
+    "createdAt": "2026-09-07T00:00:00.000Z",
+    "updatedAt": "2026-09-07T00:00:00.000Z"
+  },
+  {
+    "name": "South Branch",
+    "code": "SB-03",
+    "address": "Clifton, Karachi",
+    "geofenceRadius": 150,
+    "status": "Active",
+    "id": "office_seed_sb-03",
+    "createdAt": "2026-09-07T00:00:00.000Z",
+    "updatedAt": "2026-09-07T00:00:00.000Z"
+  },
+  {
+    "id": "office_1788787425764_2xjgjj",
+    "name": "office",
+    "code": "SDESD",
+    "address": "csddcsd",
+    "geofenceRadius": 150,
+    "status": "Active",
+    "createdAt": "2026-09-07T13:23:45.764Z",
+    "updatedAt": "2026-09-07T13:23:45.764Z"
+  },
+  {
+    "id": "office_1788787642843_yb5c30",
+    "name": "East branch",
+    "code": "EB-84",
+    "address": "Gulberg",
+    "geofenceRadius": 150,
+    "status": "Active",
+    "createdAt": "2026-09-07T13:27:22.843Z",
+    "updatedAt": "2026-09-07T13:27:22.843Z"
+  }
+]
