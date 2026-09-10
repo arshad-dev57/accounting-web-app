@@ -37,8 +37,6 @@ declare global {
   }
 }
 
-const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-
 function useLiveTracking(): { employees: Tracked[]; lastPing: Date; source: 'live' | 'empty' } {
   const [employees, setEmployees] = React.useState<Tracked[]>([]);
   const [lastPing, setLastPing] = React.useState(() => new Date());
@@ -205,11 +203,13 @@ function GoogleMapView({
   selectedId,
   onSelect,
   onFail,
+  apiKey,
 }: {
   employees: Tracked[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onFail: () => void;
+  apiKey: string;
 }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<any>(null);
@@ -219,7 +219,13 @@ function GoogleMapView({
 
   React.useEffect(() => {
     let cancelled = false;
-    loadGoogleMaps(GOOGLE_MAPS_KEY)
+    if (!apiKey) {
+      onFail();
+      return () => {
+        cancelled = true;
+      };
+    }
+    loadGoogleMaps(apiKey)
       .then((maps) => {
         if (cancelled || !containerRef.current || mapRef.current) return;
         const map = new maps.Map(containerRef.current, {
@@ -244,7 +250,7 @@ function GoogleMapView({
     return () => {
       cancelled = true;
     };
-  }, [onFail]);
+  }, [onFail, apiKey]);
 
   React.useEffect(() => {
     const maps = window.google?.maps;
@@ -459,18 +465,47 @@ function LiveMap({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
-  const [engine, setEngine] = React.useState<'google' | 'leaflet'>(
-    GOOGLE_MAPS_KEY ? 'google' : 'leaflet'
-  );
+  const [mapsKey, setMapsKey] = React.useState<string | null>(null);
+  const [engine, setEngine] = React.useState<'pending' | 'google' | 'leaflet'>('pending');
   const failGoogle = React.useCallback(() => setEngine('leaflet'), []);
 
-  if (engine === 'google') {
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch('/api/maps-config')
+      .then((r) => r.json())
+      .then((body) => {
+        if (cancelled) return;
+        const key = String(body?.googleMapsApiKey || '').trim();
+        setMapsKey(key);
+        setEngine(key ? 'google' : 'leaflet');
+      })
+      .catch(() => {
+        if (!cancelled) setEngine('leaflet');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (engine === 'pending') {
+    return (
+      <div className="w-full h-full rounded-xl bg-[#F0F4F8] flex items-center justify-center">
+        <div className="flex items-center gap-2 text-xs font-semibold text-[#7A8FA6]">
+          <Navigation className="w-4 h-4 animate-pulse text-[#014582]" />
+          Loading map…
+        </div>
+      </div>
+    );
+  }
+
+  if (engine === 'google' && mapsKey) {
     return (
       <GoogleMapView
         employees={employees}
         selectedId={selectedId}
         onSelect={onSelect}
         onFail={failGoogle}
+        apiKey={mapsKey}
       />
     );
   }
