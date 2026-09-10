@@ -24,6 +24,12 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  GitBranch,
+  Inbox,
+  FolderOpen,
+  Landmark,
+  Award,
+  CalendarRange,
   UsersRound,
   Headset,
   Phone,
@@ -32,10 +38,6 @@ import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import { performLogout } from '../../lib/auth-logout';
-
-// ============================================================
-// HR SIDEBAR — mirrors the mobile app's HRDrawer items
-// ============================================================
 const SECTIONS: {
   label: string;
   items: { href: string; label: string; icon: React.ElementType }[];
@@ -47,6 +49,8 @@ const SECTIONS: {
       { href: '/hr/employees', label: 'Employees', icon: Users },
       { href: '/hr/add-employee', label: 'Add Employee', icon: UserPlus },
       { href: '/hr/offices', label: 'Offices', icon: Building2 },
+      { href: '/hr/organization', label: 'Departments', icon: GitBranch },
+      { href: '/hr/team', label: 'My Team', icon: UsersRound },
     ],
   },
   {
@@ -54,10 +58,13 @@ const SECTIONS: {
     items: [
       { href: '/hr/attendance', label: 'Attendance', icon: Fingerprint },
       { href: '/hr/shifts', label: 'Shifts', icon: Clock },
+      { href: '/hr/shift-plans', label: 'Shift Plans', icon: Clock },
       { href: '/hr/calendar', label: 'Calendar View', icon: CalendarDays },
       { href: '/hr/leaves', label: 'Leave Management', icon: PlaneTakeoff },
+      { href: '/hr/leave-policies', label: 'Leave Policies', icon: PlaneTakeoff },
       { href: '/hr/holidays', label: 'Holidays', icon: Palmtree },
       { href: '/hr/overtime', label: 'Overtime', icon: Timer },
+      { href: '/hr/roster', label: 'Roster', icon: CalendarRange },
       { href: '/hr/live-tracking', label: 'Live Tracking', icon: MapPin },
     ],
   },
@@ -65,6 +72,11 @@ const SECTIONS: {
     label: 'WORKFORCE',
     items: [
       { href: '/hr/payroll', label: 'Payroll', icon: Wallet },
+      { href: '/hr/loans', label: 'Loans & Advances', icon: Landmark },
+      { href: '/hr/bonuses', label: 'Bonuses', icon: Award },
+      { href: '/hr/lifecycle', label: 'Lifecycle', icon: GitBranch },
+      { href: '/hr/documents', label: 'Documents', icon: FolderOpen },
+      { href: '/hr/approvals', label: 'Approvals', icon: Inbox },
       { href: '/hr/tasks', label: 'Task Management', icon: ListChecks },
       { href: '/hr/performance', label: 'Performance Reviews', icon: ClipboardCheck },
       { href: '/hr/org-chart', label: 'Organization Chart', icon: Network },
@@ -86,7 +98,6 @@ function HRSidebar() {
 
   return (
     <div className="w-64 h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0 fixed left-0 top-0">
-      {/* Brand header — mirrors the mobile drawer's HR Admin header */}
       <div className="p-4 flex-shrink-0">
         <Link href="/dashboard" className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 transition-all">
           <div className="w-10 h-10 rounded-xl bg-[#014582] flex items-center justify-center">

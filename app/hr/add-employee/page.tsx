@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Save, Loader2, CircleCheck } from 'lucide-react';
+import { Save, Loader2, CircleCheck, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { HRPage, HRPageHeader, HRCard, HRWorkflowNotice } from '../ui';
 import { hrEmployeesService } from '@/lib/hr-employees-service';
@@ -18,6 +18,8 @@ const inputErrorCls =
 const DEPARTMENTS = ['IT', 'Sales', 'HR', 'Finance', 'Operations', 'Marketing'];
 const STATUSES = ['Active', 'On Leave', 'Inactive'] as const;
 
+const EMPLOYEE_TYPES = ['Office Employee', 'Field Employee', 'Salesman', 'Delivery Staff'];
+
 type FormState = {
   firstName: string;
   lastName: string;
@@ -25,10 +27,13 @@ type FormState = {
   phone: string;
   designation: string;
   department: string;
-  office: string;
+  officeId: string;
   shift: string;
   joiningDate: string;
   status: (typeof STATUSES)[number];
+  employeeType: string;
+  password: string;
+  confirmPassword: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -38,10 +43,13 @@ const EMPTY_FORM: FormState = {
   phone: '',
   designation: '',
   department: 'IT',
-  office: 'Head Office',
-  shift: 'Morning Shift',
+  officeId: '',
+  shift: '',
   joiningDate: new Date().toISOString().split('T')[0],
   status: 'Active',
+  employeeType: 'Office Employee',
+  password: '',
+  confirmPassword: '',
 };
 
 function Field({
@@ -71,26 +79,26 @@ export default function AddEmployeePage() {
   const [form, setForm] = React.useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
-  const [offices, setOffices] = React.useState<string[]>([]);
+  const [offices, setOffices] = React.useState<{ id: string; name: string }[]>([]);
   const [shifts, setShifts] = React.useState<string[]>([]);
+  const [showPassword, setShowPassword] = React.useState(false);
 
-  // Load offices from the HR offices API so new offices show up here
   React.useEffect(() => {
     let mounted = true;
     hrOfficesService
       .list()
       .then((data) => {
         if (!mounted) return;
-        const names = data.filter((o) => o.status === 'Active').map((o) => o.name);
-        setOffices(names);
+        const active = data.filter((o) => o.status === 'Active');
+        setOffices(active.map((o) => ({ id: o.id, name: o.name })));
         setForm((prev) => ({
           ...prev,
-          office: names.includes(prev.office) ? prev.office : names[0] || '',
+          officeId: active.some((o) => o.id === prev.officeId)
+            ? prev.officeId
+            : active[0]?.id || '',
         }));
       })
-      .catch(() => {
-        // Fail silently — the office field is not required
-      });
+      .catch(() => {});
     return () => {
       mounted = false;
     };
@@ -125,8 +133,15 @@ export default function AddEmployeePage() {
     const next: Record<string, string> = {};
     if (!form.firstName.trim()) next.firstName = 'First name is required';
     if (!form.lastName.trim()) next.lastName = 'Last name is required';
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    if (!form.email.trim()) next.email = 'Email is required — this becomes their app login';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       next.email = 'Invalid email address';
+    }
+    if (!form.officeId) next.officeId = 'Create and select an office first';
+    if (!form.password.trim()) next.password = 'Set a password — HR will share this with the employee';
+    else if (form.password.length < 6) next.password = 'Password must be at least 6 characters';
+    if (form.password !== form.confirmPassword) {
+      next.confirmPassword = 'Passwords do not match';
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -140,8 +155,23 @@ export default function AddEmployeePage() {
     }
     setSaving(true);
     try {
-      const employee = await hrEmployeesService.create({ ...form });
-      toast.success(`Employee ${employee.employeeCode} created`);
+      const result = await hrEmployeesService.create({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        phone: form.phone,
+        designation: form.designation,
+        department: form.department,
+        officeId: form.officeId,
+        shift: form.shift,
+        joiningDate: form.joiningDate,
+        status: form.status,
+        employeeType: form.employeeType,
+        password: form.password,
+      });
+      toast.success(
+        `${result.employee.employeeCode} created. Share the email and password you set — they will open the Employee Dashboard.`
+      );
       router.push('/hr/employees');
     } catch (error: any) {
       toast.error(error.message || 'Failed to create employee');
@@ -154,13 +184,62 @@ export default function AddEmployeePage() {
     <HRPage>
       <HRPageHeader
         title="Add Employee"
-        subtitle="Create a staff record — employees do not get ERP access unless linked to a user"
+        subtitle="Creates a real app user. They log in and only see the Employee Dashboard."
         backHref="/hr/employees"
       />
 
-      <HRWorkflowNotice tone="green" title="Step 1 of employee setup" detail="This creates the core HR profile. The next UI stages will collect employment documents, bank/payroll details, onboarding tasks, and manager assignment." action={<span className="inline-flex items-center gap-1 text-[11px] font-extrabold"><CircleCheck className="w-3.5 h-3.5" /> Core profile</span>} />
+      <HRWorkflowNotice
+        tone="green"
+        title="HR sets the login password"
+        detail="Create the employee account, set a password here, and give them the email + password. They log in on the mobile app and only see the Employee Dashboard."
+        action={
+          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold">
+            <CircleCheck className="w-3.5 h-3.5" /> User + employee
+          </span>
+        }
+      />
 
       <form onSubmit={handleSubmit}>
+        <HRCard title="App login password" className="mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Password" required error={errors.password}>
+              <div className="relative">
+                <input
+                  className={`${errors.password ? inputErrorCls : inputCls} pr-11`}
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={(e) => set('password')(e.target.value)}
+                  placeholder="HR will share this with the employee"
+                  autoComplete="new-password"
+                  disabled={saving}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7A8FA6] hover:text-[#014582]"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </Field>
+            <Field label="Confirm password" required error={errors.confirmPassword}>
+              <input
+                className={errors.confirmPassword ? inputErrorCls : inputCls}
+                type={showPassword ? 'text' : 'password'}
+                value={form.confirmPassword}
+                onChange={(e) => set('confirmPassword')(e.target.value)}
+                placeholder="Re-enter password"
+                autoComplete="new-password"
+                disabled={saving}
+              />
+            </Field>
+          </div>
+          <p className="mt-3 text-[11px] font-medium text-[#7A8FA6]">
+            Minimum 6 characters. Give this password to the employee with their email.
+          </p>
+        </HRCard>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <HRCard title="Personal Information">
             <div className="space-y-4">
@@ -182,7 +261,7 @@ export default function AddEmployeePage() {
                   disabled={saving}
                 />
               </Field>
-              <Field label="Email" error={errors.email}>
+              <Field label="Email" required error={errors.email}>
                 <input
                   className={errors.email ? inputErrorCls : inputCls}
                   type="email"
@@ -227,22 +306,34 @@ export default function AddEmployeePage() {
                   ))}
                 </select>
               </Field>
-              <Field label="Office">
+              <Field label="Office" required error={errors.officeId}>
                 <select
-                  className={inputCls}
-                  value={form.office}
-                  onChange={(e) => set('office')(e.target.value)}
+                  className={errors.officeId ? inputErrorCls : inputCls}
+                  value={form.officeId}
+                  onChange={(e) => set('officeId')(e.target.value)}
                   disabled={saving}
                 >
                   {offices.length > 0 ? (
                     offices.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
+                      <option key={o.id} value={o.id}>
+                        {o.name}
                       </option>
                     ))
                   ) : (
-                    <option value="">No offices available</option>
+                    <option value="">No offices yet — add one first</option>
                   )}
+                </select>
+              </Field>
+              <Field label="Employee type">
+                <select
+                  className={inputCls}
+                  value={form.employeeType}
+                  onChange={(e) => set('employeeType')(e.target.value)}
+                  disabled={saving}
+                >
+                  {EMPLOYEE_TYPES.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
                 </select>
               </Field>
               <Field label="Shift">

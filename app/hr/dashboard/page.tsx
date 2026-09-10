@@ -8,7 +8,6 @@ import {
   UserCheck,
   UserX,
   PlaneTakeoff,
-  Clock,
   Fingerprint,
   Users,
   UserPlus,
@@ -17,7 +16,6 @@ import {
   MapPin,
   LogIn,
   LogOut as LogOutIcon,
-  Coffee,
   AlertTriangle,
   UserX as UserOff,
   ArrowRight,
@@ -40,6 +38,7 @@ import {
   Legend,
 } from 'recharts';
 import { HRPage, HRPageHeader, HRStatCard, HRCard } from '../ui';
+import { hrDashboardService } from '@/lib/hr-employees-service';
 
 const COLORS = {
   primary: '#014582',
@@ -50,43 +49,7 @@ const COLORS = {
   purple: '#8E44AD',
 };
 
-// ─────────────────────────────────────────────────────────────
-// MOCK ANALYTICS (mirrors mobile app data)
-// ─────────────────────────────────────────────────────────────
-const WEEKLY_ATTENDANCE = [
-  { day: 'Mon', present: 34, absent: 3, leave: 5 },
-  { day: 'Tue', present: 36, absent: 2, leave: 4 },
-  { day: 'Wed', present: 35, absent: 4, leave: 3 },
-  { day: 'Thu', present: 33, absent: 2, leave: 7 },
-  { day: 'Fri', present: 37, absent: 1, leave: 4 },
-  { day: 'Sat', present: 28, absent: 2, leave: 3 },
-  { day: 'Sun', present: 12, absent: 0, leave: 2 },
-];
-
-const PUNCTUALITY = [
-  { day: 'Mon', onTime: 30, late: 4 },
-  { day: 'Tue', onTime: 33, late: 3 },
-  { day: 'Wed', onTime: 31, late: 4 },
-  { day: 'Thu', onTime: 29, late: 4 },
-  { day: 'Fri', onTime: 34, late: 3 },
-  { day: 'Sat', onTime: 26, late: 2 },
-];
-
-const DEPARTMENT_DIST = [
-  { name: 'IT', value: 14, color: COLORS.primary },
-  { name: 'Sales', value: 11, color: COLORS.success },
-  { name: 'HR', value: 6, color: COLORS.warning },
-  { name: 'Finance', value: 4, color: COLORS.accent },
-];
-
-const PAYROLL_TREND = [
-  { month: 'Apr', amount: 24100 },
-  { month: 'May', amount: 24800 },
-  { month: 'Jun', amount: 23900 },
-  { month: 'Jul', amount: 25300 },
-  { month: 'Aug', amount: 26100 },
-  { month: 'Sep', amount: 26293 },
-];
+const DEPT_COLORS = [COLORS.primary, COLORS.success, COLORS.warning, COLORS.accent, COLORS.purple, COLORS.danger];
 
 // Quick actions — mirrors mobile _buildQuickActions
 const QUICK_ACTIONS = [
@@ -96,15 +59,6 @@ const QUICK_ACTIONS = [
   { label: 'Manage Leaves', href: '/hr/leaves', icon: Plane, color: COLORS.warning },
   { label: 'Payroll', href: '/hr/payroll', icon: Wallet, color: COLORS.purple },
   { label: 'Live Tracking', href: '/hr/live-tracking', icon: MapPin, color: COLORS.danger },
-];
-
-// Recent activity — mirrors mobile _buildRecentActivity
-const ACTIVITIES = [
-  { name: 'Ahmed Khan', action: 'Checked in', time: '09:03 AM', icon: LogIn, color: COLORS.success, note: '✅ Auto Geofence' },
-  { name: 'Sara Ali', action: 'Checked in (Late)', time: '09:25 AM', icon: AlertTriangle, color: COLORS.warning, note: '⚠️ 25 min late' },
-  { name: 'Ali Raza', action: 'Absent', time: '11:00 AM', icon: UserOff, color: COLORS.danger, note: '❌ No check-in' },
-  { name: 'Usman Sheikh', action: 'Started Break', time: '01:05 PM', icon: Coffee, color: '#2563EB', note: '⏸️ Break started' },
-  { name: 'Fatima Noor', action: 'Checked out', time: '06:05 PM', icon: LogOutIcon, color: COLORS.purple, note: '✅ Auto checkout' },
 ];
 
 const tooltipStyle = {
@@ -117,8 +71,33 @@ const tooltipStyle = {
   boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
 };
 
+function isoDate(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export default function HRDashboardPage() {
   const [dateOffset, setDateOffset] = React.useState(0);
+  const [stats, setStats] = React.useState({
+    totalEmployees: 0,
+    present: 0,
+    late: 0,
+    absent: 0,
+    onLeave: 0,
+    fieldStaff: 0,
+    working: 0,
+  });
+  const [activities, setActivities] = React.useState<
+    { name: string; action: string; time: string; icon: any; color: string; note: string }[]
+  >([]);
+  const [weekly, setWeekly] = React.useState<{ day: string; present: number; absent: number; leave: number }[]>([]);
+  const [punctuality, setPunctuality] = React.useState<{ day: string; onTime: number; late: number }[]>([]);
+  const [departments, setDepartments] = React.useState<{ name: string; value: number; color: string }[]>([]);
+  const [liveCount, setLiveCount] = React.useState(0);
+  const [typeSplit, setTypeSplit] = React.useState<{ label: string; value: number }[]>([]);
+
   const date = React.useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + dateOffset);
@@ -128,11 +107,90 @@ export default function HRDashboardPage() {
     weekday: 'long', day: '2-digit', month: 'short', year: 'numeric',
   });
 
-  const attendanceRate = Math.round(
-    (WEEKLY_ATTENDANCE.reduce((s, d) => s + d.present, 0) /
-      WEEKLY_ATTENDANCE.reduce((s, d) => s + d.present + d.absent + d.leave, 0)) *
-      100
-  );
+  React.useEffect(() => {
+    let mounted = true;
+    const iso = isoDate(date);
+    hrDashboardService
+      .overview(iso)
+      .then((data) => {
+        if (!mounted) return;
+        const total = Number(data.totalEmployees || 0);
+        setStats({
+          totalEmployees: total,
+          present: Number(data.present || 0),
+          late: Number(data.late || 0),
+          absent: Number(data.absent || 0),
+          onLeave: Number(data.onLeave || 0),
+          fieldStaff: Number(data.fieldStaff || 0),
+          working: Number(data.working || 0),
+        });
+        setLiveCount(Number(data.liveCount || 0));
+        setTypeSplit([
+          { label: 'Office', value: Number(data.officeStaff || 0) },
+          { label: 'Field', value: Number(data.fieldStaff || 0) },
+        ]);
+        setDepartments(
+          (data.departments || []).map((d: any, i: number) => ({
+            name: d.name || 'Unassigned',
+            value: Number(d.value || 0),
+            color: DEPT_COLORS[i % DEPT_COLORS.length],
+          }))
+        );
+        const week = Array.isArray(data.weekly) ? data.weekly : [];
+        setWeekly(
+          week.map((d: any) => ({
+            day: d.day,
+            present: Number(d.present || 0),
+            absent: Number(d.absent || 0),
+            leave: Number(d.leave || 0),
+          }))
+        );
+        setPunctuality(
+          week.map((d: any) => ({
+            day: d.day,
+            onTime: Number(d.onTime || 0),
+            late: Number(d.late || 0),
+          }))
+        );
+        setActivities(
+          (data.attendance || []).slice(0, 8).map((row: any) => {
+            const emp = row.employee || {};
+            const checkedIn = Boolean(row.checkIn);
+            const late = String(row.statusKey || '').toLowerCase() === 'late';
+            return {
+              name: emp.name || 'Employee',
+              action: !checkedIn
+                ? 'Absent'
+                : late
+                  ? 'Checked in (Late)'
+                  : row.checkOut
+                    ? 'Checked out'
+                    : 'Checked in',
+              time: row.checkIn
+                ? new Date(row.checkIn).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '—',
+              icon: !checkedIn ? UserOff : late ? AlertTriangle : row.checkOut ? LogOutIcon : LogIn,
+              color: !checkedIn ? COLORS.danger : late ? COLORS.warning : COLORS.success,
+              note: row.source === 'geofence' ? 'Geofence' : row.status || '',
+            };
+          })
+        );
+      })
+      .catch(() => {
+        if (!mounted) return;
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [date]);
+
+  const attendanceRate =
+    stats.totalEmployees > 0
+      ? Math.round((stats.present / stats.totalEmployees) * 100)
+      : 0;
 
   return (
     <HRPage>
@@ -174,10 +232,10 @@ export default function HRDashboardPage() {
 
       {/* Stats grid — mirrors mobile _buildStatsGrid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <HRStatCard label="Present Today" value="34" icon={UserCheck} color={COLORS.success} hint="▲ 4 vs yesterday" />
-        <HRStatCard label="Absent" value="3" icon={UserX} color={COLORS.danger} hint="▼ 1 vs yesterday" />
-        <HRStatCard label="On Leave" value="5" icon={PlaneTakeoff} color={COLORS.warning} hint="2 pending approval" />
-        <HRStatCard label="Attendance Rate" value={`${attendanceRate}%`} icon={TrendingUp} color={COLORS.primary} hint="This week avg" />
+        <HRStatCard label="Present Today" value={stats.present} icon={UserCheck} color={COLORS.success} hint={`${stats.working} still working`} />
+        <HRStatCard label="Absent" value={stats.absent} icon={UserX} color={COLORS.danger} hint={`${stats.late} late`} />
+        <HRStatCard label="On Leave" value={stats.onLeave} icon={PlaneTakeoff} color={COLORS.warning} hint={`${stats.totalEmployees} employees`} />
+        <HRStatCard label="Attendance Rate" value={`${attendanceRate}%`} icon={TrendingUp} color={COLORS.primary} hint="Today" />
       </div>
 
       {/* CHART ROW 1 — attendance trend + department donut */}
@@ -189,7 +247,7 @@ export default function HRDashboardPage() {
         >
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={WEEKLY_ATTENDANCE} margin={{ top: 5, right: 10, left: -18, bottom: 0 }}>
+              <AreaChart data={weekly} margin={{ top: 5, right: 10, left: -18, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gPresent" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={COLORS.success} stopOpacity={0.35} />
@@ -222,7 +280,7 @@ export default function HRDashboardPage() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={DEPARTMENT_DIST}
+                  data={departments}
                   dataKey="value"
                   nameKey="name"
                   innerRadius="60%"
@@ -230,7 +288,7 @@ export default function HRDashboardPage() {
                   paddingAngle={3}
                   strokeWidth={0}
                 >
-                  {DEPARTMENT_DIST.map((d) => (
+                  {departments.map((d) => (
                     <Cell key={d.name} fill={d.color} />
                   ))}
                 </Pie>
@@ -238,18 +296,22 @@ export default function HRDashboardPage() {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <p className="text-2xl font-extrabold text-[#1A1A2E]">35</p>
+              <p className="text-2xl font-extrabold text-[#1A1A2E]">{stats.totalEmployees}</p>
               <p className="text-[10px] font-semibold text-[#7A8FA6]">Employees</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-3">
-            {DEPARTMENT_DIST.map((d) => (
+            {departments.length === 0 ? (
+              <p className="text-xs text-[#7A8FA6] text-center py-2">No employees yet</p>
+            ) : (
+              departments.map((d) => (
               <div key={d.name} className="flex items-center gap-1.5 text-[10px] font-semibold text-[#7A8FA6]">
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: d.color }} />
                 {d.name}
                 <span className="ml-auto font-bold text-[#1A1A2E]">{d.value}</span>
               </div>
-            ))}
+            ))
+            )}
           </div>
         </HRCard>
       </div>
@@ -286,7 +348,7 @@ export default function HRDashboardPage() {
         >
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={PUNCTUALITY} margin={{ top: 5, right: 10, left: -18, bottom: 0 }} barCategoryGap="28%">
+              <BarChart data={punctuality} margin={{ top: 5, right: 10, left: -18, bottom: 0 }} barCategoryGap="28%">
                 <CartesianGrid strokeDasharray="3 3" stroke="#DDE4EE" vertical={false} />
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#7A8FA6', fontWeight: 600 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#7A8FA6' }} axisLine={false} tickLine={false} />
@@ -300,35 +362,33 @@ export default function HRDashboardPage() {
         </HRCard>
 
         <HRCard
-          title="Payroll Cost Trend"
-          action={<Link href="/hr/payroll" className="text-[11px] font-semibold text-[#014582]">View Payroll</Link>}
+          title="Workforce mix"
+          action={<span className="text-[10px] font-semibold text-[#7A8FA6]">Office vs field</span>}
         >
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={PAYROLL_TREND} margin={{ top: 5, right: 10, left: 4, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gPayroll" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={COLORS.primary} stopOpacity={0.3} />
-                    <stop offset="100%" stopColor={COLORS.primary} stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#DDE4EE" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#7A8FA6', fontWeight: 600 }} axisLine={false} tickLine={false} />
-                <YAxis
-                  tick={{ fontSize: 11, fill: '#7A8FA6' }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
-                />
-                <Tooltip
-                  contentStyle={tooltipStyle}
-                  formatter={(value) => [`$${Number(value).toLocaleString('en-US')}`, 'Total Payroll']}
-                  cursor={{ stroke: '#014582', strokeOpacity: 0.15, strokeWidth: 28 }}
-                />
-                <Area type="monotone" dataKey="amount" stroke={COLORS.primary} strokeWidth={2.5} fill="url(#gPayroll)">
-                </Area>
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="h-56 flex flex-col justify-center gap-6 px-2">
+            {typeSplit.map((row) => {
+              const max = Math.max(1, typeSplit.reduce((s, r) => s + r.value, 0));
+              return (
+                <div key={row.label}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-[#1A1A2E]">{row.label}</span>
+                    <span className="text-xs font-semibold text-[#7A8FA6]">{row.value}</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-[#F0F4F8] overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${(row.value / max) * 100}%`,
+                        backgroundColor: row.label === 'Field' ? COLORS.warning : COLORS.primary,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+            {typeSplit.every((r) => r.value === 0) && (
+              <p className="text-xs text-[#7A8FA6] text-center">Add employees to see this split.</p>
+            )}
           </div>
         </HRCard>
       </div>
@@ -347,7 +407,9 @@ export default function HRDashboardPage() {
               </p>
               <div className="flex items-center gap-1.5 mt-2">
                 <span className="w-1.5 h-1.5 bg-[#2ECC71] rounded-full animate-pulse" />
-                <span className="text-[11px] text-[#7A8FA6] font-medium">24 employees active</span>
+                <span className="text-[11px] text-[#7A8FA6] font-medium">
+                  {liveCount} employee{liveCount === 1 ? '' : 's'} with last-known GPS
+                </span>
               </div>
             </div>
             <Link
@@ -370,10 +432,13 @@ export default function HRDashboardPage() {
           }
         >
           <div className="divide-y divide-[#DDE4EE]/60">
-            {ACTIVITIES.map((a) => {
+            {activities.length === 0 ? (
+              <p className="py-8 text-center text-xs text-[#7A8FA6]">No attendance events yet today.</p>
+            ) : (
+              activities.map((a) => {
               const Icon = a.icon;
               return (
-                <div key={a.name + a.time} className="flex items-center gap-3 py-2.5">
+                <div key={a.name + a.time + a.action} className="flex items-center gap-3 py-2.5">
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: `${a.color}1A` }}
@@ -392,7 +457,8 @@ export default function HRDashboardPage() {
                   <span className="text-[11px] font-semibold text-[#7A8FA6]">{a.time}</span>
                 </div>
               );
-            })}
+            })
+            )}
           </div>
         </HRCard>
       </div>

@@ -23,12 +23,7 @@ const nextConfig: NextConfig = {
     ).trim();
     return [
       {
-        // Keep frontend route handlers (eg. POS, desktop download, HR module) local.
-        // Everything else under /api is proxied to the backend.
-        // NOTE: /api/hr must stay local — afterFiles rewrites run BEFORE dynamic
-        // routes, so without this exclusion /api/hr/*/[id] requests would be
-        // proxied to the backend instead of hitting the local route handlers.
-        source: '/api/:path((?!pos/|download/|hr/).*)',
+        source: '/api/:path((?!pos/|download/|hr/holidays|hr/shifts).*)',
         destination: `${backendUrl}/api/:path*`,
       },
     ];

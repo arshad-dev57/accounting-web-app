@@ -4,135 +4,107 @@ import React from 'react';
 import {
   MapPin,
   Navigation,
-  BatteryMedium,
   Gauge,
   Crosshair,
-  KeyRound,
   Clock,
   Building2,
 } from 'lucide-react';
 import { HRPage, HRPageHeader, HRCard, HRStatCard, HRStatusBadge } from '../ui';
-import { TRACKING, OFFICE_COORDS } from '../data';
+import { hrDashboardService } from '@/lib/hr-employees-service';
 
-const COLORS = { success: '#2ECC71', primary: '#014582', warning: '#F39C12', danger: '#E74C3C' };
+const COLORS = { success: '#2ECC71', primary: '#014582', warning: '#F39C12' };
 
-type Tracked = (typeof TRACKING)[number] & {
+type Tracked = {
+  id: string;
+  employee: string;
+  office: string;
+  location: string;
+  since: string;
+  status: string;
   lat: number;
   lng: number;
   moving: boolean;
-  speed: number;
-  battery: number;
 };
-
-const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 declare global {
   interface Window {
+    L?: any;
     google?: any;
-    __hrGmapsLoading?: Promise<void>;
+    gm_authFailure?: () => void;
+    hrGoogleMapsInit?: () => void;
+    __hrLeafletLoading?: Promise<any>;
+    __hrGoogleMapsLoading?: Promise<any>;
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// GPS SIMULATION — field employees drift every ping like real
-// device GPS updates. Office staff stay put.
-// ─────────────────────────────────────────────────────────────
-function useSimulatedTracking(): { employees: Tracked[]; lastPing: Date; source: 'live' | 'demo' } {
-  const [employees, setEmployees] = React.useState<Tracked[]>(() =>
-    TRACKING.map((t) => ({ ...t }))
-  );
+const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+
+function useLiveTracking(): { employees: Tracked[]; lastPing: Date; source: 'live' | 'empty' } {
+  const [employees, setEmployees] = React.useState<Tracked[]>([]);
   const [lastPing, setLastPing] = React.useState(() => new Date());
-  const [source, setSource] = React.useState<'live' | 'demo'>('demo');
+  const [source, setSource] = React.useState<'live' | 'empty'>('empty');
 
   React.useEffect(() => {
     let cancelled = false;
 
     const loadLive = async () => {
       try {
-        const res = await fetch('/api/hr/tracking', { credentials: 'include' });
-        const json = await res.json();
-        if (!res.ok || !json.success) throw new Error(json.message || 'fail');
-        const live = (json.data?.live || []) as Array<{
-          employeeId: string;
-          employeeName: string;
-          officeName?: string;
-          locationLabel: string;
-          status: string;
-          latitude: number;
-          longitude: number;
-          moving: boolean;
-          speed?: number;
-          battery?: number;
-          lastPingAt: string;
-        }>;
-
+        const live = await hrDashboardService.liveTracking();
         if (cancelled) return;
-        if (live.length === 0) {
-          setSource('demo');
-          return;
-        }
-
-        setSource('live');
-        setEmployees(
-          live.map((e) => ({
-            employee: e.employeeName,
-            office: e.officeName || '—',
-            location: e.locationLabel,
-            since: new Date(e.lastPingAt).toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
-            status: e.status === 'CheckedIn' ? 'CheckedIn' : 'Present',
-            lat: e.latitude,
-            lng: e.longitude,
-            moving: !!e.moving,
-            speed: Math.round(Number(e.speed) || 0),
-            battery: Math.round(Number(e.battery) || 0),
-          }))
-        );
+        const mapped: Tracked[] = live
+          .filter((e: any) => {
+            const statusKey = String(e.status || '').toLowerCase();
+            return Number(e.latitude) && Number(e.longitude) && statusKey !== 'offline';
+          })
+          .map((e: any) => {
+            const statusKey = String(e.status || '').toLowerCase();
+            const inside = e.insideGeofence === true;
+            return {
+              id: e.employeeId || e.employeeCode || e.employeeName,
+              employee: e.employeeName || 'Employee',
+              office: e.officeName || '—',
+              location: inside
+                ? e.officeName || e.locationLabel || 'Office'
+                : e.locationLabel || 'In the field',
+              since: e.lastPingAt
+                ? new Date(e.lastPingAt).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '—',
+              status:
+                statusKey === 'working' || statusKey === 'inside'
+                  ? 'Present'
+                  : statusKey === 'field' || statusKey === 'outside'
+                    ? 'CheckedIn'
+                    : e.attendanceStatus || statusKey || 'offline',
+              lat: Number(e.latitude),
+              lng: Number(e.longitude),
+              moving: !inside,
+            };
+          });
+        setEmployees(mapped);
+        setSource(mapped.length ? 'live' : 'empty');
         setLastPing(new Date());
       } catch {
-        if (!cancelled) setSource('demo');
+        if (!cancelled) {
+          setEmployees([]);
+          setSource('empty');
+        }
       }
     };
 
     loadLive();
-    const liveTimer = setInterval(loadLive, 5000);
-
-    const simTimer = setInterval(() => {
-      setEmployees((prev) => {
-        // Only simulate when no live pings yet
-        if (source === 'live') return prev;
-        return prev.map((emp) => {
-          if (!emp.moving) return emp;
-          const step = 0.0006 + Math.random() * 0.0009;
-          const angle = Math.random() * Math.PI * 2;
-          return {
-            ...emp,
-            lat: emp.lat + Math.sin(angle) * step,
-            lng: emp.lng + Math.cos(angle) * step,
-            speed: Math.max(4, Math.round(emp.speed + (Math.random() * 10 - 5))),
-            battery: Math.max(5, emp.battery - (Math.random() < 0.2 ? 1 : 0)),
-          };
-        });
-      });
-      setLastPing(new Date());
-    }, 4000);
-
+    const liveTimer = setInterval(loadLive, 15000);
     return () => {
       cancelled = true;
       clearInterval(liveTimer);
-      clearInterval(simTimer);
     };
-  }, [source]);
+  }, []);
 
   return { employees, lastPing, source };
 }
 
-// ─────────────────────────────────────────────────────────────
-// FALLBACK MAP (no API key) — interactive demo map with the
-// same interactions: markers, selection, live movement.
-// ─────────────────────────────────────────────────────────────
 const BOUNDS = { minLat: 23.5, maxLat: 34.8, minLng: 66.5, maxLng: 75.5 };
 
 function toPct(lat: number, lng: number) {
@@ -148,7 +120,7 @@ function FallbackMap({
 }: {
   employees: Tracked[];
   selectedId: string | null;
-  onSelect: (name: string) => void;
+  onSelect: (id: string) => void;
 }) {
   return (
     <div className="relative w-full h-full bg-[#E8EEF4] overflow-hidden rounded-xl">
@@ -160,32 +132,17 @@ function FallbackMap({
           backgroundSize: '36px 36px',
         }}
       />
-      {Object.entries(OFFICE_COORDS).map(([name, c]) => {
-        const p = toPct(c.lat, c.lng);
-        return (
-          <div
-            key={name}
-            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center"
-            style={{ left: `${p.x}%`, top: `${p.y}%` }}
-          >
-            <div className="w-4 h-4 rounded-md bg-[#014582] border-2 border-white shadow" />
-            <span className="mt-0.5 text-[8px] font-bold text-[#5a6d82] bg-white/80 px-1 rounded whitespace-nowrap">
-              {name}
-            </span>
-          </div>
-        );
-      })}
       {employees.map((emp) => {
         const p = toPct(emp.lat, emp.lng);
-        const selected = selectedId === emp.employee;
+        const selected = selectedId === emp.id;
         const color = emp.moving ? COLORS.warning : COLORS.success;
         return (
           <button
-            key={emp.employee}
+            key={emp.id}
             type="button"
-            onClick={() => onSelect(emp.employee)}
+            onClick={() => onSelect(emp.id)}
             className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10"
-            style={{ left: `${p.x}%`, top: `${p.y}%`, transition: 'left 1.5s linear, top 1.5s linear' }}
+            style={{ left: `${p.x}%`, top: `${p.y}%` }}
           >
             <span
               className={`absolute w-8 h-8 rounded-full ${selected ? 'opacity-40' : 'opacity-25'}`}
@@ -205,143 +162,274 @@ function FallbackMap({
           </button>
         );
       })}
-      <div className="absolute bottom-2 left-2 bg-white/85 rounded-md px-2 py-1 text-[8px] font-semibold text-[#5a6d82] flex items-center gap-1">
-        <KeyRound className="w-3 h-3" />
-        Demo map — add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in .env.local for live Google Maps
+      <div className="absolute bottom-2 left-2 max-w-[90%] bg-white/90 rounded-md px-2 py-1 text-[8px] font-semibold text-[#5a6d82]">
+        Last-known GPS (map tiles unavailable)
       </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// GOOGLE MAPS — loads the JS API once, renders live markers,
-// info windows and a movement trail for the selected employee.
-// ─────────────────────────────────────────────────────────────
-function loadGoogleMaps(): Promise<void> {
-  if (window.google?.maps) return Promise.resolve();
-  if (window.__hrGmapsLoading) return window.__hrGmapsLoading;
+function loadGoogleMaps(apiKey: string): Promise<any> {
+  if (window.google?.maps) return Promise.resolve(window.google.maps);
+  if (window.__hrGoogleMapsLoading) return window.__hrGoogleMapsLoading;
 
-  window.__hrGmapsLoading = new Promise<void>((resolve, reject) => {
-    const cbName = '__hrGmapsReady';
-    (window as any)[cbName] = () => resolve();
+  window.__hrGoogleMapsLoading = new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error('Google Maps timed out')), 12000);
+    window.hrGoogleMapsInit = () => {
+      window.clearTimeout(timeout);
+      resolve(window.google.maps);
+    };
+    window.gm_authFailure = () => {
+      window.clearTimeout(timeout);
+      reject(new Error('Google Maps API key rejected'));
+    };
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&callback=${cbName}&loading=async`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&callback=hrGoogleMapsInit`;
     script.async = true;
-    script.onerror = () => reject(new Error('Failed to load Google Maps'));
+    script.defer = true;
+    script.onerror = () => {
+      window.clearTimeout(timeout);
+      reject(new Error('Google Maps failed to load'));
+    };
     document.head.appendChild(script);
   });
-  return window.__hrGmapsLoading;
+  return window.__hrGoogleMapsLoading;
 }
 
-function GoogleMap({
+function markerColor(moving: boolean) {
+  return moving ? COLORS.warning : COLORS.success;
+}
+
+function GoogleMapView({
+  employees,
+  selectedId,
+  onSelect,
+  onFail,
+}: {
+  employees: Tracked[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onFail: () => void;
+}) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const mapRef = React.useRef<any>(null);
+  const markersRef = React.useRef<Record<string, any>>({});
+  const fittedKeyRef = React.useRef('');
+  const [ready, setReady] = React.useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    loadGoogleMaps(GOOGLE_MAPS_KEY)
+      .then((maps) => {
+        if (cancelled || !containerRef.current || mapRef.current) return;
+        const map = new maps.Map(containerRef.current, {
+          center: { lat: 30.3753, lng: 69.3451 },
+          zoom: 6,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+          clickableIcons: false,
+        });
+        mapRef.current = map;
+        maps.event.addListenerOnce(map, 'idle', () => {
+          if (!cancelled) setReady(true);
+        });
+        window.setTimeout(() => {
+          if (!cancelled) setReady(true);
+        }, 400);
+      })
+      .catch(() => {
+        if (!cancelled) onFail();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [onFail]);
+
+  React.useEffect(() => {
+    const maps = window.google?.maps;
+    const map = mapRef.current;
+    if (!ready || !maps || !map) return;
+
+    const ids = new Set(employees.map((e) => e.id));
+    Object.keys(markersRef.current).forEach((id) => {
+      if (!ids.has(id)) {
+        markersRef.current[id].setMap(null);
+        delete markersRef.current[id];
+      }
+    });
+
+    employees.forEach((emp) => {
+      const color = markerColor(emp.moving);
+      const position = { lat: emp.lat, lng: emp.lng };
+      let marker = markersRef.current[emp.id];
+      if (!marker) {
+        marker = new maps.Marker({
+          map,
+          position,
+          title: emp.employee,
+          icon: {
+            path: maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: color,
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2,
+          },
+        });
+        marker.addListener('click', () => onSelect(emp.id));
+        markersRef.current[emp.id] = marker;
+      } else {
+        marker.setPosition(position);
+        marker.setIcon({
+          path: maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: color,
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 2,
+        });
+      }
+      marker.setTitle(`${emp.employee} · ${emp.location}`);
+    });
+
+    if (selectedId && markersRef.current[selectedId]) {
+      const emp = employees.find((e) => e.id === selectedId);
+      if (emp) {
+        map.panTo({ lat: emp.lat, lng: emp.lng });
+        if (map.getZoom() < 14) map.setZoom(15);
+      }
+    } else if (employees.length > 0) {
+      const idKey = employees.map((e) => e.id).sort().join(',');
+      if (idKey !== fittedKeyRef.current) {
+        fittedKeyRef.current = idKey;
+        const bounds = new maps.LatLngBounds();
+        employees.forEach((e) => bounds.extend({ lat: e.lat, lng: e.lng }));
+        map.fitBounds(bounds, 48);
+      }
+    }
+  }, [employees, ready, selectedId, onSelect]);
+
+  return (
+    <div className="relative w-full h-full">
+      <div ref={containerRef} className="w-full h-full rounded-xl" />
+      {!ready && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#F0F4F8] rounded-xl">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#7A8FA6]">
+            <Navigation className="w-4 h-4 animate-pulse text-[#014582]" />
+            Loading Google Map…
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function loadLeaflet(): Promise<any> {
+  if (window.L) return Promise.resolve(window.L);
+  if (window.__hrLeafletLoading) return window.__hrLeafletLoading;
+
+  window.__hrLeafletLoading = new Promise((resolve, reject) => {
+    if (!document.querySelector('link[data-hr-leaflet]')) {
+      const css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      css.setAttribute('data-hr-leaflet', '1');
+      document.head.appendChild(css);
+    }
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.async = true;
+    script.onload = () => resolve(window.L);
+    script.onerror = () => reject(new Error('Failed to load map library'));
+    document.head.appendChild(script);
+  });
+  return window.__hrLeafletLoading;
+}
+
+function LeafletMap({
   employees,
   selectedId,
   onSelect,
 }: {
   employees: Tracked[];
   selectedId: string | null;
-  onSelect: (name: string) => void;
+  onSelect: (id: string) => void;
 }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<any>(null);
   const markersRef = React.useRef<Record<string, any>>({});
-  const infoRef = React.useRef<any>(null);
-  const trailRef = React.useRef<any>(null);
-  const trailsRef = React.useRef<Record<string, any[]>>({});
+  const fittedKeyRef = React.useRef('');
   const [ready, setReady] = React.useState(false);
   const [failed, setFailed] = React.useState(false);
 
-  // init map + markers once
   React.useEffect(() => {
     let cancelled = false;
-    loadGoogleMaps()
-      .then(() => {
-        if (cancelled || !containerRef.current || !window.google) return;
-        const g = window.google.maps;
-        const map = new g.Map(containerRef.current, {
-          center: { lat: 30.5, lng: 71.5 },
-          zoom: 6,
-          disableDefaultUI: true,
-          zoomControl: true,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-        });
+    loadLeaflet()
+      .then((L) => {
+        if (cancelled || !containerRef.current || mapRef.current) return;
+        const map = L.map(containerRef.current, { zoomControl: true }).setView([30.5, 71.5], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap',
+          maxZoom: 19,
+        }).addTo(map);
         mapRef.current = map;
-        infoRef.current = new g.InfoWindow();
-
-        employees.forEach((emp) => {
-          const marker = new g.Marker({
-            position: { lat: emp.lat, lng: emp.lng },
-            map,
-            title: emp.employee,
-            icon: markerIcon(emp.moving),
-          });
-          marker.addListener('click', () => onSelect(emp.employee));
-          markersRef.current[emp.employee] = marker;
-          trailsRef.current[emp.employee] = [{ lat: emp.lat, lng: emp.lng }];
-        });
-
-        const bounds = new g.LatLngBounds();
-        employees.forEach((emp) => bounds.extend({ lat: emp.lat, lng: emp.lng }));
-        map.fitBounds(bounds, 60);
-        setReady(true);
+        setTimeout(() => {
+          map.invalidateSize();
+          setReady(true);
+        }, 50);
       })
-      .catch(() => setFailed(true));
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // live position updates + trail + info window
   React.useEffect(() => {
-    if (!ready || !window.google) return;
-    const g = window.google.maps;
+    if (!ready || !mapRef.current || !window.L) return;
+    const L = window.L;
+    const ids = new Set(employees.map((e) => e.id));
+    Object.keys(markersRef.current).forEach((id) => {
+      if (!ids.has(id)) {
+        mapRef.current.removeLayer(markersRef.current[id]);
+        delete markersRef.current[id];
+      }
+    });
     employees.forEach((emp) => {
-      const marker = markersRef.current[emp.employee];
-      if (!marker) return;
-      marker.setPosition({ lat: emp.lat, lng: emp.lng });
-      marker.setIcon(markerIcon(emp.moving));
-      const trail = trailsRef.current[emp.employee] || [];
-      trail.push({ lat: emp.lat, lng: emp.lng });
-      trailsRef.current[emp.employee] = trail.slice(-30);
+      const color = emp.moving ? COLORS.warning : COLORS.success;
+      const html = `<div style="width:14px;height:14px;border-radius:999px;background:${color};border:2px solid #fff;box-shadow:0 0 0 2px ${color}55"></div>`;
+      const icon = L.divIcon({ className: '', html, iconSize: [14, 14], iconAnchor: [7, 7] });
+      let marker = markersRef.current[emp.id];
+      if (!marker) {
+        marker = L.marker([emp.lat, emp.lng], { icon }).addTo(mapRef.current);
+        marker.on('click', () => onSelect(emp.id));
+        markersRef.current[emp.id] = marker;
+      } else {
+        marker.setLatLng([emp.lat, emp.lng]);
+        marker.setIcon(icon);
+      }
+      marker.bindPopup(
+        `<strong>${emp.employee}</strong><br/>${emp.location}<br/>${emp.moving ? 'In the field' : 'At office'}`
+      );
     });
 
-    if (trailRef.current) {
-      trailRef.current.setMap(null);
-      trailRef.current = null;
+    if (selectedId && markersRef.current[selectedId]) {
+      const emp = employees.find((e) => e.id === selectedId);
+      if (emp) {
+        mapRef.current.setView([emp.lat, emp.lng], 15);
+        markersRef.current[selectedId].openPopup();
+      }
+    } else if (employees.length > 0) {
+      const idKey = employees.map((e) => e.id).sort().join(',');
+      if (idKey !== fittedKeyRef.current) {
+        fittedKeyRef.current = idKey;
+        const bounds = L.latLngBounds(employees.map((e) => [e.lat, e.lng]));
+        mapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+      }
     }
-    const sel = employees.find((e) => e.employee === selectedId);
-    if (sel && (trailsRef.current[sel.employee]?.length ?? 0) > 1) {
-      trailRef.current = new g.Polyline({
-        path: trailsRef.current[sel.employee],
-        map: mapRef.current,
-        strokeColor: COLORS.primary,
-        strokeOpacity: 0.7,
-        strokeWeight: 3,
-      });
-    }
-    if (sel && markersRef.current[sel.employee]) {
-      infoRef.current?.setContent(infoHtml(sel));
-      infoRef.current?.open({
-        map: mapRef.current,
-        anchor: markersRef.current[sel.employee],
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employees, ready, selectedId]);
-
-  // recenter + zoom on selection
-  React.useEffect(() => {
-    if (!ready || !selectedId) return;
-    const sel = employees.find((e) => e.employee === selectedId);
-    if (sel && mapRef.current) {
-      mapRef.current.panTo({ lat: sel.lat, lng: sel.lng });
-      mapRef.current.setZoom(15);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, ready]);
+  }, [employees, ready, selectedId, onSelect]);
 
   if (failed) {
     return <FallbackMap employees={employees} selectedId={selectedId} onSelect={onSelect} />;
@@ -354,65 +442,53 @@ function GoogleMap({
         <div className="absolute inset-0 flex items-center justify-center bg-[#F0F4F8] rounded-xl">
           <div className="flex items-center gap-2 text-xs font-semibold text-[#7A8FA6]">
             <Navigation className="w-4 h-4 animate-pulse text-[#014582]" />
-            Loading Google Maps…
+            Loading map…
           </div>
         </div>
       )}
-      <div className="absolute bottom-3 left-3 bg-white/95 rounded-lg shadow px-3 py-2 flex flex-col gap-1 text-[10px] font-semibold text-[#1A1A2E]">
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: COLORS.success }} /> At office
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: COLORS.warning }} /> Moving in field
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-4 h-0.5" style={{ background: COLORS.primary }} /> Movement trail (selected)
-        </span>
-      </div>
     </div>
   );
 }
 
-function markerIcon(moving: boolean) {
-  const g = window.google.maps;
-  return {
-    path: g.SymbolPath.CIRCLE,
-    scale: 9,
-    fillColor: moving ? COLORS.warning : COLORS.success,
-    fillOpacity: 1,
-    strokeColor: '#ffffff',
-    strokeWeight: 2,
-  };
+function LiveMap({
+  employees,
+  selectedId,
+  onSelect,
+}: {
+  employees: Tracked[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const [engine, setEngine] = React.useState<'google' | 'leaflet'>(
+    GOOGLE_MAPS_KEY ? 'google' : 'leaflet'
+  );
+  const failGoogle = React.useCallback(() => setEngine('leaflet'), []);
+
+  if (engine === 'google') {
+    return (
+      <GoogleMapView
+        employees={employees}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        onFail={failGoogle}
+      />
+    );
+  }
+
+  return <LeafletMap employees={employees} selectedId={selectedId} onSelect={onSelect} />;
 }
 
-function infoHtml(sel: Tracked) {
-  return `<div style="font-family:sans-serif;min-width:170px">
-    <div style="font-weight:800;font-size:13px;color:#1A1A2E">${sel.employee}</div>
-    <div style="font-size:11px;color:#7A8FA6;margin-top:2px">${sel.location}</div>
-    <div style="font-size:11px;margin-top:4px;font-weight:700;color:${sel.moving ? '#F39C12' : '#2ECC71'}">
-      ${sel.moving ? `Moving · ${sel.speed} km/h` : 'At office'}
-    </div>
-    <div style="font-size:10px;color:#7A8FA6;margin-top:2px">Office: ${sel.office} · Since ${sel.since}</div>
-  </div>`;
-}
-
-// ─────────────────────────────────────────────────────────────
-// LIVE TRACKING PAGE
-// ─────────────────────────────────────────────────────────────
 export default function LiveTrackingPage() {
-  const { employees, lastPing, source } = useSimulatedTracking();
+  const { employees, lastPing, source } = useLiveTracking();
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [fitKey, setFitKey] = React.useState(0);
 
-  const select = React.useCallback((name: string) => {
-    setSelectedId((prev) => (prev === name ? null : name));
+  const select = React.useCallback((id: string) => {
+    setSelectedId((prev) => (prev === id ? null : id));
   }, []);
 
   const activeCount = employees.filter((e) => e.status === 'CheckedIn' || e.status === 'Present').length;
   const movingCount = employees.filter((e) => e.moving).length;
-  const avgBattery = Math.round(
-    employees.reduce((s, e) => s + e.battery, 0) / (employees.length || 1)
-  );
 
   return (
     <HRPage>
@@ -420,14 +496,14 @@ export default function LiveTrackingPage() {
         title="Live Employee Tracking"
         subtitle={
           source === 'live'
-            ? 'Live GPS from mobile app · auto attendance via office geofence'
-            : 'Demo mode — open Employee dashboard on mobile to start live pings'
+            ? 'Google Map · last-known GPS while the employee app is sharing location (15s refresh)'
+            : 'No live pings yet — employees appear after they turn on location tracking in the mobile app'
         }
         backHref="/hr/dashboard"
         actions={
           <span className="flex items-center gap-2 bg-white/15 text-white px-3 py-2 rounded-lg text-xs font-bold">
             <span className="w-2 h-2 bg-[#2ECC71] rounded-full animate-pulse" />
-            {source === 'live' ? 'Live GPS' : 'Demo'} · last ping{' '}
+            {source === 'live' ? 'Live GPS' : 'Waiting'} · last refresh{' '}
             {lastPing.toLocaleTimeString('en-US', {
               hour: '2-digit',
               minute: '2-digit',
@@ -438,26 +514,22 @@ export default function LiveTrackingPage() {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <HRStatCard label="On map" value={employees.length} icon={MapPin} color={COLORS.primary} />
         <HRStatCard label="Active Now" value={activeCount} icon={Navigation} color={COLORS.success} />
-        <HRStatCard label="Moving in Field" value={movingCount} icon={Gauge} color={COLORS.warning} />
+        <HRStatCard label="In the field" value={movingCount} icon={Gauge} color={COLORS.warning} />
         <HRStatCard label="At Office" value={employees.length - movingCount} icon={Building2} color={COLORS.primary} />
-        <HRStatCard label="Avg Device Battery" value={`${avgBattery}%`} icon={BatteryMedium} color={avgBattery > 50 ? COLORS.success : COLORS.danger} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* MAP — takes 2 cols */}
         <HRCard className="lg:col-span-2 !p-0 overflow-hidden">
           <div className="h-[520px]">
-            {GOOGLE_MAPS_KEY ? (
-              <GoogleMap
-                key={fitKey}
-                employees={employees}
-                selectedId={selectedId}
-                onSelect={select}
-              />
-            ) : (
-              <FallbackMap employees={employees} selectedId={selectedId} onSelect={select} />
-            )}
+            <LiveMap
+              key={fitKey}
+              employees={employees}
+              selectedId={selectedId}
+              onSelect={select}
+            />
           </div>
         </HRCard>
 
@@ -475,13 +547,22 @@ export default function LiveTrackingPage() {
             Show All Employees
           </button>
 
-          {employees.map((emp) => {
-            const selected = selectedId === emp.employee;
+          {employees.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-[#DDE4EE] p-6 text-center">
+              <MapPin className="w-8 h-8 text-[#DDE4EE] mx-auto mb-2" />
+              <p className="text-sm font-bold text-[#1A1A2E]">No live locations</p>
+              <p className="text-xs text-[#7A8FA6] mt-1">
+                Employees show here after they turn on location tracking in the mobile app.
+              </p>
+            </div>
+          ) : (
+            employees.map((emp) => {
+            const selected = selectedId === emp.id;
             return (
               <button
-                key={emp.employee}
+                key={emp.id}
                 type="button"
-                onClick={() => select(emp.employee)}
+                onClick={() => select(emp.id)}
                 className={`w-full text-left bg-white rounded-2xl shadow-sm border p-4 transition-all hover:shadow-md ${
                   selected ? 'border-[#014582] ring-2 ring-[#014582]/20' : 'border-[#DDE4EE]'
                 }`}
@@ -508,20 +589,18 @@ export default function LiveTrackingPage() {
                       </span>
                       {emp.moving ? (
                         <span className="flex items-center gap-1 text-[#F39C12]">
-                          <Gauge className="w-3 h-3" /> {emp.speed} km/h
+                          <Gauge className="w-3 h-3" /> In the field
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-[#2ECC71]">● Stationary</span>
+                        <span className="flex items-center gap-1 text-[#2ECC71]">● At office</span>
                       )}
-                      <span className={`flex items-center gap-1 ${emp.battery > 30 ? '' : 'text-[#E74C3C]'}`}>
-                        <BatteryMedium className="w-3.5 h-3.5" /> {emp.battery}%
-                      </span>
                     </div>
                   </div>
                 </div>
               </button>
             );
-          })}
+          })
+          )}
         </div>
       </div>
 

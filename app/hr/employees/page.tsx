@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { UserPlus, ShieldCheck, Users as UsersIcon, RefreshCw, Loader2 } from 'lucide-react';
+import { UserPlus, Smartphone, Users as UsersIcon, RefreshCw, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   HRPage,
@@ -18,12 +18,10 @@ import {
   HRWorkflowNotice,
 } from '../ui';
 import { hrEmployeesService, HREmployee } from '@/lib/hr-employees-service';
-import { usersService } from '../../users/service';
 
 const COLORS = {
   primary: '#014582',
   success: '#2ECC71',
-  danger: '#E74C3C',
   warning: '#F39C12',
 };
 
@@ -39,54 +37,20 @@ type EmployeeRow = {
   office: string;
   email: string;
   status: string;
-  erpAccess: boolean;
 };
 
-// Map an ERP user into the unified employee row shape.
-function userToRow(u: any): EmployeeRow {
-  const name = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'Unnamed user';
-  return {
-    key: `user-${u.id}`,
-    id: u.id,
-    code: `USR-${String(u.id).slice(0, 6).toUpperCase()}`,
-    name,
-    designation: u.userRole?.name || u.role || 'ERP User',
-    department: u.userRole?.name || 'ERP',
-    office: (u.locations || []).map((l: any) => l.name).join(', ') || '—',
-    email: u.email || '',
-    status: u.isActive ? 'Active' : 'Inactive',
-    erpAccess: true,
-  };
-}
-
-// Map a stored HR employee into the unified row shape.
 function employeeToRow(e: HREmployee): EmployeeRow {
   return {
-    key: `emp-${e.id}`,
+    key: e.id,
     id: e.id,
     code: e.employeeCode,
-    name: `${e.firstName} ${e.lastName}`.trim(),
+    name: e.name || `${e.firstName} ${e.lastName}`.trim(),
     designation: e.designation || '—',
     department: e.department || '—',
     office: e.office || '—',
     email: e.email,
     status: e.status,
-    erpAccess: Boolean(e.linkedUserId),
   };
-}
-
-function ErpBadge({ has }: { has: boolean }) {
-  return has ? (
-    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#014582]/10 text-[#014582]">
-      <ShieldCheck className="w-3 h-3" />
-      ERP User
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#7A8FA6]/10 text-[#7A8FA6]">
-      <UsersIcon className="w-3 h-3" />
-      HR Only
-    </span>
-  );
 }
 
 export default function EmployeesPage() {
@@ -98,19 +62,8 @@ export default function EmployeesPage() {
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
-      // 1) HR employees (local HR API) + 2) ERP users (existing users API)
-      const [employees, usersRes] = await Promise.all([
-        hrEmployeesService.list(),
-        usersService.getUsers().catch(() => ({ data: [] as any[] })),
-      ]);
-      const userRows = (usersRes.data || []).map(userToRow);
-      const employeeRows = employees.map(employeeToRow);
-      // avoid duplicates when an employee is linked to a user
-      const linkedUserIds = new Set(
-        employees.map((e) => e.linkedUserId).filter(Boolean)
-      );
-      const filteredUserRows = userRows.filter((u) => !linkedUserIds.has(u.id));
-      setRows([...employeeRows, ...filteredUserRows]);
+      const employees = await hrEmployeesService.list();
+      setRows(employees.map(employeeToRow));
     } catch (error: any) {
       toast.error(error.message || 'Failed to load employees');
     } finally {
@@ -134,15 +87,14 @@ export default function EmployeesPage() {
     return matchesFilter && matchesQuery;
   });
 
-  const erpCount = rows.filter((r) => r.erpAccess).length;
-  const hrOnlyCount = rows.length - erpCount;
   const activeCount = rows.filter((r) => r.status === 'Active').length;
+  const onLeaveCount = rows.filter((r) => r.status === 'On Leave').length;
 
   return (
     <HRPage>
       <HRPageHeader
         title="Employees List"
-        subtitle={`${filtered.length} employees · ${erpCount} with ERP access`}
+        subtitle={`${filtered.length} employees from your company database`}
         backHref="/hr/dashboard"
         actions={
           <React.Fragment>
@@ -165,13 +117,22 @@ export default function EmployeesPage() {
         }
       />
 
-      <HRWorkflowNotice title="Employee record flow" detail="Create the core profile, assign office and shift, link ERP access when needed, then use the employee record as the source for attendance, leave, payroll, and reviews." />
+      <HRWorkflowNotice
+        title="Employee = app user"
+        detail="HR creates a real login account. That person opens the mobile app and lands on the Employee Dashboard only — with geofence attendance."
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <HRStatCard label="Total Employees" value={rows.length} icon={UsersIcon} color={COLORS.primary} />
-        <HRStatCard label="ERP Users" value={erpCount} icon={ShieldCheck} color={COLORS.primary} hint="Have ERP access" />
-        <HRStatCard label="HR Only" value={hrOnlyCount} icon={UsersIcon} color={COLORS.warning} hint="No ERP access" />
         <HRStatCard label="Active" value={activeCount} icon={UserPlus} color={COLORS.success} />
+        <HRStatCard label="On Leave" value={onLeaveCount} icon={UsersIcon} color={COLORS.warning} />
+        <HRStatCard
+          label="App users"
+          value={rows.length}
+          icon={Smartphone}
+          color={COLORS.primary}
+          hint="Each employee can log in"
+        />
       </div>
 
       <div className="space-y-4 mb-4">
@@ -183,33 +144,35 @@ export default function EmployeesPage() {
         {loading ? (
           <div className="py-12 flex flex-col items-center justify-center gap-2 text-[#7A8FA6]">
             <Loader2 className="w-6 h-6 animate-spin text-[#014582]" />
-            <p className="text-xs font-semibold">Loading employees and users…</p>
+            <p className="text-xs font-semibold">Loading employees…</p>
           </div>
         ) : (
-          
-          <HRTable columns={['Code', 'Name', 'Designation', 'Department', 'Office', 'ERP Access', 'Status']}>
+          <HRTable columns={['Code', 'Name', 'Designation', 'Department', 'Office', 'Status']}>
             {filtered.map((r) => (
               <HRTableRow key={r.key}>
                 <HRTableCell className="font-mono text-xs text-[#7A8FA6]">{r.code}</HRTableCell>
                 <HRTableCell className="font-bold">
-                  <div>
+                  <Link href={`/hr/employees/${r.id}`} className="hover:text-[#014582]">
+                    <div>
                     {r.name}
                     {r.email && (
                       <p className="text-[10px] font-medium text-[#7A8FA6]">{r.email}</p>
                     )}
-                  </div>
+                    </div>
+                  </Link>
                 </HRTableCell>
                 <HRTableCell>{r.designation}</HRTableCell>
                 <HRTableCell>{r.department}</HRTableCell>
                 <HRTableCell>{r.office}</HRTableCell>
-                <HRTableCell><ErpBadge has={r.erpAccess} /></HRTableCell>
-                <HRTableCell><HRStatusBadge status={r.status} /></HRTableCell>
+                <HRTableCell>
+                  <HRStatusBadge status={r.status} />
+                </HRTableCell>
               </HRTableRow>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-[#7A8FA6]">
-                  No employees found
+                <td colSpan={6} className="px-4 py-10 text-center text-sm text-[#7A8FA6]">
+                  No employees yet. Add one to create their app login.
                 </td>
               </tr>
             )}

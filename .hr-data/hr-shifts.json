@@ -8,45 +8,5 @@
     "status": "Active",
     "createdAt": "2026-09-07T00:00:00.000Z",
     "updatedAt": "2026-09-07T00:00:00.000Z"
-  },
-  {
-    "id": "shift_seed_evening",
-    "name": "Evening Shift",
-    "startTime": "02:00 PM",
-    "endTime": "11:00 PM",
-    "graceMinutes": 10,
-    "status": "Active",
-    "createdAt": "2026-09-07T00:00:00.000Z",
-    "updatedAt": "2026-09-07T00:00:00.000Z"
-  },
-  {
-    "id": "shift_seed_night",
-    "name": "Night Shift",
-    "startTime": "10:00 PM",
-    "endTime": "07:00 AM",
-    "graceMinutes": 10,
-    "status": "Scheduled",
-    "createdAt": "2026-09-07T00:00:00.000Z",
-    "updatedAt": "2026-09-07T00:00:00.000Z"
-  },
-  {
-    "id": "shift_seed_halfday",
-    "name": "Half Day Shift",
-    "startTime": "09:00 AM",
-    "endTime": "01:00 PM",
-    "graceMinutes": 5,
-    "status": "Active",
-    "createdAt": "2026-09-07T00:00:00.000Z",
-    "updatedAt": "2026-09-07T13:50:35.006Z"
-  },
-  {
-    "id": "shift_1788789021532_8xlwu8",
-    "name": "half break shift",
-    "startTime": "03:00 AM",
-    "endTime": "04:00 PM",
-    "graceMinutes": 15,
-    "status": "Active",
-    "createdAt": "2026-09-07T13:50:21.532Z",
-    "updatedAt": "2026-09-07T13:50:21.532Z"
   }
 ]

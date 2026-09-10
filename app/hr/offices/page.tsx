@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Building2, MapPin, Users, Plus, Loader2, Pencil, Trash2, X } from 'lucide-react';
+import { Building2, MapPin, Users, Plus, Loader2, Pencil, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { HRPage, HRPageHeader, HRCard, HRWorkflowNotice } from '../ui';
 import { hrOfficesService, type HROffice } from '@/lib/hr-offices-service';
@@ -11,16 +11,18 @@ const inputCls =
 
 type FormState = {
   name: string;
-  code: string;
   address: string;
+  latitude: string;
+  longitude: string;
   geofenceRadius: string;
   status: 'Active' | 'Inactive';
 };
 
 const EMPTY_FORM: FormState = {
   name: '',
-  code: '',
   address: '',
+  latitude: '',
+  longitude: '',
   geofenceRadius: '150',
   status: 'Active',
 };
@@ -33,7 +35,6 @@ export default function OfficesPage() {
   const [form, setForm] = React.useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
-  const [deleting, setDeleting] = React.useState<string | null>(null);
 
   const loadOffices = React.useCallback(async () => {
     try {
@@ -61,8 +62,9 @@ export default function OfficesPage() {
     setEditing(office);
     setForm({
       name: office.name,
-      code: office.code,
       address: office.address,
+      latitude: String(office.latitude || ''),
+      longitude: String(office.longitude || ''),
       geofenceRadius: String(office.geofenceRadius),
       status: office.status,
     });
@@ -74,7 +76,11 @@ export default function OfficesPage() {
     const next: Record<string, string> = {};
     if (!form.name.trim()) next.name = 'Office name is required';
     if (!form.address.trim()) next.address = 'Address is required';
+    const lat = Number(form.latitude);
+    const lng = Number(form.longitude);
     const radius = Number(form.geofenceRadius);
+    if (!Number.isFinite(lat) || Math.abs(lat) > 90) next.latitude = 'Enter a valid latitude';
+    if (!Number.isFinite(lng) || Math.abs(lng) > 180) next.longitude = 'Enter a valid longitude';
     if (!Number.isFinite(radius) || radius <= 0) {
       next.geofenceRadius = 'Enter a valid radius in meters';
     }
@@ -92,8 +98,9 @@ export default function OfficesPage() {
     try {
       const payload = {
         name: form.name.trim(),
-        code: form.code.trim().toUpperCase(),
         address: form.address.trim(),
+        latitude: Number(form.latitude),
+        longitude: Number(form.longitude),
         geofenceRadius: Number(form.geofenceRadius),
         status: form.status,
       };
@@ -110,22 +117,6 @@ export default function OfficesPage() {
       toast.error(error.message || 'Failed to save office');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDelete = async (office: HROffice) => {
-    if (!window.confirm(`Delete office "${office.name}"? This cannot be undone.`)) {
-      return;
-    }
-    setDeleting(office.id);
-    try {
-      await hrOfficesService.delete(office.id);
-      toast.success(`Office "${office.name}" deleted`);
-      await loadOffices();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to delete office');
-    } finally {
-      setDeleting(null);
     }
   };
 
@@ -180,7 +171,9 @@ export default function OfficesPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-[#1A1A2E]">{o.name}</h3>
-                    <p className="text-[10px] font-mono font-semibold text-[#7A8FA6]">{o.code}</p>
+                    <p className="text-[10px] font-mono font-semibold text-[#7A8FA6]">
+                      {o.latitude.toFixed(4)}, {o.longitude.toFixed(4)}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
@@ -190,18 +183,6 @@ export default function OfficesPage() {
                     title="Edit office"
                   >
                     <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(o)}
-                    disabled={deleting === o.id}
-                    className="p-1.5 rounded-lg text-[#7A8FA6] hover:text-[#E74C3C] hover:bg-[#E74C3C]/10 transition-all disabled:opacity-50"
-                    title="Delete office"
-                  >
-                    {deleting === o.id ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3.5 h-3.5" />
-                    )}
                   </button>
                 </div>
               </div>
@@ -273,19 +254,6 @@ export default function OfficesPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#7A8FA6] mb-1.5">
-                    Office Code <span className="font-medium">(auto-generated if empty)</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., EB-04"
-                    className={`${inputCls} font-mono uppercase`}
-                    value={form.code}
-                    onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value }))}
-                    disabled={saving}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#7A8FA6] mb-1.5">
                     Address <span className="text-[#E74C3C]">*</span>
                   </label>
                   <input
@@ -299,6 +267,42 @@ export default function OfficesPage() {
                   {errors.address && (
                     <p className="mt-1 text-[10px] font-semibold text-[#E74C3C]">{errors.address}</p>
                   )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#7A8FA6] mb-1.5">
+                      Latitude <span className="text-[#E74C3C]">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="24.8607"
+                      className={inputCls}
+                      value={form.latitude}
+                      onChange={(e) => setForm((prev) => ({ ...prev, latitude: e.target.value }))}
+                      disabled={saving}
+                    />
+                    {errors.latitude && (
+                      <p className="mt-1 text-[10px] font-semibold text-[#E74C3C]">{errors.latitude}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#7A8FA6] mb-1.5">
+                      Longitude <span className="text-[#E74C3C]">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="67.0011"
+                      className={inputCls}
+                      value={form.longitude}
+                      onChange={(e) => setForm((prev) => ({ ...prev, longitude: e.target.value }))}
+                      disabled={saving}
+                    />
+                    {errors.longitude && (
+                      <p className="mt-1 text-[10px] font-semibold text-[#E74C3C]">{errors.longitude}</p>
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
