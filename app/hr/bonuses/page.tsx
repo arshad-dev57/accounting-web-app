@@ -15,13 +15,13 @@ export default function BonusesPage() {
     <HcmCrudPage
       title="Bonuses & incentives"
       subtitle="Performance, sales, attendance and special awards"
-      notice="Approved bonuses for the payroll period are included when you process the existing pay run."
+      notice="Approve karke Salary build pe Calculate all dabao. Kind = sales → Commission column mein aata hai; baaki bonus column mein. Direct Build drawer se bhi commission add kar sakte ho."
       columns={['Employee', 'Kind', 'Amount', 'Period', 'Status', '']}
       load={() => hrHcmService.bonuses()}
       create={async (input) => hrHcmService.saveBonus({ ...input, employeeId: String(input.employeeId).split('|')[0], period: input.period || period })}
       fields={[
         { key: 'employeeId', label: 'Employee', options: employees.map((e) => `${e.id}|${e.name}`) },
-        { key: 'kind', label: 'Kind', options: ['performance', 'sales', 'attendance', 'target', 'special'] },
+        { key: 'kind', label: 'Kind (sales = commission)', options: ['performance', 'sales', 'commission', 'attendance', 'target', 'special'] },
         { key: 'amount', label: 'Amount', type: 'number' },
         { key: 'period', label: 'Payroll period (YYYY-MM)' },
         { key: 'reason', label: 'Reason' },

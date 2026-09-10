@@ -57,7 +57,7 @@ const QUICK_ACTIONS = [
   { label: 'Add Employee', href: '/hr/add-employee', icon: UserPlus, color: COLORS.success },
   { label: 'Mark Attendance', href: '/hr/attendance', icon: Fingerprint, color: COLORS.accent },
   { label: 'Manage Leaves', href: '/hr/leaves', icon: Plane, color: COLORS.warning },
-  { label: 'Payroll', href: '/hr/payroll', icon: Wallet, color: COLORS.purple },
+  { label: 'Salary build', href: '/hr/payroll', icon: Wallet, color: COLORS.purple },
   { label: 'Live Tracking', href: '/hr/live-tracking', icon: MapPin, color: COLORS.danger },
 ];
 

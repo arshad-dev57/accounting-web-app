@@ -71,7 +71,7 @@ const SECTIONS: {
   {
     label: 'WORKFORCE',
     items: [
-      { href: '/hr/payroll', label: 'Payroll', icon: Wallet },
+      { href: '/hr/payroll', label: 'Salary build', icon: Wallet },
       { href: '/hr/loans', label: 'Loans & Advances', icon: Landmark },
       { href: '/hr/bonuses', label: 'Bonuses', icon: Award },
       { href: '/hr/lifecycle', label: 'Lifecycle', icon: GitBranch },
