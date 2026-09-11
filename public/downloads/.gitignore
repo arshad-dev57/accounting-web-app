@@ -1,0 +1,8 @@
+*.dmg
+*.exe
+*.msi
+*.pkg
+*.zip
+!.gitkeep
+!README.md
+!/.gitignore

@@ -1,1 +1,2 @@
-*.dmg filter=lfs diff=lfs merge=lfs -text
+# Large installers must not be committed (use CDN / DESKTOP_APP_*_PATH).
+# Previous Git LFS .dmg symlink broke Vercel static copy.
