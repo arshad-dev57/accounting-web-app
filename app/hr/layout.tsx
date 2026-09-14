@@ -71,7 +71,8 @@ const SECTIONS: {
   {
     label: 'WORKFORCE',
     items: [
-      { href: '/hr/payroll', label: 'Salary build', icon: Wallet },
+      { href: '/hr/payroll', label: 'Payroll', icon: Wallet },
+      { href: '/hr/payroll/sales', label: 'Sales payroll', icon: Award },
       { href: '/hr/loans', label: 'Loans & Advances', icon: Landmark },
       { href: '/hr/bonuses', label: 'Bonuses', icon: Award },
       { href: '/hr/lifecycle', label: 'Lifecycle', icon: GitBranch },
@@ -94,7 +95,10 @@ const SECTIONS: {
 
 function HRSidebar() {
   const pathname = usePathname();
-  const isActive = (path: string): boolean => pathname === path || pathname.startsWith(path + '/');
+  const isActive = (path: string): boolean => {
+    if (path === '/hr/payroll') return pathname === '/hr/payroll';
+    return pathname === path || pathname.startsWith(`${path}/`);
+  };
 
   return (
     <div className="w-64 h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0 fixed left-0 top-0">

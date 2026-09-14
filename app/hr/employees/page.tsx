@@ -2,7 +2,17 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { UserPlus, Smartphone, Users as UsersIcon, RefreshCw, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import {
+  UserPlus,
+  Smartphone,
+  Users as UsersIcon,
+  RefreshCw,
+  Loader2,
+  Eye,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   HRPage,
@@ -54,10 +64,12 @@ function employeeToRow(e: HREmployee): EmployeeRow {
 }
 
 export default function EmployeesPage() {
+  const router = useRouter();
   const [rows, setRows] = React.useState<EmployeeRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [query, setQuery] = React.useState('');
   const [filter, setFilter] = React.useState('All');
+  const [busyId, setBusyId] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -74,6 +86,23 @@ export default function EmployeesPage() {
   React.useEffect(() => {
     void load();
   }, [load]);
+
+  const removeEmployee = async (row: EmployeeRow) => {
+    const ok = window.confirm(
+      `Deactivate ${row.name}?\n\nLogin will be disabled. Attendance and payroll history are kept. The employee will leave the active list.`
+    );
+    if (!ok) return;
+    setBusyId(row.id);
+    try {
+      await hrEmployeesService.remove(row.id);
+      toast.success('Employee deactivated');
+      await load();
+    } catch (error: any) {
+      toast.error(error.message || 'Could not deactivate');
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const filtered = rows.filter((r) => {
     const matchesFilter = filter === 'All' || r.status === filter;
@@ -118,8 +147,8 @@ export default function EmployeesPage() {
       />
 
       <HRWorkflowNotice
-        title="Employee = app user"
-        detail="HR creates a real login account. That person opens the mobile app and lands on the Employee Dashboard only — with geofence attendance."
+        title="View · Edit · Deactivate"
+        detail="Click the name or View for full detail. Edit updates job and salary. Delete soft-deactivates (login off, history kept)."
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -128,10 +157,10 @@ export default function EmployeesPage() {
         <HRStatCard label="On Leave" value={onLeaveCount} icon={UsersIcon} color={COLORS.warning} />
         <HRStatCard
           label="App users"
-          value={rows.length}
+          value={activeCount}
           icon={Smartphone}
           color={COLORS.primary}
-          hint="Each employee can log in"
+          hint="Active can log in"
         />
       </div>
 
@@ -147,17 +176,17 @@ export default function EmployeesPage() {
             <p className="text-xs font-semibold">Loading employees…</p>
           </div>
         ) : (
-          <HRTable columns={['Code', 'Name', 'Designation', 'Department', 'Office', 'Status']}>
+          <HRTable columns={['Code', 'Name', 'Designation', 'Department', 'Office', 'Status', 'Actions']}>
             {filtered.map((r) => (
               <HRTableRow key={r.key}>
                 <HRTableCell className="font-mono text-xs text-[#7A8FA6]">{r.code}</HRTableCell>
                 <HRTableCell className="font-bold">
                   <Link href={`/hr/employees/${r.id}`} className="hover:text-[#014582]">
                     <div>
-                    {r.name}
-                    {r.email && (
-                      <p className="text-[10px] font-medium text-[#7A8FA6]">{r.email}</p>
-                    )}
+                      {r.name}
+                      {r.email && (
+                        <p className="text-[10px] font-medium text-[#7A8FA6]">{r.email}</p>
+                      )}
                     </div>
                   </Link>
                 </HRTableCell>
@@ -167,11 +196,44 @@ export default function EmployeesPage() {
                 <HRTableCell>
                   <HRStatusBadge status={r.status} />
                 </HRTableCell>
+                <HRTableCell>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      title="Full detail"
+                      onClick={() => router.push(`/hr/employees/${r.id}`)}
+                      className="p-1.5 rounded-lg text-[#014582] hover:bg-[#014582]/10"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Edit"
+                      onClick={() => router.push(`/hr/employees/${r.id}/edit`)}
+                      className="p-1.5 rounded-lg text-[#014582] hover:bg-[#014582]/10"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Deactivate"
+                      disabled={busyId === r.id || r.status === 'Inactive'}
+                      onClick={() => void removeEmployee(r)}
+                      className="p-1.5 rounded-lg text-[#E74C3C] hover:bg-[#E74C3C]/10 disabled:opacity-40"
+                    >
+                      {busyId === r.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+                </HRTableCell>
               </HRTableRow>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-[#7A8FA6]">
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-[#7A8FA6]">
                   No employees yet. Add one to create their app login.
                 </td>
               </tr>

@@ -29,7 +29,6 @@ export type DialOption = {
   label: string;
 };
 
-// currency-list is CJS with default export
 const CurrencyList = (CurrencyListDefault as any).default || CurrencyListDefault;
 
 function currencySymbol(code: string): string {

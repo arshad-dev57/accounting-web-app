@@ -33,7 +33,20 @@ export interface HREmployee {
   employmentType: string;
   employeeType: string;
   salary: number;
+  payBasis?: 'monthly' | 'hourly' | 'daily';
   userId: string | null;
+  // Enterprise fields
+  probationEndDate?: string | null;
+  confirmationDate?: string | null;
+  contractEndDate?: string | null;
+  terminationDate?: string | null;
+  bankName?: string;
+  bankAccount?: string;
+  bankBranch?: string;
+  emergencyContact?: string;
+  emergencyPhone?: string;
+  payGrade?: string;
+  profile?: Record<string, any>;
 }
 
 export interface CreateEmployeeInput {
@@ -50,6 +63,7 @@ export interface CreateEmployeeInput {
   employmentType?: string;
   employeeType?: string;
   salary?: number;
+  payBasis?: 'monthly' | 'hourly' | 'daily';
   password?: string;
 }
 
@@ -75,7 +89,19 @@ function mapEmployee(e: any): HREmployee {
     employmentType: e.employmentType || 'Full Time',
     employeeType: e.employeeType || 'Office Employee',
     salary: Number(e.salary || 0),
+    payBasis: e.payBasis || 'monthly',
     userId: e.userId || null,
+    probationEndDate: e.probationEndDate || null,
+    confirmationDate: e.confirmationDate || null,
+    contractEndDate: e.contractEndDate || null,
+    terminationDate: e.terminationDate || null,
+    bankName: e.bankName || '',
+    bankAccount: e.bankAccount || '',
+    bankBranch: e.bankBranch || '',
+    emergencyContact: e.emergencyContact || '',
+    emergencyPhone: e.emergencyPhone || '',
+    payGrade: e.payGrade || '',
+    profile: e.profile || {},
   };
 }
 
@@ -106,6 +132,7 @@ export const hrEmployeesService = {
         employmentType: input.employmentType || 'Full Time',
         employeeType: input.employeeType || 'Office Employee',
         salary: input.salary || 0,
+        payBasis: input.payBasis || 'monthly',
         password: input.password || undefined,
       })
     );
@@ -120,6 +147,10 @@ export const hrEmployeesService = {
   update: async (id: string, input: Partial<CreateEmployeeInput>): Promise<HREmployee> => {
     const body = unwrap(await apiClient.put(`/api/hr/employees/${id}`, input));
     return mapEmployee(body.data);
+  },
+
+  remove: async (id: string): Promise<void> => {
+    unwrap(await apiClient.delete(`/api/hr/employees/${id}`));
   },
 };
 
@@ -152,6 +183,18 @@ export const hrDashboardService = {
     const qs = date ? `?date=${encodeURIComponent(date)}` : '';
     const body = unwrap(await apiClient.get(`/api/hr/attendance${qs}`));
     return listOf(body.data);
+  },
+
+  /** HR manual create/update attendance for an employee on a date */
+  upsertAttendance: async (input: {
+    employeeId: string;
+    date: string;
+    status: string;
+    checkIn?: string;
+    checkOut?: string;
+  }) => {
+    const body = unwrap(await apiClient.put('/api/hr/attendance', input));
+    return body.data;
   },
 
   liveTracking: async () => {

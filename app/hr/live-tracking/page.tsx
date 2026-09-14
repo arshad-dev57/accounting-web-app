@@ -11,8 +11,9 @@ import {
 } from 'lucide-react';
 import { HRPage, HRPageHeader, HRCard, HRStatCard, HRStatusBadge } from '../ui';
 import { hrDashboardService } from '@/lib/hr-employees-service';
+import { hrOfficesService, type HROffice } from '@/lib/hr-offices-service';
 
-const COLORS = { success: '#2ECC71', primary: '#014582', warning: '#F39C12' };
+const COLORS = { success: '#2ECC71', primary: '#014582', warning: '#F39C12', danger: '#E74C3C' };
 
 type Tracked = {
   id: string;
@@ -24,6 +25,11 @@ type Tracked = {
   lat: number;
   lng: number;
   moving: boolean;
+  distanceMeters: number | null;
+  gpsSuspect: boolean;
+  officeLat: number | null;
+  officeLng: number | null;
+  officeRadius: number | null;
 };
 
 declare global {
@@ -37,13 +43,25 @@ declare global {
   }
 }
 
-function useLiveTracking(): { employees: Tracked[]; lastPing: Date; source: 'live' | 'empty' } {
+function useLiveTracking(): {
+  employees: Tracked[];
+  offices: HROffice[];
+  lastPing: Date;
+  source: 'live' | 'empty';
+} {
   const [employees, setEmployees] = React.useState<Tracked[]>([]);
+  const [offices, setOffices] = React.useState<HROffice[]>([]);
   const [lastPing, setLastPing] = React.useState(() => new Date());
   const [source, setSource] = React.useState<'live' | 'empty'>('empty');
 
   React.useEffect(() => {
     let cancelled = false;
+    hrOfficesService
+      .list()
+      .then((list) => {
+        if (!cancelled) setOffices(list.filter((o) => o.status === 'Active'));
+      })
+      .catch(() => {});
 
     const loadLive = async () => {
       try {
@@ -57,13 +75,14 @@ function useLiveTracking(): { employees: Tracked[]; lastPing: Date; source: 'liv
           .map((e: any) => {
             const statusKey = String(e.status || '').toLowerCase();
             const inside = e.insideGeofence === true;
+            const gpsSuspect = e.gpsSuspect === true;
+            const distanceMeters =
+              e.distanceMeters == null ? null : Number(e.distanceMeters);
             return {
               id: e.employeeId || e.employeeCode || e.employeeName,
               employee: e.employeeName || 'Employee',
               office: e.officeName || '—',
-              location: inside
-                ? e.officeName || e.locationLabel || 'Office'
-                : e.locationLabel || 'In the field',
+              location: e.locationLabel || (inside ? e.officeName || 'Office' : 'In the field'),
               since: e.lastPingAt
                 ? new Date(e.lastPingAt).toLocaleTimeString('en-US', {
                     hour: '2-digit',
@@ -79,6 +98,13 @@ function useLiveTracking(): { employees: Tracked[]; lastPing: Date; source: 'liv
               lat: Number(e.latitude),
               lng: Number(e.longitude),
               moving: !inside,
+              distanceMeters: Number.isFinite(distanceMeters as number)
+                ? (distanceMeters as number)
+                : null,
+              gpsSuspect,
+              officeLat: e.officeLatitude != null ? Number(e.officeLatitude) : null,
+              officeLng: e.officeLongitude != null ? Number(e.officeLongitude) : null,
+              officeRadius: e.officeRadius != null ? Number(e.officeRadius) : null,
             };
           });
         setEmployees(mapped);
@@ -100,7 +126,13 @@ function useLiveTracking(): { employees: Tracked[]; lastPing: Date; source: 'liv
     };
   }, []);
 
-  return { employees, lastPing, source };
+  return { employees, offices, lastPing, source };
+}
+
+function formatDistance(meters: number | null) {
+  if (meters == null || !Number.isFinite(meters)) return '';
+  if (meters >= 1000) return `${(meters / 1000).toFixed(meters >= 100000 ? 0 : 1)} km`;
+  return `${Math.round(meters)} m`;
 }
 
 const BOUNDS = { minLat: 23.5, maxLat: 34.8, minLng: 66.5, maxLng: 75.5 };
@@ -200,12 +232,14 @@ function markerColor(moving: boolean) {
 
 function GoogleMapView({
   employees,
+  offices,
   selectedId,
   onSelect,
   onFail,
   apiKey,
 }: {
   employees: Tracked[];
+  offices: HROffice[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onFail: () => void;
@@ -214,6 +248,7 @@ function GoogleMapView({
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<any>(null);
   const markersRef = React.useRef<Record<string, any>>({});
+  const circlesRef = React.useRef<any[]>([]);
   const fittedKeyRef = React.useRef('');
   const [ready, setReady] = React.useState(false);
 
@@ -257,6 +292,23 @@ function GoogleMapView({
     const map = mapRef.current;
     if (!ready || !maps || !map) return;
 
+    circlesRef.current.forEach((c) => c.setMap(null));
+    circlesRef.current = offices
+      .filter((o) => Number.isFinite(o.latitude) && Number.isFinite(o.longitude))
+      .map(
+        (o) =>
+          new maps.Circle({
+            map,
+            center: { lat: o.latitude, lng: o.longitude },
+            radius: o.geofenceRadius || 150,
+            fillColor: COLORS.primary,
+            fillOpacity: 0.12,
+            strokeColor: COLORS.primary,
+            strokeOpacity: 0.7,
+            strokeWeight: 2,
+          })
+      );
+
     const ids = new Set(employees.map((e) => e.id));
     Object.keys(markersRef.current).forEach((id) => {
       if (!ids.has(id)) {
@@ -266,7 +318,7 @@ function GoogleMapView({
     });
 
     employees.forEach((emp) => {
-      const color = markerColor(emp.moving);
+      const color = emp.gpsSuspect ? COLORS.danger : markerColor(emp.moving);
       const position = { lat: emp.lat, lng: emp.lng };
       let marker = markersRef.current[emp.id];
       if (!marker) {
@@ -305,16 +357,31 @@ function GoogleMapView({
         map.panTo({ lat: emp.lat, lng: emp.lng });
         if (map.getZoom() < 14) map.setZoom(15);
       }
-    } else if (employees.length > 0) {
-      const idKey = employees.map((e) => e.id).sort().join(',');
-      if (idKey !== fittedKeyRef.current) {
+    } else {
+      const idKey = [
+        ...employees.map((e) => `${e.id}:${e.lat}:${e.lng}`),
+        ...offices.map((o) => o.id),
+      ]
+        .sort()
+        .join(',');
+      if (idKey && idKey !== fittedKeyRef.current) {
         fittedKeyRef.current = idKey;
         const bounds = new maps.LatLngBounds();
-        employees.forEach((e) => bounds.extend({ lat: e.lat, lng: e.lng }));
-        map.fitBounds(bounds, 48);
+        let hasPoint = false;
+        employees.forEach((e) => {
+          bounds.extend({ lat: e.lat, lng: e.lng });
+          hasPoint = true;
+        });
+        offices.forEach((o) => {
+          if (Number.isFinite(o.latitude) && Number.isFinite(o.longitude)) {
+            bounds.extend({ lat: o.latitude, lng: o.longitude });
+            hasPoint = true;
+          }
+        });
+        if (hasPoint) map.fitBounds(bounds, 48);
       }
     }
-  }, [employees, ready, selectedId, onSelect]);
+  }, [employees, offices, ready, selectedId, onSelect]);
 
   return (
     <div className="relative w-full h-full">
@@ -355,16 +422,19 @@ function loadLeaflet(): Promise<any> {
 
 function LeafletMap({
   employees,
+  offices,
   selectedId,
   onSelect,
 }: {
   employees: Tracked[];
+  offices: HROffice[];
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<any>(null);
   const markersRef = React.useRef<Record<string, any>>({});
+  const circlesRef = React.useRef<any[]>([]);
   const fittedKeyRef = React.useRef('');
   const [ready, setReady] = React.useState(false);
   const [failed, setFailed] = React.useState(false);
@@ -396,6 +466,19 @@ function LeafletMap({
   React.useEffect(() => {
     if (!ready || !mapRef.current || !window.L) return;
     const L = window.L;
+    circlesRef.current.forEach((c) => mapRef.current.removeLayer(c));
+    circlesRef.current = offices
+      .filter((o) => Number.isFinite(o.latitude) && Number.isFinite(o.longitude))
+      .map((o) =>
+        L.circle([o.latitude, o.longitude], {
+          radius: o.geofenceRadius || 150,
+          color: COLORS.primary,
+          fillColor: COLORS.primary,
+          fillOpacity: 0.12,
+          weight: 2,
+        }).addTo(mapRef.current)
+      );
+
     const ids = new Set(employees.map((e) => e.id));
     Object.keys(markersRef.current).forEach((id) => {
       if (!ids.has(id)) {
@@ -404,7 +487,7 @@ function LeafletMap({
       }
     });
     employees.forEach((emp) => {
-      const color = emp.moving ? COLORS.warning : COLORS.success;
+      const color = emp.gpsSuspect ? COLORS.danger : emp.moving ? COLORS.warning : COLORS.success;
       const html = `<div style="width:14px;height:14px;border-radius:999px;background:${color};border:2px solid #fff;box-shadow:0 0 0 2px ${color}55"></div>`;
       const icon = L.divIcon({ className: '', html, iconSize: [14, 14], iconAnchor: [7, 7] });
       let marker = markersRef.current[emp.id];
@@ -417,7 +500,7 @@ function LeafletMap({
         marker.setIcon(icon);
       }
       marker.bindPopup(
-        `<strong>${emp.employee}</strong><br/>${emp.location}<br/>${emp.moving ? 'In the field' : 'At office'}`
+        `<strong>${emp.employee}</strong><br/>${emp.location}<br/>${emp.gpsSuspect ? 'Simulator / wrong GPS' : emp.moving ? 'In the field' : 'At office'}`
       );
     });
 
@@ -427,15 +510,21 @@ function LeafletMap({
         mapRef.current.setView([emp.lat, emp.lng], 15);
         markersRef.current[selectedId].openPopup();
       }
-    } else if (employees.length > 0) {
-      const idKey = employees.map((e) => e.id).sort().join(',');
-      if (idKey !== fittedKeyRef.current) {
+    } else {
+      const points: [number, number][] = [
+        ...employees.map((e) => [e.lat, e.lng] as [number, number]),
+        ...offices
+          .filter((o) => Number.isFinite(o.latitude) && Number.isFinite(o.longitude))
+          .map((o) => [o.latitude, o.longitude] as [number, number]),
+      ];
+      const idKey = points.map((p) => p.join(',')).join('|');
+      if (points.length && idKey !== fittedKeyRef.current) {
         fittedKeyRef.current = idKey;
-        const bounds = L.latLngBounds(employees.map((e) => [e.lat, e.lng]));
+        const bounds = L.latLngBounds(points);
         mapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
       }
     }
-  }, [employees, ready, selectedId, onSelect]);
+  }, [employees, offices, ready, selectedId, onSelect]);
 
   if (failed) {
     return <FallbackMap employees={employees} selectedId={selectedId} onSelect={onSelect} />;
@@ -458,10 +547,12 @@ function LeafletMap({
 
 function LiveMap({
   employees,
+  offices,
   selectedId,
   onSelect,
 }: {
   employees: Tracked[];
+  offices: HROffice[];
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -502,6 +593,7 @@ function LiveMap({
     return (
       <GoogleMapView
         employees={employees}
+        offices={offices}
         selectedId={selectedId}
         onSelect={onSelect}
         onFail={failGoogle}
@@ -510,11 +602,18 @@ function LiveMap({
     );
   }
 
-  return <LeafletMap employees={employees} selectedId={selectedId} onSelect={onSelect} />;
+  return (
+    <LeafletMap
+      employees={employees}
+      offices={offices}
+      selectedId={selectedId}
+      onSelect={onSelect}
+    />
+  );
 }
 
 export default function LiveTrackingPage() {
-  const { employees, lastPing, source } = useLiveTracking();
+  const { employees, offices, lastPing, source } = useLiveTracking();
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [fitKey, setFitKey] = React.useState(0);
 
@@ -523,7 +622,9 @@ export default function LiveTrackingPage() {
   }, []);
 
   const activeCount = employees.filter((e) => e.status === 'CheckedIn' || e.status === 'Present').length;
-  const movingCount = employees.filter((e) => e.moving).length;
+  const atOffice = employees.filter((e) => !e.moving && !e.gpsSuspect).length;
+  const movingCount = employees.filter((e) => e.moving && !e.gpsSuspect).length;
+  const suspectCount = employees.filter((e) => e.gpsSuspect).length;
 
   return (
     <HRPage>
@@ -552,8 +653,19 @@ export default function LiveTrackingPage() {
         <HRStatCard label="On map" value={employees.length} icon={MapPin} color={COLORS.primary} />
         <HRStatCard label="Active Now" value={activeCount} icon={Navigation} color={COLORS.success} />
         <HRStatCard label="In the field" value={movingCount} icon={Gauge} color={COLORS.warning} />
-        <HRStatCard label="At Office" value={employees.length - movingCount} icon={Building2} color={COLORS.primary} />
+        <HRStatCard label="At Office" value={atOffice} icon={Building2} color={COLORS.primary} />
       </div>
+
+      {suspectCount > 0 && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] text-amber-900">
+          <p className="font-extrabold">Wrong GPS detected ({suspectCount})</p>
+          <p className="mt-1 leading-5">
+            Phone is sending a location thousands of km from the office zone (often iOS Simulator default:
+            San Francisco). Attendance uses that GPS, so the person looks “in the field”. On a real phone
+            enable Location, or in Simulator set Features → Location → Custom Location to the office pin.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* MAP — takes 2 cols */}
@@ -562,6 +674,7 @@ export default function LiveTrackingPage() {
             <LiveMap
               key={fitKey}
               employees={employees}
+              offices={offices}
               selectedId={selectedId}
               onSelect={select}
             />
@@ -618,11 +731,17 @@ export default function LiveTrackingPage() {
                       <HRStatusBadge status={emp.status} />
                     </div>
                     <p className="text-[11px] text-[#7A8FA6] font-medium mt-0.5 truncate">{emp.location}</p>
+                    <p className="text-[10px] text-[#9AA8B8] mt-0.5">
+                      GPS {emp.lat.toFixed(5)}, {emp.lng.toFixed(5)}
+                      {emp.distanceMeters != null ? ` · ${formatDistance(emp.distanceMeters)} from ${emp.office}` : ''}
+                    </p>
                     <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2 text-[10px] font-semibold text-[#7A8FA6]">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" /> Since {emp.since}
                       </span>
-                      {emp.moving ? (
+                      {emp.gpsSuspect ? (
+                        <span className="flex items-center gap-1 text-[#E74C3C]">Simulator / wrong GPS</span>
+                      ) : emp.moving ? (
                         <span className="flex items-center gap-1 text-[#F39C12]">
                           <Gauge className="w-3 h-3" /> In the field
                         </span>

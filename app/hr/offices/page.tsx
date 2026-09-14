@@ -5,6 +5,7 @@ import { Building2, MapPin, Users, Plus, Loader2, Pencil, X } from 'lucide-react
 import toast from 'react-hot-toast';
 import { HRPage, HRPageHeader, HRCard, HRWorkflowNotice } from '../ui';
 import { hrOfficesService, type HROffice } from '@/lib/hr-offices-service';
+import { OfficeGeofencePicker } from '../components/office-geofence-picker';
 
 const inputCls =
   'w-full bg-white rounded-xl py-2.5 px-4 text-sm text-[#1A1A2E] border border-[#DDE4EE] focus:outline-none focus:ring-2 focus:ring-[#014582]/20 focus:border-[#014582]/50 transition-all disabled:opacity-60';
@@ -79,10 +80,11 @@ export default function OfficesPage() {
     const lat = Number(form.latitude);
     const lng = Number(form.longitude);
     const radius = Number(form.geofenceRadius);
-    if (!Number.isFinite(lat) || Math.abs(lat) > 90) next.latitude = 'Enter a valid latitude';
-    if (!Number.isFinite(lng) || Math.abs(lng) > 180) next.longitude = 'Enter a valid longitude';
+    if (!Number.isFinite(lat) || Math.abs(lat) > 90 || !Number.isFinite(lng) || Math.abs(lng) > 180) {
+      next.latitude = 'Click the map to place the office pin';
+    }
     if (!Number.isFinite(radius) || radius <= 0) {
-      next.geofenceRadius = 'Enter a valid radius in meters';
+      next.geofenceRadius = 'Set the geofence radius on the map (meters)';
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -137,7 +139,10 @@ export default function OfficesPage() {
         }
       />
 
-      <HRWorkflowNotice title="Work locations and attendance policy" detail="Each office will anchor a geofence, workweek, holiday calendar, and eligible attendance policy. Employees inherit their primary work location from their profile." />
+      <HRWorkflowNotice
+        title="Office pin on map"
+        detail="When creating or editing an office, click the map to set the location — no need to type latitude/longitude. Drag the circle to set the attendance geofence radius."
+      />
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
@@ -219,7 +224,7 @@ export default function OfficesPage() {
           onClick={() => !saving && setShowModal(false)}
         >
           <div
-            className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-2xl w-full max-w-xl shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#DDE4EE]">
@@ -268,80 +273,62 @@ export default function OfficesPage() {
                     <p className="mt-1 text-[10px] font-semibold text-[#E74C3C]">{errors.address}</p>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-[#7A8FA6] mb-1.5">
-                      Latitude <span className="text-[#E74C3C]">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="24.8607"
-                      className={inputCls}
-                      value={form.latitude}
-                      onChange={(e) => setForm((prev) => ({ ...prev, latitude: e.target.value }))}
-                      disabled={saving}
-                    />
-                    {errors.latitude && (
-                      <p className="mt-1 text-[10px] font-semibold text-[#E74C3C]">{errors.latitude}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-[#7A8FA6] mb-1.5">
-                      Longitude <span className="text-[#E74C3C]">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="67.0011"
-                      className={inputCls}
-                      value={form.longitude}
-                      onChange={(e) => setForm((prev) => ({ ...prev, longitude: e.target.value }))}
-                      disabled={saving}
-                    />
-                    {errors.longitude && (
-                      <p className="mt-1 text-[10px] font-semibold text-[#E74C3C]">{errors.longitude}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-[#7A8FA6] mb-1.5">
-                      Geofence Radius (m) <span className="text-[#E74C3C]">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      className={inputCls}
-                      value={form.geofenceRadius}
-                      onChange={(e) =>
-                        setForm((prev) => ({ ...prev, geofenceRadius: e.target.value }))
-                      }
-                      disabled={saving}
-                    />
-                    {errors.geofenceRadius && (
-                      <p className="mt-1 text-[10px] font-semibold text-[#E74C3C]">
-                        {errors.geofenceRadius}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-[#7A8FA6] mb-1.5">Status</label>
-                    <select
-                      className={inputCls}
-                      value={form.status}
-                      onChange={(e) =>
-                        setForm((prev) => ({
+                <div>
+                  <label className="block text-xs font-bold text-[#7A8FA6] mb-1.5">
+                    Location on map <span className="text-[#E74C3C]">*</span>
+                  </label>
+                  <OfficeGeofencePicker
+                    latitude={form.latitude ? Number(form.latitude) : null}
+                    longitude={form.longitude ? Number(form.longitude) : null}
+                    radiusMeters={Number(form.geofenceRadius) || 150}
+                    disabled={saving}
+                    onChange={({ latitude, longitude, radiusMeters }) => {
+                      setForm((prev) => {
+                        const hasPin =
+                          Number.isFinite(latitude) &&
+                          Number.isFinite(longitude) &&
+                          Math.abs(latitude) <= 90 &&
+                          Math.abs(longitude) <= 180 &&
+                          !(latitude === 0 && longitude === 0 && !prev.latitude);
+                        return {
                           ...prev,
-                          status: e.target.value as FormState['status'],
-                        }))
-                      }
-                      disabled={saving}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                  </div>
+                          ...(hasPin
+                            ? { latitude: String(latitude), longitude: String(longitude) }
+                            : {}),
+                          geofenceRadius: String(radiusMeters),
+                        };
+                      });
+                      setErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.latitude;
+                        delete next.longitude;
+                        delete next.geofenceRadius;
+                        return next;
+                      });
+                    }}
+                  />
+                  {(errors.latitude || errors.geofenceRadius) && (
+                    <p className="mt-1 text-[10px] font-semibold text-[#E74C3C]">
+                      {errors.latitude || errors.geofenceRadius}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#7A8FA6] mb-1.5">Status</label>
+                  <select
+                    className={inputCls}
+                    value={form.status}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        status: e.target.value as FormState['status'],
+                      }))
+                    }
+                    disabled={saving}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
                 </div>
               </div>
               <div className="flex justify-end gap-2 px-5 py-4 border-t border-[#DDE4EE]">

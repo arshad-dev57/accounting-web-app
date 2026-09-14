@@ -57,10 +57,19 @@ export const hrWorkforceService = {
     const body = unwrap(await apiClient.get(`/api/hr/payroll/report${qs}`));
     return body;
   },
+  getPayrollRun: async (period?: string) => {
+    const qs = period ? `?period=${encodeURIComponent(period)}` : '';
+    const body = unwrap(await apiClient.get(`/api/hr/payroll/run${qs}`));
+    return body.data || {};
+  },
+  savePayrollRun: async (input: Record<string, unknown>) =>
+    unwrap(await apiClient.put('/api/hr/payroll/run', input)).data,
   getPayslip: async (id: string) =>
     unwrap(await apiClient.get(`/api/hr/payroll/${id}`)).data,
-  generatePayroll: async (period?: string) => {
-    const body = unwrap(await apiClient.post('/api/hr/payroll/generate', { period }));
+  generatePayroll: async (period?: string, mode?: 'all' | 'sales' | 'office') => {
+    const body = unwrap(
+      await apiClient.post('/api/hr/payroll/generate', { period, ...(mode ? { mode } : {}) })
+    );
     return {
       items: listOf(body.data),
       period: body.period as string,
@@ -70,12 +79,27 @@ export const hrWorkforceService = {
   },
   updatePayroll: async (id: string, input: Record<string, unknown>) =>
     unwrap(await apiClient.put(`/api/hr/payroll/${id}`, input)).data,
-  bulkPayrollStatus: async (period: string, status: string) => {
-    const body = unwrap(await apiClient.post('/api/hr/payroll/bulk-status', { period, status }));
+  createPayrollItem: async (input: {
+    employeeId: string;
+    period: string;
+    blank?: boolean;
+    basic?: number;
+    notes?: string;
+  }) => unwrap(await apiClient.post('/api/hr/payroll/item', input)).data,
+  bulkPayrollStatus: async (period: string, status: string, payDate?: string, mode?: 'all' | 'office' | 'sales') => {
+    const body = unwrap(
+      await apiClient.post('/api/hr/payroll/bulk-status', {
+        period,
+        status,
+        ...(payDate ? { payDate } : {}),
+        ...(mode && mode !== 'all' ? { mode } : {}),
+      })
+    );
     return {
       items: listOf(body.data),
       period: body.period as string,
       summary: body.summary || {},
+      journal: body.journal,
     };
   },
 

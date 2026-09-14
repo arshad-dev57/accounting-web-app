@@ -1,4 +1,3 @@
-// lib/pos-service.ts — POS API Service Layer
 import { apiClient } from '@/lib/api-client';
 
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -68,7 +67,6 @@ export const posProductService = {
   },
 };
 
-// ─── Sales ────────────────────────────────────────────────────────────────────
 export const posSaleService = {
   list: (params?: string) => api<any>('GET', `/sales${params ? '?' + params : ''}`),
   get: (id: string) => api<any>('GET', `/sales/${id}`),

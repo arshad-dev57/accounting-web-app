@@ -16,6 +16,8 @@ import {
   Scale,
   CalendarDays,
   Receipt,
+  UsersRound,
+  Factory,
 } from 'lucide-react';
 import { usePermissions } from '../lib/usePermissions';
 import { BrandHeader } from './BrandHeader';
@@ -112,6 +114,18 @@ export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: str
           show: isAdmin || hasModuleAccess('purchases'),
         },
         {
+          icon: <Factory className="w-5 h-5" />,
+          label: 'Manufacturing',
+          path: '/manufacturing/dashboard',
+          show: isAdmin || hasModuleAccess('manufacturing'),
+        },
+        {
+          icon: <UsersRound className="w-5 h-5" />,
+          label: 'HR Management',
+          path: '/hr/dashboard',
+          show: isAdmin || hasModuleAccess('hr'),
+        },
+        {
           icon: <Store className="w-5 h-5" />,
           label: 'Point of Sale',
           path: '/pos',
@@ -161,7 +175,10 @@ export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: str
         </p>
 
         {filteredMenuItems.map((item) => {
-          const isActive = activePath === item.path || activePath.startsWith(`${item.path}/`);
+          const isActive =
+            item.path === '/hr/dashboard'
+              ? activePath === '/hr' || activePath.startsWith('/hr/')
+              : activePath === item.path || activePath.startsWith(`${item.path}/`);
           return (
             <button
               key={item.path}

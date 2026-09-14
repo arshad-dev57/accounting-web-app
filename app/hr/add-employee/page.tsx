@@ -1,13 +1,15 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Save, Loader2, CircleCheck, Eye, EyeOff } from 'lucide-react';
+import { Save, Loader2, CircleCheck, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { HRPage, HRPageHeader, HRCard, HRWorkflowNotice } from '../ui';
 import { hrEmployeesService } from '@/lib/hr-employees-service';
 import { hrOfficesService } from '@/lib/hr-offices-service';
 import { hrShiftsService } from '@/lib/hr-shifts-service';
+import { hrHcmService } from '@/lib/hr-hcm-service';
 
 const inputCls =
   'w-full bg-white rounded-xl py-2.5 px-4 text-sm text-[#1A1A2E] border border-[#DDE4EE] focus:outline-none focus:ring-2 focus:ring-[#014582]/20 focus:border-[#014582]/50 transition-all disabled:opacity-60';
@@ -15,7 +17,6 @@ const inputCls =
 const inputErrorCls =
   'w-full bg-white rounded-xl py-2.5 px-4 text-sm text-[#1A1A2E] border border-[#E74C3C] focus:outline-none focus:ring-2 focus:ring-[#E74C3C]/20 transition-all';
 
-const DEPARTMENTS = ['IT', 'Sales', 'HR', 'Finance', 'Operations', 'Marketing'];
 const STATUSES = ['Active', 'On Leave', 'Inactive'] as const;
 
 const EMPLOYEE_TYPES = ['Office Employee', 'Field Employee', 'Salesman', 'Delivery Staff'];
@@ -32,6 +33,8 @@ type FormState = {
   joiningDate: string;
   status: (typeof STATUSES)[number];
   employeeType: string;
+  salary: string;
+  payBasis: 'monthly' | 'hourly' | 'daily';
   password: string;
   confirmPassword: string;
 };
@@ -42,12 +45,14 @@ const EMPTY_FORM: FormState = {
   email: '',
   phone: '',
   designation: '',
-  department: 'IT',
+  department: '',
   officeId: '',
   shift: '',
   joiningDate: new Date().toISOString().split('T')[0],
   status: 'Active',
   employeeType: 'Office Employee',
+  salary: '',
+  payBasis: 'monthly',
   password: '',
   confirmPassword: '',
 };
@@ -56,21 +61,38 @@ function Field({
   label,
   required,
   error,
+  action,
   children,
 }: {
   label: string;
   required?: boolean;
   error?: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div>
-      <label className="block text-xs font-bold text-[#7A8FA6] mb-1.5">
-        {label} {required && <span className="text-[#E74C3C]">*</span>}
-      </label>
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <label className="block text-xs font-bold text-[#7A8FA6]">
+          {label} {required && <span className="text-[#E74C3C]">*</span>}
+        </label>
+        {action}
+      </div>
       {children}
       {error && <p className="mt-1 text-[10px] font-semibold text-[#E74C3C]">{error}</p>}
     </div>
+  );
+}
+
+function OrgLink({ label }: { label: string }) {
+  return (
+    <Link
+      href="/hr/organization"
+      className="inline-flex items-center gap-1 text-[10px] font-bold text-[#014582] hover:underline shrink-0"
+    >
+      {label}
+      <ExternalLink className="w-3 h-3" />
+    </Link>
   );
 }
 
@@ -81,7 +103,32 @@ export default function AddEmployeePage() {
   const [saving, setSaving] = React.useState(false);
   const [offices, setOffices] = React.useState<{ id: string; name: string }[]>([]);
   const [shifts, setShifts] = React.useState<string[]>([]);
+  const [departments, setDepartments] = React.useState<string[]>([]);
+  const [designations, setDesignations] = React.useState<string[]>([]);
   const [showPassword, setShowPassword] = React.useState(false);
+
+  React.useEffect(() => {
+    let mounted = true;
+    Promise.all([hrHcmService.departments(), hrHcmService.designations()])
+      .then(([deps, desigs]) => {
+        if (!mounted) return;
+        const deptNames = deps.map((d: any) => String(d.name || '').trim()).filter(Boolean);
+        const desigNames = desigs.map((d: any) => String(d.name || '').trim()).filter(Boolean);
+        setDepartments(deptNames);
+        setDesignations(desigNames);
+        setForm((prev) => ({
+          ...prev,
+          department: deptNames.includes(prev.department) ? prev.department : deptNames[0] || '',
+          designation: desigNames.includes(prev.designation)
+            ? prev.designation
+            : desigNames[0] || '',
+        }));
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   React.useEffect(() => {
     let mounted = true;
@@ -103,8 +150,6 @@ export default function AddEmployeePage() {
       mounted = false;
     };
   }, []);
-
-  // Load shifts from the HR shifts API so new shifts show up here
   React.useEffect(() => {
     let mounted = true;
     hrShiftsService
@@ -137,7 +182,24 @@ export default function AddEmployeePage() {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       next.email = 'Invalid email address';
     }
+    if (!form.department) {
+      next.department = departments.length ? 'Select a department' : 'Create a department first';
+    }
+    if (!form.designation) {
+      next.designation = designations.length
+        ? 'Select a designation'
+        : 'Create a designation first';
+    }
     if (!form.officeId) next.officeId = 'Create and select an office first';
+    const salaryNum = Number(form.salary);
+    if (!form.salary.trim() || !Number.isFinite(salaryNum) || salaryNum <= 0) {
+      next.salary =
+        form.payBasis === 'hourly'
+          ? 'Enter hourly rate greater than 0'
+          : form.payBasis === 'daily'
+            ? 'Enter daily rate greater than 0'
+            : 'Enter monthly package salary (greater than 0)';
+    }
     if (!form.password.trim()) next.password = 'Set a password — HR will share this with the employee';
     else if (form.password.length < 6) next.password = 'Password must be at least 6 characters';
     if (form.password !== form.confirmPassword) {
@@ -167,6 +229,8 @@ export default function AddEmployeePage() {
         joiningDate: form.joiningDate,
         status: form.status,
         employeeType: form.employeeType,
+        salary: Number(form.salary),
+        payBasis: form.payBasis,
         password: form.password,
       });
       toast.success(
@@ -285,26 +349,110 @@ export default function AddEmployeePage() {
 
           <HRCard title="Job Details">
             <div className="space-y-4">
-              <Field label="Designation">
-                <input
-                  className={inputCls}
-                  value={form.designation}
-                  onChange={(e) => set('designation')(e.target.value)}
-                  placeholder="e.g. Software Engineer"
-                  disabled={saving}
-                />
+              <Field
+                label="Department"
+                required
+                error={errors.department}
+                action={<OrgLink label={departments.length ? 'Manage' : 'Create department'} />}
+              >
+                {departments.length > 0 ? (
+                  <select
+                    className={errors.department ? inputErrorCls : inputCls}
+                    value={form.department}
+                    onChange={(e) => set('department')(e.target.value)}
+                    disabled={saving}
+                  >
+                    {departments.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-[#DDE4EE] bg-[#F8FAFC] px-4 py-3">
+                    <p className="text-xs text-[#7A8FA6] mb-2">
+                      No departments yet. Create one on the Departments page first.
+                    </p>
+                    <Link
+                      href="/hr/organization"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#014582] px-3 py-2 text-[11px] font-bold text-white"
+                    >
+                      Go to Departments
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </div>
+                )}
               </Field>
-              <Field label="Department">
+              <Field
+                label="Designation"
+                required
+                error={errors.designation}
+                action={<OrgLink label={designations.length ? 'Manage' : 'Create designation'} />}
+              >
+                {designations.length > 0 ? (
+                  <select
+                    className={errors.designation ? inputErrorCls : inputCls}
+                    value={form.designation}
+                    onChange={(e) => set('designation')(e.target.value)}
+                    disabled={saving}
+                  >
+                    {designations.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-[#DDE4EE] bg-[#F8FAFC] px-4 py-3">
+                    <p className="text-xs text-[#7A8FA6] mb-2">
+                      No designations yet. Create one on the Departments page (Designations tab).
+                    </p>
+                    <Link
+                      href="/hr/organization"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#014582] px-3 py-2 text-[11px] font-bold text-white"
+                    >
+                      Go to Designations
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </div>
+                )}
+              </Field>
+              <Field label="Pay format" required>
                 <select
                   className={inputCls}
-                  value={form.department}
-                  onChange={(e) => set('department')(e.target.value)}
+                  value={form.payBasis}
+                  onChange={(e) => set('payBasis')(e.target.value)}
                   disabled={saving}
                 >
-                  {DEPARTMENTS.map((d) => (
-                    <option key={d}>{d}</option>
-                  ))}
+                  <option value="monthly">Monthly package</option>
+                  <option value="daily">Daily rate</option>
+                  <option value="hourly">Hourly rate</option>
                 </select>
+                <p className="mt-1 text-[10px] text-[#7A8FA6]">
+                  Payroll builds the monthly slip from this format (hourly/daily is converted to a month package).
+                </p>
+              </Field>
+              <Field
+                label={
+                  form.payBasis === 'hourly'
+                    ? 'Hourly rate (Rs)'
+                    : form.payBasis === 'daily'
+                      ? 'Daily rate (Rs)'
+                      : 'Monthly salary (package)'
+                }
+                required
+                error={errors.salary}
+              >
+                <input
+                  className={errors.salary ? inputErrorCls : inputCls}
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={form.salary}
+                  onChange={(e) => set('salary')(e.target.value)}
+                  placeholder={form.payBasis === 'hourly' ? 'e.g. 500' : form.payBasis === 'daily' ? 'e.g. 4000' : 'e.g. 80000'}
+                  disabled={saving}
+                />
               </Field>
               <Field label="Office" required error={errors.officeId}>
                 <select

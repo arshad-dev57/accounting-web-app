@@ -28,6 +28,29 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      { source: '/manufacturing', destination: '/manufacturing/dashboard', permanent: false },
+      { source: '/manufacturing/master/bom-versions', destination: '/manufacturing/master/bom', permanent: false },
+      { source: '/manufacturing/master/operations', destination: '/manufacturing/master/routings', permanent: false },
+      { source: '/manufacturing/production/shop-floor', destination: '/manufacturing/production/work-orders', permanent: false },
+      { source: '/manufacturing/production/tracking', destination: '/manufacturing/production/orders', permanent: false },
+      { source: '/manufacturing/materials/consumption', destination: '/manufacturing/materials/issues', permanent: false },
+      { source: '/manufacturing/materials/wip', destination: '/manufacturing/dashboard', permanent: false },
+      { source: '/manufacturing/quality/plans', destination: '/manufacturing/quality/inspections', permanent: false },
+      { source: '/manufacturing/quality/defects', destination: '/manufacturing/quality/inspections', permanent: false },
+      { source: '/manufacturing/quality/reports', destination: '/manufacturing/reports', permanent: false },
+      { source: '/manufacturing/maintenance/preventive', destination: '/manufacturing/maintenance/requests', permanent: false },
+      { source: '/manufacturing/maintenance/breakdown', destination: '/manufacturing/maintenance/requests', permanent: false },
+      { source: '/manufacturing/maintenance/spare-parts', destination: '/manufacturing/master/machines', permanent: false },
+      { source: '/manufacturing/subcontracting/materials-sent', destination: '/manufacturing/subcontracting/orders', permanent: false },
+      { source: '/manufacturing/subcontracting/materials-received', destination: '/manufacturing/subcontracting/orders', permanent: false },
+      { source: '/manufacturing/costing/product-cost', destination: '/manufacturing/costing', permanent: false },
+      { source: '/manufacturing/costing/standard-cost', destination: '/manufacturing/costing', permanent: false },
+      { source: '/manufacturing/costing/actual-cost', destination: '/manufacturing/costing', permanent: false },
+      { source: '/manufacturing/costing/variance', destination: '/manufacturing/costing', permanent: false },
+    ];
+  },
   async headers() {
     return [
       {
