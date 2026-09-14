@@ -4,6 +4,9 @@ This document tracks all significant changes to the Bisonstechs ERP system.
 
 ## 2026-09-14
 
+### HR Offices - location search + geofence radius
+- **Added**: Office location search via OpenStreetMap Photon (no Google API key), Leaflet map with pin, and a geofence radius circle (slider / meter input).
+
 ### Manufacturing Module - Flow cleanup + backend
 - **Added**: Backend Manufacturing API (`/api/manufacturing`) with CRUD, production-order lifecycle (release/pause/resume/complete/close/cancel), work-order shop-floor actions, dashboard, MRP, shortage, costing, reports and settings.
 - **Added**: Prisma migration `20260914120000_add_manufacturing_module` for manufacturing tables.

@@ -140,8 +140,8 @@ export default function OfficesPage() {
       />
 
       <HRWorkflowNotice
-        title="Office pin on map"
-        detail="When creating or editing an office, click the map to set the location — no need to type latitude/longitude. Drag the circle to set the attendance geofence radius."
+        title="Search, then set radius"
+        detail="Search the office address or landmark. A pin drops on that point — then drag the circle (or use the radius slider) to set the attendance geofence around it."
       />
 
       {loading ? (
@@ -224,7 +224,7 @@ export default function OfficesPage() {
           onClick={() => !saving && setShowModal(false)}
         >
           <div
-            className="bg-white rounded-2xl w-full max-w-xl shadow-xl max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-2xl w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#DDE4EE]">
@@ -277,12 +277,15 @@ export default function OfficesPage() {
                   <label className="block text-xs font-bold text-[#7A8FA6] mb-1.5">
                     Location on map <span className="text-[#E74C3C]">*</span>
                   </label>
+                  <p className="text-[10px] text-[#7A8FA6] mb-2">
+                    Search the place, drop the pin, then draw the office radius around it.
+                  </p>
                   <OfficeGeofencePicker
                     latitude={form.latitude ? Number(form.latitude) : null}
                     longitude={form.longitude ? Number(form.longitude) : null}
                     radiusMeters={Number(form.geofenceRadius) || 150}
                     disabled={saving}
-                    onChange={({ latitude, longitude, radiusMeters }) => {
+                    onChange={({ latitude, longitude, radiusMeters, address }) => {
                       setForm((prev) => {
                         const hasPin =
                           Number.isFinite(latitude) &&
@@ -296,6 +299,7 @@ export default function OfficesPage() {
                             ? { latitude: String(latitude), longitude: String(longitude) }
                             : {}),
                           geofenceRadius: String(radiusMeters),
+                          ...(address ? { address } : {}),
                         };
                       });
                       setErrors((prev) => {
