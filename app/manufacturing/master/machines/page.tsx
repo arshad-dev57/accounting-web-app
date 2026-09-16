@@ -27,7 +27,7 @@ export default function MachinesPage() {
         { name: 'serialNumber', label: 'Serial Number', type: 'text' },
         { name: 'model', label: 'Model', type: 'text' },
         { name: 'manufacturer', label: 'Manufacturer', type: 'text' },
-        { name: 'workCenterId', label: 'Work Center Id', type: 'text' },
+        { name: 'workCenterId', label: 'Work Center', type: 'relation' },
         { name: 'status', label: 'Status', type: 'select', options: ['Running', 'Idle', 'Maintenance', 'Breakdown', 'Offline'].map((v) => ({ value: v, label: v })) },
         { name: 'hourlyOperatingCost', label: 'Hourly Operating Cost', type: 'number' },
         { name: 'purchaseDate', label: 'Purchase Date', type: 'date' },

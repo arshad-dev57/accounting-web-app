@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import { ClipboardList, RefreshCw } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { useLocation } from '@/lib/location-context';
 import { productionOrderService, type ProductionOrder } from '@/lib/manufacturing-service';
 import {
@@ -21,15 +22,24 @@ import {
   MfgAddButton,
 } from '../../ui';
 
-const STATUS_FILTERS = ['All', 'Draft', 'Planned', 'Released', 'In Progress', 'Paused', 'Completed', 'Closed', 'Cancelled'];
+const STATUS_FILTERS = ['All', 'Draft', 'Planned', 'Released', 'In Progress', 'Paused', 'Partially Completed', 'Completed', 'Closed Short', 'Closed', 'Cancelled'];
 
 export default function ProductionOrdersPage() {
+  return (
+    <Suspense fallback={<MfgPage><MfgLoading /></MfgPage>}>
+      <ProductionOrdersInner />
+    </Suspense>
+  );
+}
+
+function ProductionOrdersInner() {
   const { locationIdForApi } = useLocation();
+  const searchParams = useSearchParams();
   const [rows, setRows] = useState<ProductionOrder[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('All');
+  const [status, setStatus] = useState(searchParams.get('status') || 'All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 

@@ -70,26 +70,26 @@ export default function ManufacturingDashboardPage() {
   const pct = (v: any) => `${Math.round(Number(v || 0))}%`;
 
   const statCards = [
-    { label: 'Production Today', value: n(k.productionToday), icon: CalendarDays, color: MFG_COLORS.accent },
-    { label: 'Production This Month', value: n(k.productionMonth), icon: CalendarDays, color: MFG_COLORS.primary },
-    { label: 'Planned Production', value: n(k.plannedProduction), icon: Target, color: MFG_COLORS.purple },
-    { label: 'Actual Production', value: n(k.actualProduction), icon: CheckCircle2, color: MFG_COLORS.success },
-    { label: 'Pending Orders', value: n(k.pendingOrders), icon: ClipboardList, color: MFG_COLORS.warning },
-    { label: 'In Progress', value: n(k.inProgress), icon: PlayCircle, color: MFG_COLORS.accent },
-    { label: 'Completed', value: n(k.completed), icon: CheckCircle2, color: MFG_COLORS.success },
-    { label: 'Delayed', value: n(k.delayed), icon: Clock, color: MFG_COLORS.warning },
-    { label: 'Cancelled', value: n(k.cancelled), icon: XCircle, color: MFG_COLORS.danger },
-    { label: 'Material Shortage', value: n(k.materialShortage), icon: AlertTriangle, color: MFG_COLORS.danger },
-    { label: 'WIP Quantity', value: n(k.wipQty), icon: Layers, color: MFG_COLORS.purple },
-    { label: 'Finished Goods', value: n(k.finishedGoods), icon: Package, color: MFG_COLORS.success },
-    { label: 'Scrap', value: n(k.scrap), icon: Recycle, color: MFG_COLORS.danger },
-    { label: 'Rework', value: n(k.rework), icon: RotateCcw, color: MFG_COLORS.warning },
-    { label: 'Quality Rejections', value: n(k.qualityRejections), icon: XCircle, color: MFG_COLORS.danger },
-    { label: 'Downtime (hrs)', value: n(k.machineDowntime), icon: Wrench, color: MFG_COLORS.warning },
-    { label: 'Prod. Efficiency', value: pct(k.productionEfficiency), icon: TrendingUp, color: MFG_COLORS.success },
-    { label: 'Capacity Utilization', value: pct(k.capacityUtilization), icon: Gauge, color: MFG_COLORS.accent },
-    { label: 'Yield', value: pct(k.yield), icon: Percent, color: MFG_COLORS.purple },
-    { label: 'OEE', value: pct(k.oee), icon: Target, color: MFG_COLORS.success },
+    { label: 'Production Today', value: n(k.productionToday), icon: CalendarDays, color: MFG_COLORS.accent, href: '/manufacturing/production/orders' },
+    { label: 'Production This Month', value: n(k.productionMonth), icon: CalendarDays, color: MFG_COLORS.primary, href: '/manufacturing/production/orders' },
+    { label: 'Planned Production', value: n(k.plannedProduction), icon: Target, color: MFG_COLORS.purple, href: '/manufacturing/production/orders' },
+    { label: 'Actual Production', value: n(k.actualProduction), icon: CheckCircle2, color: MFG_COLORS.success, href: '/manufacturing/production/orders' },
+    { label: 'Pending Orders', value: n(k.pendingOrders), icon: ClipboardList, color: MFG_COLORS.warning, href: '/manufacturing/production/orders?status=Draft' },
+    { label: 'In Progress', value: n(k.inProgress), icon: PlayCircle, color: MFG_COLORS.accent, href: '/manufacturing/production/orders?status=In%20Progress' },
+    { label: 'Completed', value: n(k.completed), icon: CheckCircle2, color: MFG_COLORS.success, href: '/manufacturing/production/orders?status=Completed' },
+    { label: 'Delayed', value: n(k.delayed), icon: Clock, color: MFG_COLORS.warning, href: '/manufacturing/production/orders' },
+    { label: 'Cancelled', value: n(k.cancelled), icon: XCircle, color: MFG_COLORS.danger, href: '/manufacturing/production/orders?status=Cancelled' },
+    { label: 'Material Shortage', value: n(k.materialShortage), icon: AlertTriangle, color: MFG_COLORS.danger, href: '/manufacturing/planning/shortage' },
+    { label: 'WIP Quantity', value: n(k.wipQty), icon: Layers, color: MFG_COLORS.purple, href: '/manufacturing/production/orders?status=In%20Progress' },
+    { label: 'Finished Goods', value: n(k.finishedGoods), icon: Package, color: MFG_COLORS.success, href: '/manufacturing/production/orders?status=Completed' },
+    { label: 'Scrap', value: n(k.scrap), icon: Recycle, color: MFG_COLORS.danger, href: '/manufacturing/materials/scrap' },
+    { label: 'Rework', value: n(k.rework), icon: RotateCcw, color: MFG_COLORS.warning, href: '/manufacturing/quality/rework' },
+    { label: 'Quality Rejections', value: n(k.qualityRejections), icon: XCircle, color: MFG_COLORS.danger, href: '/manufacturing/quality/inspections' },
+    { label: 'Downtime (hrs)', value: n(k.machineDowntime), icon: Wrench, color: MFG_COLORS.warning, href: '/manufacturing/production/work-orders' },
+    { label: 'Prod. Efficiency', value: pct(k.productionEfficiency), icon: TrendingUp, color: MFG_COLORS.success, href: '/manufacturing/reports' },
+    { label: 'Capacity Utilization', value: pct(k.capacityUtilization), icon: Gauge, color: MFG_COLORS.accent, href: '/manufacturing/master/work-centers' },
+    { label: 'Yield', value: pct(k.yield), icon: Percent, color: MFG_COLORS.purple, href: '/manufacturing/reports' },
+    { label: 'OEE', value: pct(k.oee), icon: Target, color: MFG_COLORS.success, href: '/manufacturing/reports' },
   ];
 
   return (
@@ -110,7 +110,7 @@ export default function ManufacturingDashboardPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {statCards.map((s) => (
-          <MfgStatCard key={s.label} label={s.label} value={s.value} icon={s.icon} color={s.color} />
+          <MfgStatCard key={s.label} label={s.label} value={s.value} icon={s.icon} color={s.color} href={s.href} />
         ))}
       </div>
 

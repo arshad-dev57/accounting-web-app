@@ -2,6 +2,18 @@
 
 This document tracks all significant changes to the Bisonstechs ERP system.
 
+## 2026-09-15
+
+### Manufacturing — enterprise workspace, multi-line transactions, inventory posting
+- **Production Order** is now a tabbed manufacturing workspace (overview, materials, operations, output, quality, scrap/by-products, costing, history) instead of a thin summary page. Close is available after Complete; Released orders can Start Production.
+- **One document, many lines:** material issues, scrap, quality parameters, BOM components, routing operations, by-products and production output can be completed in a single transaction.
+- **BOM / Routing:** full editors with scrap %, substitutes, operation sequence, estimated cost, reorderable operations, setup/run/queue time, labor and quality checkpoints. Historical production orders keep the BOM revision captured at create/release.
+- **Inventory integration:** release reserves warehouse stock; material issue decreases on-hand (and reserved) stock via existing location stock helpers; completion receives finished goods; by-products receive stock. Uses current warehouse stock services — no duplicate accounting engine.
+- **Smart defaults:** selecting a product on a new manufacturing order loads default BOM, routing and exploded required quantities (planned × BOM qty × scrap %).
+- **Audit:** status history table; closed/cancelled orders are not freely editable.
+- **Dashboard KPIs** drill through to filtered manufacturing lists.
+- **Fixed**: created BOMs were missing from the list because create did not send `locationId` while the list filtered by the current warehouse. BOM list is company-wide; create now tags the current location.
+
 ## 2026-09-14
 
 ### HR Offices - location search + geofence radius
@@ -39,10 +51,6 @@ This document tracks all significant changes to the Bisonstechs ERP system.
 - **Added**: DEVELOPMENT_RULES.md - Development rules and guidelines for AI agents
 - **Added**: AI_TASKS.md - Persistent task list for AI agents
 - **Purpose**: Enable continuity across AI sessions and provide context for future development
-
-## 2026-09-10
-
-### HR Module - Backend
 - **Added**: Complete HR module database schema (migration: 20260909120000_add_hr_module)
 - **Added**: HR workforce features (migration: 20260910120000_add_hr_workforce)
 - **Added**: Payroll breakdown functionality (migration: 20260910140000_payroll_breakdown)
@@ -50,8 +58,6 @@ This document tracks all significant changes to the Bisonstechs ERP system.
 - **Models**: HrOffice, HrEmployee, HrAttendance, HrLeave, HrOvertime, HrTask, HrPerformanceReview, HrPayrollItem, HrDepartment, HrDesignation, HrShift, HrHoliday, HrLeaveType, HrLeaveBalance, HrRoster, HrLoan, HrBonus, HrDocument, HrLifecycleEvent, HrApproval, HrAuditLog, HrGoal, HrFeedback, HrShiftSwap
 - **Features**: Employee management, attendance tracking, leave management, overtime, payroll, loans, bonuses, performance reviews, documents, approvals, tasks, office management with geofencing
 - **Integration**: Linked to User, Company, Location models
-
-### HR Module - Frontend
 - **Added**: Complete HR module UI with sidebar navigation
 - **Added**: HR dashboard with employee statistics
 - **Added**: Employee management pages (list, add, edit, details)
@@ -75,25 +81,15 @@ This document tracks all significant changes to the Bisonstechs ERP system.
 - **Added**: HR reports and analytics
 - **Services**: hr-employees-service.ts, hr-workforce-service.ts, hr-hcm-service.ts, hr-offices-service.ts, hr-shifts-service.ts, hr-holidays-service.ts
 - **Components**: HR-specific components for offices, employee editing, payroll sales
-
-### Manufacturing Module - Database Schema
 - **Added**: Complete manufacturing module database schema (no implementation yet)
 - **Models**: ManufacturingBOM, ManufacturingBOMComponent, ManufacturingRouting, ManufacturingRoutingOperation, ManufacturingWorkCenter, ManufacturingMachine, ManufacturingProductionOrder, ManufacturingWorkOrder, ManufacturingMaterialReservation, ManufacturingMaterialIssue, ManufacturingMaterialConsumption, ManufacturingWIP, ManufacturingScrap, ManufacturingByProduct, ManufacturingRework, ManufacturingQualityInspection, ManufacturingQualityParameter, ManufacturingMaintenanceRequest, ManufacturingMaintenanceOrder, ManufacturingSubcontractVendor, ManufacturingSubcontractOrder, ManufacturingSubcontractMaterialSent, ManufacturingSubcontractMaterialReceived, ManufacturingMRP, ManufacturingMRPItem, ManufacturingMPS, ManufacturingDemand, ManufacturingProductCost, ManufacturingCostVariance, ManufacturingSetting
 - **Integration**: Properly linked to existing Product, Location, HrEmployee, Company models
 - **Status**: Schema defined only, no backend or frontend implementation
-
-## 2026-09-08
-
-### Enterprise Purchases Flow
 - **Added**: Enterprise-level purchases flow improvements (migration: 20260908120000_enterprise_purchases_flow)
 - **Enhanced**: Purchase order management
 - **Enhanced**: Goods receiving process
 - **Enhanced**: Purchase invoice processing
 - **Status**: Backend implementation complete
-
-## 2026-09-01
-
-### Accounting Location Integration
 - **Added**: Location ID to accounting tables (migration: 20260901190000_add_accounting_location_id)
 - **Purpose**: Enable location-based accounting operations
 - **Affected**: Journal entries, transactions, and other accounting entities
@@ -210,22 +206,12 @@ This document tracks all significant changes to the Bisonstechs ERP system.
 - **Added**: Return and refund support (migration: 20260707010140_add_sales_purchase_return_refund_support)
 - **Models**: Return, Refund
 - **Purpose**: Enable returns and refunds for sales and purchases
-
-## 2026-07-06
-
-### User ID to All Tables
 - **Added**: User ID tracking to all tables (migration: 20260706195141_add_user_id_to_all_tables)
 - **Purpose**: Enable audit trail and user tracking
 - **Affected**: All major transactional tables
-
-### Business Details
 - **Added**: Business details to user model (migration: 20260706172936_add_business_details)
 - **Purpose**: Store additional business information
 - **Models**: User businessDetails field (JSON)
-
-## 2026-07-03
-
-### Expense Account Relation
 - **Added**: Account relation to expenses (migration: 20260702230923_add_expense_account_relation)
 - **Purpose**: Link expenses to chart of accounts
 

@@ -18,6 +18,7 @@
 8. [Returns, Refunds & Credit Notes](#8-returns-refunds--credit-notes)
 9. [Daily Accounting Operations](#9-daily-accounting-operations)
 10. [Warehouse & Inventory Operations](#10-warehouse--inventory-operations)
+10A. [Manufacturing Operations](#10a-manufacturing-operations)
 11. [Tax Compliance](#11-tax-compliance)
 12. [Reports — Kahan Dekhein](#12-reports--kahan-dekhein)
 13. [Quick Reference: Entry → Update Map](#13-quick-reference-entry--update-map)
@@ -34,6 +35,7 @@ Login ke baad **Main Dashboard** (`/dashboard`) par aap ko 7 modules milte hain:
 |--------|-------|------|
 | **Accounting** | `/accounting/dashboard` | Books, GL, AR/AP, reports, bank, expenses |
 | **Warehouse** | `/warehouse/dashboard` | Products, stock, categories, inventory reports |
+| **Manufacturing** | `/manufacturing/dashboard` | BOM, routing, production orders, materials, quality, costing |
 | **Sales** | `/sales/dashboard` | Orders, deliveries, invoices, payments, returns |
 | **Purchases** | `/purchases/dashboard` | PO, GRN, purchase invoices, supplier payments |
 | **Point of Sale** | `/pos` | Counter sales (instant sale + stock + cash) |
@@ -357,6 +359,7 @@ Agar suppliers ko paisay dena baaki hai:
 ---
 
 ### Step 5.3 — Purchase Invoice
+
 
 | Item | Detail |
 |------|--------|
@@ -874,6 +877,28 @@ Yeh transactions **Accounting module** se directly hoti hain.
 
 ---
 
+## 10A. Manufacturing Operations
+
+Full factory walkthrough: `docs/MANUFACTURING-PRODUCTION-FLOW.md`.
+
+| Step | Screen | Route | Inventory effect |
+|------|--------|-------|------------------|
+| 1 | Work Centers / Machines | `/manufacturing/master/work-centers` | None |
+| 2 | BOM (multi-component, scrap %, cost) | `/manufacturing/master/bom` | None |
+| 3 | Routing (multiple operations) | `/manufacturing/master/routings` | None |
+| 4 | New Manufacturing Order | `/manufacturing/production/orders/new` | None (BOM explosion preview) |
+| 5 | **Release** on the order workspace | `/manufacturing/production/orders/:id` | Reserves raw material at source warehouse |
+| 6 | **Issue materials** (all lines, one document) | Same workspace or `/manufacturing/materials/issues` | Stock OUT of raw materials |
+| 7 | Start / report operations | Workspace → Operations, or `/manufacturing/production/work-orders` | None |
+| 8 | Quality inspection (parameter table) | Workspace → Quality | None |
+| 9 | Scrap / by-products (multi-line) | Workspace → Scrap | By-products: stock IN |
+| 10 | **Complete & receive FG** | Workspace → Output | Finished goods stock IN |
+| 11 | **Close** | Workspace header | Locks the order |
+
+Manufacturing Order is the central workspace — do not create a separate issue/scrap/QC document for every line if it belongs to the same order.
+
+---
+
 ## 11. Tax Compliance
 
 | Step | Screen | Route |
@@ -898,6 +923,7 @@ Tax invoices (Sales/Purchase) par automatically apply hota hai jab rates configu
 | Sales Dashboard | `/sales/dashboard` | Sales, orders, returns, trends |
 | Purchase Dashboard | `/purchases/dashboard` | Spend, POs, suppliers, outstanding |
 | Warehouse Dashboard | `/warehouse/dashboard` | Stock count, value, movements |
+| Manufacturing Dashboard | `/manufacturing/dashboard` | Production, shortages, quality, OEE (click KPI for lists) |
 
 ### Financial Reports (Accounting)
 
@@ -918,6 +944,7 @@ Tax invoices (Sales/Purchase) par automatically apply hota hai jab rates configu
 | Sales Reports | `/sales/reports` |
 | Purchase Reports | `/purchases/reports` |
 | Warehouse Reports | `/warehouse/reports` |
+| Manufacturing Reports | `/manufacturing/reports` |
 | Tax Reports | `/tax/reports` |
 | POS Reports | `/pos/management` |
 
@@ -982,6 +1009,21 @@ Tax invoices (Sales/Purchase) par automatically apply hota hai jab rates configu
 
 ---
 
+### Manufacturing Cycle
+
+| # | Entry Screen | Action | Stock Update | GL Update | Dekhein Kahan |
+|---|-------------|--------|--------------|-----------|---------------|
+| 1 | `/manufacturing/production/orders/new` | Create MO | ❌ | ❌ | Production orders list |
+| 2 | Order workspace | **Release** | Reserve RM | ❌ | Reservations, warehouse available qty |
+| 3 | Order workspace / Issues | **Issue materials** (multi-line) | ✅ RM OUT | ❌* | Products, Stock, Issues list |
+| 4 | Order workspace | **Complete & receive FG** | ✅ FG IN | ❌* | Products, completed orders, costing |
+| 5 | Order workspace | By-product receive | ✅ IN | ❌* | By-products, warehouse stock |
+| 6 | Order workspace | **Close** | ❌ | ❌ | Order locked |
+
+*Manufacturing uses the existing warehouse `ProductStock` helpers (same as other modules). It does not post a second, parallel GL engine.
+
+---
+
 ## 14. Recommended Daily / Weekly Checklist
 
 ### Rozana (Daily)
@@ -1037,6 +1079,9 @@ Dashboard · Chart of Accounts · Bank Accounts · Invoices · Accounts Receivab
 ### Warehouse (`/warehouse/...`)
 Dashboard · Products · Categories · Suppliers · Stock Movement · Customers · Inventory Valuation · Reports (Stock Summary, Low Stock, Expiry) · Product Settings
 
+### Manufacturing (`/manufacturing/...`)
+Dashboard · Demand · MPS · MRP · Shortage · Production Orders (workspace) · Work Orders · BOM · Routings · Work Centers · Machines · Reservations · Issues · Scrap · By-products · Inspections · Rework · Maintenance · Subcontracting · Costing · Reports · Settings
+
 ### Sales (`/sales/...`)
 Dashboard · Reports · Products · Orders · Deliveries · Invoices · Sales Payments · Returns · Refunds · Quotations · Currency
 
@@ -1073,6 +1118,10 @@ Overview · Setup · Rates · Exemptions · Reports
 
 ### Refund Status
 `Pending` → **Completed**
+
+### Manufacturing Order Status
+`Draft` → **Release** → `Released` → **Start** → `In Progress` → **Complete & receive FG** → `Completed` → **Close** → `Closed`  
+Exceptions: `Paused` (Hold), `Cancelled`
 
 ---
 

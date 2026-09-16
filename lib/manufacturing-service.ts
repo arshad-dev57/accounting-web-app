@@ -109,7 +109,6 @@ function qs(params: Record<string, any>): string {
 // ============================================================
 // Master data
 // ============================================================
-export const bomService = entityService<any>(`${M}/boms`);
 export const bomVersionService = entityService<any>(`${M}/bom-versions`);
 export const routingService = entityService<any>(`${M}/routings`);
 export const operationService = entityService<any>(`${M}/operations`);
@@ -140,6 +139,7 @@ export interface ProductionOrder extends MfgEntity {
   sourceWarehouseId?: string;
   wipWarehouseId?: string;
   finishedGoodsWarehouseId?: string;
+  inventoryPosted?: boolean;
   demandType?: string;
   salesOrderId?: string;
   notes?: string;
@@ -153,8 +153,12 @@ export interface MaterialLine {
   issuedQty: number;
   consumedQty: number;
   remainingQty: number;
-  availableQty: number;
+  availableQty: number | null;
+  onHandQty?: number | null;
   shortageQty: number;
+  warehouseId?: string | null;
+  stockResolved?: boolean;
+  stockError?: string | null;
   unit?: string;
   scrapPct?: number;
 }
@@ -171,6 +175,8 @@ export const productionOrderService = {
     unwrap(await apiClient.post(`${M}/production-orders/${id}/complete`, payload)).data as ProductionOrder,
   close: async (id: string) =>
     unwrap(await apiClient.post(`${M}/production-orders/${id}/close`)).data as ProductionOrder,
+  closeShort: async (id: string, reason?: string) =>
+    unwrap(await apiClient.post(`${M}/production-orders/${id}/close-short`, { reason })).data as ProductionOrder,
   cancel: async (id: string, reason?: string) =>
     unwrap(await apiClient.post(`${M}/production-orders/${id}/cancel`, { reason })).data as ProductionOrder,
   materials: async (id: string): Promise<MaterialLine[]> => {
@@ -185,6 +191,31 @@ export const productionOrderService = {
     const body = unwrap(await apiClient.get(`${M}/production-orders/${id}/costing`));
     return body;
   },
+  history: async (id: string): Promise<any[]> => {
+    const body = unwrap(await apiClient.get(`${M}/production-orders/${id}/history`));
+    return listOf(body);
+  },
+  start: async (id: string) =>
+    unwrap(await apiClient.post(`${M}/production-orders/${id}/start`)).data as ProductionOrder,
+  issueMaterials: async (id: string, payload: any) =>
+    unwrap(await apiClient.post(`${M}/production-orders/${id}/issue-materials`, payload)).data,
+  recordScrap: async (id: string, payload: any) =>
+    unwrap(await apiClient.post(`${M}/production-orders/${id}/record-scrap`, payload)).data,
+  recordByproducts: async (id: string, payload: any) =>
+    unwrap(await apiClient.post(`${M}/production-orders/${id}/record-byproducts`, payload)).data,
+  recordOutput: async (id: string, payload: any) =>
+    unwrap(await apiClient.post(`${M}/production-orders/${id}/record-output`, payload)).data as ProductionOrder,
+};
+
+export const manufacturingDefaultsService = {
+  product: async (productId: string, quantity = 1) =>
+    unwrap(await apiClient.get(`${M}/product-defaults?${qs({ productId, quantity })}`)),
+};
+
+export const bomService = {
+  ...entityService<any>(`${M}/boms`),
+  explode: async (id: string, quantity = 1) =>
+    unwrap(await apiClient.get(`${M}/boms/${id}/explode?${qs({ quantity })}`)),
 };
 
 export const workOrderService = {

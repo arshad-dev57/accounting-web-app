@@ -20,7 +20,7 @@ export default function MaintenanceRequestsPage() {
         { key: 'status', label: 'Status', render: (r) => <MfgStatusBadge status={r.status} /> },
       ]}
       fields={[
-        { name: 'machineId', label: 'Machine Id', type: 'text', required: true },
+        { name: 'machineId', label: 'Machine', type: 'relation', required: true },
         { name: 'requestType', label: 'Type', type: 'select', options: ['Preventive', 'Corrective', 'Breakdown'].map((v) => ({ value: v, label: v })) },
         { name: 'priority', label: 'Priority', type: 'select', options: ['Low', 'Normal', 'High', 'Urgent'].map((v) => ({ value: v, label: v })) },
         { name: 'description', label: 'Description', type: 'textarea', full: true },

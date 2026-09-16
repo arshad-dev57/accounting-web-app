@@ -84,15 +84,17 @@ export function MfgStatCard({
   icon: Icon,
   color,
   hint,
+  href,
 }: {
   label: string;
   value: string | number;
   icon: LucideIcon;
   color: string;
   hint?: string;
+  href?: string;
 }) {
-  return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-[#DDE4EE]">
+  const inner = (
+    <div className={`bg-white rounded-xl p-4 shadow-sm border border-[#DDE4EE] ${href ? 'hover:border-[#014582]/40 hover:shadow-md transition-all' : ''}`}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-[#7A8FA6]">{label}</span>
         <div
@@ -106,6 +108,8 @@ export function MfgStatCard({
       {hint && <p className="text-[10px] font-medium mt-1" style={{ color }}>{hint}</p>}
     </div>
   );
+  if (!href) return inner;
+  return <Link href={href} className="block">{inner}</Link>;
 }
 
 export function MfgCard({
@@ -158,6 +162,7 @@ export function MfgSearchInput({
 export function MfgStatusBadge({ status }: { status?: string }) {
   const map: Record<string, string> = {
     Running: '#2ECC71', 'In Progress': '#0FA3E0', InProgress: '#0FA3E0', Completed: '#2ECC71',
+    'Partially Completed': '#F39C12', 'Closed Short': '#E67E22',
     Closed: '#7A8FA6', Draft: '#7A8FA6', Planned: '#F39C12', Released: '#8E44AD',
     Paused: '#F39C12', Pending: '#F39C12', Cancelled: '#E74C3C', Rejected: '#E74C3C',
     Passed: '#2ECC71', Failed: '#E74C3C', Rework: '#F39C12', Scrap: '#E74C3C',
@@ -400,6 +405,61 @@ export function MfgSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) 
 
 export function MfgTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} className={`${fieldBase} min-h-[80px] ${props.className || ''}`} />;
+}
+
+export function MfgTabs({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: { id: string; label: string; count?: number }[];
+  active: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1 bg-white rounded-xl border border-[#DDE4EE] p-1">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => onChange(tab.id)}
+          className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+            active === tab.id ? 'bg-[#014582] text-white' : 'text-[#7A8FA6] hover:bg-[#F0F4F8]'
+          }`}
+        >
+          {tab.label}
+          {tab.count != null && (
+            <span className={`ml-1.5 ${active === tab.id ? 'text-white/80' : 'text-[#A9B7C9]'}`}>{tab.count}</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function MfgSection({
+  title,
+  description,
+  children,
+  action,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-bold text-[#1A1A2E]">{title}</h3>
+          {description && <p className="text-xs text-[#7A8FA6] mt-0.5">{description}</p>}
+        </div>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
 }
 
 

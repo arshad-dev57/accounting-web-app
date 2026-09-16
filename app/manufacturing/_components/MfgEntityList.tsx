@@ -25,8 +25,14 @@ import {
   MfgTextarea,
 } from '../ui';
 import { ProductPicker, type PickedProduct } from './ProductPicker';
+import { MfgRelationPicker } from './MfgRelationPicker';
+import {
+  relationKindFromField,
+  type MfgRelationKind,
+  type PickedRelation,
+} from './mfg-relations';
 
-export type FieldType = 'text' | 'number' | 'select' | 'date' | 'textarea' | 'product' | 'products';
+export type FieldType = 'text' | 'number' | 'select' | 'date' | 'textarea' | 'product' | 'products' | 'relation';
 export interface MfgFieldConfig {
   name: string;
   label: string;
@@ -36,6 +42,8 @@ export interface MfgFieldConfig {
   placeholder?: string;
   full?: boolean;
   withQuantity?: boolean;
+  relation?: MfgRelationKind;
+  multiple?: boolean;
 }
 
 function nameKeyFor(fieldName: string) {
@@ -54,14 +62,50 @@ function pickedKeyFor(fieldName: string) {
   return `${fieldName}__picked`;
 }
 
-function pickedFromRow(row: any, fieldName: string): PickedProduct | null {
-  const id = String(row?.[fieldName] || row?.productId || row?.componentId || '');
+function pickedFromRow(row: any, fieldName: string): PickedProduct | PickedRelation | null {
+  const id = String(row?.[fieldName] || '');
   if (!id) return null;
+  const nested =
+    row.workCenter ||
+    row.machine ||
+    row.productionOrder ||
+    row.warehouse ||
+    row.vendor ||
+    row.subcontractVendor ||
+    row.product ||
+    {};
   return {
     id,
-    name: row.productName || row.componentName || row.product?.name || id,
-    sku: row.productSku || row.product?.sku || row.sku,
+    name:
+      row[nameKeyFor(fieldName)] ||
+      nested.name ||
+      nested.orderNumber ||
+      nested.machineName ||
+      nested.workCenterName ||
+      nested.bomNumber ||
+      id,
+    sku: row[skuKeyFor(fieldName)] || nested.code || nested.sku || nested.machineCode || nested.orderNumber,
+    code: nested.code || nested.machineCode || nested.workCenterCode,
   };
+}
+
+function isPickField(f: MfgFieldConfig) {
+  return f.type === 'product' || f.type === 'relation';
+}
+
+function cartesian<T>(lists: T[][]): T[][] {
+  return lists.reduce((acc, list) => acc.flatMap((combo) => list.map((item) => [...combo, item])), [[]] as T[][]);
+}
+
+function applyPicked(payload: Record<string, any>, fieldName: string, item: { id: string; name?: string; sku?: string; code?: string }) {
+  payload[fieldName] = item.id;
+  payload[nameKeyFor(fieldName)] = item.name || '';
+  const code = item.sku || item.code;
+  if (code) payload[skuKeyFor(fieldName)] = code;
+  if (fieldName === 'productionOrderId') payload.productionOrderNumber = item.name || item.code || '';
+  if (fieldName === 'workCenterId') payload.workCenterName = item.name || '';
+  if (fieldName === 'machineId') payload.machineName = item.name || '';
+  if (fieldName === 'vendorId' || fieldName === 'subcontractVendorId') payload.vendorName = item.name || '';
 }
 
 function pickedListFromRow(row: any, fieldName: string): PickedProduct[] {
@@ -138,7 +182,7 @@ export function MfgEntityList({
     const initial: Record<string, any> = {};
     fields.forEach((f) => {
       if (f.type === 'products') initial[f.name] = [];
-      else if (f.type === 'product') {
+      else if (f.type === 'product' || f.type === 'relation') {
         initial[f.name] = '';
         initial[pickedKeyFor(f.name)] = [];
       }
@@ -155,11 +199,11 @@ export function MfgEntityList({
     fields.forEach((f) => {
       if (f.type === 'products') {
         initial[f.name] = pickedListFromRow(row, f.name);
-      } else if (f.type === 'product') {
+      } else if (f.type === 'product' || f.type === 'relation') {
         const picked = pickedFromRow(row, f.name);
         initial[f.name] = picked?.id || '';
         initial[nameKeyFor(f.name)] = picked?.name || '';
-        initial[skuKeyFor(f.name)] = picked?.sku || '';
+        initial[skuKeyFor(f.name)] = picked?.sku || picked?.code || '';
         initial[pickedKeyFor(f.name)] = picked ? [picked] : [];
       } else {
         initial[f.name] = row[f.name] ?? '';
@@ -174,7 +218,7 @@ export function MfgEntityList({
     const missing = fields.find((f) => {
       if (!f.required) return false;
       if (f.type === 'products') return !Array.isArray(form[f.name]) || form[f.name].length === 0;
-      if (f.type === 'product') {
+      if (f.type === 'product' || f.type === 'relation') {
         const picked = form[pickedKeyFor(f.name)];
         return !form[f.name] && !(Array.isArray(picked) && picked.length);
       }
@@ -186,44 +230,54 @@ export function MfgEntityList({
     }
     setSaving(true);
     try {
-      const payload: Record<string, any> = { ...form };
-      fields.forEach((f) => {
-        if (f.type === 'products') {
-          payload[f.name] = (Array.isArray(form[f.name]) ? form[f.name] : []).map((p: PickedProduct, i: number) => ({
-            componentId: p.id,
-            productId: p.id,
-            componentName: p.name,
-            productName: p.name,
-            sku: p.sku,
-            quantity: Number(p.quantity ?? 1),
-            unitOfMeasure: 'pcs',
-            sequence: i + 1,
-          }));
-        }
-        delete payload[pickedKeyFor(f.name)];
-      });
-      if (requireLocation && locationIdForApi) payload.locationId = locationIdForApi;
-      const productField = fields.find((f) => f.type === 'product');
-      const pickedProducts: PickedProduct[] = productField
-        ? (Array.isArray(form[pickedKeyFor(productField.name)]) ? form[pickedKeyFor(productField.name)] : [])
-        : [];
-      if (editing) {
-        if (service.update) { await service.update(String(editing[idKey] || editing._id), payload); toast.success('Updated'); }
-      } else if (service.create) {
-        if (productField && pickedProducts.length > 1) {
-          for (const prod of pickedProducts) {
-            await service.create({
-              ...payload,
-              [productField.name]: prod.id,
-              [nameKeyFor(productField.name)]: prod.name,
-              [skuKeyFor(productField.name)]: prod.sku,
-            });
+      const buildBase = () => {
+        const payload: Record<string, any> = { ...form };
+        fields.forEach((f) => {
+          if (f.type === 'products') {
+            payload[f.name] = (Array.isArray(form[f.name]) ? form[f.name] : []).map((p: PickedProduct, i: number) => ({
+              componentId: p.id,
+              productId: p.id,
+              componentName: p.name,
+              productName: p.name,
+              sku: p.sku,
+              quantity: Number(p.quantity ?? 1),
+              unitOfMeasure: 'pcs',
+              sequence: i + 1,
+            }));
           }
-          toast.success(`Created ${pickedProducts.length} records`);
-        } else {
-          await service.create(payload);
-          toast.success('Created');
+          delete payload[pickedKeyFor(f.name)];
+        });
+        if (requireLocation && locationIdForApi) payload.locationId = locationIdForApi;
+        return payload;
+      };
+      const pickedOf = (f: MfgFieldConfig): Array<{ id: string; name?: string; sku?: string; code?: string }> => {
+        const list = form[pickedKeyFor(f.name)];
+        if (Array.isArray(list) && list.length) return list;
+        if (form[f.name]) {
+          return [{ id: String(form[f.name]), name: form[nameKeyFor(f.name)], sku: form[skuKeyFor(f.name)] }];
         }
+        return [];
+      };
+      const pickFields = fields.filter(isPickField);
+      if (editing) {
+        if (service.update) {
+          const payload = buildBase();
+          pickFields.forEach((f) => {
+            const first = pickedOf(f)[0];
+            if (first) applyPicked(payload, f.name, first);
+          });
+          await service.update(String(editing[idKey] || editing._id), payload);
+          toast.success('Updated');
+        }
+      } else if (service.create) {
+        const valued = pickFields.filter((f) => pickedOf(f).length > 0);
+        const combos = valued.length ? cartesian(valued.map((f) => pickedOf(f))) : [[]];
+        for (const combo of combos) {
+          const payload = buildBase();
+          valued.forEach((f, i) => applyPicked(payload, f.name, combo[i]));
+          await service.create(payload);
+        }
+        toast.success(combos.length > 1 ? `Created ${combos.length} records` : 'Created');
       }
       setShowForm(false);
       load();
@@ -279,6 +333,33 @@ export function MfgEntityList({
           selected={Array.isArray(form[f.name]) ? form[f.name] : []}
           placeholder={f.placeholder || 'Select products…'}
           onChange={(products) => setForm((p) => ({ ...p, [f.name]: products }))}
+        />
+      );
+    }
+    if (f.type === 'relation') {
+      const kind = f.relation || relationKindFromField(f.name);
+      if (!kind) return <MfgInput name={f.name} value={form[f.name] ?? ''} onChange={(e) => setForm((p) => ({ ...p, [f.name]: e.target.value }))} />;
+      const selected: PickedRelation[] = Array.isArray(form[pickedKeyFor(f.name)]) && form[pickedKeyFor(f.name)].length
+        ? form[pickedKeyFor(f.name)]
+        : form[f.name]
+          ? [{ id: String(form[f.name]), name: form[nameKeyFor(f.name)] || String(form[f.name]), code: form[skuKeyFor(f.name)] }]
+          : [];
+      return (
+        <MfgRelationPicker
+          kind={kind}
+          multiple={f.multiple !== false}
+          selected={selected}
+          placeholder={f.placeholder}
+          onChange={(items) => {
+            const first = items[0];
+            setForm((p) => ({
+              ...p,
+              [f.name]: first?.id || '',
+              [nameKeyFor(f.name)]: first?.name || '',
+              [skuKeyFor(f.name)]: first?.code || '',
+              [pickedKeyFor(f.name)]: items,
+            }));
+          }}
         />
       );
     }

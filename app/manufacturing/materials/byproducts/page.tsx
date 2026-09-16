@@ -17,12 +17,15 @@ export default function ByProductsPage() {
         { key: 'productName', label: 'By-product', render: (r) => r.productName || r.product?.name || '—' },
         { key: 'quantity', label: 'Qty', render: (r) => r.quantity ?? '—' },
         { key: 'warehouseName', label: 'Warehouse', render: (r) => r.warehouseName || r.warehouse?.name || r.warehouseId || '—' },
+        { key: 'batchNumber', label: 'Batch', render: (r) => r.batchNumber || '—' },
       ]}
       fields={[
-        { name: 'productionOrderId', label: 'Production Order Id', type: 'text', required: true },
+        { name: 'productionOrderId', label: 'Production Order', type: 'relation', required: true },
         { name: 'productId', label: 'By-product', type: 'product', required: true },
         { name: 'quantity', label: 'Quantity', type: 'number', required: true },
-        { name: 'warehouseId', label: 'Warehouse Id', type: 'text' },
+        { name: 'warehouseId', label: 'Warehouse', type: 'relation' },
+        { name: 'batchNumber', label: 'Batch / Lot', type: 'text' },
+        { name: 'costAllocation', label: 'Cost allocation', type: 'number' },
       ]}
     />
   );

@@ -1,37 +1,77 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Boxes } from 'lucide-react';
-import { MfgEntityList, MfgStatusBadge } from '../../_components/MfgEntityList';
 import { bomService } from '@/lib/manufacturing-service';
+import {
+  MfgPage,
+  MfgPageHeader,
+  MfgCard,
+  MfgSearchInput,
+  MfgTable,
+  MfgTableRow,
+  MfgTableCell,
+  MfgStatusBadge,
+  MfgLoading,
+  MfgEmpty,
+  MfgError,
+  MfgPagination,
+  MfgAddButton,
+} from '../../ui';
 
-export default function BomPage() {
+export default function BomListPage() {
+  const [rows, setRows] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await bomService.list({ page, limit: 20, search: search || undefined });
+      setRows(res.data || []);
+      setTotal(res.pagination?.total || 0);
+    } catch (e: any) {
+      setError(e.message || 'Failed to load BOMs');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search]);
+
+  useEffect(() => { load(); }, [load]);
+
   return (
-    <MfgEntityList
-      title="Bill of Materials (BOM)"
-      subtitle="Component structures for finished products — supports multi-level BOM"
-      icon={<Boxes className="w-5 h-5 text-white" />}
-      service={bomService}
-      idKey="id"
-      columns={[
-        { key: 'name', label: 'BOM', render: (r) => (
-          <a href={`/manufacturing/master/bom/${r.id || r._id}`} className="font-semibold text-[#014582] hover:underline">{r.bomNumber || r.name || r.id}</a>
-        ) },
-        { key: 'productName', label: 'Product', render: (r) => r.productName || r.product?.name || '—' },
-        { key: 'version', label: 'Version', render: (r) => r.version || '—' },
-        { key: 'components', label: 'Components', render: (r) => (Array.isArray(r.components) ? r.components.length : '—') },
-        { key: 'status', label: 'Status', render: (r) => <MfgStatusBadge status={r.status} /> },
-      ]}
-      requireLocation={false}
-      fields={[
-        { name: 'productId', label: 'Finished Product', type: 'product', required: true },
-        { name: 'components', label: 'Components', type: 'products', withQuantity: true, full: true },
-        { name: 'version', label: 'Version', type: 'text' },
-        { name: 'status', label: 'Status', type: 'select', options: ['Draft', 'Active', 'Obsolete'].map((v) => ({ value: v, label: v })) },
-        { name: 'notes', label: 'Notes', type: 'textarea', full: true },
-      ]}
-    />
+    <MfgPage>
+      <MfgPageHeader
+        title="Bill of Materials"
+        subtitle="Versions, components, scrap and estimated cost — historical production keeps the revision used at release"
+        icon={<Boxes className="w-5 h-5 text-white" />}
+        actions={<MfgAddButton label="New BOM" onClick={() => { window.location.href = '/manufacturing/master/bom/new'; }} />}
+      />
+      <MfgCard>
+        <div className="mb-4"><MfgSearchInput value={search} onChange={(v) => { setPage(1); setSearch(v); }} placeholder="Search BOM / product…" /></div>
+        {loading ? <MfgLoading /> : error ? <MfgError message={error} /> : rows.length === 0 ? (
+          <MfgEmpty title="No BOMs" message="Create a BOM with multiple components, scrap % and costing." />
+        ) : (
+          <>
+            <MfgTable columns={['BOM', 'Product', 'Version', 'Components', 'Est. cost', 'Status']}>
+              {rows.map((r) => (
+                <MfgTableRow key={r.id} onClick={() => { window.location.href = `/manufacturing/master/bom/${r.id}`; }}>
+                  <MfgTableCell className="font-semibold text-[#014582]">{r.bomNumber || '—'}</MfgTableCell>
+                  <MfgTableCell>{r.productName || r.product?.name || '—'}</MfgTableCell>
+                  <MfgTableCell>{r.version || '—'}</MfgTableCell>
+                  <MfgTableCell>{Array.isArray(r.components) ? r.components.length : '—'}</MfgTableCell>
+                  <MfgTableCell>{Number(r.totalEstimatedCost || 0).toLocaleString()}</MfgTableCell>
+                  <MfgTableCell><MfgStatusBadge status={r.status} /></MfgTableCell>
+                </MfgTableRow>
+              ))}
+            </MfgTable>
+            <MfgPagination page={page} total={total} onPage={setPage} />
+          </>
+        )}
+      </MfgCard>
+    </MfgPage>
   );
 }
-
-export { MfgStatusBadge };

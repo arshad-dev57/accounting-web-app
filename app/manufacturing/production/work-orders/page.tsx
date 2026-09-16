@@ -101,7 +101,11 @@ export default function WorkOrdersPage() {
                 return (
                   <MfgTableRow key={id}>
                     <MfgTableCell className="font-semibold text-[#014582]">{wo.workOrderNumber || '—'}</MfgTableCell>
-                    <MfgTableCell>{wo.productionOrderNumber || wo.productionOrder?.orderNumber || wo.productionOrderId || '—'}</MfgTableCell>
+                    <MfgTableCell>
+                      <a className="font-semibold text-[#014582] hover:underline" href={`/manufacturing/production/orders/${wo.productionOrderId || wo.productionOrder?.id || ''}`}>
+                        {wo.productionOrderNumber || wo.productionOrder?.orderNumber || wo.productionOrderId || '—'}
+                      </a>
+                    </MfgTableCell>
                     <MfgTableCell>{wo.operationName || '—'}</MfgTableCell>
                     <MfgTableCell>{wo.workCenterName || wo.workCenter?.name || '—'}</MfgTableCell>
                     <MfgTableCell>{wo.plannedQuantity ?? '—'}</MfgTableCell>

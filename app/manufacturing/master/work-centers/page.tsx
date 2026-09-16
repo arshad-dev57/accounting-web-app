@@ -31,6 +31,7 @@ export default function WorkCentersPage() {
         { name: 'costPerHour', label: 'Cost Per Hour', type: 'number' },
         { name: 'efficiency', label: 'Efficiency %', type: 'number' },
         { name: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive', 'Maintenance'].map((v) => ({ value: v, label: v })) },
+        { name: 'notes', label: 'Notes', type: 'textarea', full: true },
       ]}
     />
   );

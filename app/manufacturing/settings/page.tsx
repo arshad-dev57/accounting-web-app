@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Settings } from 'lucide-react';
 import { manufacturingSettingsService } from '@/lib/manufacturing-service';
+import { MfgRelationPicker, type PickedRelation } from '../_components/MfgRelationPicker';
 import {
   MfgPage,
   MfgPageHeader,
@@ -21,11 +22,27 @@ export default function ManufacturingSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [wipWh, setWipWh] = useState<PickedRelation[]>([]);
+  const [fgWh, setFgWh] = useState<PickedRelation[]>([]);
+  const [sourceWh, setSourceWh] = useState<PickedRelation[]>([]);
 
   useEffect(() => {
     let mounted = true;
     manufacturingSettingsService.get()
-      .then((d) => { if (mounted) setSettings(d ?? {}); })
+      .then((d) => {
+        if (!mounted) return;
+        const next = d ?? {};
+        setSettings(next);
+        if (next.wipWarehouseId) {
+          setWipWh([{ id: String(next.wipWarehouseId), name: next.wipWarehouseName || 'Selected warehouse' }]);
+        }
+        if (next.finishedGoodsWarehouseId) {
+          setFgWh([{ id: String(next.finishedGoodsWarehouseId), name: next.finishedGoodsWarehouseName || 'Selected warehouse' }]);
+        }
+        if (next.sourceWarehouseId) {
+          setSourceWh([{ id: String(next.sourceWarehouseId), name: next.sourceWarehouseName || 'Selected warehouse' }]);
+        }
+      })
       .catch((e: any) => { if (mounted) setError(e.message); })
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
@@ -81,11 +98,44 @@ export default function ManufacturingSettingsPage() {
                 <option value="yes">Yes</option>
               </MfgSelect>
             </MfgField>
-            <MfgField label="Default WIP Warehouse Id">
-              <MfgInput value={settings.wipWarehouseId ?? ''} onChange={(e) => set('wipWarehouseId', e.target.value)} />
+            <MfgField label="Default Source Warehouse">
+              <MfgRelationPicker
+                kind="warehouse"
+                multiple={false}
+                selected={sourceWh}
+                placeholder="Select default source warehouse…"
+                onChange={(items) => {
+                  setSourceWh(items);
+                  set('sourceWarehouseId', items[0]?.id || '');
+                  set('sourceWarehouseName', items[0]?.name || '');
+                }}
+              />
             </MfgField>
-            <MfgField label="Default Finished Goods Warehouse Id">
-              <MfgInput value={settings.finishedGoodsWarehouseId ?? ''} onChange={(e) => set('finishedGoodsWarehouseId', e.target.value)} />
+            <MfgField label="Default WIP Warehouse">
+              <MfgRelationPicker
+                kind="warehouse"
+                multiple={false}
+                selected={wipWh}
+                placeholder="Select default WIP warehouse…"
+                onChange={(items) => {
+                  setWipWh(items);
+                  set('wipWarehouseId', items[0]?.id || '');
+                  set('wipWarehouseName', items[0]?.name || '');
+                }}
+              />
+            </MfgField>
+            <MfgField label="Default Finished Goods Warehouse">
+              <MfgRelationPicker
+                kind="warehouse"
+                multiple={false}
+                selected={fgWh}
+                placeholder="Select default finished-goods warehouse…"
+                onChange={(items) => {
+                  setFgWh(items);
+                  set('finishedGoodsWarehouseId', items[0]?.id || '');
+                  set('finishedGoodsWarehouseName', items[0]?.name || '');
+                }}
+              />
             </MfgField>
           </div>
         </MfgCard>

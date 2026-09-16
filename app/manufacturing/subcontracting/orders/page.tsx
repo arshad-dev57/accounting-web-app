@@ -21,7 +21,7 @@ export default function SubcontractOrdersPage() {
         { key: 'status', label: 'Status', render: (r) => <MfgStatusBadge status={r.status} /> },
       ]}
       fields={[
-        { name: 'vendorId', label: 'Vendor Id', type: 'text', required: true },
+        { name: 'vendorId', label: 'Vendor', type: 'relation', required: true },
         { name: 'productId', label: 'Product', type: 'product', required: true },
         { name: 'quantity', label: 'Quantity', type: 'number' },
         { name: 'expectedDeliveryDate', label: 'Due Date', type: 'date' },

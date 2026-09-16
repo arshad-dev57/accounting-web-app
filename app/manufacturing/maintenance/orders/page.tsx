@@ -21,7 +21,7 @@ export default function MaintenanceOrdersPage() {
         { key: 'status', label: 'Status', render: (r) => <MfgStatusBadge status={r.status} /> },
       ]}
       fields={[
-        { name: 'machineId', label: 'Machine Id', type: 'text', required: true },
+        { name: 'machineId', label: 'Machine', type: 'relation', required: true },
         { name: 'technician', label: 'Technician', type: 'text' },
         { name: 'startTime', label: 'Start Time', type: 'date' },
         { name: 'endTime', label: 'End Time', type: 'date' },

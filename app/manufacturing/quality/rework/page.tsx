@@ -21,7 +21,7 @@ export default function ReworkPage() {
         { key: 'status', label: 'Status', render: (r) => <MfgStatusBadge status={r.status} /> },
       ]}
       fields={[
-        { name: 'productionOrderId', label: 'Production Order Id', type: 'text', required: true },
+        { name: 'productionOrderId', label: 'Production Order', type: 'relation', required: true },
         { name: 'productId', label: 'Product', type: 'product', required: true },
         { name: 'reworkQty', label: 'Rework Qty', type: 'number' },
         { name: 'reason', label: 'Reason', type: 'text' },
