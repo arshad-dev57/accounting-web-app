@@ -117,20 +117,31 @@ export function ExpensesPage() {
     setLoading(true);
     try {
       const page = resetPage ? 1 : pagination.page;
-      const response = await expenseService.getExpenses({
-        page,
-        limit: pagination.limit,
-        search: searchTerm || undefined,
-        status: filter.status !== 'All' ? filter.status : undefined,
-        expenseType: filter.expenseType !== 'All' ? filter.expenseType : undefined,
-        startDate: filter.startDate || undefined,
-        endDate: filter.endDate || undefined,
-        locationId: locationIdForApi || undefined
-      });
+      const [response, statsRes] = await Promise.all([
+        expenseService.getExpenses({
+          page,
+          limit: pagination.limit,
+          search: searchTerm || undefined,
+          status: filter.status !== 'All' ? filter.status : undefined,
+          expenseType: filter.expenseType !== 'All' ? filter.expenseType : undefined,
+          startDate: filter.startDate || undefined,
+          endDate: filter.endDate || undefined,
+          locationId: locationIdForApi || undefined
+        }),
+        expenseService.getStats({
+          startDate: filter.startDate || undefined,
+          endDate: filter.endDate || undefined,
+          locationId: locationIdForApi || undefined,
+          status: filter.status !== 'All' ? filter.status : undefined,
+          expenseType: filter.expenseType !== 'All' ? filter.expenseType : undefined
+        }).catch(() => null)
+      ]);
 
       setExpenses(response.data || []);
       setPagination(response.pagination);
-      if (response.stats) {
+      if (statsRes) {
+        setStats(statsRes);
+      } else if (response.stats) {
         setStats(response.stats);
       }
     } catch (error: any) {

@@ -1,0 +1,52 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+const API_BASE_URL = process.env.API_URL || 'https://account-backend-five.vercel.app';
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const token =
+      request.cookies.get('auth_token')?.value ||
+      request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
+      '';
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const qs = new URLSearchParams();
+    for (const key of [
+      'page', 'limit', 'accountType', 'showZeroBalance',
+      'startDate', 'endDate', 'fiscalYearId', 'locationId',
+      'search', 'sortBy', 'sortOrder',
+    ]) {
+      const v = searchParams.get(key);
+      if (v) qs.set(key, v);
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/trial-balance?${qs.toString()}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        cache: 'no-store',
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+    return NextResponse.json(data, { status: response.status });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to load trial balance';
+    console.error('❌ [Trial Balance API]', message);
+    return NextResponse.json({ success: false, message }, { status: 500 });
+  }
+}
+
+export { trialBalanceService } from '../trail-balance/route';
+export type { TrialBalanceAccount, TrialBalanceStats, TrialBalanceListResponse } from '../trail-balance/route';

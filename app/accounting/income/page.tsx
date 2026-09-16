@@ -114,20 +114,31 @@ export function IncomePage() {
     setLoading(true);
     try {
       const page = resetPage ? 1 : pagination.page;
-      const response = await incomeService.getIncomes({
-        page,
-        limit: pagination.limit,
-        search: searchTerm || undefined,
-        status: filter.status !== 'All' ? filter.status : undefined,
-        incomeType: filter.incomeType !== 'All' ? filter.incomeType : undefined,
-        startDate: filter.startDate || undefined,
-        endDate: filter.endDate || undefined,
-        locationId: locationIdForApi || undefined
-      });
+      const [response, statsRes] = await Promise.all([
+        incomeService.getIncomes({
+          page,
+          limit: pagination.limit,
+          search: searchTerm || undefined,
+          status: filter.status !== 'All' ? filter.status : undefined,
+          incomeType: filter.incomeType !== 'All' ? filter.incomeType : undefined,
+          startDate: filter.startDate || undefined,
+          endDate: filter.endDate || undefined,
+          locationId: locationIdForApi || undefined
+        }),
+        incomeService.getStats({
+          startDate: filter.startDate || undefined,
+          endDate: filter.endDate || undefined,
+          locationId: locationIdForApi || undefined,
+          status: filter.status !== 'All' ? filter.status : undefined,
+          incomeType: filter.incomeType !== 'All' ? filter.incomeType : undefined
+        }).catch(() => null)
+      ]);
 
       setIncomes(response.data || []);
       setPagination(response.pagination);
-      if (response.stats) {
+      if (statsRes) {
+        setStats(statsRes);
+      } else if (response.stats) {
         setStats(response.stats);
       }
     } catch (error: any) {

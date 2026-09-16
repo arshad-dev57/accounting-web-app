@@ -89,11 +89,12 @@ export default function AttendancePage() {
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [data, body] = await Promise.all([
-        hrDashboardService.attendance(iso),
-        hrHcmService.attendanceSummary(iso).catch(() => ({ summary: {} })),
-      ]);
-      setRows(data);
+      // attendanceSummary returns EVERY active employee with computed status,
+      // even on days when no one opened the app (they show as Absent).
+      // listAttendance only returns rows that exist in the DB, so we only
+      // use it for the raw check-in/out times via its data merged in summary.
+      const body = await hrHcmService.attendanceSummary(iso).catch(() => ({ summary: {}, data: [] }));
+      setRows((body as any).data || []);
       setSummary((body as any).summary || {});
     } catch {
       setRows([]);
@@ -110,14 +111,17 @@ export default function AttendancePage() {
     hrEmployeesService.list().then(setEmployees).catch(() => {});
   }, []);
 
+  // attendanceSummary.data shape:
+  // { employeeId, employee (name string), department, status, checkIn, checkOut, workingMinutes, source }
   const mapped = rows.map((row) => {
-    const emp = row.employee || {};
+    // Find matching employee object from the employee list for office/shift details
+    const empObj = employees.find((e: any) => e.id === row.employeeId) || {};
     return {
-      id: row.id,
-      employeeId: row.employeeId || emp.id,
-      name: emp.name || 'Employee',
-      office: emp.office || '—',
-      shift: emp.shift || '—',
+      id: row.employeeId,
+      employeeId: row.employeeId,
+      name: row.employee || (empObj as any).name || 'Employee',
+      office: (empObj as any).office || row.department || '—',
+      shift: (empObj as any).shift || '—',
       checkInRaw: row.checkIn,
       checkOutRaw: row.checkOut,
       checkIn: fmtTime(row.checkIn),
@@ -290,7 +294,7 @@ export default function AttendancePage() {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-sm text-[#7A8FA6]">
-                  No attendance records for this day. Use <b>Mark / adjust</b> to add one.
+                  No employees found for this day. Make sure active employees exist in the system.
                 </td>
               </tr>
             )}

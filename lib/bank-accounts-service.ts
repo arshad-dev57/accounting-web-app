@@ -95,25 +95,62 @@ export const bankAccountService = {
         throw new Error(response.message || 'Failed to fetch bank accounts');
       }
       
-      const data = response.data || {};
-      
+      const rawPayload = response.data || {};
+      const items: BankAccount[] = Array.isArray(rawPayload.data)
+        ? rawPayload.data
+        : Array.isArray(rawPayload)
+        ? rawPayload
+        : [];
+
+      const totalCount = typeof rawPayload.total === 'number'
+        ? rawPayload.total
+        : typeof rawPayload.count === 'number'
+        ? rawPayload.count
+        : items.length;
+
+      const pageNum = rawPayload.page || params.page || 1;
+      const limitNum = params.limit || 10;
+      const totalPages = rawPayload.pages || Math.ceil(totalCount / limitNum) || 1;
+
+      // Fallback stats calculation from loaded items
+      let fallbackTotalBalance = 0;
+      let fallbackPkrBalance = 0;
+      let fallbackUsdBalance = 0;
+      let fallbackActiveCount = 0;
+
+      items.forEach((acc) => {
+        const balance = Number(acc.currentBalance) || 0;
+        fallbackTotalBalance += balance;
+        const cur = (acc.currency || 'PKR').toUpperCase();
+        if (cur === 'USD') {
+          fallbackUsdBalance += balance;
+        } else {
+          fallbackPkrBalance += balance;
+        }
+        if (acc.status === 'Active') {
+          fallbackActiveCount++;
+        }
+      });
+
+      const stats: BankAccountStats = rawPayload.stats || {
+        totalBalance: fallbackTotalBalance,
+        pkrBalance: fallbackPkrBalance,
+        usdBalance: fallbackUsdBalance,
+        activeCount: fallbackActiveCount,
+        totalCount: totalCount
+      };
+
       return {
         success: response.success,
-        data: data.data || [],
-        stats: data.stats || {
-          totalBalance: 0,
-          pkrBalance: 0,
-          usdBalance: 0,
-          activeCount: 0,
-          totalCount: 0
-        },
-        pagination: data.pagination || {
-          page: params.page || 1,
-          limit: params.limit || 10,
-          total: 0,
-          pages: 0,
-          hasNext: false,
-          hasPrev: false
+        data: items,
+        stats,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: totalCount,
+          pages: totalPages,
+          hasNext: pageNum < totalPages,
+          hasPrev: pageNum > 1
         }
       };
     } catch (error: any) {
@@ -170,12 +207,14 @@ export const bankAccountService = {
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch bank account stats');
       }
-      return response.data?.data || {
-        totalBalance: 0,
-        pkrBalance: 0,
-        usdBalance: 0,
-        activeCount: 0,
-        totalCount: 0
+      const raw = response.data || {};
+      const stats = raw.data || raw;
+      return {
+        totalBalance: Number(stats.totalBalance ?? 0),
+        pkrBalance: Number(stats.pkrBalance ?? 0),
+        usdBalance: Number(stats.usdBalance ?? 0),
+        activeCount: Number(stats.activeCount ?? 0),
+        totalCount: Number(stats.totalCount ?? 0)
       };
     } catch (error: any) {
       console.error('Get bank account stats error:', error);

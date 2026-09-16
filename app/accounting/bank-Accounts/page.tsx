@@ -94,16 +94,21 @@ export function BankAccountsPage() {
     setLoading(true);
     try {
       const page = resetPage ? 1 : pagination.page;
-      const response = await bankAccountService.getAccounts({
-        page,
-        limit: pagination.limit,
-        search: searchTerm || undefined,
-        status: filter.status !== 'All' ? filter.status : undefined
-      });
+      const [response, statsRes] = await Promise.all([
+        bankAccountService.getAccounts({
+          page,
+          limit: pagination.limit,
+          search: searchTerm || undefined,
+          status: filter.status !== 'All' ? filter.status : undefined
+        }),
+        bankAccountService.getStats().catch(() => null)
+      ]);
 
       setAccounts(response.data || []);
       setPagination(response.pagination);
-      if (response.stats) {
+      if (statsRes) {
+        setStats(statsRes);
+      } else if (response.stats) {
         setStats(response.stats);
       }
     } catch (error: any) {

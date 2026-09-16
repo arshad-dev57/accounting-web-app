@@ -52,7 +52,7 @@ import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
 function AccountingSidebar() {
   const pathname = usePathname();
   const { hasSubPageAccess, hasModuleAccess, isAdmin } = usePermissions();
-  
+
   const [expandedSections, setExpandedSections] = React.useState({
     accountingCore: true,
     reports: false,
@@ -101,17 +101,16 @@ function AccountingSidebar() {
     { path: '/tax', label: 'Tax Compliance', permission: 'settings' },
     { path: '/accounting/currency', label: 'Currency', permission: 'currency' },
     { path: '/accounting/pdf-reports', label: 'PDF Reports', permission: 'settings' },
-    { path: '/accounting/settings', label: 'Accounting Settings', permission: 'settings' },
   ];
 
-  const filteredAccountingPages = accountingPages.filter(page => 
+  const filteredAccountingPages = accountingPages.filter(page =>
     isAdmin || hasSubPageAccess('accounting', page.permission)
   );
-  
-  const filteredReportPages = reportPages.filter(page => 
+
+  const filteredReportPages = reportPages.filter(page =>
     isAdmin || hasSubPageAccess('accounting', page.permission)
   );
-  
+
   const filteredSettingsPages = settingsPages.filter(page =>
     isAdmin || hasSubPageAccess('accounting', page.permission)
   );
@@ -161,15 +160,14 @@ function AccountingSidebar() {
                   'loans-borrowings': <Handshake className="w-4 h-4" />,
                   'capital-equity': <Landmark className="w-4 h-4" />,
                 };
-                
+
                 return (
                   <Link
                     key={page.path}
                     href={page.path}
                     {...keepAliveNavProps(accountingViewHostConfig, page.path)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                      isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
+                      }`}
                   >
                     {iconMap[page.permission] || <FileText className="w-4 h-4" />}
                     <span>{page.label}</span>
@@ -204,15 +202,14 @@ function AccountingSidebar() {
                   'cash-flow': <DollarSign className="w-4 h-4" />,
                   'aged-receivables': <Clock className="w-4 h-4" />,
                 };
-                
+
                 return (
                   <Link
                     key={page.path}
                     href={page.path}
                     {...keepAliveNavProps(accountingViewHostConfig, page.path)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                      isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
+                      }`}
                   >
                     {iconMap[page.permission] || <FileText className="w-4 h-4" />}
                     <span>{page.label}</span>
@@ -222,8 +219,6 @@ function AccountingSidebar() {
             </div>
           )}
         </div>
-
-        {/* Settings */}
         <div>
           <button
             onClick={() => toggleSection('settings')}
@@ -248,15 +243,14 @@ function AccountingSidebar() {
 
                 const isPdf = page.path.includes('pdf-reports');
                 const isTax = page.path === '/tax';
-                
+
                 return (
                   <Link
                     key={page.path}
                     href={page.path}
                     {...keepAliveNavProps(accountingViewHostConfig, page.path)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                      isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
+                      }`}
                   >
                     {isTax ? <Scale className="w-4 h-4" /> : isPdf ? <FileText className="w-4 h-4" /> : (iconMap[page.permission] || <Settings className="w-4 h-4" />)}
                     <span>{page.label}</span>
@@ -321,8 +315,6 @@ function AccountingSidebar() {
           </Link>
         )}
       </div>
-
-      {/* Bottom Section */}
       <div className="px-3 pb-6 flex-shrink-0">
         {isAdmin && (
           <Link
@@ -353,9 +345,6 @@ function AccountingSidebar() {
   );
 }
 
-// ============================================================
-// ACCOUNTING LAYOUT
-// ============================================================
 export default function AccountingLayout({
   children,
 }: {

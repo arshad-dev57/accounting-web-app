@@ -265,11 +265,10 @@ export function ProcessGuide() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all whitespace-nowrap ${
-                    isActive
+                  className={`flex items-center gap-2 px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all whitespace-nowrap ${isActive
                       ? 'bg-white text-[#014582] shadow-sm'
                       : 'text-white/70 hover:text-white hover:bg-white/5'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
@@ -330,7 +329,7 @@ export function ProcessGuide() {
               <div className="space-y-4">
                 <div className="bg-slate-900 text-slate-100 p-6 rounded-xl font-mono text-xs overflow-x-auto shadow-inner">
                   <pre className="text-emerald-400">
-{`+-----------------------------------------------------------------------------------+
+                    {`+-----------------------------------------------------------------------------------+
 |                            START MANUFACTURING JOURNEY                            |
 +-----------------------------------------------------------------------------------+
                                           |
@@ -933,13 +932,12 @@ export function ProcessGuide() {
               {DECISIONS.map((dec) => (
                 <div
                   key={dec.id}
-                  className={`p-5 rounded-2xl border shadow-sm space-y-2 text-xs ${
-                    dec.tone === 'danger'
+                  className={`p-5 rounded-2xl border shadow-sm space-y-2 text-xs ${dec.tone === 'danger'
                       ? 'bg-rose-50/70 border-rose-200 text-rose-900'
                       : dec.tone === 'warn'
-                      ? 'bg-amber-50/70 border-amber-200 text-amber-900'
-                      : 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
-                  }`}
+                        ? 'bg-amber-50/70 border-amber-200 text-amber-900'
+                        : 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+                    }`}
                 >
                   <div className="flex items-center gap-2 font-black text-sm">
                     <AlertTriangle className="w-4 h-4 shrink-0" />

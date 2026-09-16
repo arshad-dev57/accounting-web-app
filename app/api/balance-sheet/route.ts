@@ -1,4 +1,50 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { apiClient } from '@/lib/api-client';
+
+const API_BASE_URL = process.env.API_URL || 'https://account-backend-five.vercel.app';
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const token =
+      request.cookies.get('auth_token')?.value ||
+      request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
+      '';
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const qs = new URLSearchParams();
+    for (const key of ['fiscalYearId', 'locationId', 'period', 'startDate', 'endDate']) {
+      const v = searchParams.get(key);
+      if (v) qs.set(key, v);
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/balance-sheet?${qs.toString()}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        cache: 'no-store',
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+    return NextResponse.json(data, { status: response.status });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to load balance sheet';
+    console.error('❌ [Balance Sheet API]', message);
+    return NextResponse.json({ success: false, message }, { status: 500 });
+  }
+}
+
 
 // ─── TYPES ─────────────────────────────────────────────────────
 

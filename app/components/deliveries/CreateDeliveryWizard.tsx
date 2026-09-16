@@ -15,25 +15,23 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
   const [wizardStep, setWizardStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSearchingOrders, setIsSearchingOrders] = useState(false);
-  
+
   const [orderSearchResults, setOrderSearchResults] = useState<OrderForDelivery[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<OrderForDelivery | null>(null);
   const [lineDrafts, setLineDrafts] = useState<DeliveryLineDraft[]>([]);
-  
+
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
   const [deliveryPerson, setDeliveryPerson] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Set default delivery date to tomorrow
   useEffect(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     setDeliveryDate(tomorrow.toISOString().split('T')[0]);
   }, []);
 
-  // Re-scope order search when warehouse changes
   useEffect(() => {
     setSelectedOrder(null);
     setOrderSearchResults([]);
@@ -92,8 +90,7 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
     setSelectedOrder(order);
     setOrderSearchQuery(order.orderNumber);
     setOrderSearchResults([]);
-    
-    // Backend returns remainingItems, not items
+
     const items = order.remainingItems || order.items || [];
     console.log('Order items:', items);
     const drafts = items.map((item: any) => {
@@ -126,7 +123,6 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
     setLineDrafts(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], selected };
-      // When selecting an item, automatically set delivery quantity to remaining quantity
       if (selected) {
         updated[index].deliveryQuantity = updated[index].remainingQuantity;
       } else {
@@ -257,9 +253,8 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className={`flex-1 h-1 rounded-full transition-colors ${
-                  wizardStep >= i ? 'bg-[#014582]' : 'bg-gray-300'
-                }`}
+                className={`flex-1 h-1 rounded-full transition-colors ${wizardStep >= i ? 'bg-[#014582]' : 'bg-gray-300'
+                  }`}
               />
             ))}
           </div>
@@ -403,7 +398,7 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
           {wizardStep === 2 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Step 3: Delivery Details</h3>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Date *</label>
                 <div className="relative">

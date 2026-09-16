@@ -1,5 +1,9 @@
 import { apiClient } from '@/lib/api-client';
 
+// Re-export GET from the correctly-named route so this legacy path also works
+export { GET } from '../trial-balance/route';
+
+
 // ─── TYPES ─────────────────────────────────────────────────────
 
 export interface TrialBalanceAccount {
@@ -62,31 +66,63 @@ export const trialBalanceService = {
     
     try {
       const response = await apiClient.get(url);
-      
+
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch trial balance');
       }
+
+      // apiClient.get returns: { statusCode, data: rawJson, success, message }
+      // where rawJson from backend is: { success: true, count, data: [...accounts], summary: { totalDebit, totalCredit, difference, isBalanced }, period: {...} }
+      const rawPayload = response.data || {};
       
-      const data = response.data || {};
-      
+      const accounts: TrialBalanceAccount[] = Array.isArray(rawPayload.data)
+        ? rawPayload.data
+        : Array.isArray(rawPayload)
+        ? rawPayload
+        : Array.isArray(response.data)
+        ? response.data
+        : [];
+
+      const rawSummary = rawPayload.summary || (response as any).summary || {};
+
+      // Fallback calculation directly from accounts list if summary numbers are missing/zero
+      const calculatedDebit = accounts.reduce((sum, acc) => sum + (Number(acc.debitBalance) || 0), 0);
+      const calculatedCredit = accounts.reduce((sum, acc) => sum + (Number(acc.creditBalance) || 0), 0);
+      const calculatedDiff = Math.abs(calculatedDebit - calculatedCredit);
+
+      const totalDebit = rawSummary.totalDebit !== undefined && rawSummary.totalDebit !== null
+        ? Number(rawSummary.totalDebit)
+        : calculatedDebit;
+      const totalCredit = rawSummary.totalCredit !== undefined && rawSummary.totalCredit !== null
+        ? Number(rawSummary.totalCredit)
+        : calculatedCredit;
+      const difference = rawSummary.difference !== undefined && rawSummary.difference !== null
+        ? Number(rawSummary.difference)
+        : calculatedDiff;
+      const isBalanced = rawSummary.isBalanced !== undefined
+        ? Boolean(rawSummary.isBalanced)
+        : (difference < 0.01);
+
+      const totalAccounts = typeof rawPayload.count === 'number' ? rawPayload.count : accounts.length;
+
       return {
         success: response.success,
-        data: data.data || [],
-        stats: data.stats || {
-          totalDebit: 0,
-          totalCredit: 0,
-          difference: 0,
-          isBalanced: true,
-          totalAccounts: 0
+        data: accounts,
+        stats: {
+          totalDebit,
+          totalCredit,
+          difference,
+          isBalanced,
+          totalAccounts,
         },
-        pagination: data.pagination || {
+        pagination: {
           page: params.page || 1,
-          limit: params.limit || 10,
-          total: 0,
-          pages: 0,
+          limit: params.limit || totalAccounts || 10,
+          total: totalAccounts,
+          pages: 1,
           hasNext: false,
-          hasPrev: false
-        }
+          hasPrev: false,
+        },
       };
     } catch (error: any) {
       console.error('Get trial balance error:', error);

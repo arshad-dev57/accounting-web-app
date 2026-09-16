@@ -13,7 +13,7 @@ Integrate the POS system with the Sales Management system to create a complete E
 - Characteristics: Immediate payment, no credit terms, no accounts receivable
 
 ### Sales Management System
-- Order Model: `/Users/glplanet/Documents/account_backend/warehouse/models/Order.js`
+- Order Model: `/Users/glplanet/Documents/account_backend/warehouse/models/Order.js`8
 - Sales Invoice Model: `/Users/glplanet/Documents/account_backend/warehouse/models/SalesInvoice.js`
 - Purpose: B2B credit sales (wholesale, business customers)
 - Flow: Sales Order → Order Processing → Delivery → Sales Invoice → Payment Collection
@@ -45,6 +45,7 @@ Integrate the POS system with the Sales Management system to create a complete E
   - Return the created invoice
 
 **Database Changes:**
+adding in the taxation flow of paths
 - Add `posSaleId` field to `SalesInvoice` table to track conversion
 - Add `invoiceId` field to `POSSale` table to track conversion
 
@@ -342,13 +343,13 @@ Add to system configuration:
   "pos": {
     "creditManagement": {
       "enabled": true,
-      "blockOnExceed": false, // true = block, false = warn
-      "allowOverride": true, // allow admin to override block
-      "warningThreshold": 80 // percentage
+      "blockOnExceed": false, 
+      "allowOverride": true, 
+      "warningThreshold": 80 
     },
     "invoiceConversion": {
       "enabled": true,
-      "autoPost": true // auto-post invoice after conversion
+      "autoPost": true 
     },
     "orderConversion": {
       "enabled": true,
@@ -356,7 +357,7 @@ Add to system configuration:
     }
   }
 }
-```
+
 
 ## Success Criteria
 

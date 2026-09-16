@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { chartOfAccountService, ChartOfAccount, ChartOfAccountStats } from '../../../lib/chart-of-accounts-service';
 import { TaxCodeSelect } from '../../../components/TaxRateSelect';
+import { useCurrency } from '../../../lib/currency-context';
 
 
 interface AccountTypeStats {
@@ -41,6 +42,7 @@ interface AccountTypeStats {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export default function ChartOfAccountsPage() {
+  const { symbol: currencySymbol } = useCurrency();
   const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -295,7 +297,7 @@ export default function ChartOfAccountsPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return `Rs. ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `${currencySymbol} ${(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const getStatusColor = (isActive: boolean) => {
@@ -872,7 +874,7 @@ function AccountForm({
               Opening Balance
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-xs md:text-sm">Rs.</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-xs md:text-sm">{currencySymbol}</span>
               <input
                 type="number"
                 step="0.01"

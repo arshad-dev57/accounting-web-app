@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDashboardFiltersReady } from '../../../lib/use-dashboard-filters-ready';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
+import { useCurrency } from '../../../lib/currency-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
 import {
@@ -125,15 +126,6 @@ function toNum(v: unknown) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-PK', {
-    style: 'currency',
-    currency: 'PKR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount || 0);
-}
-
 function formatAxis(value: number) {
   if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(0)}k`;
@@ -154,6 +146,10 @@ function formatDate(iso?: string) {
 
 export function AccountingDashboard() {
   const router = useRouter();
+  const { symbol: currencySymbol } = useCurrency();
+  const formatCurrency = (amount: number) => {
+    return `${currencySymbol} ${toNum(amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);

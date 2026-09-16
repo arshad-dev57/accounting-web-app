@@ -86,34 +86,31 @@ export function AccountsReceivablePage() {
     setLoading(true);
     try {
       const page = resetPage ? 1 : pagination.page;
-      const response = await accountsReceivableService.getCustomers({
-        page,
-        limit: pagination.limit,
-        search: searchTerm || undefined,
-        filter: filter.status !== 'All' ? filter.status : undefined,
-        locationId: locationIdForApi || undefined,
-        refresh: resetPage // Force refresh on initial load
-      });
-
-      console.log('🔍 [Accounts Receivable Page] Raw response:', response);
-      console.log('🔍 [Accounts Receivable Page] Customers data:', response.data);
-      console.log('🔍 [Accounts Receivable Page] Summary data:', response.summary);
+      const [response, summaryRes] = await Promise.all([
+        accountsReceivableService.getCustomers({
+          page,
+          limit: pagination.limit,
+          search: searchTerm || undefined,
+          filter: filter.status !== 'All' ? filter.status : undefined,
+          locationId: locationIdForApi || undefined,
+          refresh: resetPage
+        }),
+        accountsReceivableService.getSummary({
+          locationId: locationIdForApi || undefined
+        }).catch(() => null)
+      ]);
 
       // Ensure invoices is always an array
-      const customersWithInvoices = (response.data || []).map(c => {
-        console.log('🔍 [Accounts Receivable Page] Individual customer:', c);
-        console.log('🔍 [Accounts Receivable Page] Customer outstandingAmount:', c.outstandingAmount);
-        console.log('🔍 [Accounts Receivable Page] Customer totalAmount:', c.totalAmount);
-        console.log('🔍 [Accounts Receivable Page] Customer paidAmount:', c.paidAmount);
-        return {
-          ...c,
-          invoices: c.invoices || []
-        };
-      });
+      const customersWithInvoices = (response.data || []).map(c => ({
+        ...c,
+        invoices: c.invoices || []
+      }));
 
       setCustomers(customersWithInvoices);
       setPagination(response.pagination);
-      if (response.summary) {
+      if (summaryRes) {
+        setSummary(summaryRes);
+      } else if (response.summary) {
         setSummary(response.summary);
       }
     } catch (error: any) {

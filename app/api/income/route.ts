@@ -173,26 +173,60 @@ export const incomeService = {
         throw new Error(response.message || 'Failed to fetch incomes');
       }
       
-      const data = response.data || {};
-      
+      const rawPayload = response.data || {};
+      const items: Income[] = Array.isArray(rawPayload.data)
+        ? rawPayload.data
+        : Array.isArray(rawPayload)
+        ? rawPayload
+        : [];
+
+      const totalCount = typeof rawPayload.total === 'number'
+        ? rawPayload.total
+        : typeof rawPayload.count === 'number'
+        ? rawPayload.count
+        : items.length;
+
+      const pageNum = rawPayload.page || params.page || 1;
+      const limitNum = params.limit || 10;
+      const totalPages = rawPayload.pages || Math.ceil(totalCount / limitNum) || 1;
+
+      // Calculate fallback stats directly from loaded items if rawPayload.stats is missing
+      const fallbackTotalIncome = items.reduce((s, i) => s + (Number(i.totalAmount) || 0), 0);
+      const fallbackTotalTax = items.reduce((s, i) => s + (Number(i.taxAmount) || 0), 0);
+
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const fallbackThisMonth = items
+        .filter(i => new Date(i.date) >= startOfMonth)
+        .reduce((s, i) => s + (Number(i.totalAmount) || 0), 0);
+      const fallbackThisWeek = items
+        .filter(i => new Date(i.date) >= startOfWeek)
+        .reduce((s, i) => s + (Number(i.totalAmount) || 0), 0);
+
+      const stats: IncomeStats = rawPayload.stats || {
+        totalIncome: fallbackTotalIncome,
+        totalTax: fallbackTotalTax,
+        totalCount: totalCount,
+        thisMonth: fallbackThisMonth,
+        thisWeek: fallbackThisWeek,
+        byType: {}
+      };
+
       return {
         success: response.success,
-        data: data.data || [],
-        stats: data.stats || {
-          totalIncome: 0,
-          totalTax: 0,
-          totalCount: 0,
-          thisMonth: 0,
-          thisWeek: 0,
-          byType: {}
-        },
-        pagination: data.pagination || {
-          page: params.page || 1,
-          limit: params.limit || 10,
-          total: 0,
-          pages: 0,
-          hasNext: false,
-          hasPrev: false
+        data: items,
+        stats,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: totalCount,
+          pages: totalPages,
+          hasNext: pageNum < totalPages,
+          hasPrev: pageNum > 1
         }
       };
     } catch (error: any) {
@@ -271,10 +305,19 @@ export const incomeService = {
   },
 
   // ─── Get income stats ────────────────────────────────────────
-  getStats: async (params?: { startDate?: string; endDate?: string }): Promise<IncomeStats> => {
+  getStats: async (params?: {
+    startDate?: string;
+    endDate?: string;
+    locationId?: string;
+    status?: string;
+    incomeType?: string;
+  }): Promise<IncomeStats> => {
     const query = new URLSearchParams();
     if (params?.startDate) query.append('startDate', params.startDate);
     if (params?.endDate) query.append('endDate', params.endDate);
+    if (params?.locationId) query.append('locationId', params.locationId);
+    if (params?.status) query.append('status', params.status);
+    if (params?.incomeType) query.append('incomeType', params.incomeType);
     
     const url = `/api/income/summary${query.toString() ? `?${query.toString()}` : ''}`;
     
@@ -283,13 +326,15 @@ export const incomeService = {
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch income stats');
       }
-      return response.data?.data || {
-        totalIncome: 0,
-        totalTax: 0,
-        totalCount: 0,
-        thisMonth: 0,
-        thisWeek: 0,
-        byType: {}
+      const raw = response.data || {};
+      const stats = raw.data || raw;
+      return {
+        totalIncome: Number(stats.totalIncome ?? 0),
+        totalTax: Number(stats.totalTax ?? 0),
+        totalCount: Number(stats.totalCount ?? 0),
+        thisMonth: Number(stats.thisMonth ?? 0),
+        thisWeek: Number(stats.thisWeek ?? 0),
+        byType: stats.byType || {}
       };
     } catch (error: any) {
       console.error('Get income stats error:', error);

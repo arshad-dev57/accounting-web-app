@@ -98,21 +98,20 @@ export const accountsReceivableService = {
         throw new Error(response.message || 'Failed to fetch summary');
       }
       
-      const summary = response.data?.data || {
-        totalOutstanding: 0,
-        overdue: 0,
-        dueThisWeek: 0,
-        dueThisMonth: 0,
-        activeCustomers: 0
+      const raw = response.data || {};
+      const summaryData = raw.data || raw;
+      
+      const summary: Summary = {
+        totalOutstanding: Number(summaryData.totalOutstanding ?? 0),
+        overdue: Number(summaryData.overdue ?? 0),
+        dueThisWeek: Number(summaryData.dueThisWeek ?? 0),
+        dueThisMonth: Number(summaryData.dueThisMonth ?? 0),
+        activeCustomers: Number(summaryData.activeCustomers ?? 0)
       };
       
-      console.log('✅ [Accounts Receivable] Summary data:', JSON.stringify(summary, null, 2));
-      console.log('✅ [Accounts Receivable] Summary totalOutstanding:', summary.totalOutstanding);
-      console.log('✅ [Accounts Receivable] Summary overdue:', summary.overdue);
       return summary;
     } catch (error: any) {
       console.error('❌ [Accounts Receivable] Summary error:', error);
-      console.error('❌ [Accounts Receivable] Summary error message:', error.message);
       throw new Error(error.message || 'Failed to fetch summary');
     }
   },
@@ -138,47 +137,77 @@ export const accountsReceivableService = {
     const url = `/api/accounts-receivable/customers${query.toString() ? `?${query.toString()}` : ''}`;
     
     try {
-      console.log('🔍 [Accounts Receivable] Fetching customers with params:', params);
-      console.log('🔍 [Accounts Receivable] Request URL:', url);
-      
       const response = await apiClient.get(url);
-      
-      console.log('📊 [Accounts Receivable] Customers API Response:', JSON.stringify(response, null, 2));
-      console.log('📊 [Accounts Receivable] Customers success:', response.success);
       
       if (!response.success) {
         console.error('❌ [Accounts Receivable] Customers API failure:', response.message);
         throw new Error(response.message || 'Failed to fetch customers');
       }
       
-      const data = response.data || {};
-      console.log('🔍 [Accounts Receivable] Raw customers data:', data.data);
-      console.log('🔍 [Accounts Receivable] Raw summary data:', data.summary);
-      console.log('🔍 [Accounts Receivable] Raw pagination data:', data.pagination);
+      const rawPayload = response.data || {};
+      const items: Customer[] = Array.isArray(rawPayload.data)
+        ? rawPayload.data
+        : Array.isArray(rawPayload)
+        ? rawPayload
+        : [];
+
+      const totalCount = typeof rawPayload.total === 'number'
+        ? rawPayload.total
+        : typeof rawPayload.count === 'number'
+        ? rawPayload.count
+        : items.length;
+
+      const pageNum = rawPayload.page || params.page || 1;
+      const limitNum = params.limit || 10;
+      const totalPages = rawPayload.pages || Math.ceil(totalCount / limitNum) || 1;
+
+      // Fallback summary calculation from loaded items
+      const now = new Date();
+      const endOfWeek = new Date(now);
+      endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      let fallbackTotalOutstanding = 0;
+      let fallbackOverdue = 0;
+      let fallbackDueThisWeek = 0;
+      let fallbackDueThisMonth = 0;
+      let fallbackActiveCount = 0;
+
+      items.forEach((c: any) => {
+        if (c.isActive) fallbackActiveCount++;
+        fallbackTotalOutstanding += Number(c.outstandingAmount) || 0;
+        (c.invoices || []).forEach((inv: any) => {
+          const open = Number(inv.outstanding) || 0;
+          if (open > 0 && inv.dueDate) {
+            const d = new Date(inv.dueDate);
+            if (d < now) fallbackOverdue += open;
+            if (d >= now && d <= endOfWeek) fallbackDueThisWeek += open;
+            if (d >= now && d <= endOfMonth) fallbackDueThisMonth += open;
+          }
+        });
+      });
+
+      const summary: Summary = rawPayload.summary || {
+        totalOutstanding: fallbackTotalOutstanding,
+        overdue: fallbackOverdue,
+        dueThisWeek: fallbackDueThisWeek,
+        dueThisMonth: fallbackDueThisMonth,
+        activeCustomers: fallbackActiveCount
+      };
       
       const result = {
         success: response.success,
-        data: data.data || [],
-        summary: data.summary || {
-          totalOutstanding: 0,
-          overdue: 0,
-          dueThisWeek: 0,
-          dueThisMonth: 0,
-          activeCustomers: 0
-        },
-        pagination: data.pagination || {
-          page: params.page || 1,
-          limit: params.limit || 10,
-          total: 0,
-          pages: 0,
-          hasNext: false,
-          hasPrev: false
+        data: items,
+        summary,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: totalCount,
+          pages: totalPages,
+          hasNext: pageNum < totalPages,
+          hasPrev: pageNum > 1
         }
       };
-      
-      console.log('✅ [Accounts Receivable] Transformed customers count:', result.data.length);
-      console.log('✅ [Accounts Receivable] Final summary:', result.summary);
-      console.log('✅ [Accounts Receivable] Final pagination:', result.pagination);
       
       return result;
     } catch (error: any) {
