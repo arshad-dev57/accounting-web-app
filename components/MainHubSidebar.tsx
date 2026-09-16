@@ -207,7 +207,7 @@ export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: str
           <HelpCircle className="w-5 h-5 text-[#b388ff] mb-2" />
           <p className="text-sm font-semibold text-white">Need Help?</p>
           <p className="text-xs text-white/50 mt-1 mb-3">
-            Contact support@bisonstechs.com
+            Contact info@bisonstechs.com
           </p>
         </div>
         <button

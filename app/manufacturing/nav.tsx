@@ -28,6 +28,7 @@ import {
   Calculator,
   FileBarChart,
   Settings,
+  BookOpen,
   LogOut,
   GitFork,
 } from 'lucide-react';
@@ -39,7 +40,10 @@ export const MFG_SECTIONS: {
 }[] = [
   {
     label: 'MAIN',
-    items: [{ href: '/manufacturing/dashboard', label: 'Dashboard', icon: LayoutDashboard }],
+    items: [
+      { href: '/manufacturing/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/manufacturing/guide', label: 'Process Guide', icon: BookOpen },
+    ],
   },
   {
     label: 'PLANNING',

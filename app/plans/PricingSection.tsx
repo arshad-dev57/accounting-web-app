@@ -398,11 +398,11 @@ export default function PricingSection({
         </p>
         <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm font-semibold">
           <a
-            href="mailto:support@bisonstechs.com"
+            href="mailto:info@bisonstechs.com"
             className="hover:underline"
             style={{ color: BRAND }}
           >
-            support@bisonstechs.com
+            info@bisonstechs.com
           </a>
           <a
             href="tel:+923253411482"

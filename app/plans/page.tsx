@@ -25,7 +25,7 @@ import PricingSection from './PricingSection';
 import CurrentSubscriptionPanel from '../../components/CurrentSubscriptionPanel';
 import { TRIAL_DAYS, type SubscriptionCapacity } from '../../lib/subscription-pricing';
 
-const CUSTOM_CONTACT_EMAIL = 'support@bisonstechs.com';
+const CUSTOM_CONTACT_EMAIL = 'info@bisonstechs.com';
 const CUSTOM_CONTACT_PHONE = '+92 325 3411482';
 const CUSTOM_CONTACT_PHONE_TEL = '+923253411482';
 
