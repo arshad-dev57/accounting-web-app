@@ -20,6 +20,7 @@ import ProfileDropdown from '../../components/ProfileDropdown';
 import SubscriptionStatusBanner from '../../components/SubscriptionStatusBanner';
 import { MainHubSidebar } from '../../components/MainHubSidebar';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
+import GlobalSearch from '../../components/GlobalSearch';
 
 const banners = [
   {
@@ -143,6 +144,10 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4 text-[#014582]" />
             </div>
+
+            <div className="w-px h-6 bg-gray-200" />
+
+            <GlobalSearch />
 
             <div className="w-px h-6 bg-gray-200" />
 

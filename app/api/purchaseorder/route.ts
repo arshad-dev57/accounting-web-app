@@ -206,7 +206,67 @@ export const purchaseOrderService = {
     }
   },
 
-  // ─── Search suppliers ──────────────────────────────────────
+  // ─── Search & List suppliers with pagination ───────────────
+  getSuppliersPaginated: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  } = {}): Promise<{
+    data: Supplier[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  }> => {
+    const { page = 1, limit = 6, search = '' } = params;
+    try {
+      const response = await apiClient.get(
+        `/api/warehouse/supplier?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&status=active`
+      );
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to fetch suppliers');
+      }
+      const payload = response.data || {};
+      const rows = payload.data || [];
+      const data = rows
+        .map((s: any) => ({
+          ...s,
+          id: String(s.id || s._id || ''),
+          isActive: String(s.status || '').toLowerCase() === 'active',
+        }))
+        .filter((s: Supplier) => !!s.id);
+
+      return {
+        data,
+        pagination: payload.pagination || {
+          page,
+          limit,
+          total: data.length,
+          pages: Math.ceil(data.length / limit) || 1,
+          hasNext: false,
+          hasPrev: false,
+        },
+      };
+    } catch (error: any) {
+      console.error('Fetch suppliers paginated error:', error);
+      return {
+        data: [],
+        pagination: {
+          page: 1,
+          limit,
+          total: 0,
+          pages: 1,
+          hasNext: false,
+          hasPrev: false,
+        },
+      };
+    }
+  },
+
   searchSuppliers: async (query: string, limit: number = 10): Promise<Supplier[]> => {
     try {
       const response = await apiClient.get(
@@ -224,6 +284,87 @@ export const purchaseOrderService = {
     } catch (error: any) {
       console.error('Search suppliers error:', error);
       return [];
+    }
+  },
+
+  // ─── Search & List products with pagination ─────────────────
+  getProductsPaginated: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    locationId?: string;
+  } = {}): Promise<{
+    data: Product[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  }> => {
+    const { page = 1, limit = 6, search = '', locationId } = params;
+    try {
+      const urlParams = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        search: search,
+      });
+      if (locationId) {
+        urlParams.set('locationId', locationId);
+        urlParams.set('scope', 'company');
+      }
+      const response = await apiClient.get(
+        `/api/warehouse/products?${urlParams.toString()}`
+      );
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to fetch products');
+      }
+      const payload = response.data || {};
+      const rows = payload.data || [];
+      const data = rows.map((raw: any) => {
+        const p = normalizeProduct(raw);
+        return {
+          id: String(p.id || p._id || ''),
+          name: p.name || '',
+          sku: p.sku || '',
+          costPrice: Number(p.costPrice ?? 0),
+          sellingPrice: Number(p.sellingPrice ?? 0),
+          landingCost: Number((p as any).landingCost ?? 0),
+          taxRate: Number(p.taxRate ?? 0),
+          category: p.categoryName || p.category,
+          stockUnitName: p.stockUnitName,
+          barcode: p.barcodeNumber,
+          currentStock: Number(p.currentStock ?? 0),
+          isActive: p.isActive !== false,
+        } as Product;
+      });
+
+      return {
+        data,
+        pagination: payload.pagination || {
+          page,
+          limit,
+          total: data.length,
+          pages: Math.ceil(data.length / limit) || 1,
+          hasNext: false,
+          hasPrev: false,
+        },
+      };
+    } catch (error: any) {
+      console.error('Fetch products paginated error:', error);
+      return {
+        data: [],
+        pagination: {
+          page: 1,
+          limit,
+          total: 0,
+          pages: 1,
+          hasNext: false,
+          hasPrev: false,
+        },
+      };
     }
   },
 

@@ -38,6 +38,7 @@ import type { SubscriptionCapacity, UpgradeQuote } from '../../lib/subscription-
 import { calculatePrice } from '../../lib/subscription-pricing';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
+import GlobalSearch from '../../components/GlobalSearch';
 import { performLogout } from '../../lib/auth-logout';
 import { useRouter } from 'next/navigation';
 
@@ -504,16 +505,19 @@ export default function UsersDashboard() {
                 {activeTab === 'users' ? 'Manage user accounts and access' : 'Configure module permissions and roles'}
               </p>
             </div>
-            {activeTab === 'users' && (
-              <button
-                type="button"
-                onClick={handleAddUser}
-                className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6c3ae8] transition-all"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Add User</span>
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              <GlobalSearch />
+              {activeTab === 'users' && (
+                <button
+                  type="button"
+                  onClick={handleAddUser}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6c3ae8] transition-all"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Add User</span>
+                </button>
+              )}
+            </div>
           </div>
         </header>
 

@@ -37,6 +37,7 @@ import {
 import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
+import GlobalSearch from '../../components/GlobalSearch';
 import { performLogout } from '../../lib/auth-logout';
 const SECTIONS: {
   label: string;
@@ -199,6 +200,10 @@ export default function HRLayout({
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4 text-[#014582]" />
             </div>
+
+            <div className="w-px h-6 bg-gray-200" />
+
+            <GlobalSearch />
 
             <div className="w-px h-6 bg-gray-200" />
 

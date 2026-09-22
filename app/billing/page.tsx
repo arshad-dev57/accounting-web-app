@@ -15,6 +15,7 @@ import {
 import { MainHubSidebar } from '../../components/MainHubSidebar';
 import { TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
+import GlobalSearch from '../../components/GlobalSearch';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import CurrentSubscriptionPanel from '../../components/CurrentSubscriptionPanel';
 import BillingInvoiceModal from '../../components/BillingInvoiceModal';
@@ -99,7 +100,10 @@ export default function BillingPage() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-3">
           <TopBarBrand title="Billing" />
-          <ProfileDropdown />
+          <div className="flex items-center gap-3">
+            <GlobalSearch />
+            <ProfileDropdown />
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">

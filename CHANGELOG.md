@@ -2,6 +2,16 @@
 
 This document tracks all significant changes to the Bisonstechs ERP system.
 
+## 2026-09-22
+
+### Global Page Search in the Top Header (all modules)
+- **Added**: `lib/global-search.ts` — registry of 137 pages (Main menu, Accounting, Sales, Purchases, Warehouse, Manufacturing, HR, Tax, POS) with search aliases, plus ranking (`scoreGlobalSearchPage` / `searchGlobalPages`), grouping and highlight helpers. Multi-word queries are supported ("sales inv", "acc rec", "purchase ord").
+- **Added**: `components/GlobalSearch.tsx` — a search icon in the header that expands into an animated panel anchored to the icon: a compact search field on top of a grouped result list. The panel opens below the icon and flips above when there is not enough space; it closes on outside click, on `Esc`, and after navigating to a page.
+- **Added**: Keyboard support — `⌘K` / `Ctrl+K` toggles search from anywhere, `↑` / `↓` move the highlight, `Enter` opens the highlighted page; every row shows the page path and the matched text is highlighted.
+- **Added**: The search icon is wired into every module and standalone header: Accounting, Sales, Purchases, Warehouse, Manufacturing, HR, Tax, Main Dashboard, Users, Support, Billing, POS hub, Products and Registered Users.
+- **Permission aware**: results are filtered with the same rules the module sidebars already use (`hasSubPageAccess`, admin-only pages, platform-owner pages) — no new permissions or APIs introduced.
+- **Note**: the POS cashier terminal top bar (`app/pos/components/POSLayout.tsx`) and the public marketing/auth pages keep their existing headers. Navigation-only change — no business logic touched.
+
 ## 2026-09-15
 
 ### Manufacturing — enterprise workspace, multi-line transactions, inventory posting

@@ -19,6 +19,7 @@ import { supplierService, Supplier } from '../api/supplier/route';
 import { settingService } from '../api/settings/route';
 import { ProductTaxFields } from '../../components/TaxRateSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
+import GlobalSearch from '../../components/GlobalSearch';
 import { usePermissions } from '../../lib/usePermissions';
 import { useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 import { BarcodeScannerModal } from '@/lib/barcode-scanner-modal';
@@ -1884,6 +1885,10 @@ const fetchDropdowns = async () => {
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4 text-[#014582]" />
             </div>
+
+            <div className="w-px h-6 bg-gray-200" />
+
+            <GlobalSearch />
 
             <div className="w-px h-6 bg-gray-200" />
 

@@ -5,6 +5,7 @@ import { Factory, Headset, Phone } from 'lucide-react';
 import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
+import GlobalSearch from '../../components/GlobalSearch';
 import { LocationProvider } from '@/lib/location-context';
 import { FiscalYearProvider } from '@/lib/fiscal-year-context';
 import { usePermissions } from '@/lib/usePermissions';
@@ -57,6 +58,8 @@ export default function ManufacturingLayout({ children }: { children: React.Reac
                 <Headset className="w-4 h-4" />
                 <span>Support</span>
               </button>
+              <div className="w-px h-6 bg-gray-200" />
+              <GlobalSearch />
               <div className="w-px h-6 bg-gray-200" />
               <ProfileDropdown accentClassName="bg-[#014582]" />
             </div>

@@ -128,6 +128,16 @@ This document tracks the current implementation status of all modules and featur
 
 **Integration**: Integrated with Sales, Purchases, Accounting modules
 
+### Global Page Search (App Header) ✅
+**Status**: Fully Implemented
+- **Search icon in every app header**: Accounting, Sales, Purchases, Warehouse, Manufacturing, HR, Tax, Main Dashboard, Users, Support, Billing, POS hub, Products, Registered Users
+- **Animated panel anchored to the icon**: compact search bar + grouped result list; opens below the icon and flips above when there is not enough room, closes on outside click, Esc, or after navigating
+- **Every page searchable**: 137 registered routes in `lib/global-search.ts` (with aliases such as `coa`, `salary`, `pnl`, `grn`, `aging`)
+- **Keyboard support**: `⌘K` / `Ctrl+K` toggles search from anywhere, `↑`/`↓` move the highlight, `Enter` opens the highlighted page
+- **Permission aware**: results are filtered with the same sidebar rules (`hasSubPageAccess`, admin-only pages, platform-owner pages) — no new permissions added
+
+**Notes**: The POS cashier terminal top bar (`app/pos/components/POSLayout.tsx`) and the public marketing/auth pages keep their existing headers (nav only — no business logic touched).
+
 ## In Progress Modules
 
 ### Manufacturing Module 🚧

@@ -17,6 +17,7 @@ import { MainHubSidebar } from '../../components/MainHubSidebar';
 import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
+import GlobalSearch from '../../components/GlobalSearch';
 import { usePermissions } from '../../lib/usePermissions';
 import { getDesktopDownloadUrl, hasDesktopDownload } from '../../lib/desktop-app-download';
 import { fetchPosSettings } from '../../lib/pos-settings-service';
@@ -122,7 +123,10 @@ export default function POSLandingPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
           <TopBarBrand title="Point of Sale" />
-          <ProfileDropdown />
+          <div className="flex items-center gap-3">
+            <GlobalSearch />
+            <ProfileDropdown />
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-6 md:p-10">

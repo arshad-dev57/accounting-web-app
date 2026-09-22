@@ -301,25 +301,29 @@ export function PurchaseInvoicesPage() {
   const buildLineDraftsFromSources = (sources: (GRNSource | POSource)[]) => {
     const lineDrafts = sources.flatMap((source) => {
       const items = source.items || [];
-      return items.map((item: any) => ({
-        productId: item.productId || '',
-        productName: item.productName || '',
-        sku: item.sku || '',
-        purchaseOrderItemId: item.purchaseOrderItemId || null,
-        quantity: item.quantity || item.receivingQuantity || 0,
-        unitPrice: item.unitPrice || item.costPrice || 0,
-        discount: item.discount || 0,
-        taxRate: item.taxRate || 0,
-        totalReceivedOnPoLine: item.totalReceivedOnPoLine,
-        totalReturnedOnPoLine: item.totalReturnedOnPoLine,
-        previouslyInvoiced: item.previouslyInvoiced,
-        subtotal: 0,
-        discountAmount: 0,
-        taxableAmount: 0,
-        taxAmount: 0,
-        lineTotal: 0,
-        notes: item.notes || null
-      }));
+      return items.map((item: any) => {
+        const receivedQty = Number(item.quantity ?? item.receivingQuantity ?? 0);
+        return {
+          productId: item.productId || '',
+          productName: item.productName || '',
+          sku: item.sku || '',
+          purchaseOrderItemId: item.purchaseOrderItemId || null,
+          quantity: receivedQty,
+          maxQuantity: receivedQty,
+          unitPrice: item.unitPrice || item.costPrice || 0,
+          discount: item.discount || 0,
+          taxRate: item.taxRate || 0,
+          totalReceivedOnPoLine: item.totalReceivedOnPoLine,
+          totalReturnedOnPoLine: item.totalReturnedOnPoLine,
+          previouslyInvoiced: item.previouslyInvoiced,
+          subtotal: 0,
+          discountAmount: 0,
+          taxableAmount: 0,
+          taxAmount: 0,
+          lineTotal: 0,
+          notes: item.notes || null
+        };
+      });
     });
 
     return lineDrafts.map((line: any) => {

@@ -27,6 +27,7 @@ import ProfileDropdown from '../../components/ProfileDropdown';
 import FiscalYearSelect from '../../components/FiscalYearSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
+import GlobalSearch from '../../components/GlobalSearch';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 import ModuleViewHost from '../../components/ModuleViewHost';
@@ -159,6 +160,8 @@ export default function TaxLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4 text-[#014582]" />
             </div>
+            <div className="w-px h-6 bg-gray-200" />
+            <GlobalSearch />
             <div className="w-px h-6 bg-gray-200" />
             <ProfileDropdown accentClassName="bg-[#091746]" />
           </div>

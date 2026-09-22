@@ -23,6 +23,7 @@ import {
 import { usePermissions } from '../../lib/usePermissions';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
+import GlobalSearch from '../../components/GlobalSearch';
 
 function statusColor(status: string) {
   switch (status) {
@@ -194,6 +195,8 @@ export default function SupportTicketsPage() {
             >
               <RefreshCw className="w-4 h-4" />
             </button>
+            <GlobalSearch />
+            <div className="w-px h-6 bg-gray-200" />
             <ProfileDropdown accentClassName="bg-[#014582]" />
           </div>
         </header>

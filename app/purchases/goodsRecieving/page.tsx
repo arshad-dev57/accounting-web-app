@@ -86,9 +86,14 @@ export function GoodsReceivingPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
 
-  const totalReceivingQuantity = wizardState.lineDrafts.reduce((sum, line) => sum + line.receivingQuantity, 0);
+  const totalReceivingQuantity = wizardState.lineDrafts.reduce(
+    (sum, line) => sum + (Number(line.receivingQuantity) || 0),
+    0
+  );
   const canGoToStep2 = wizardState.selectedOrders.length > 0;
-  const canGoToStep3 = wizardState.lineDrafts.some(line => line.receivingQuantity > 0);
+  const canGoToStep3 = wizardState.lineDrafts.some(
+    (line) => Number(line.receivingQuantity) > 0
+  );
 
 
   const fetchGRNs = useCallback(async (resetPage = true) => {
@@ -243,7 +248,7 @@ export function GoodsReceivingPage() {
         orderedQuantity: item.quantity,
         remainingQuantity: item.remainingQuantity,
         alreadyReceived: item.alreadyReceived,
-        receivingQuantity: 0,
+        receivingQuantity: 0 as any,
         unitPrice: item.unitPrice,
         unit: item.unit || 'Pcs',
       }))
@@ -313,11 +318,24 @@ export function GoodsReceivingPage() {
     void searchOrders('');
   };
 
-  const updateReceivingQuantity = (index: number, quantity: number) => {
+  const updateReceivingQuantity = (index: number, quantity: number | string) => {
     setWizardState((prev: WizardState) => {
       const newDrafts = [...prev.lineDrafts];
       const line = newDrafts[index];
-      line.receivingQuantity = Math.max(0, Math.min(quantity, line.remainingQuantity));
+
+      // Empty string allow karo (cut / clear / paste ke liye)
+      if (quantity === '' || quantity === null || quantity === undefined) {
+        (line as any).receivingQuantity = '';
+        return { ...prev, lineDrafts: newDrafts };
+      }
+
+      const num = Number(quantity);
+      if (isNaN(num)) return prev;
+
+      (line as any).receivingQuantity = Math.max(
+        0,
+        Math.min(num, line.remainingQuantity)
+      );
       return { ...prev, lineDrafts: newDrafts };
     });
   };
@@ -358,7 +376,9 @@ export function GoodsReceivingPage() {
       return;
     }
 
-    const selectedItems = wizardState.lineDrafts.filter(line => line.receivingQuantity > 0);
+    const selectedItems = wizardState.lineDrafts.filter(
+      (line) => Number(line.receivingQuantity) > 0
+    );
     if (selectedItems.length === 0) {
       alert('Please enter receiving quantity for at least one item');
       return;
@@ -368,7 +388,7 @@ export function GoodsReceivingPage() {
     try {
       const items = selectedItems.map(line => ({
         purchaseOrderItemId: line.purchaseOrderItemId,
-        receivingQuantity: line.receivingQuantity
+        receivingQuantity: Number(line.receivingQuantity) || 0,
       }));
 
       await goodsReceivingService.createGRN({
@@ -449,7 +469,7 @@ export function GoodsReceivingPage() {
 
       const pdfBlob = await PDFService.generateGoodsReceivingPDFBlob(grn);
       await EmailService.sendPurchaseOrderEmail(grn, pdfBlob);
-      
+
       alert('GRN sent successfully!');
     } catch (error: any) {
       console.error('Failed to send GRN email:', error);
@@ -640,11 +660,10 @@ export function GoodsReceivingPage() {
               <button
                 key={filter}
                 onClick={() => handleFilterChange(filter)}
-                className={`px-2.5 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-all ${
-                  selectedFilter === filter
-                    ? 'bg-[#014582] text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                className={`px-2.5 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-all ${selectedFilter === filter
+                  ? 'bg-[#014582] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
               >
                 {filter === 'Partially Received' ? 'Partial' : filter.charAt(0).toUpperCase() + filter.slice(1)}
               </button>
@@ -702,9 +721,9 @@ export function GoodsReceivingPage() {
                             {grn.totalCumulativeReceivedQty || grn.totalReceivedQty}/{grn.totalOrderedQty}
                           </p>
                           <div className="w-16 md:w-20 h-1.5 bg-gray-200 rounded-full mt-1">
-                            <div 
+                            <div
                               className="h-full rounded-full transition-all"
-                              style={{ 
+                              style={{
                                 width: `${Math.min(100, (((grn.totalCumulativeReceivedQty || grn.totalReceivedQty) / grn.totalOrderedQty) * 100))}%`,
                                 backgroundColor: grn.status === 'Fully Received' ? '#22c55e' : grn.status === 'Partially Received' ? '#3b82f6' : '#f59e0b'
                               }}
@@ -972,9 +991,8 @@ function CreateGRNWizard({
         {[0, 1, 2].map((step) => (
           <div key={step} className="flex items-center flex-1">
             <div className={`flex items-center gap-1 md:gap-2 ${wizardState.step >= step ? 'text-[#014582]' : 'text-gray-300'}`}>
-              <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs md:text-sm font-bold border-2 ${
-                wizardState.step >= step ? 'border-[#014582] bg-[#014582]/10' : 'border-gray-300'
-              }`}>
+              <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs md:text-sm font-bold border-2 ${wizardState.step >= step ? 'border-[#014582] bg-[#014582]/10' : 'border-gray-300'
+                }`}>
                 {step + 1}
               </div>
               <span className="text-[10px] md:text-sm font-medium hidden sm:inline">
@@ -1095,11 +1113,26 @@ function CreateGRNWizard({
                     <div className="flex-1 min-w-[100px]">
                       <label className="text-[10px] text-gray-500">Receiving Qty</label>
                       <input
-                        type="number"
-                        min="0"
-                        max={line.remainingQuantity}
-                        value={line.receivingQuantity}
-                        onChange={(e) => updateReceivingQuantity(index, parseInt(e.target.value) || 0)}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={line.receivingQuantity as any}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/[^0-9]/g, '');
+                          if (raw === '') {
+                            updateReceivingQuantity(index, '');
+                            return;
+                          }
+                          const num = parseInt(raw, 10);
+                          if (num > line.remainingQuantity) {
+                            updateReceivingQuantity(index, line.remainingQuantity);
+                            return;
+                          }
+                          updateReceivingQuantity(index, num);
+                        }}
+                        onBlur={(e) => {
+                          if (e.target.value === '') updateReceivingQuantity(index, 0);
+                        }}
                         className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                       />
                     </div>
@@ -1265,7 +1298,7 @@ function GRNDetailModal({
     notes: grn.notes || '',
     items: (grn.items || []).map((item: any) => ({
       purchaseOrderItemId: item.purchaseOrderItemId,
-      receivingQuantity: item.receivingQuantity,
+      receivingQuantity: item.receivingQuantity as any,
       notes: item.notes || '',
       productName: item.productName,
       sku: item.sku,
@@ -1286,7 +1319,7 @@ function GRNDetailModal({
       notes: grn.notes || '',
       items: (grn.items || []).map((item: any) => ({
         purchaseOrderItemId: item.purchaseOrderItemId,
-        receivingQuantity: item.receivingQuantity,
+        receivingQuantity: item.receivingQuantity as any,
         notes: item.notes || '',
         productName: item.productName,
         sku: item.sku,
@@ -1302,20 +1335,20 @@ function GRNDetailModal({
 
   const supplier = grn.supplier
     ? {
-        ...grn.supplier,
-        name: grn.supplier.name || grn.supplierName,
-      }
+      ...grn.supplier,
+      name: grn.supplier.name || grn.supplierName,
+    }
     : {
-        name: grn.supplierName,
-        email: grn.supplierEmail,
-        phone: grn.supplierPhone,
-        address: grn.supplierAddress,
-        city: grn.supplierCity,
-        country: grn.supplierCountry,
-        contactPerson: grn.supplierContactPerson,
-        paymentTerms: grn.supplierPaymentTerms,
-        gstNumber: grn.supplierGstNumber,
-      };
+      name: grn.supplierName,
+      email: grn.supplierEmail,
+      phone: grn.supplierPhone,
+      address: grn.supplierAddress,
+      city: grn.supplierCity,
+      country: grn.supplierCountry,
+      contactPerson: grn.supplierContactPerson,
+      paymentTerms: grn.supplierPaymentTerms,
+      gstNumber: grn.supplierGstNumber,
+    };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
@@ -1417,43 +1450,59 @@ function GRNDetailModal({
                           <> · Previously received: {item.previouslyReceivedQty}</>
                         )}
                         {' · '}
-                        Total received: {item.totalReceivedQty ?? ((item.previouslyReceivedQty ?? 0) + (item.receivingQuantity ?? 0))}
+                        Total received: {item.totalReceivedQty ?? ((item.previouslyReceivedQty ?? 0) + (Number(item.receivingQuantity) || 0))}
                         {(item.returnedQuantity ?? 0) > 0 && (
                           <> · Returned: {item.returnedQuantity}</>
                         )}
                         {(item.returnedQuantity ?? 0) > 0 && (
-                          <> · Net from GRN: {item.netReceivedQty ?? Math.max(0, (item.receivingQuantity ?? 0) - (item.returnedQuantity ?? 0))}</>
+                          <> · Net from GRN: {item.netReceivedQty ?? Math.max(0, (Number(item.receivingQuantity) || 0) - (item.returnedQuantity ?? 0))}</>
                         )}
                         {' · '}
-                        Remaining: {item.remainingQuantity ?? Math.max(0, (item.orderedQuantity ?? 0) - ((item.previouslyReceivedQty ?? 0) + (item.receivingQuantity ?? 0)))}
+                        Remaining: {item.remainingQuantity ?? Math.max(0, (item.orderedQuantity ?? 0) - ((item.previouslyReceivedQty ?? 0) + (Number(item.receivingQuantity) || 0)))}
                       </p>
                     </div>
                     {editing ? (
                       <div className="w-24 flex-shrink-0">
                         <label className="text-[10px] text-gray-500">Qty</label>
                         <input
-                          type="number"
-                          min="1"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           className="w-full rounded border px-2 py-1 text-sm"
                           value={item.receivingQuantity}
                           onChange={(e) => {
-                            const qty = parseInt(e.target.value) || 0;
+                            const raw = e.target.value.replace(/[^0-9]/g, '');
                             setForm((p) => ({
                               ...p,
                               items: p.items.map((row: any, i: number) =>
-                                i === index ? { ...row, receivingQuantity: qty } : row
+                                i === index
+                                  ? {
+                                    ...row,
+                                    receivingQuantity:
+                                      raw === '' ? '' : parseInt(raw, 10),
+                                  }
+                                  : row
                               ),
                             }));
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value === '') {
+                              setForm((p) => ({
+                                ...p,
+                                items: p.items.map((row: any, i: number) =>
+                                  i === index ? { ...row, receivingQuantity: 0 } : row
+                                ),
+                              }));
+                            }
                           }}
                         />
                       </div>
                     ) : (
-                      <div className={`text-xs font-semibold px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${
-                        item.isFullyReceived ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                      }`}>
+                      <div className={`text-xs font-semibold px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${item.isFullyReceived ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                        }`}>
                         {item.isFullyReceived
                           ? 'Complete'
-                          : `${item.totalReceivedQty ?? ((item.previouslyReceivedQty ?? 0) + (item.receivingQuantity ?? 0))}/${item.orderedQuantity}`}
+                          : `${item.totalReceivedQty ?? ((item.previouslyReceivedQty ?? 0) + (Number(item.receivingQuantity) || 0))}/${item.orderedQuantity}`}
                       </div>
                     )}
                   </div>
@@ -1518,7 +1567,7 @@ function GRNDetailModal({
                   notes: form.notes,
                   items: form.items.map((item: any) => ({
                     purchaseOrderItemId: item.purchaseOrderItemId,
-                    receivingQuantity: item.receivingQuantity,
+                    receivingQuantity: Number(item.receivingQuantity) || 0,
                     notes: item.notes || undefined,
                   })),
                 });
@@ -1613,7 +1662,6 @@ function ConfirmationModal({
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
 export default function ModuleRoutePlaceholder() {
   return null;
 }

@@ -34,6 +34,7 @@ import FiscalYearSelect from '../../components/FiscalYearSelect';
 import LocationSelect from '../../components/LocationSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
+import GlobalSearch from '../../components/GlobalSearch';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 import { LocationProvider } from '../../lib/location-context';
@@ -375,6 +376,10 @@ export default function PurchasesLayout({
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Phone className="w-4 h-4 text-[#00E676]" />
             </div>
+
+            <div className="w-px h-6 bg-gray-200" />
+
+            <GlobalSearch />
 
             <div className="w-px h-6 bg-gray-200" />
 

@@ -42,6 +42,7 @@ import FiscalYearSelect from '../../components/FiscalYearSelect';
 import LocationSelect from '../../components/LocationSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
+import GlobalSearch from '../../components/GlobalSearch';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 import { LocationProvider } from '../../lib/location-context';
@@ -71,7 +72,8 @@ function AccountingSidebar() {
     { path: '/accounting/dashboard', label: 'Dashboard', permission: 'dashboard' },
     { path: '/accounting/accounts', label: 'Chart of Accounts', permission: 'chart-of-accounts' },
     { path: '/accounting/bank-Accounts', label: 'Bank Accounts', permission: 'bank-accounts' },
-    { path: '/accounting/invoices', label: 'Invoices', permission: 'invoices' },
+    { path: '/sales/invoices', label: 'Sales Invoices', permission: 'invoices', iconKey: 'sales-invoices' },
+    { path: '/purchases/invoices', label: 'Purchase Invoices', permission: 'invoices', iconKey: 'purchase-invoices' },
     // { path: '/accounting/payments-received', label: 'Payments Received', permission: 'payments-received' },
     // { path: '/accounting/credit-notes', label: 'Credit Notes', permission: 'credit-notes' },
     { path: '/accounting/accounts-receivable', label: 'Accounts Receivable', permission: 'accounts-receivable' },
@@ -145,6 +147,8 @@ function AccountingSidebar() {
                   'chart-of-accounts': <Banknote className="w-4 h-4" />,
                   'bank-accounts': <Building2 className="w-4 h-4" />,
                   'invoices': <Receipt className="w-4 h-4" />,
+                  'sales-invoices': <Receipt className="w-4 h-4" />,
+                  'purchase-invoices': <FileText className="w-4 h-4" />,
                   'payments-received': <DollarSign className="w-4 h-4" />,
                   'credit-notes': <FileText className="w-4 h-4" />,
                   'accounts-receivable': <Users className="w-4 h-4" />,
@@ -169,7 +173,7 @@ function AccountingSidebar() {
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
                       }`}
                   >
-                    {iconMap[page.permission] || <FileText className="w-4 h-4" />}
+                    {iconMap[(page as any).iconKey || page.permission] || <FileText className="w-4 h-4" />}
                     <span>{page.label}</span>
                   </Link>
                 );
@@ -383,6 +387,10 @@ export default function AccountingLayout({
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Phone className="w-4 h-4 text-[#014582]" />
               </div>
+
+              <div className="w-px h-6 bg-gray-200" />
+
+              <GlobalSearch />
 
               <div className="w-px h-6 bg-gray-200" />
 

@@ -85,6 +85,7 @@ export interface PurchaseInvoiceLineDraft {
   totalReturnedOnPoLine?: number;
   previouslyInvoiced?: number;
   quantity: number | '';
+  maxQuantity?: number;
   unitPrice: number | '';
   discount: number | '';
   taxRate: number;
@@ -260,10 +261,8 @@ export interface CreateInvoiceRequest {
   notes?: string;
 }
 
-// ─── SERVICE ──────────────────────────────────────────────────
 
 export const purchaseInvoiceService = {
-  // ─── Get invoices with pagination and filters ──────────────
   getInvoices: async (params: {
     page?: number;
     limit?: number;
@@ -276,7 +275,7 @@ export const purchaseInvoiceService = {
     sortOrder?: 'asc' | 'desc';
   } = {}): Promise<PurchaseInvoiceListResponse> => {
     const query = new URLSearchParams();
-    
+
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
         query.append(key, String(value));
@@ -284,16 +283,16 @@ export const purchaseInvoiceService = {
     });
 
     const url = `/api/purchase/invoices${query.toString() ? `?${query.toString()}` : ''}`;
-    
+
     try {
       const response = await apiClient.get(url);
-      
+
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch purchase invoices');
       }
-      
+
       const data = response.data || {};
-      
+
       return {
         success: response.success,
         data: data.data || [],
@@ -324,13 +323,12 @@ export const purchaseInvoiceService = {
     }
   },
 
-  // ─── Search available source (GRN or PO) ────────────────────
   searchAvailableSource: async (sourceType: 'grn' | 'po', query: string, limit: number = 10): Promise<(GRNSource | POSource)[]> => {
     try {
-      const endpoint = sourceType === 'grn' 
+      const endpoint = sourceType === 'grn'
         ? `/api/purchase/invoices/available-grns?search=${encodeURIComponent(query)}&limit=${limit}`
         : `/api/purchase/invoices/available-pos?search=${encodeURIComponent(query)}&limit=${limit}`;
-      
+
       const response = await apiClient.get(endpoint);
       if (!response.success) {
         throw new Error(response.message || 'Failed to search source');
@@ -342,7 +340,6 @@ export const purchaseInvoiceService = {
     }
   },
 
-  // ─── Create invoice from GRN or PO (supports multi-source) ──
   createInvoice: async (data: CreateInvoiceRequest): Promise<PurchaseInvoiceModel> => {
     try {
       const multiGrn = (data.goodsReceivingIds || []).length > 1;
@@ -361,8 +358,6 @@ export const purchaseInvoiceService = {
       } else if ((data.purchaseOrderIds || []).length === 1 && !data.purchaseOrderId) {
         data = { ...data, purchaseOrderId: data.purchaseOrderIds![0] };
       }
-
-      // Prefer from-sources when caller explicitly sends arrays with items
       if ((data.goodsReceivingIds?.length || 0) + (data.purchaseOrderIds?.length || 0) > 1) {
         endpoint = '/api/purchase/invoices/from-sources';
       }
@@ -378,7 +373,6 @@ export const purchaseInvoiceService = {
     }
   },
 
-  // ─── Get invoice by ID ──────────────────────────────────────
   getInvoiceById: async (id: string): Promise<PurchaseInvoiceModel> => {
     try {
       const response = await apiClient.get(`/api/purchase/invoices/${id}`);
@@ -392,7 +386,6 @@ export const purchaseInvoiceService = {
     }
   },
 
-  // ─── Post invoice (create accounting entries) ──────────────
   postInvoice: async (id: string): Promise<PurchaseInvoiceModel> => {
     try {
       const response = await apiClient.post(`/api/purchase/invoices/${id}/post`);
@@ -406,7 +399,6 @@ export const purchaseInvoiceService = {
     }
   },
 
-  // ─── Cancel invoice ──────────────────────────────────────────
   cancelInvoice: async (id: string, reason: string): Promise<PurchaseInvoiceModel> => {
     try {
       const response = await apiClient.post(`/api/purchase/invoices/${id}/cancel`, { reason });
@@ -420,7 +412,6 @@ export const purchaseInvoiceService = {
     }
   },
 
-  // ─── Delete invoice ──────────────────────────────────────────
   deleteInvoice: async (id: string): Promise<void> => {
     try {
       const response = await apiClient.delete(`/api/purchase/invoices/${id}`);
@@ -433,7 +424,6 @@ export const purchaseInvoiceService = {
     }
   },
 
-  // ─── Update invoice ──────────────────────────────────────────
   updateInvoice: async (id: string, data: Partial<CreateInvoiceRequest>): Promise<PurchaseInvoiceModel> => {
     try {
       const response = await apiClient.put(`/api/purchase/invoices/${id}`, data);
@@ -447,20 +437,19 @@ export const purchaseInvoiceService = {
     }
   },
 
-  // ─── Get invoice stats ──────────────────────────────────────
   getInvoiceStats: async (params?: { startDate?: string; endDate?: string }): Promise<PurchaseInvoiceStats> => {
     try {
       const query = new URLSearchParams();
       if (params?.startDate) query.append('startDate', params.startDate);
       if (params?.endDate) query.append('endDate', params.endDate);
-      
+
       const url = `/api/purchase/invoices/stats${query.toString() ? `?${query.toString()}` : ''}`;
       const response = await apiClient.get(url);
-      
+
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch invoice stats');
       }
-      
+
       return response.data?.data || {
         todayCount: 0,
         todayAmount: 0,
@@ -479,7 +468,6 @@ export const purchaseInvoiceService = {
     }
   },
 
-  // ─── Get invoices by supplier ──────────────────────────────
   getInvoicesBySupplier: async (supplierId: string): Promise<PurchaseInvoiceModel[]> => {
     try {
       const response = await apiClient.get(`/api/purchase/invoices/supplier/${supplierId}`);
@@ -493,7 +481,6 @@ export const purchaseInvoiceService = {
     }
   },
 
-  // ─── Export invoices ─────────────────────────────────────────
   exportInvoices: async (params?: {
     format?: string;
     startDate?: string;
@@ -504,14 +491,14 @@ export const purchaseInvoiceService = {
       if (params?.format) query.append('format', params.format);
       if (params?.startDate) query.append('startDate', params.startDate);
       if (params?.endDate) query.append('endDate', params.endDate);
-      
+
       const url = `/api/purchase/invoices/export${query.toString() ? `?${query.toString()}` : ''}`;
       const response = await apiClient.get(url);
-      
+
       if (!response.success) {
         throw new Error(response.message || 'Failed to export invoices');
       }
-      
+
       return response.data?.data || response.data?.url || '';
     } catch (error: any) {
       console.error('Export invoices error:', error);

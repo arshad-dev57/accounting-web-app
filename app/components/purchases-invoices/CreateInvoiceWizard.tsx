@@ -295,7 +295,11 @@ export default function CreateInvoiceWizard({
   ) => {
     setWizardState((prev: any) => {
       const updated = [...prev.lineDrafts];
-      updated[index] = { ...updated[index], [field]: value };
+      let val = value;
+      if (field === 'quantity' && typeof val === 'number' && typeof updated[index]?.maxQuantity === 'number') {
+        val = Math.min(val, updated[index].maxQuantity);
+      }
+      updated[index] = { ...updated[index], [field]: val };
 
       const line = updated[index];
       const quantity = lineNumericValue(line.quantity);
@@ -495,16 +499,34 @@ export default function CreateInvoiceWizard({
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                       <div>
-                        <label className="text-xs text-gray-600">Qty</label>
+                        <div className="flex justify-between items-center text-xs text-gray-600 mb-1">
+                          <span>Qty</span>
+                          {typeof line.maxQuantity === 'number' && (
+                            <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              Max: {line.maxQuantity}
+                            </span>
+                          )}
+                        </div>
                         <input
                           type="number"
                           min="0"
+                          max={line.maxQuantity}
                           step="0.01"
                           value={displayNumericValue(line.quantity)}
                           onFocus={(e) => e.target.select()}
                           onChange={(e) => {
                             const parsed = parseNumericDraftInput(e.target.value);
-                            if (parsed !== null) updateLineDraft(index, 'quantity', parsed);
+                            if (parsed !== null) {
+                              let val = parsed;
+                              if (
+                                typeof val === 'number' &&
+                                typeof line.maxQuantity === 'number' &&
+                                val > line.maxQuantity
+                              ) {
+                                val = line.maxQuantity;
+                              }
+                              updateLineDraft(index, 'quantity', val);
+                            }
                           }}
                           onBlur={() => normalizeLineDraftField(index, 'quantity')}
                           className="w-full px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#014582] text-sm"

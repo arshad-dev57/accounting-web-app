@@ -834,11 +834,18 @@ export function AccountingDashboard() {
                 onClick={() => router.push('/accounting/expenses')}
               />
               <QuickAction
-                label="Invoice"
-                description="Create invoice"
+                label="Sales Invoices"
+                description="Manage sales invoices"
                 icon={Receipt}
                 color="bg-blue-50 text-blue-600"
-                onClick={() => router.push('/accounting/invoices')}
+                onClick={() => router.push('/sales/invoices')}
+              />
+              <QuickAction
+                label="Purchase Invoices"
+                description="Manage purchase invoices"
+                icon={FileText}
+                color="bg-[#014582]/10 text-[#014582]"
+                onClick={() => router.push('/purchases/invoices')}
               />
               <QuickAction
                 label="Customers"
