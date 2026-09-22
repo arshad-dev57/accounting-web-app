@@ -8,8 +8,10 @@ export interface PurchaseReturnModel {
   returnDate: string;
   supplierId: string;
   supplierName: string;
-  purchaseInvoiceId: string;
-  purchaseInvoiceNumber: string;
+  goodsReceivingId?: string;
+  grnNumber?: string;
+  purchaseInvoiceId?: string;
+  purchaseInvoiceNumber?: string;
   returnReason: string;
   status: 'Draft' | 'Processed' | 'Cancelled';
   notes?: string;
@@ -44,8 +46,11 @@ export interface PurchaseReturnItemModel {
   productId: string;
   productName: string;
   sku: string;
-  purchaseInvoiceId: string;
+  goodsReceivingId?: string;
+  goodsReceivingItemId?: string;
+  purchaseInvoiceId?: string;
   purchaseInvoiceItemId?: string;
+  receivedQuantity?: number;
   purchasedQuantity: number;
   previouslyReturned: number;
   availableQuantity: number;
@@ -60,11 +65,58 @@ export interface PurchaseReturnItemModel {
   notes?: string;
 }
 
+export interface GRNForReturn {
+  id: string;
+  grnNumber: string;
+  receivingDate: string;
+  supplierId: string;
+  supplierName: string;
+  purchaseOrderId?: string;
+  purchaseOrderNumber?: string;
+  purchaseOrderNumbers?: string;
+  status: string;
+  notes?: string;
+  locationName?: string;
+  totalItemsCount?: number;
+  totalAmount?: number;
+  totalReceivedQty?: number;
+  totalReturnedQty?: number;
+  totalAvailableReturnQty?: number;
+  linkedInvoice?: {
+    id: string;
+    invoiceNumber: string;
+    grandTotal: number;
+    invoiceStatus: string;
+    paymentStatus: string;
+    invoiceDate?: string;
+  } | null;
+  items: GRNItemForReturn[];
+  purchaseInvoices?: InvoiceForReturn[];
+}
+
+export interface GRNItemForReturn {
+  id: string;
+  goodsReceivingItemId?: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  receivingQuantity: number;
+  unitPrice: number;
+  previouslyReturned?: number;
+  availableReturnQty?: number;
+  unit?: string;
+  notes?: string;
+}
+
 export interface ReturnItemForForm {
   productId: string;
   productName: string;
   sku: string;
-  purchaseInvoiceItemId: string;
+  purchaseOrderId?: string;
+  purchaseOrderNumber?: string;
+  goodsReceivingItemId?: string;
+  purchaseInvoiceItemId?: string;
+  receivedQuantity?: number;
   purchasedQuantity: number;
   previouslyReturned: number;
   availableQuantity: number;
@@ -176,15 +228,18 @@ export interface PurchaseReturnListResponse {
 export interface CreateReturnRequest {
   supplierId: string;
   supplierName: string;
-  purchaseInvoiceId: string;
-  purchaseInvoiceNumber: string;
+  goodsReceivingId?: string;
+  grnNumber?: string;
+  purchaseInvoiceId?: string;
+  purchaseInvoiceNumber?: string;
   returnReason: string;
   notes?: string;
   items: Array<{
     productId: string;
     productName: string;
     sku: string;
-    purchaseInvoiceItemId: string;
+    goodsReceivingItemId?: string;
+    purchaseInvoiceItemId?: string;
     returnQuantity: number;
     isBoxBased: boolean;
     boxes: number;
@@ -193,6 +248,36 @@ export interface CreateReturnRequest {
     returnReason: string;
     notes?: string;
   }>;
+}
+
+export function normalizeReturnItemForForm(raw: Record<string, unknown>): ReturnItemForForm {
+  const availableQuantity = Math.max(0, Number(raw.availableQuantity ?? raw.availableReturnQty ?? 0));
+  const unitPrice = Number(raw.unitPrice ?? 0);
+
+  return {
+    productId: String(raw.productId ?? ''),
+    productName: String(raw.productName ?? ''),
+    sku: String(raw.sku ?? ''),
+    purchaseOrderId: raw.purchaseOrderId ? String(raw.purchaseOrderId) : undefined,
+    purchaseOrderNumber: raw.purchaseOrderNumber ? String(raw.purchaseOrderNumber) : undefined,
+    goodsReceivingItemId: raw.goodsReceivingItemId ? String(raw.goodsReceivingItemId) : String(raw.id ?? ''),
+    purchaseInvoiceItemId: raw.purchaseInvoiceItemId ? String(raw.purchaseInvoiceItemId) : undefined,
+    receivedQuantity: Number(raw.receivedQuantity ?? raw.receivingQuantity ?? 0),
+    purchasedQuantity: Number(raw.purchasedQuantity ?? raw.quantity ?? raw.receivingQuantity ?? 0),
+    previouslyReturned: Number(raw.previouslyReturned ?? 0),
+    availableQuantity,
+    unitPrice,
+    isBoxBased: Boolean(raw.isBoxBased),
+    boxQuantity: Number(raw.boxQuantity ?? 0),
+    boxUnitName: String(raw.boxUnitName ?? 'Box'),
+    returnReason: String(raw.returnReason ?? ''),
+    notes: raw.notes ? String(raw.notes) : undefined,
+    isSelected: false,
+    returnQuantity: 0,
+    boxes: 0,
+    quantityPerBox: 0,
+    lineTotal: 0,
+  };
 }
 
 // ─── SERVICE ──────────────────────────────────────────────────
@@ -269,7 +354,45 @@ export const purchaseReturnService = {
     }
   },
 
-  // ─── Get supplier invoices for return ──────────────────────
+  // ─── Get supplier GRNs for return (Primary) ──────────────────────
+  getSupplierGRNs: async (supplierId: string): Promise<GRNForReturn[]> => {
+    try {
+      const response = await apiClient.get(
+        `/api/purchase/returns/supplier/${supplierId}/grns`
+      );
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to fetch supplier GRNs');
+      }
+      return response.data?.data || [];
+    } catch (error: any) {
+      console.error('Get supplier GRNs error:', error);
+      throw new Error(error.message || 'Failed to fetch supplier GRNs');
+    }
+  },
+
+  // ─── Get GRN products for return (Primary) ──────────────────────
+  getGRNProducts: async (grnId: string): Promise<{ grn: GRNForReturn; linkedInvoice: InvoiceForReturn | null; products: ReturnItemForForm[] }> => {
+    try {
+      const response = await apiClient.get(
+        `/api/purchase/returns/grn/${grnId}/products`
+      );
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to fetch GRN products');
+      }
+      const data = response.data?.data || {};
+      const products = (data.products || []).map((item: Record<string, unknown>) => normalizeReturnItemForForm(item));
+      return {
+        grn: data.grn,
+        linkedInvoice: data.linkedInvoice || null,
+        products
+      };
+    } catch (error: any) {
+      console.error('Get GRN products error:', error);
+      throw new Error(error.message || 'Failed to fetch GRN products');
+    }
+  },
+
+  // ─── Get supplier invoices for return (Legacy) ──────────────────────
   getSupplierInvoices: async (supplierId: string): Promise<InvoiceForReturn[]> => {
     try {
       const response = await apiClient.get(
@@ -294,7 +417,8 @@ export const purchaseReturnService = {
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch invoice products');
       }
-      return response.data?.data?.products || [];
+      const products = response.data?.data?.products || [];
+      return products.map((item: Record<string, unknown>) => normalizeReturnItemForForm(item));
     } catch (error: any) {
       console.error('Get invoice products error:', error);
       throw new Error(error.message || 'Failed to fetch invoice products');

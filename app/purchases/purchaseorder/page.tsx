@@ -41,6 +41,39 @@ interface PurchaseOrderLineDraft {
   taxableAmount: number;
   taxAmount: number;
   lineTotal: number;
+  qtyInput?: string;
+  unitPriceInput?: string;
+  discountInput?: string;
+}
+
+function toNumber(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function resolveProductUnitPrice(product: Product | Record<string, unknown>): number {
+  const p = product as Record<string, unknown>;
+  for (const key of ['costPrice', 'landingCost', 'purchasePrice', 'unitPrice', 'sellingPrice']) {
+    const n = toNumber(p[key]);
+    if (n > 0) return n;
+  }
+  return 0;
+}
+
+function recalcLine(line: PurchaseOrderLineDraft): PurchaseOrderLineDraft {
+  const subtotal = line.quantity * line.unitPrice;
+  const discountAmount = subtotal * (line.discount / 100);
+  const taxableAmount = subtotal - discountAmount;
+  const taxAmount = taxableAmount * (line.taxRate / 100);
+  const lineTotal = taxableAmount + taxAmount;
+  return {
+    ...line,
+    subtotal,
+    discountAmount,
+    taxableAmount,
+    taxAmount,
+    lineTotal,
+  };
 }
 
 interface WizardState {
@@ -101,7 +134,6 @@ export function PurchaseOrdersPage() {
   const [orderToActOn, setOrderToActOn] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
 
-  // ─── Wizard State ─────────────────────────────────────────────
   const [wizardState, setWizardState] = useState<WizardState>({
     step: 0,
     selectedSupplier: null,
@@ -208,7 +240,6 @@ export function PurchaseOrdersPage() {
     setFilteredOrders(filtered);
   }, [orders, selectedFilter, searchTerm]);
 
-  // ─── Initial Fetch ──────────────────────────────────────────
 
   const fetchUserProfile = async () => {
     try {
@@ -267,8 +298,6 @@ export function PurchaseOrdersPage() {
     setPagination(prev => ({ ...prev, page }));
     fetchOrders(false);
   };
-
-  // ─── Wizard Functions ────────────────────────────────────────
 
   const openCreateWizard = () => {
     setEditingOrderId(null);
@@ -401,48 +430,40 @@ export function PurchaseOrdersPage() {
     setWizardState(prev => {
       const existingIndex = prev.lineDrafts.findIndex(line => line.productId === product.id);
       let newDrafts = [...prev.lineDrafts];
-      
+
       if (existingIndex !== -1) {
         const existing = newDrafts[existingIndex];
-        newDrafts[existingIndex] = {
+        const qty = existing.quantity + 1;
+        newDrafts[existingIndex] = recalcLine({
           ...existing,
-          quantity: existing.quantity + 1
-        };
+          quantity: qty,
+          qtyInput: existing.qtyInput !== undefined ? existing.qtyInput : String(qty),
+        });
       } else {
+        const unitPrice = resolveProductUnitPrice(product);
         const newLine: PurchaseOrderLineDraft = {
           productId: product.id,
           productName: product.name,
           sku: product.sku || '',
           quantity: 1,
-          unitPrice: product.costPrice || 0,
+          unitPrice,
           discount: 0,
           taxRate: product.taxRate || 0,
           subtotal: 0,
           discountAmount: 0,
           taxableAmount: 0,
           taxAmount: 0,
-          lineTotal: 0
+          lineTotal: 0,
+          qtyInput: '1',
+          unitPriceInput: unitPrice > 0 ? String(unitPrice) : '',
+          discountInput: '0',
         };
         newDrafts.push(newLine);
       }
-      
+
       // Recalculate line totals
-      newDrafts = newDrafts.map(line => {
-        const subtotal = line.quantity * line.unitPrice;
-        const discountAmount = subtotal * (line.discount / 100);
-        const taxableAmount = subtotal - discountAmount;
-        const taxAmount = taxableAmount * (line.taxRate / 100);
-        const lineTotal = taxableAmount + taxAmount;
-        return {
-          ...line,
-          subtotal,
-          discountAmount,
-          taxableAmount,
-          taxAmount,
-          lineTotal
-        };
-      });
-      
+      newDrafts = newDrafts.map(recalcLine);
+
       return { ...prev, lineDrafts: newDrafts, productSearchResults: [] };
     });
   };
@@ -455,34 +476,68 @@ export function PurchaseOrdersPage() {
     });
   };
 
-  const updateProductField = (index: number, field: keyof PurchaseOrderLineDraft, value: any) => {
+  const setLineInput = (
+    index: number,
+    inputField: 'qtyInput' | 'unitPriceInput' | 'discountInput',
+    raw: string,
+  ) => {
     setWizardState(prev => {
       const newDrafts = [...prev.lineDrafts];
-      const line = newDrafts[index];
-      
-      if (field === 'quantity' && value > 0) line.quantity = value;
-      else if (field === 'unitPrice' && value >= 0) line.unitPrice = value;
-      else if (field === 'discount' && value >= 0 && value <= 100) line.discount = value;
-      else if (field === 'taxRate' && value >= 0) line.taxRate = value;
-      
-      // Recalculate
-      const subtotal = line.quantity * line.unitPrice;
-      const discountAmount = subtotal * (line.discount / 100);
-      const taxableAmount = subtotal - discountAmount;
-      const taxAmount = taxableAmount * (line.taxRate / 100);
-      const lineTotal = taxableAmount + taxAmount;
-      
-      newDrafts[index] = {
-        ...line,
-        subtotal,
-        discountAmount,
-        taxableAmount,
-        taxAmount,
-        lineTotal
-      };
-      
+      const line = { ...newDrafts[index], [inputField]: raw };
+
+      if (raw !== '' && raw !== '.') {
+        const num = parseFloat(raw);
+        if (Number.isFinite(num)) {
+          if (inputField === 'qtyInput' && num > 0) line.quantity = num;
+          else if (inputField === 'unitPriceInput' && num >= 0) line.unitPrice = num;
+          else if (inputField === 'discountInput' && num >= 0 && num <= 100) line.discount = num;
+        }
+      }
+
+      newDrafts[index] = recalcLine(line);
       return { ...prev, lineDrafts: newDrafts };
     });
+  };
+
+  const commitLineInput = (
+    index: number,
+    inputField: 'qtyInput' | 'unitPriceInput' | 'discountInput',
+  ) => {
+    setWizardState(prev => {
+      const newDrafts = [...prev.lineDrafts];
+      const line = { ...newDrafts[index] };
+      const raw = line[inputField];
+      let num = parseFloat(raw ?? '');
+
+      if (inputField === 'qtyInput') {
+        if (!Number.isFinite(num) || num <= 0) num = 1;
+        line.quantity = num;
+        line.qtyInput = undefined;
+      } else if (inputField === 'unitPriceInput') {
+        if (!Number.isFinite(num) || num < 0) num = 0;
+        line.unitPrice = num;
+        line.unitPriceInput = undefined;
+      } else {
+        if (!Number.isFinite(num) || num < 0) num = 0;
+        if (num > 100) num = 100;
+        line.discount = num;
+        line.discountInput = undefined;
+      }
+
+      newDrafts[index] = recalcLine(line);
+      return { ...prev, lineDrafts: newDrafts };
+    });
+  };
+
+  const updateProductField = (index: number, field: keyof PurchaseOrderLineDraft, value: any) => {
+    if (field === 'taxRate') {
+      setWizardState(prev => {
+        const newDrafts = [...prev.lineDrafts];
+        const line = { ...newDrafts[index], taxRate: value };
+        newDrafts[index] = recalcLine(line);
+        return { ...prev, lineDrafts: newDrafts };
+      });
+    }
   };
 
   const nextStep = () => {
@@ -569,7 +624,6 @@ export function PurchaseOrdersPage() {
     }
   };
 
-  // ─── Order Actions ──────────────────────────────────────────
 
   const handleSendOrder = async (id: string) => {
     setSubmitting(true);
@@ -585,10 +639,7 @@ export function PurchaseOrdersPage() {
         phone: userProfile?.contactNo || userProfile?.phone || ''
       };
 
-      // Send email using the new reusable email service
       await EmailService.sendPurchaseOrderEmail(order, undefined, companyInfo);
-      
-      // Update order status
       await purchaseOrderService.sendOrder(id);
       setViewingOrder(null);
       fetchOrders(true);
@@ -603,7 +654,6 @@ export function PurchaseOrdersPage() {
   const handleSendOrderWithInvoice = async (order: PurchaseOrderModel) => {
     setSubmitting(true);
     try {
-      // Generate PDF blob using the new reusable PDF service
       const companyInfo = {
         name: userProfile?.organizationName || 'Your Company Name',
         address: userProfile?.address || '',
@@ -612,10 +662,8 @@ export function PurchaseOrdersPage() {
       };
       const pdfBlob = await PDFService.generatePurchaseOrderPDFBlob(order, companyInfo);
 
-      // Send email with PDF attachment using the new reusable email service
       await EmailService.sendPurchaseOrderEmail(order, pdfBlob, companyInfo);
-      
-      // Update order status
+
       await purchaseOrderService.sendOrder(order.id);
       setViewingOrder(null);
       fetchOrders(true);
@@ -632,7 +680,7 @@ export function PurchaseOrdersPage() {
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
-        resolve(base64String.split(',')[1]); // Remove data URL prefix
+        resolve(base64String.split(',')[1]); 
       };
       reader.onerror = reject;
       reader.readAsDataURL(blob);
@@ -725,15 +773,6 @@ export function PurchaseOrdersPage() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Draft': return <FileText className="w-4 h-4 text-orange-600" />;
-      case 'Sent': return <Send className="w-4 h-4 text-blue-600" />;
-      case 'Approved': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'Cancelled': return <Ban className="w-4 h-4 text-red-600" />;
-      default: return <Clock className="w-4 h-4 text-gray-600" />;
-    }
-  };
 
   const formatCurrency = (amount: number | undefined | null) => {
     if (amount === undefined || amount === null) return 'Rs. 0.00';
@@ -743,8 +782,6 @@ export function PurchaseOrdersPage() {
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
   };
-
-  // ─── RENDER ──────────────────────────────────────────────────
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -757,6 +794,8 @@ export function PurchaseOrdersPage() {
           searchProducts={searchProducts}
           addProductToOrder={addProductToOrder}
           removeProductFromOrder={removeProductFromOrder}
+          setLineInput={setLineInput}
+          commitLineInput={commitLineInput}
           updateProductField={updateProductField}
           nextStep={nextStep}
           previousStep={previousStep}
@@ -901,11 +940,10 @@ export function PurchaseOrdersPage() {
               <button
                 key={filter}
                 onClick={() => handleFilterChange(filter)}
-                className={`px-2.5 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-all ${
-                  selectedFilter === filter
-                    ? 'bg-[#014582] text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                className={`px-2.5 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-all ${selectedFilter === filter
+                  ? 'bg-[#014582] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
               >
                 {filter.charAt(0).toUpperCase() + filter.slice(1)}
               </button>
@@ -922,6 +960,7 @@ export function PurchaseOrdersPage() {
                     <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Supplier</th>
                     <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
                     <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Items</th>
+                    <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">GRN Received</th>
                     <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Date</th>
                     <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
@@ -930,14 +969,14 @@ export function PurchaseOrdersPage() {
                 <tbody>
                   {loading && orders.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-8 md:py-12">
+                      <td colSpan={8} className="text-center py-8 md:py-12">
                         <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                         <p className="mt-2 text-xs md:text-sm text-gray-500">Loading purchase orders...</p>
                       </td>
                     </tr>
                   ) : filteredOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-8 md:py-12 text-gray-400">
+                      <td colSpan={8} className="text-center py-8 md:py-12 text-gray-400">
                         <Receipt className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-3 text-gray-300" />
                         <p className="text-sm md:text-lg font-medium text-gray-500">No purchase orders found</p>
                         <p className="text-xs md:text-sm text-gray-400">Try adjusting your search or filters</p>
@@ -964,12 +1003,29 @@ export function PurchaseOrdersPage() {
                           </span>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3 hidden lg:table-cell">
+                          <div className="min-w-[88px]">
+                            <p className="text-xs md:text-sm font-semibold text-gray-800">
+                              {order.totalReceivedQty ?? 0}/{order.totalOrderedQty ?? order.totalItems ?? 0}
+                            </p>
+                            <p className="text-[10px] text-gray-400">
+                              {order.totalRemainingQty ?? 0} remaining
+                            </p>
+                            {(order.receivingProgress ?? 0) > 0 && (
+                              <div className="w-full h-1.5 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-[#014582]"
+                                  style={{ width: `${Math.min(100, (order.receivingProgress || 0) * 100)}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 md:px-6 py-2 md:py-3 hidden lg:table-cell">
                           <p className="text-xs md:text-sm text-gray-600">{formatDate(order.orderDate)}</p>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
-                          <span className={`text-[8px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full flex items-center gap-1 md:gap-1.5 w-fit ${getStatusColor(order.status)}`}>
-                            {getStatusIcon(order.status)}
-                            <span className="hidden xs:inline">{order.status}</span>
+                          <span className={`text-[8px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full w-fit ${getStatusColor(order.status)}`}>
+                            {order.status}
                           </span>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
@@ -1110,7 +1166,6 @@ export function PurchaseOrdersPage() {
           formatCurrency={formatCurrency}
           formatDate={formatDate}
           getStatusColor={getStatusColor}
-          getStatusIcon={getStatusIcon}
           submitting={submitting}
         />
       )}
@@ -1173,6 +1228,8 @@ function CreateOrderWizard({
   searchProducts,
   addProductToOrder,
   removeProductFromOrder,
+  setLineInput,
+  commitLineInput,
   updateProductField,
   nextStep,
   previousStep,
@@ -1238,9 +1295,8 @@ function CreateOrderWizard({
         {[0, 1, 2].map((step) => (
           <div key={step} className="flex items-center flex-1">
             <div className={`flex items-center gap-1 md:gap-2 ${wizardState.step >= step ? 'text-[#014582]' : 'text-gray-300'}`}>
-              <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs md:text-sm font-bold border-2 ${
-                wizardState.step >= step ? 'border-[#014582] bg-[#014582]/10' : 'border-gray-300'
-              }`}>
+              <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs md:text-sm font-bold border-2 ${wizardState.step >= step ? 'border-[#014582] bg-[#014582]/10' : 'border-gray-300'
+                }`}>
                 {step + 1}
               </div>
               <span className="text-[10px] md:text-sm font-medium hidden sm:inline">
@@ -1273,9 +1329,12 @@ function CreateOrderWizard({
                   className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
-              <button className="px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all whitespace-nowrap">
+              <Link
+                href="/purchases/suppliers"
+                className="px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all whitespace-nowrap inline-flex items-center justify-center"
+              >
                 + Add Supplier
-              </button>
+              </Link>
             </div>
 
             {wizardState.isSearchingSuppliers && (
@@ -1375,8 +1434,10 @@ function CreateOrderWizard({
                         <input
                           type="number"
                           min="1"
-                          value={line.quantity}
-                          onChange={(e) => updateProductField(index, 'quantity', parseInt(e.target.value) || 1)}
+                          step="any"
+                          value={line.qtyInput ?? String(line.quantity)}
+                          onChange={(e) => setLineInput(index, 'qtyInput', e.target.value)}
+                          onBlur={() => commitLineInput(index, 'qtyInput')}
                           className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                         />
                       </div>
@@ -1386,8 +1447,9 @@ function CreateOrderWizard({
                           type="number"
                           step="0.01"
                           min="0"
-                          value={line.unitPrice}
-                          onChange={(e) => updateProductField(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                          value={line.unitPriceInput ?? (line.unitPrice ? String(line.unitPrice) : '')}
+                          onChange={(e) => setLineInput(index, 'unitPriceInput', e.target.value)}
+                          onBlur={() => commitLineInput(index, 'unitPriceInput')}
                           className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                         />
                       </div>
@@ -1398,8 +1460,9 @@ function CreateOrderWizard({
                           step="0.1"
                           min="0"
                           max="100"
-                          value={line.discount}
-                          onChange={(e) => updateProductField(index, 'discount', parseFloat(e.target.value) || 0)}
+                          value={line.discountInput ?? String(line.discount)}
+                          onChange={(e) => setLineInput(index, 'discountInput', e.target.value)}
+                          onBlur={() => commitLineInput(index, 'discountInput')}
                           className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                         />
                       </div>
@@ -1578,7 +1641,6 @@ function OrderDetailModal({
   formatCurrency,
   formatDate,
   getStatusColor,
-  getStatusIcon,
   submitting
 }: any) {
   return (
@@ -1592,8 +1654,7 @@ function OrderDetailModal({
             <div>
               <h2 className="text-lg md:text-xl font-bold text-gray-900">{order.orderNumber}</h2>
               <div className="flex flex-wrap items-center gap-1 md:gap-2 mt-1">
-                <span className={`text-[10px] md:text-xs font-semibold px-2 md:px-2.5 py-0.5 md:py-1 rounded-full flex items-center gap-1 md:gap-1.5 ${getStatusColor(order.status)}`}>
-                  {getStatusIcon(order.status)}
+                <span className={`text-[10px] md:text-xs font-semibold px-2 md:px-2.5 py-0.5 md:py-1 rounded-full ${getStatusColor(order.status)}`}>
                   {order.status}
                 </span>
                 <span className="text-[10px] md:text-xs text-gray-400">•</span>
@@ -1662,6 +1723,13 @@ function OrderDetailModal({
                 <Package className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
                 {order.totalItems || 0} items
               </p>
+              {(order.totalReceivedQty ?? 0) > 0 || (order.receivingStatus && order.receivingStatus !== 'Not Received') ? (
+                <p className="text-xs md:text-sm text-[#014582] flex items-center gap-2 mt-0.5">
+                  <Truck className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  GRN: {order.totalReceivedQty ?? 0}/{order.totalOrderedQty ?? order.totalItems ?? 0} received
+                  · {order.totalRemainingQty ?? 0} remaining
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -1691,9 +1759,18 @@ function OrderDetailModal({
                   <div className="flex-1 min-w-0">
                     <p className="text-xs md:text-sm font-medium text-gray-800 truncate">{item.productName}</p>
                     <p className="text-[10px] md:text-xs text-gray-400">
-                      SKU: {item.sku} • Qty: {item.quantity}
-                      {item.discount > 0 && ` • Disc: ${item.discount}%`}
-                      {item.taxRate > 0 && ` • Tax: ${item.taxRate}%`}
+                      SKU: {item.sku} · Ordered: {item.quantity}
+                      {item.discount > 0 && ` · Disc: ${item.discount}%`}
+                      {item.taxRate > 0 && ` · Tax: ${item.taxRate}%`}
+                    </p>
+                    <p className="text-[10px] md:text-xs mt-0.5">
+                      <span className="text-emerald-700 font-medium">
+                        Received: {item.receivedQuantity ?? 0}
+                      </span>
+                      <span className="text-gray-400"> · </span>
+                      <span className="text-amber-700 font-medium">
+                        Remaining: {item.remainingQuantity ?? Math.max(0, (item.quantity || 0) - (item.receivedQuantity || 0))}
+                      </span>
                     </p>
                   </div>
                   <p className="text-xs md:text-sm font-semibold text-[#014582] ml-2">{formatCurrency(item.lineTotal)}</p>
@@ -1793,10 +1870,6 @@ function OrderDetailModal({
     </div>
   );
 }
-
-// ═══════════════════════════════════════════════════════════════
-// CONFIRMATION MODAL
-// ═══════════════════════════════════════════════════════════════
 
 function ConfirmationModal({
   title,

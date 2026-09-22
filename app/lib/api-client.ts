@@ -17,6 +17,7 @@ class ApiClient {
   private token: string | null = null;
   private refreshToken: string | null = null;
   private isRefreshing = false;
+  private tokenSyncInFlight: Promise<boolean> | null = null;
   private pendingRequests: Array<{
     resolve: (value: string) => void;
     reject: (reason?: any) => void;
@@ -37,7 +38,7 @@ class ApiClient {
     // Request interceptor
     this.client.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
-        const token = this.getToken();
+        const token = await this.ensureAuthToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -191,6 +192,43 @@ class ApiClient {
     return this.token;
   }
 
+  /** Restore localStorage token from httpOnly session cookie when missing. */
+  private async syncTokenFromSession(): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+    if (this.getToken()) return true;
+    if (this.tokenSyncInFlight) return this.tokenSyncInFlight;
+
+    this.tokenSyncInFlight = (async () => {
+      try {
+        const res = await fetch('/api/auth/session-token', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        if (!res.ok) return false;
+        const data = await res.json();
+        if (data?.success && data.token) {
+          this.setTokens(data.token, data.refreshToken || '');
+          return true;
+        }
+        return false;
+      } catch {
+        return false;
+      } finally {
+        this.tokenSyncInFlight = null;
+      }
+    })();
+
+    return this.tokenSyncInFlight;
+  }
+
+  private async ensureAuthToken(): Promise<string | null> {
+    let token = this.getToken();
+    if (token) return token;
+    const synced = await this.syncTokenFromSession();
+    if (synced) token = this.getToken();
+    return token;
+  }
+
   // ========== HTTP METHODS ==========
   async get(endpoint: string, requiresAuth: boolean = true): Promise<ApiResponse> {
     return this.request('GET', endpoint, null, requiresAuth);
@@ -239,10 +277,9 @@ class ApiClient {
         return this.processResponse(response);
       }
 
-      // Ensure token is loaded
-      const token = this.getToken();
+      // Ensure token is loaded (localStorage or httpOnly cookie sync)
+      const token = await this.ensureAuthToken();
       if (!token) {
-        console.warn('🔴 No token available for authenticated request');
         return {
           statusCode: 401,
           data: null,

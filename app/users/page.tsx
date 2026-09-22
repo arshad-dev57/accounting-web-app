@@ -114,7 +114,6 @@ export default function UsersDashboard() {
         return;
       }
     } catch {
-      /* proceed — backend will enforce */
     }
     setEditingUser(null);
     setFormOpen(true);
@@ -445,8 +444,8 @@ export default function UsersDashboard() {
           <button
             onClick={() => setActiveTab('users')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeTab === 'users'
-                ? 'bg-[#ff6b6b]/20 text-[#ff9999]'
-                : 'text-white/60 hover:text-white hover:bg-white/5'
+              ? 'bg-[#ff6b6b]/20 text-[#ff9999]'
+              : 'text-white/60 hover:text-white hover:bg-white/5'
               }`}
           >
             <Users className="w-4 h-4" />
@@ -456,8 +455,8 @@ export default function UsersDashboard() {
           <button
             onClick={() => setActiveTab('permissions')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeTab === 'permissions'
-                ? 'bg-[#ff6b6b]/20 text-[#ff9999]'
-                : 'text-white/60 hover:text-white hover:bg-white/5'
+              ? 'bg-[#ff6b6b]/20 text-[#ff9999]'
+              : 'text-white/60 hover:text-white hover:bg-white/5'
               }`}
           >
             <Key className="w-4 h-4" />

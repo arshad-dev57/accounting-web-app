@@ -447,41 +447,103 @@ export const createPurchaseOrderPDFData = (
   currency: 'PKR'
 });
 
+function formatPartyAddress(value: any): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  return [
+    value.street,
+    value.addressLine1,
+    value.line1,
+    value.address,
+    value.city,
+    value.state,
+    value.postalCode || value.zip,
+    value.country,
+  ]
+    .map((part) => (part == null ? '' : String(part).trim()))
+    .filter(Boolean)
+    .filter((part, i, arr) => arr.indexOf(part) === i)
+    .join(', ');
+}
+
 export const createInvoicePDFData = (
   invoiceData: any,
   companyInfo: CompanyInfo
 ): PDFGeneratorData => ({
   company: companyInfo,
   recipient: {
-    name: invoiceData.customerName || invoiceData.supplierName,
-    address: invoiceData.customerAddress || invoiceData.supplierAddress,
-    phone: invoiceData.customerPhone || invoiceData.supplierPhone,
-    email: invoiceData.customerEmail || invoiceData.supplierEmail
+    name: invoiceData.customerName || invoiceData.supplierName || invoiceData.customer?.name || invoiceData.supplier?.name || '—',
+    address: formatPartyAddress(
+      invoiceData.customerAddress ||
+        invoiceData.supplierAddress ||
+        invoiceData.billingAddress ||
+        invoiceData.customer?.address ||
+        invoiceData.supplier?.address
+    ),
+    phone: invoiceData.customerPhone || invoiceData.supplierPhone || invoiceData.customer?.phone || invoiceData.supplier?.phone,
+    email: invoiceData.customerEmail || invoiceData.supplierEmail || invoiceData.customer?.email || invoiceData.supplier?.email,
   },
   metadata: {
     documentNumber: invoiceData.invoiceNumber,
     documentDate: invoiceData.invoiceDate,
     dueDate: invoiceData.dueDate,
-    documentType: 'Invoice'
+    documentType: 'Invoice',
   },
-  items: invoiceData.items.map((item: any) => ({
+  items: (invoiceData.items || []).map((item: any) => ({
+    name: item.productName || item.product?.name || 'Item',
+    sku: item.sku || item.product?.sku,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+    discount: item.discount,
+    taxRate: item.taxRate,
+    lineTotal: item.lineTotal,
+  })),
+  totals: {
+    subtotal: invoiceData.subtotal || 0,
+    totalDiscount: invoiceData.totalDiscount ?? invoiceData.discountTotal ?? 0,
+    totalTax: invoiceData.totalTax ?? invoiceData.taxTotal ?? 0,
+    grandTotal: invoiceData.grandTotal || 0,
+  },
+  notes: invoiceData.notes,
+  termsConditions: invoiceData.termsConditions,
+  currency: 'PKR',
+});
+
+export const createQuotationPDFData = (
+  quotationData: any,
+  companyInfo: CompanyInfo
+): PDFGeneratorData => ({
+  company: companyInfo,
+  recipient: {
+    name: quotationData.customerName || 'Customer',
+    address: formatPartyAddress(quotationData.customerAddress || quotationData.billingAddress),
+    phone: quotationData.customerPhone,
+    email: quotationData.customerEmail,
+  },
+  metadata: {
+    documentNumber: quotationData.quotationNumber,
+    documentDate: quotationData.quotationDate,
+    dueDate: quotationData.validUntil,
+    documentType: 'Quotation',
+  },
+  items: (quotationData.items || []).map((item: any) => ({
     name: item.productName,
     sku: item.sku,
     quantity: item.quantity,
     unitPrice: item.unitPrice,
     discount: item.discount,
     taxRate: item.taxRate,
-    lineTotal: item.lineTotal
+    lineTotal: item.lineTotal,
   })),
   totals: {
-    subtotal: invoiceData.subtotal || 0,
-    totalDiscount: invoiceData.totalDiscount || 0,
-    totalTax: invoiceData.totalTax || 0,
-    grandTotal: invoiceData.grandTotal || 0
+    subtotal: quotationData.subtotal || 0,
+    totalDiscount: quotationData.totalDiscount ?? 0,
+    totalTax: quotationData.totalTax ?? 0,
+    grandTotal: quotationData.grandTotal || 0,
   },
-  notes: invoiceData.notes,
-  termsConditions: invoiceData.termsConditions,
-  currency: 'PKR'
+  notes: quotationData.notes,
+  termsConditions: quotationData.termsConditions,
+  currency: 'PKR',
 });
 
 export const createGoodsReceivingPDFData = (

@@ -80,9 +80,13 @@ export interface PurchaseInvoiceLineDraft {
   productId: string;
   productName: string;
   sku: string;
-  quantity: number;
-  unitPrice: number;
-  discount: number;
+  purchaseOrderItemId?: string | null;
+  totalReceivedOnPoLine?: number;
+  totalReturnedOnPoLine?: number;
+  previouslyInvoiced?: number;
+  quantity: number | '';
+  unitPrice: number | '';
+  discount: number | '';
   taxRate: number;
   subtotal: number;
   discountAmount: number;
@@ -138,7 +142,11 @@ export interface AccountsPayable {
 
 export interface GRNSource {
   id: string;
+  goodsReceivingIds?: string[];
   grnNumber: string;
+  grnNumbers?: string;
+  grnCount?: number;
+  isConsolidated?: boolean;
   purchaseOrderId?: string;
   purchaseOrderNumber?: string;
   supplierId: string;

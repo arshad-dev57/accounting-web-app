@@ -33,6 +33,7 @@ export interface GoodsReceivingModel {
   canDelete?: boolean;
   totalItems: number;
   totalReceivedQty: number;
+  totalCumulativeReceivedQty?: number;
   totalOrderedQty: number;
   receivingProgress: number;
 }
@@ -251,7 +252,11 @@ export const goodsReceivingService = {
       return response.data?.data;
     } catch (error: any) {
       console.error('Create GRN error:', error);
-      throw new Error(error.message || 'Failed to create goods receiving');
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to create goods receiving. If the server was waking up, wait a moment and try again.';
+      throw new Error(message);
     }
   },
 

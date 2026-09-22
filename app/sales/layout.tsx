@@ -66,6 +66,7 @@ function SalesSidebar() {
     { path: '/sales/dashboard', label: 'Sales Dashboard', permission: 'dashboard' },
     { path: '/sales/reports', label: 'Sales Reports', permission: 'dashboard' },
     { path: '/sales/products', label: 'Products', permission: 'products' },
+    { path: '/sales/quotations', label: 'Quotations', permission: 'orders' },
     { path: '/sales/orders', label: 'Sales Orders', permission: 'orders' },
     { path: '/sales/customers', label: 'Customers', permission: 'customers' },
     { path: '/sales/deliveries', label: 'Sales Deliveries', permission: 'deliveries' },

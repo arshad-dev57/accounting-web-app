@@ -15,16 +15,20 @@ import {
   User,
   DollarSign
 } from 'lucide-react';
-import { QuotationLineDraft, Customer, Product } from '@/lib/types/quotation';
+import { Quotation, QuotationLineDraft, Customer, Product } from '@/lib/types/quotation';
 import TaxRateSelect from '../../../components/TaxRateSelect';
 import { useLocationOptional } from '@/lib/location-context';
+import { ProductPicker, type PickedProduct } from '@/manufacturing/_components/ProductPicker';
+import { productService } from '../../api/product/route';
 
 interface CreateQuotationWizardProps {
   onClose: () => void;
   onSuccess: () => void;
+  quotation?: Quotation | null;
 }
 
-export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuotationWizardProps) {
+export default function CreateQuotationWizard({ onClose, onSuccess, quotation }: CreateQuotationWizardProps) {
+  const isEditing = Boolean(quotation?.id);
   const { selectedLocationId } = useLocationOptional();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,6 +51,34 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
   const [salesPerson, setSalesPerson] = useState('');
   const [notes, setNotes] = useState('');
   const [termsConditions, setTermsConditions] = useState('');
+
+  useEffect(() => {
+    if (!quotation) return;
+    setSelectedCustomer({
+      id: quotation.customerId,
+      name: quotation.customerName,
+      email: quotation.customerEmail,
+      phone: quotation.customerPhone,
+      company: quotation.customerCompany,
+    });
+    setLineDrafts(
+      (quotation.items || []).map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || 0,
+        taxRate: item.taxRate || 0,
+      }))
+    );
+    setQuotationDate(quotation.quotationDate?.slice?.(0, 10) || quotation.quotationDate);
+    setValidUntil(quotation.validUntil?.slice?.(0, 10) || quotation.validUntil);
+    setSalesPerson(quotation.salesPerson || '');
+    setNotes(quotation.notes || '');
+    setTermsConditions(quotation.termsConditions || '');
+    setCurrentStep(0);
+  }, [quotation?.id]);
 
   // Search customers
   useEffect(() => {
@@ -201,6 +233,39 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
     }
   };
 
+  const handleBulkAddProducts = async (picked: PickedProduct[]) => {
+    if (!picked.length) return;
+    const additions: QuotationLineDraft[] = [];
+    for (const p of picked) {
+      if (lineDrafts.some((line) => line.productId === p.id)) continue;
+      try {
+        const full = await productService.getProductById(p.id);
+        additions.push({
+          productId: p.id,
+          productName: full.name || p.name,
+          sku: full.sku || p.sku || '',
+          quantity: 1,
+          unitPrice: Number(full.sellingPrice) || 0,
+          discount: 0,
+          taxRate: Number(full.taxRate) || 0,
+        });
+      } catch {
+        additions.push({
+          productId: p.id,
+          productName: p.name,
+          sku: p.sku || '',
+          quantity: 1,
+          unitPrice: 0,
+          discount: 0,
+          taxRate: 0,
+        });
+      }
+    }
+    if (additions.length) {
+      setLineDrafts((prev) => [...prev, ...additions]);
+    }
+  };
+
   const handleAddProduct = (product: Product) => {
     const existingIndex = lineDrafts.findIndex(line => line.productId === product.id);
 
@@ -294,8 +359,9 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch('/api/quotations', {
-        method: 'POST',
+      const url = isEditing ? `/api/quotations/${quotation!.id}` : '/api/quotations';
+      const response = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
         headers,
         body: JSON.stringify(payload),
       });
@@ -306,7 +372,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
         onSuccess();
         onClose();
       } else {
-        alert(result.message || 'Failed to create quotation');
+        alert(result.message || `Failed to ${isEditing ? 'update' : 'create'} quotation`);
       }
     } catch (error) {
       console.error('Error creating quotation:', error);
@@ -322,7 +388,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
         {/* Header */}
         <div className="bg-[#014582] p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-white">Create Quotation</h2>
+            <h2 className="text-xl font-bold text-white">{isEditing ? 'Edit Quotation' : 'Create Quotation'}</h2>
             <button onClick={onClose} className="text-white/70 hover:text-white">
               <X className="w-6 h-6" />
             </button>
@@ -402,6 +468,17 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
           {currentStep === 1 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-800">Step 2: Add Items</h3>
+
+              <div className="p-4 bg-sky-50 border border-sky-100 rounded-xl space-y-3">
+                <p className="text-sm font-semibold text-sky-900">ERP-style product selection</p>
+                <p className="text-xs text-sky-700">Open the catalog, tick multiple products, then confirm — all lines land in one quotation.</p>
+                <ProductPicker
+                  selected={[]}
+                  onChange={handleBulkAddProducts}
+                  multiple
+                  placeholder="Browse & select multiple products…"
+                />
+              </div>
               
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -650,7 +727,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess }: CreateQuot
               disabled={isSubmitting}
               className="px-6 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#014582]/90 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Creating...' : 'Create Quotation'}
+              {isSubmitting ? (isEditing ? 'Saving...' : 'Creating...') : (isEditing ? 'Save Changes' : 'Create Quotation')}
             </button>
           )}
         </div>

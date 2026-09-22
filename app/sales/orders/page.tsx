@@ -6,7 +6,7 @@ import {
   Truck, DollarSign, Clock, X, ChevronDown,
   Eye, Trash2, CheckCircle, Loader2,
   FileText, CreditCard, Tag, Receipt, AlertCircle,
-  Mail, Phone, Building, MapPin, Save, ArrowLeft
+  Mail, Phone, Building, MapPin, Save, ArrowLeft, Edit3
 } from 'lucide-react';
 import { customerService } from '../../api/customer/route';
 import { productService } from '../../api/product/route';
@@ -23,6 +23,7 @@ import {
   type TaxContext,
   type TaxPricingModel,
 } from '../../../lib/tax-service';
+import { ProductPicker, type PickedProduct } from '@/manufacturing/_components/ProductPicker';
 
 type Order = SalesOrder & {
   totalAmount?: number;
@@ -404,6 +405,7 @@ export function SalesOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
@@ -523,8 +525,16 @@ export function SalesOrdersPage() {
   if (showCreateForm) {
     return (
       <CreateOrderForm
-        onCancel={() => setShowCreateForm(false)}
-        onSuccess={() => { setShowCreateForm(false); fetchOrders(); }}
+        orderToEdit={editingOrder}
+        onCancel={() => {
+          setShowCreateForm(false);
+          setEditingOrder(null);
+        }}
+        onSuccess={() => {
+          setShowCreateForm(false);
+          setEditingOrder(null);
+          fetchOrders();
+        }}
       />
     );
   }
@@ -666,6 +676,18 @@ export function SalesOrdersPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
+                        {['Draft', 'Pending', 'On Hold'].includes(order.orderStatus) && (
+                          <button
+                            onClick={() => {
+                              setEditingOrder(order);
+                              setShowCreateForm(true);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-slate-700 hover:bg-gray-100 rounded-lg transition-all"
+                            title="Edit Order"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                        )}
                         <select
                           value={order.orderStatus}
                           onChange={(e) => handleUpdateStatus(order._id || order.id || '', e.target.value)}
@@ -727,7 +749,19 @@ export function SalesOrdersPage() {
       )}
 
       {showDetailModal && selectedOrder && (
-        <OrderDetailModal order={selectedOrder} onClose={() => setShowDetailModal(false)} />
+        <OrderDetailModal
+          order={selectedOrder}
+          onClose={() => setShowDetailModal(false)}
+          onEdit={
+            ['Draft', 'Pending', 'On Hold'].includes(selectedOrder.orderStatus)
+              ? () => {
+                  setEditingOrder(selectedOrder);
+                  setShowDetailModal(false);
+                  setShowCreateForm(true);
+                }
+              : undefined
+          }
+        />
       )}
     </div>
   );
@@ -736,7 +770,15 @@ export function SalesOrdersPage() {
 // ─────────────────────────────────────────────────────────────────────────────
 // ORDER DETAIL MODAL
 // ─────────────────────────────────────────────────────────────────────────────
-function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => void }) {
+function OrderDetailModal({
+  order,
+  onClose,
+  onEdit,
+}: {
+  order: Order;
+  onClose: () => void;
+  onEdit?: () => void;
+}) {
   const { formatAmount } = useCurrency();
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -833,13 +875,35 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
               </div>
             </div>
           )}
+
+          {onEdit && (
+            <div className="border-t border-gray-100 pt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={onEdit}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 transition-all"
+              >
+                <Edit3 className="w-4 h-4" />
+                Edit Order
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) {
+function CreateOrderForm({
+  onCancel,
+  onSuccess,
+  orderToEdit,
+}: {
+  onCancel: () => void;
+  onSuccess: () => void;
+  orderToEdit?: Order | null;
+}) {
+  const isEditing = Boolean(orderToEdit?.id || orderToEdit?._id);
   const { selectedLocationId, selectedLocation } = useLocation();
   const { symbol, formatAmount } = useCurrency();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -901,6 +965,73 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   const [taxContext, setTaxContext] = useState<TaxContext | null>(null);
   const [pricingModel, setPricingModel] = useState<TaxPricingModel>('exclusive');
 
+  const populateFromOrder = useCallback((order: Order) => {
+    setCustomerName(order.customerName || '');
+    setCustomerEmail(order.customerEmail || '');
+    setCustomerPhone(order.customerPhone || '');
+    setCustomerType(order.customerType || 'Individual');
+    setCustomerCompany(order.customerCompany || '');
+    setCustomerTaxId(order.customerTaxId || '');
+    setShippingStreet(order.shippingAddress?.street || '');
+    setShippingCity(order.shippingAddress?.city || '');
+    setShippingState(order.shippingAddress?.state || '');
+    setShippingPostalCode(order.shippingAddress?.postalCode || '');
+    setShippingCountry(order.shippingAddress?.country || 'Pakistan');
+    setBillingStreet(order.billingAddress?.street || '');
+    setBillingCity(order.billingAddress?.city || '');
+    setBillingState(order.billingAddress?.state || '');
+    setBillingPostalCode(order.billingAddress?.postalCode || '');
+    setBillingCountry(order.billingAddress?.country || 'Pakistan');
+    setSameAsShipping(
+      JSON.stringify(order.shippingAddress || {}) === JSON.stringify(order.billingAddress || {})
+    );
+    setOrderItems((order.items || []).map((item) => ({
+      productId: String(item.productId || ''),
+      productName: item.productName,
+      sku: item.sku,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      totalPrice: item.totalPrice,
+      taxRate: item.taxRate,
+      taxAmount: item.taxAmount,
+    })));
+    setPriority(order.priority || 'Medium');
+    setSource(order.source || 'Direct');
+    setSalesPerson(order.salesPerson || '');
+    setExpectedDeliveryDate(order.expectedDeliveryDate?.slice?.(0, 10) || '');
+    setShippingMethod(order.shippingMethod || 'Standard');
+    setShippingCarrier(order.shippingCarrier || '');
+    setShippingCost(Number(order.shippingCost) || 0);
+    setPaymentMethod(order.paymentMethod || 'Cash');
+    setPaymentStatus(order.paymentStatus || 'Pending');
+    setCouponCode(order.couponCode || '');
+    setDiscountAmount(Number(order.discountAmount || order.discountTotal) || 0);
+    setCustomerNotes(order.customerNotes || '');
+    setInternalNotes(order.internalNotes || '');
+    setTags((order.tags || []).join(', '));
+  }, []);
+
+  useEffect(() => {
+    if (!orderToEdit) return;
+    const orderId = String(orderToEdit.id || orderToEdit._id || '');
+    if (!orderId) {
+      populateFromOrder(orderToEdit);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const full = await salesOrderService.getOrderById(orderId);
+        if (!cancelled) populateFromOrder(full);
+      } catch {
+        if (!cancelled) populateFromOrder(orderToEdit);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orderToEdit?.id, orderToEdit?._id, orderToEdit, populateFromOrder]);
+
   const getNormalizedId = (item: any): string => {
     if (!item) return '';
     const raw = item._id ?? item.id;
@@ -943,14 +1074,15 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         if (cancelled) return;
         const list = (pd.data || []).map(normalizeId);
         setProducts(list);
-        // Drop selected product / lines that are not at this warehouse
         setSelectedProduct(null);
         setProductSearchQuery('');
-        setOrderItems((prev) =>
-          prev.filter((item) =>
-            list.some((p) => getNormalizedId(p) === String(item.productId))
-          )
-        );
+        if (!isEditing) {
+          setOrderItems((prev) =>
+            prev.filter((item) =>
+              list.some((p) => getNormalizedId(p) === String(item.productId))
+            )
+          );
+        }
       } catch (err) {
         console.error('❌ Fetch products error:', err);
         if (!cancelled) setProducts([]);
@@ -961,7 +1093,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
     return () => {
       cancelled = true;
     };
-  }, [selectedLocationId]);
+  }, [selectedLocationId, isEditing]);
 
   useEffect(() => {
     taxService
@@ -1196,6 +1328,55 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
     addProductLine(selectedProduct, quantity);
   };
 
+  const handleBulkAddProducts = async (picked: PickedProduct[]) => {
+    if (!picked.length) return;
+    if (!selectedLocationId) {
+      setFormError('Select a warehouse from the top bar first');
+      return;
+    }
+    setFormError('');
+    const existingIds = new Set(orderItems.map((i) => getNormalizedId({ _id: i.productId })));
+    const additions: OrderItem[] = [];
+
+    for (const p of picked) {
+      if (existingIds.has(p.id)) continue;
+      try {
+        const fromList = products.find((prod) => getNormalizedId(prod) === p.id);
+        const raw = fromList || (await productService.getProductById(p.id));
+        const product = normalizeId(raw) as Product;
+        if (product.currentStock !== 0 && !product.currentStock) {
+          product.currentStock = Number((raw as any).locationStock || (raw as any).currentStock || 0);
+        }
+        if (1 > product.currentStock) {
+          setFormError(`Insufficient stock for ${product.name}. Available: ${product.currentStock}`);
+          continue;
+        }
+        const productRate = Number((product as any).taxRate) || 0;
+        const taxRate =
+          productRate > 0 ? productRate : resolveProductTaxRate(0, taxContext);
+        additions.push(
+          lineWithTax({
+            productId: getNormalizedId(product),
+            productName: product.name,
+            sku: product.sku,
+            quantity: 1,
+            unitPrice: product.sellingPrice,
+            totalPrice: product.sellingPrice,
+            taxRate,
+            taxAmount: 0,
+          })
+        );
+        existingIds.add(p.id);
+      } catch (err) {
+        console.error('Failed to add product:', p.id, err);
+      }
+    }
+
+    if (additions.length) {
+      setOrderItems((prev) => [...prev, ...additions]);
+    }
+  };
+
   useHardwareBarcodeScanner((code) => {
     const local = matchScannedProduct(products, code);
     if (local) {
@@ -1242,7 +1423,7 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       const shippingAddr = { street: shippingStreet, city: shippingCity, state: shippingState, postalCode: shippingPostalCode, country: shippingCountry };
       const billingAddr = sameAsShipping ? shippingAddr : { street: billingStreet, city: billingCity, state: billingState, postalCode: billingPostalCode, country: billingCountry };
 
-      await salesOrderService.createOrder({
+      const payload = {
         customerName, customerEmail, customerPhone, customerType,
         customerCompany, customerTaxId,
         shippingAddress: shippingAddr,
@@ -1269,11 +1450,18 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
         subtotal, discountTotal: calculatedDiscount, taxTotal, grandTotal,
         locationId: selectedLocationId,
-      });
+      };
+
+      if (isEditing) {
+        const orderId = String(orderToEdit?.id || orderToEdit?._id || '');
+        await salesOrderService.updateOrder(orderId, payload);
+      } else {
+        await salesOrderService.createOrder(payload);
+      }
       onSuccess();
     } catch (err: any) {
       console.error(err);
-      setFormError(err.message || 'An error occurred while creating the order');
+      setFormError(err.message || `An error occurred while ${isEditing ? 'updating' : 'creating'} the order`);
     } finally {
       setIsSubmitting(false);
     }
@@ -1288,7 +1476,8 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Plus className="w-6 h-6 text-[#014582]" /> Create Sales Order
+          {isEditing ? <Edit3 className="w-6 h-6 text-[#014582]" /> : <Plus className="w-6 h-6 text-[#014582]" />}
+          {isEditing ? 'Edit Sales Order' : 'Create Sales Order'}
         </h1>
         <button type="button" onClick={onCancel}
           className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
@@ -1477,6 +1666,19 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
           <Package className="w-5 h-5 text-[#014582]" /> Order Items
         </h2>
+
+        <div className="p-4 bg-sky-50 border border-sky-100 rounded-xl space-y-3">
+          <p className="text-sm font-semibold text-sky-900">Add multiple products at once</p>
+          <p className="text-xs text-sky-700">
+            Open the catalog, select as many products as you need, then confirm — same flow as quotations.
+          </p>
+          <ProductPicker
+            selected={[]}
+            onChange={handleBulkAddProducts}
+            multiple
+            placeholder="Browse & select multiple products…"
+          />
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">
@@ -1827,8 +2029,10 @@ function CreateOrderForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         <button type="submit" disabled={isSubmitting}
           className="flex items-center gap-2 px-6 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed">
           {isSubmitting
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
-            : <><CheckCircle className="w-4 h-4" /> Create Order</>}
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> {isEditing ? 'Saving...' : 'Creating...'}</>
+            : isEditing
+              ? <><Save className="w-4 h-4" /> Save Changes</>
+              : <><CheckCircle className="w-4 h-4" /> Create Order</>}
         </button>
       </div>
 

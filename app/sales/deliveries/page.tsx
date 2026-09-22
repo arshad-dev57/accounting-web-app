@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { 
   Plus, Search, RefreshCw, Truck, Clock, 
-  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, MapPin
+  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, MapPin, Edit3, Save
 } from 'lucide-react';
 import { Delivery, DeliveryStats } from '@/types/delivery';
 import CreateDeliveryWizard from '@/components/deliveries/CreateDeliveryWizard';
@@ -34,6 +34,7 @@ export function DeliveriesPage() {
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [deliveryStartEditing, setDeliveryStartEditing] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const pageLimit = 10;
@@ -120,7 +121,8 @@ export function DeliveriesPage() {
     setCurrentPage(1);
   }, [selectedLocationId]);
 
-  const handleDeliveryClick = (delivery: Delivery) => {
+  const handleDeliveryClick = (delivery: Delivery, startEditing = false) => {
+    setDeliveryStartEditing(startEditing);
     setSelectedDelivery(delivery);
     setShowDetailModal(true);
   };
@@ -130,7 +132,7 @@ export function DeliveriesPage() {
     fetchDeliveries();
   };
 
-  const handleConfirmDelivery = async (deliveryId: string) => {
+  const handleConfirmDelivery = async (deliveryId: string, closeModalOnSuccess = false) => {
     if (!confirm('Are you sure you want to confirm this delivery? This will update stock.')) return;
     setActionLoading(`confirm-${deliveryId}`);
     try {
@@ -150,12 +152,54 @@ export function DeliveriesPage() {
       const result = await response.json();
       if (result.success) {
         fetchDeliveries();
+        if (closeModalOnSuccess) {
+          setShowDetailModal(false);
+          setSelectedDelivery(null);
+          setDeliveryStartEditing(false);
+        }
       } else {
         alert(result.message || 'Failed to confirm delivery');
       }
     } catch (error) {
       console.error('Failed to confirm delivery:', error);
       alert('Failed to confirm delivery');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSaveDeliveryEdit = async (
+    deliveryId: string,
+    data: {
+      deliveryDate: string;
+      deliveryPerson: string;
+      trackingNumber: string;
+      notes: string;
+      items: Array<{ productId: string; deliveredQuantity: number; orderedQuantity: number }>;
+    }
+  ) => {
+    setActionLoading(`edit-${deliveryId}`);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(`/api/deliveries/${deliveryId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setShowDetailModal(false);
+        setSelectedDelivery(null);
+        fetchDeliveries();
+      } else {
+        alert(result.message || 'Failed to update delivery');
+      }
+    } catch (error) {
+      console.error('Failed to update delivery:', error);
+      alert('Failed to update delivery');
     } finally {
       setActionLoading(null);
     }
@@ -396,6 +440,15 @@ export function DeliveriesPage() {
                         >
                           <Eye size={16} />
                         </button>
+                        {!delivery.confirmedAt && (
+                          <button
+                            onClick={() => handleDeliveryClick(delivery, true)}
+                            className="p-1.5 text-gray-600 hover:text-slate-700 hover:bg-gray-100 rounded transition-colors"
+                            title="Edit Delivery"
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                        )}
                         {!delivery.confirmedAt && delivery.deliveryStatus !== 'Delivered' && (
                           <button
                             onClick={() => handleConfirmDelivery(delivery.id)}
@@ -462,129 +515,18 @@ export function DeliveriesPage() {
 
       {/* Detail Modal */}
       {showDetailModal && selectedDelivery && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Delivery Details</h2>
-                <button
-                  onClick={() => setShowDetailModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X size={20} className="text-gray-500" />
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Delivery Number</p>
-                    <p className="font-semibold text-[#014582]">{selectedDelivery.deliveryNumber}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Order Number</p>
-                    <p className="font-semibold">{selectedDelivery.salesOrderNumber}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Customer</p>
-                    <p className="font-semibold">{selectedDelivery.customerName}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Delivery Date</p>
-                    <p className="font-semibold">{new Date(selectedDelivery.deliveryDate).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Status</p>
-                    <span className={pill(STATUS_COLORS, selectedDelivery.deliveryStatus)}>
-                      {selectedDelivery.deliveryStatus}
-                    </span>
-                  </div>
-                  {selectedDelivery.deliveryPerson && (
-                    <div>
-                      <p className="text-sm text-gray-500">Delivery Person</p>
-                      <p className="font-semibold">{selectedDelivery.deliveryPerson}</p>
-                    </div>
-                  )}
-                  {selectedDelivery.trackingNumber && (
-                    <div>
-                      <p className="text-sm text-gray-500">Tracking Number</p>
-                      <p className="font-semibold">{selectedDelivery.trackingNumber}</p>
-                    </div>
-                  )}
-                  {selectedDelivery.confirmedAt && (
-                    <div>
-                      <p className="text-sm text-gray-500">Confirmed At</p>
-                      <p className="font-semibold">{new Date(selectedDelivery.confirmedAt).toLocaleString()}</p>
-                    </div>
-                  )}
-                </div>
-
-                {selectedDelivery.notes && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Notes</p>
-                    <p className="text-sm bg-gray-50 p-3 rounded-lg">{selectedDelivery.notes}</p>
-                  </div>
-                )}
-
-                {selectedDelivery.paymentStatus && (
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-3">Payment Information</h3>
-                    <div className="p-4 bg-gray-50 rounded-lg space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Payment Status</span>
-                        <span className={pill(PAYMENT_STATUS_COLORS, selectedDelivery.paymentStatus)}>
-                          {selectedDelivery.paymentStatus}
-                        </span>
-                      </div>
-                      {selectedDelivery.paidAmount !== undefined && (
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Paid Amount</span>
-                          <span className="font-semibold text-green-600">${selectedDelivery.paidAmount.toFixed(2)}</span>
-                        </div>
-                      )}
-                      {selectedDelivery.outstandingAmount !== undefined && (
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Outstanding</span>
-                          <span className="font-semibold text-red-600">${selectedDelivery.outstandingAmount.toFixed(2)}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-3">Delivery Items</h3>
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="text-left px-4 py-2 text-xs font-semibold text-gray-600">Product</th>
-                          <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Ordered</th>
-                          <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Delivered</th>
-                          <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Remaining</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {selectedDelivery.items.map((item) => (
-                          <tr key={item.id}>
-                            <td className="px-4 py-3 text-sm">
-                              <p className="font-medium">{item.productName}</p>
-                              <p className="text-xs text-gray-500">{item.sku}</p>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-right">{item.orderedQuantity}</td>
-                            <td className="px-4 py-3 text-sm text-right">{item.deliveredQuantity}</td>
-                            <td className="px-4 py-3 text-sm text-right">{item.remainingQuantity}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <DeliveryDetailModal
+          delivery={selectedDelivery}
+          initialEditing={deliveryStartEditing}
+          onClose={() => {
+            setShowDetailModal(false);
+            setSelectedDelivery(null);
+            setDeliveryStartEditing(false);
+          }}
+          onSave={handleSaveDeliveryEdit}
+          onConfirm={(id) => handleConfirmDelivery(id, true)}
+          actionLoading={actionLoading}
+        />
       )}
 
       {/* Create Delivery Wizard */}
@@ -594,6 +536,231 @@ export function DeliveriesPage() {
           onClose={() => setShowCreateWizard(false)}
         />
       )}
+    </div>
+  );
+}
+
+function DeliveryDetailModal({
+  delivery,
+  initialEditing = false,
+  onClose,
+  onSave,
+  onConfirm,
+  actionLoading,
+}: {
+  delivery: Delivery;
+  initialEditing?: boolean;
+  onClose: () => void;
+  onSave: (id: string, data: any) => Promise<void>;
+  onConfirm?: (id: string) => void;
+  actionLoading: string | null;
+}) {
+  const canEdit = !delivery.confirmedAt;
+  const canConfirm = !delivery.confirmedAt && delivery.deliveryStatus !== 'Delivered';
+  const [editing, setEditing] = useState(Boolean(initialEditing) && canEdit);
+  const [form, setForm] = useState({
+    deliveryDate: delivery.deliveryDate?.slice?.(0, 10) || delivery.deliveryDate,
+    deliveryPerson: delivery.deliveryPerson || '',
+    trackingNumber: delivery.trackingNumber || '',
+    notes: delivery.notes || '',
+    items: (delivery.items || []).map((item) => ({
+      productId: item.productId,
+      orderedQuantity: item.orderedQuantity,
+      deliveredQuantity: item.deliveredQuantity,
+    })),
+  });
+
+  useEffect(() => {
+    setForm({
+      deliveryDate: delivery.deliveryDate?.slice?.(0, 10) || delivery.deliveryDate,
+      deliveryPerson: delivery.deliveryPerson || '',
+      trackingNumber: delivery.trackingNumber || '',
+      notes: delivery.notes || '',
+      items: (delivery.items || []).map((item) => ({
+        productId: item.productId,
+        orderedQuantity: item.orderedQuantity,
+        deliveredQuantity: item.deliveredQuantity,
+      })),
+    });
+    setEditing(Boolean(initialEditing) && !delivery.confirmedAt);
+  }, [delivery.id, delivery.confirmedAt, initialEditing]);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">Delivery Details</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-500">Delivery Number</p>
+              <p className="font-semibold text-[#014582]">{delivery.deliveryNumber}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Order Number</p>
+              <p className="font-semibold">{delivery.salesOrderNumber}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Customer</p>
+              <p className="font-semibold">{delivery.customerName}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Delivery Date</p>
+              {editing ? (
+                <input
+                  type="date"
+                  className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm"
+                  value={form.deliveryDate}
+                  onChange={(e) => setForm((p) => ({ ...p, deliveryDate: e.target.value }))}
+                />
+              ) : (
+                <p className="font-semibold">{new Date(delivery.deliveryDate).toLocaleDateString()}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Status</p>
+              <span className={pill(STATUS_COLORS, delivery.deliveryStatus)}>{delivery.deliveryStatus}</span>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Delivery Person</p>
+              {editing ? (
+                <input
+                  className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm"
+                  value={form.deliveryPerson}
+                  onChange={(e) => setForm((p) => ({ ...p, deliveryPerson: e.target.value }))}
+                />
+              ) : (
+                <p className="font-semibold">{delivery.deliveryPerson || '—'}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Tracking Number</p>
+              {editing ? (
+                <input
+                  className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm"
+                  value={form.trackingNumber}
+                  onChange={(e) => setForm((p) => ({ ...p, trackingNumber: e.target.value }))}
+                />
+              ) : (
+                <p className="font-semibold">{delivery.trackingNumber || '—'}</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Notes</p>
+            {editing ? (
+              <textarea
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+                rows={2}
+                value={form.notes}
+                onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+              />
+            ) : (
+              <p className="text-sm bg-gray-50 p-3 rounded-lg">{delivery.notes || '—'}</p>
+            )}
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-3">Delivery Items</h3>
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-gray-600">Product</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Ordered</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Delivered</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {form.items.map((item, index) => {
+                    const source = delivery.items.find((d) => d.productId === item.productId);
+                    return (
+                      <tr key={item.productId || index}>
+                        <td className="px-4 py-3 text-sm">
+                          <p className="font-medium">{source?.productName}</p>
+                          <p className="text-xs text-gray-500">{source?.sku}</p>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right">{item.orderedQuantity}</td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          {editing ? (
+                            <input
+                              type="number"
+                              min="0"
+                              max={item.orderedQuantity}
+                              className="w-20 rounded border px-2 py-1 text-right"
+                              value={item.deliveredQuantity}
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value) || 0;
+                                setForm((p) => ({
+                                  ...p,
+                                  items: p.items.map((row, i) =>
+                                    i === index ? { ...row, deliveredQuantity: value } : row
+                                  ),
+                                }));
+                              }}
+                            />
+                          ) : (
+                            item.deliveredQuantity
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {(canEdit || canConfirm) && (
+            <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-3 justify-end">
+              {canConfirm && onConfirm && (
+                <button
+                  onClick={() => onConfirm(delivery.id)}
+                  disabled={actionLoading === `confirm-${delivery.id}` || editing}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50"
+                >
+                  {actionLoading === `confirm-${delivery.id}` ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CheckCircle className="w-4 h-4" />
+                  )}
+                  Confirm Delivery
+                </button>
+              )}
+              {canEdit && (
+                !editing ? (
+                  <button
+                    onClick={() => setEditing(true)}
+                    disabled={actionLoading === `confirm-${delivery.id}`}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Edit
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onSave(delivery.id, form)}
+                    disabled={actionLoading === `edit-${delivery.id}`}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] disabled:opacity-50"
+                  >
+                    {actionLoading === `edit-${delivery.id}` ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    Save Changes
+                  </button>
+                )
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

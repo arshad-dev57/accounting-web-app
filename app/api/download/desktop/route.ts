@@ -11,7 +11,7 @@ import path from 'path';
  *   DESKTOP_APP_WIN_PATH  — absolute path to the .exe / .msi
  *
  * Used only in local/self-hosted environments.
- * In production, set NEXT_PUBLIC_DESKTOP_DOWNLOAD_MAC/WIN to a direct CDN URL instead.
+ * In production, set NEXT_DESKTOP_DOWNLOAD_MAC/WIN to a direct CDN URL instead.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -55,37 +55,37 @@ export async function GET(req: NextRequest) {
       })
     );
 
-  const mimeMap: Record<string, string> = {
-    '.dmg': 'application/x-apple-diskimage',
-    '.exe': 'application/x-msdownload',
-    '.msi': 'application/x-msi',
-    '.zip': 'application/zip',
-    '.pkg': 'application/x-newton-compatible-pkg',
-  };
-  const mime = mimeMap[ext] ?? 'application/octet-stream';
+    const mimeMap: Record<string, string> = {
+      '.dmg': 'application/x-apple-diskimage',
+      '.exe': 'application/x-msdownload',
+      '.msi': 'application/x-msi',
+      '.zip': 'application/zip',
+      '.pkg': 'application/x-newton-compatible-pkg',
+    };
+    const mime = mimeMap[ext] ?? 'application/octet-stream';
 
-  // Stream the file so memory usage stays flat regardless of size
-  const stream = fs.createReadStream(resolved);
-  const webStream = new ReadableStream({
-    start(controller) {
-      stream.on('data', (chunk) => controller.enqueue(chunk));
-      stream.on('end', () => controller.close());
-      stream.on('error', (err) => controller.error(err));
-    },
-    cancel() {
-      stream.destroy();
-    },
-  });
+    // Stream the file so memory usage stays flat regardless of size
+    const stream = fs.createReadStream(resolved);
+    const webStream = new ReadableStream({
+      start(controller) {
+        stream.on('data', (chunk) => controller.enqueue(chunk));
+        stream.on('end', () => controller.close());
+        stream.on('error', (err) => controller.error(err));
+      },
+      cancel() {
+        stream.destroy();
+      },
+    });
 
-  return new NextResponse(webStream, {
-    status: 200,
-    headers: {
-      'Content-Type': mime,
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Length': String(stat.size),
-      'Cache-Control': 'no-store',
-    },
-  });
+    return new NextResponse(webStream, {
+      status: 200,
+      headers: {
+        'Content-Type': mime,
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': String(stat.size),
+        'Cache-Control': 'no-store',
+      },
+    });
   } catch (err: any) {
     console.error('[desktop-download] failed:', err);
     return NextResponse.json(

@@ -2,12 +2,12 @@
   "name": "accounting-web-app",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "node server.js",
-    "lint": "eslint"
-  },
+ "scripts": {
+  "dev": "next dev --turbo",
+  "build": "next build",
+  "start": "node server.js",
+  "lint": "eslint"
+},
   "dependencies": {
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",

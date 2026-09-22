@@ -266,7 +266,6 @@ export function PurchaseRefundsPage() {
     }));
   };
 
-  // ─── Create Refund ──────────────────────────────────────────
 
   const handleCreateRefund = async () => {
     if (!formState.selectedReturn) {
@@ -320,7 +319,6 @@ export function PurchaseRefundsPage() {
     }
   };
 
-  // ─── Refund Actions ──────────────────────────────────────────
 
   const handleProcessRefund = async (id: string) => {
     setSubmitting(true);
@@ -407,20 +405,6 @@ export function PurchaseRefundsPage() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'Processing':
-        return <Clock className="w-4 h-4 text-blue-600" />;
-      case 'Failed':
-        return <CircleX className="w-4 h-4 text-red-600" />;
-      case 'Cancelled':
-        return <Ban className="w-4 h-4 text-red-600" />;
-      default:
-        return <Clock className="w-4 h-4 text-yellow-600" />;
-    }
-  };
 
   const formatCurrency = (amount: number) => {
     return `Rs. ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -591,11 +575,10 @@ export function PurchaseRefundsPage() {
               <button
                 key={filter}
                 onClick={() => handleFilterChange(filter)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                  selectedFilter === filter
-                    ? 'bg-[#014582] text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${selectedFilter === filter
+                  ? 'bg-[#014582] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
               >
                 {filter.charAt(0).toUpperCase() + filter.slice(1)}
               </button>
@@ -657,8 +640,7 @@ export function PurchaseRefundsPage() {
                           </span>
                         </td>
                         <td className="px-6 py-3">
-                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 w-fit ${getStatusColor(refund.refundStatus)}`}>
-                            {getStatusIcon(refund.refundStatus)}
+                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full w-fit ${getStatusColor(refund.refundStatus)}`}>
                             {refund.refundStatus}
                           </span>
                         </td>
@@ -791,7 +773,6 @@ export function PurchaseRefundsPage() {
           formatCurrency={formatCurrency}
           formatDate={formatDate}
           getStatusColor={getStatusColor}
-          getStatusIcon={getStatusIcon}
           submitting={submitting}
         />
       )}
@@ -1097,7 +1078,6 @@ function RefundDetailModal({
   formatCurrency,
   formatDate,
   getStatusColor,
-  getStatusIcon,
   submitting
 }: any) {
   return (
@@ -1111,8 +1091,7 @@ function RefundDetailModal({
             <div>
               <h2 className="text-xl font-bold text-gray-900">{refund.refundNumber}</h2>
               <div className="flex items-center gap-2 mt-1">
-                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 ${getStatusColor(refund.refundStatus)}`}>
-                  {getStatusIcon(refund.refundStatus)}
+                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${getStatusColor(refund.refundStatus)}`}>
                   {refund.refundStatus}
                 </span>
                 <span className="text-xs text-gray-400">•</span>

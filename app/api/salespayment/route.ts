@@ -27,6 +27,7 @@
     totalInvoices?: number;
     canCancel?: boolean;
     canDelete?: boolean;
+    canEdit?: boolean;
   }
 
   export interface InvoicePayment {
@@ -329,6 +330,23 @@
       } catch (error: any) {
         console.error('Receive payment error:', error);
         throw new Error(error.message || 'Failed to receive payment');
+      }
+    },
+
+    // ─── Update payment metadata ─────────────────────────────
+    updatePayment: async (
+      id: string,
+      data: { paymentDate?: string; paymentMethod?: string; reference?: string; notes?: string }
+    ): Promise<SalesPayment> => {
+      try {
+        const response = await apiClient.put(`/api/sales/payments/${id}`, data);
+        if (!response.success) {
+          throw new Error(response.message || 'Failed to update payment');
+        }
+        return response.data?.data;
+      } catch (error: any) {
+        console.error('Update payment error:', error);
+        throw new Error(error.message || 'Failed to update payment');
       }
     },
 

@@ -16,6 +16,14 @@ const AUTH_COOKIES_TO_CLEAR: { name: string; httpOnly: boolean }[] = [
 
 type SameSite = 'lax' | 'strict' | 'none';
 
+/** Cloud HTTPS: secure cookies (default). On-prem HTTP LAN: set COOKIE_SECURE=false in .env */
+function isCookieSecure(): boolean {
+  const raw = process.env.COOKIE_SECURE?.trim().toLowerCase();
+  if (raw === 'false' || raw === '0' || raw === 'no') return false;
+  if (raw === 'true' || raw === '1' || raw === 'yes') return true;
+  return process.env.NODE_ENV === 'production';
+}
+
 export type AuthCookieBase = {
   path: string;
   sameSite: SameSite;
@@ -50,7 +58,7 @@ export function authCookieBase(maxAge: number, requestHost?: string): AuthCookie
   const opts: AuthCookieBase = {
     path: '/',
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: isCookieSecure(),
     maxAge,
   };
   const domain = cookieDomain(requestHost);
@@ -93,7 +101,7 @@ function expiredSetCookieHeader(
     'SameSite=Lax',
   ];
   if (httpOnly) parts.push('HttpOnly');
-  if (process.env.NODE_ENV === 'production') parts.push('Secure');
+  if (isCookieSecure()) parts.push('Secure');
   if (domain) parts.push(`Domain=${domain}`);
   return parts.join('; ');
 }

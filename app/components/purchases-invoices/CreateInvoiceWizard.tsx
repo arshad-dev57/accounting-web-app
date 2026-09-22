@@ -91,6 +91,24 @@ function sourceQty(source: InvoiceSource) {
   );
 }
 
+type NumericDraftValue = number | '';
+
+function lineNumericValue(value: NumericDraftValue | string | undefined): number {
+  if (value === '' || value === null || value === undefined) return 0;
+  const num = Number(value);
+  return Number.isNaN(num) ? 0 : num;
+}
+
+function displayNumericValue(value: NumericDraftValue | string | undefined): string | number {
+  return value === '' ? '' : (value ?? '');
+}
+
+function parseNumericDraftInput(raw: string): NumericDraftValue | null {
+  if (raw === '') return '';
+  const num = parseFloat(raw);
+  return Number.isNaN(num) ? null : num;
+}
+
 function sourceItemPreview(source: InvoiceSource) {
   if (source.itemPreview) return source.itemPreview;
   return (source.items || [])
@@ -270,22 +288,47 @@ export default function CreateInvoiceWizard({
         : [];
   const primarySource = selectedSources[0] || null;
 
-  const updateLineDraft = (index: number, field: keyof PurchaseInvoiceLineDraft, value: number | string) => {
+  const updateLineDraft = (
+    index: number,
+    field: keyof PurchaseInvoiceLineDraft,
+    value: number | string | NumericDraftValue
+  ) => {
     setWizardState((prev: any) => {
       const updated = [...prev.lineDrafts];
       updated[index] = { ...updated[index], [field]: value };
 
       const line = updated[index];
-      const subtotal = line.quantity * line.unitPrice;
-      const discountAmount = subtotal * (line.discount / 100);
+      const quantity = lineNumericValue(line.quantity);
+      const unitPrice = lineNumericValue(line.unitPrice);
+      const discount = lineNumericValue(line.discount);
+      const taxRate = lineNumericValue(line.taxRate);
+      const subtotal = quantity * unitPrice;
+      const discountAmount = subtotal * (discount / 100);
       const taxableAmount = subtotal - discountAmount;
-      const taxAmount = taxableAmount * (line.taxRate / 100);
+      const taxAmount = taxableAmount * (taxRate / 100);
       const lineTotal = taxableAmount + taxAmount;
 
-      updated[index] = { ...line, subtotal, discountAmount, taxableAmount, taxAmount, lineTotal };
+      updated[index] = {
+        ...line,
+        subtotal,
+        discountAmount,
+        taxableAmount,
+        taxAmount,
+        lineTotal,
+      };
 
       return { ...prev, lineDrafts: updated };
     });
+  };
+
+  const normalizeLineDraftField = (
+    index: number,
+    field: 'quantity' | 'unitPrice' | 'discount'
+  ) => {
+    const line = wizardState.lineDrafts[index];
+    if (line && line[field] === '') {
+      updateLineDraft(index, field, 0);
+    }
   };
 
   const removeLineDraft = (index: number) => {
@@ -435,7 +478,12 @@ export default function CreateInvoiceWizard({
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex-1">
                         <p className="font-semibold text-gray-900 text-sm md:text-base">{line.productName}</p>
-                        <p className="text-xs text-gray-500">SKU: {line.sku}</p>
+                        <p className="text-xs text-gray-500">
+                          SKU: {line.sku}
+                          {(line.totalReturnedOnPoLine ?? 0) > 0 && (
+                            <> · Received {line.totalReceivedOnPoLine ?? 0}, returned {line.totalReturnedOnPoLine}</>
+                          )}
+                        </p>
                       </div>
                       <button
                         onClick={() => removeLineDraft(index)}
@@ -452,8 +500,13 @@ export default function CreateInvoiceWizard({
                           type="number"
                           min="0"
                           step="0.01"
-                          value={line.quantity}
-                          onChange={(e) => updateLineDraft(index, 'quantity', parseFloat(e.target.value) || 0)}
+                          value={displayNumericValue(line.quantity)}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const parsed = parseNumericDraftInput(e.target.value);
+                            if (parsed !== null) updateLineDraft(index, 'quantity', parsed);
+                          }}
+                          onBlur={() => normalizeLineDraftField(index, 'quantity')}
                           className="w-full px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#014582] text-sm"
                         />
                       </div>
@@ -463,8 +516,13 @@ export default function CreateInvoiceWizard({
                           type="number"
                           min="0"
                           step="0.01"
-                          value={line.unitPrice}
-                          onChange={(e) => updateLineDraft(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                          value={displayNumericValue(line.unitPrice)}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const parsed = parseNumericDraftInput(e.target.value);
+                            if (parsed !== null) updateLineDraft(index, 'unitPrice', parsed);
+                          }}
+                          onBlur={() => normalizeLineDraftField(index, 'unitPrice')}
                           className="w-full px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#014582] text-sm"
                         />
                       </div>
@@ -475,8 +533,13 @@ export default function CreateInvoiceWizard({
                           min="0"
                           max="100"
                           step="0.01"
-                          value={line.discount}
-                          onChange={(e) => updateLineDraft(index, 'discount', parseFloat(e.target.value) || 0)}
+                          value={displayNumericValue(line.discount)}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const parsed = parseNumericDraftInput(e.target.value);
+                            if (parsed !== null) updateLineDraft(index, 'discount', parsed);
+                          }}
+                          onBlur={() => normalizeLineDraftField(index, 'discount')}
                           className="w-full px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-[#014582] text-sm"
                         />
                       </div>

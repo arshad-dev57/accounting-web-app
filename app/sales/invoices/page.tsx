@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, RefreshCw, Plus, Eye, MoreVertical, X, MapPin } from 'lucide-react';
+import { Search, RefreshCw, Plus, Eye, X, MapPin, Download, Edit3, Save, Loader2, Trash2 } from 'lucide-react';
 import { SalesInvoice, InvoiceStats } from '@/types/sales-invoice';
 import CreateInvoiceWizard from '@/components/sales-invoices/CreateInvoiceWizard';
 import { useLocation } from '@/lib/location-context';
+import PDFService from '@/lib/pdf-service';
+import { ProductPicker, type PickedProduct } from '@/manufacturing/_components/ProductPicker';
+import { productService } from '../../api/product/route';
 
 const STATUS_COLORS: Record<string, string> = {
   'Draft': 'bg-orange-100 text-orange-700',
@@ -33,6 +36,7 @@ export function SalesInvoicesPage() {
   const [loading, setLoading] = useState(false);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<SalesInvoice | null>(null);
+  const [invoiceStartEditing, setInvoiceStartEditing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -84,7 +88,8 @@ export function SalesInvoicesPage() {
     fetchInvoices();
   };
 
-  const handleInvoiceClick = (invoice: SalesInvoice) => {
+  const handleInvoiceClick = (invoice: SalesInvoice, startEditing = false) => {
+    setInvoiceStartEditing(startEditing);
     setSelectedInvoice(invoice);
   };
 
@@ -145,6 +150,54 @@ export function SalesInvoicesPage() {
     } catch (error) {
       console.error('Failed to cancel invoice:', error);
       alert('Failed to cancel invoice');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const authHeaders = (): Record<string, string> => {
+    const token = localStorage.getItem('auth_token');
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return headers;
+  };
+
+  const handleSaveInvoiceEdit = async (id: string, data: Record<string, unknown>) => {
+    try {
+      setActionLoading(`save-${id}`);
+      const response = await fetch(`/api/sales-invoices/${id}`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || 'Failed to update invoice');
+      }
+      setSelectedInvoice(result.data || null);
+      fetchInvoices();
+      alert('Invoice updated successfully');
+    } catch (error: any) {
+      console.error('Failed to update invoice:', error);
+      alert(error.message || 'Failed to update invoice');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDownloadInvoicePDF = async (invoice: SalesInvoice) => {
+    try {
+      setActionLoading(`pdf-${invoice.id}`);
+      let data: SalesInvoice = invoice;
+      if (!data.items?.length) {
+        const response = await fetch(`/api/sales-invoices/${invoice.id}`, { headers: authHeaders() });
+        const result = await response.json();
+        if (result?.success && result.data) data = result.data;
+      }
+      await PDFService.downloadInvoicePDF(data, undefined, `Sales_Invoice_${data.invoiceNumber}.pdf`);
+    } catch (error: any) {
+      console.error('Failed to download invoice:', error);
+      alert(error.message || 'Failed to download invoice PDF');
     } finally {
       setActionLoading(null);
     }
@@ -317,12 +370,29 @@ export function SalesInvoicesPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
+                        onClick={() => handleDownloadInvoicePDF(invoice)}
+                        disabled={actionLoading === `pdf-${invoice.id}`}
+                        className="p-1.5 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors disabled:opacity-50"
+                        title="Download PDF"
+                      >
+                        <Download size={16} />
+                      </button>
+                      <button
                         onClick={() => handleInvoiceClick(invoice)}
                         className="p-1.5 text-gray-600 hover:text-[#014582] hover:bg-gray-100 rounded transition-colors"
                         title="View Details"
                       >
                         <Eye size={16} />
                       </button>
+                      {invoice.invoiceStatus === 'Draft' && (
+                        <button
+                          onClick={() => handleInvoiceClick(invoice, true)}
+                          className="p-1.5 text-gray-600 hover:text-slate-700 hover:bg-gray-100 rounded transition-colors"
+                          title="Edit Invoice"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                      )}
                       {invoice.invoiceStatus === 'Draft' && (
                         <button
                           onClick={() => handlePostInvoice(invoice.id)}
@@ -357,121 +427,298 @@ export function SalesInvoicesPage() {
         <CreateInvoiceWizard onClose={() => setShowCreateWizard(false)} onSuccess={handleCreateSuccess} />
       )}
 
-      {/* Invoice Detail Modal */}
       {selectedInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-gray-200 bg-white flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">{selectedInvoice.invoiceNumber}</h2>
-              <button
-                onClick={() => setSelectedInvoice(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X size={20} className="text-gray-500" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-white">
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <p className="text-sm text-gray-500">Customer</p>
-                  <p className="font-semibold text-gray-900">{selectedInvoice.customerName}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Order #</p>
-                  <p className="font-semibold text-gray-900">{selectedInvoice.orderNumber || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Invoice Date</p>
-                  <p className="font-semibold text-gray-900">{new Date(selectedInvoice.invoiceDate).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Due Date</p>
-                  <p className="font-semibold text-gray-900">{new Date(selectedInvoice.dueDate).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Invoice Status</p>
-                  <span className={pill(STATUS_COLORS, selectedInvoice.invoiceStatus)}>
-                    {selectedInvoice.invoiceStatus}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Payment Status</p>
-                  <span className={pill(PAYMENT_STATUS_COLORS, selectedInvoice.paymentStatus)}>
-                    {selectedInvoice.paymentStatus}
-                  </span>
-                </div>
-              </div>
+        <SalesInvoiceDetailModal
+          invoice={selectedInvoice}
+          initialEditing={invoiceStartEditing}
+          onClose={() => {
+            setSelectedInvoice(null);
+            setInvoiceStartEditing(false);
+          }}
+          onSaveEdit={handleSaveInvoiceEdit}
+          onDownloadPDF={handleDownloadInvoicePDF}
+          actionLoading={actionLoading}
+          formatCurrency={formatCurrency}
+          pill={pill}
+        />
+      )}
+    </div>
+  );
+}
 
-              {selectedInvoice.notes && (
-                <div className="mb-6">
-                  <p className="text-sm text-gray-500 mb-1">Notes</p>
-                  <p className="text-sm text-gray-800 bg-gray-50 p-3 rounded-lg border border-gray-100">{selectedInvoice.notes}</p>
+function SalesInvoiceDetailModal({
+  invoice,
+  initialEditing = false,
+  onClose,
+  onSaveEdit,
+  onDownloadPDF,
+  actionLoading,
+  formatCurrency,
+  pill,
+}: {
+  invoice: SalesInvoice;
+  initialEditing?: boolean;
+  onClose: () => void;
+  onSaveEdit: (id: string, data: Record<string, unknown>) => Promise<void>;
+  onDownloadPDF: (invoice: SalesInvoice) => Promise<void>;
+  actionLoading: string | null;
+  formatCurrency: (value: number) => string;
+  pill: (map: Record<string, string>, val: string) => string;
+}) {
+  const canEdit = invoice.invoiceStatus === 'Draft';
+  const [editing, setEditing] = useState(Boolean(initialEditing) && canEdit);
+  const [form, setForm] = useState({
+    invoiceDate: invoice.invoiceDate?.slice?.(0, 10) || invoice.invoiceDate,
+    dueDate: invoice.dueDate?.slice?.(0, 10) || invoice.dueDate,
+    paymentTerms: invoice.paymentTerms || 'Net 30',
+    notes: invoice.notes || '',
+    items: (invoice.items || []).map((item) => ({
+      productId: item.productId,
+      productName: item.productName,
+      sku: item.sku,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discount || 0,
+      taxRate: item.taxRate || 0,
+      notes: item.notes || '',
+    })),
+  });
+
+  const addProductsToInvoice = async (picked: PickedProduct[]) => {
+    if (!picked.length) return;
+    const additions: typeof form.items = [];
+    for (const p of picked) {
+      if (form.items.some((row) => row.productId === p.id)) continue;
+      try {
+        const full = await productService.getProductById(p.id);
+        additions.push({
+          productId: p.id,
+          productName: full.name || p.name,
+          sku: full.sku || p.sku || '',
+          quantity: 1,
+          unitPrice: Number(full.sellingPrice) || 0,
+          discount: 0,
+          taxRate: Number(full.taxRate) || 0,
+          notes: '',
+        });
+      } catch {
+        additions.push({
+          productId: p.id,
+          productName: p.name,
+          sku: p.sku || '',
+          quantity: 1,
+          unitPrice: 0,
+          discount: 0,
+          taxRate: 0,
+          notes: '',
+        });
+      }
+    }
+    if (additions.length) {
+      setForm((prev) => ({ ...prev, items: [...prev.items, ...additions] }));
+    }
+  };
+
+  useEffect(() => {
+    setEditing(Boolean(initialEditing) && invoice.invoiceStatus === 'Draft');
+    setForm({
+      invoiceDate: invoice.invoiceDate?.slice?.(0, 10) || invoice.invoiceDate,
+      dueDate: invoice.dueDate?.slice?.(0, 10) || invoice.dueDate,
+      paymentTerms: invoice.paymentTerms || 'Net 30',
+      notes: invoice.notes || '',
+      items: (invoice.items || []).map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || 0,
+        taxRate: item.taxRate || 0,
+        notes: item.notes || '',
+      })),
+    });
+  }, [invoice.id, invoice.invoiceStatus, invoice.invoiceDate, invoice.dueDate, invoice.paymentTerms, invoice.notes, invoice.items, initialEditing]);
+
+  const previewTotals = form.items.reduce(
+    (acc, item) => {
+      const lineTotal = item.quantity * item.unitPrice;
+      const discountAmount = (lineTotal * item.discount) / 100;
+      const taxable = lineTotal - discountAmount;
+      const taxAmount = (taxable * item.taxRate) / 100;
+      acc.subtotal += lineTotal;
+      acc.discount += discountAmount;
+      acc.tax += taxAmount;
+      return acc;
+    },
+    { subtotal: 0, discount: 0, tax: 0 }
+  );
+  const previewGrand = previewTotals.subtotal - previewTotals.discount + previewTotals.tax;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">{invoice.invoiceNumber}</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div>
+              <p className="text-sm text-gray-500">Customer</p>
+              <p className="font-semibold text-gray-900">{invoice.customerName}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Order #</p>
+              <p className="font-semibold text-gray-900">{invoice.orderNumber || '-'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Invoice Date</p>
+              {editing ? (
+                <input type="date" className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm" value={form.invoiceDate} onChange={(e) => setForm((p) => ({ ...p, invoiceDate: e.target.value }))} />
+              ) : (
+                <p className="font-semibold text-gray-900">{new Date(invoice.invoiceDate).toLocaleDateString()}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Due Date</p>
+              {editing ? (
+                <input type="date" className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm" value={form.dueDate} onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))} />
+              ) : (
+                <p className="font-semibold text-gray-900">{new Date(invoice.dueDate).toLocaleDateString()}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Invoice Status</p>
+              <span className={pill(STATUS_COLORS, invoice.invoiceStatus)}>{invoice.invoiceStatus}</span>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Payment Status</p>
+              <span className={pill(PAYMENT_STATUS_COLORS, invoice.paymentStatus)}>{invoice.paymentStatus}</span>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <p className="text-sm text-gray-500 mb-1">Notes</p>
+            {editing ? (
+              <textarea className="w-full rounded-lg border px-3 py-2 text-sm" rows={2} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
+            ) : (
+              <p className="text-sm text-gray-800 bg-gray-50 p-3 rounded-lg border border-gray-100">{invoice.notes || '—'}</p>
+            )}
+          </div>
+
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3 gap-3">
+              <h3 className="font-semibold text-gray-900">Invoice Items</h3>
+              {editing && (
+                <div className="min-w-[220px] flex-1 max-w-sm">
+                  <ProductPicker
+                    selected={[]}
+                    onChange={addProductsToInvoice}
+                    multiple
+                    placeholder="Add products…"
+                  />
                 </div>
               )}
+            </div>
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-gray-600">Product</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Qty</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Price</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Disc%</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Tax%</th>
+                    {editing && <th className="px-4 py-2 w-10" />}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {form.items.map((item, index) => (
+                    <tr key={`${item.productId}-${index}`}>
+                      <td className="px-4 py-3 text-sm">
+                        <p className="font-medium text-gray-900">{item.productName}</p>
+                        <p className="text-xs text-gray-500">{item.sku}</p>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right">
+                        {editing ? (
+                          <input type="number" min="1" className="w-16 rounded border px-2 py-1 text-right" value={item.quantity} onChange={(e) => setForm((p) => ({ ...p, items: p.items.map((row, i) => i === index ? { ...row, quantity: parseFloat(e.target.value) || 0 } : row) }))} />
+                        ) : item.quantity}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right">
+                        {editing ? (
+                          <input type="number" min="0" step="0.01" className="w-20 rounded border px-2 py-1 text-right" value={item.unitPrice} onChange={(e) => setForm((p) => ({ ...p, items: p.items.map((row, i) => i === index ? { ...row, unitPrice: parseFloat(e.target.value) || 0 } : row) }))} />
+                        ) : formatCurrency(item.unitPrice)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right">
+                        {editing ? (
+                          <input type="number" min="0" className="w-16 rounded border px-2 py-1 text-right" value={item.discount} onChange={(e) => setForm((p) => ({ ...p, items: p.items.map((row, i) => i === index ? { ...row, discount: parseFloat(e.target.value) || 0 } : row) }))} />
+                        ) : `${item.discount}%`}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right">
+                        {editing ? (
+                          <input type="number" min="0" className="w-16 rounded border px-2 py-1 text-right" value={item.taxRate} onChange={(e) => setForm((p) => ({ ...p, items: p.items.map((row, i) => i === index ? { ...row, taxRate: parseFloat(e.target.value) || 0 } : row) }))} />
+                        ) : `${item.taxRate}%`}
+                      </td>
+                      {editing && (
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => setForm((p) => ({ ...p, items: p.items.filter((_, i) => i !== index) }))}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded"
+                            title="Remove line"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-              <div className="mb-6">
-                <h3 className="font-semibold text-gray-900 mb-3">Invoice Items</h3>
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="text-left px-4 py-2 text-xs font-semibold text-gray-600">Product</th>
-                        <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Qty</th>
-                        <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Price</th>
-                        <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Disc%</th>
-                        <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Tax%</th>
-                        <th className="text-right px-4 py-2 text-xs font-semibold text-gray-600">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
-                      {selectedInvoice.items.map((item) => (
-                        <tr key={item.id}>
-                          <td className="px-4 py-3 text-sm">
-                            <p className="font-medium text-gray-900">{item.productName}</p>
-                            <p className="text-xs text-gray-500">{item.sku}</p>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-800">{item.quantity}</td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-800">{formatCurrency(item.unitPrice)}</td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-800">{item.discount}%</td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-800">{item.taxRate}%</td>
-                          <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">{formatCurrency(item.lineTotal)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="p-4 bg-gray-50 border border-gray-100 rounded-lg space-y-2">
-                <div className="flex justify-between text-gray-700">
-                  <span>Subtotal</span>
-                  <span>{formatCurrency(selectedInvoice.subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-red-600">
-                  <span>Discount</span>
-                  <span>-{formatCurrency(selectedInvoice.discountTotal)}</span>
-                </div>
-                <div className="flex justify-between text-blue-600">
-                  <span>Tax</span>
-                  <span>{formatCurrency(selectedInvoice.taxTotal)}</span>
-                </div>
-                <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-gray-900">
-                  <span>Grand Total</span>
-                  <span className="text-[#014582]">{formatCurrency(selectedInvoice.grandTotal)}</span>
-                </div>
-                <div className="border-t border-gray-200 pt-2 flex justify-between">
-                  <span className="text-gray-600">Paid Amount</span>
-                  <span className="text-green-600">{formatCurrency(selectedInvoice.paidAmount)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Outstanding</span>
-                  <span className="text-red-600">{formatCurrency(selectedInvoice.outstanding)}</span>
-                </div>
-              </div>
+          <div className="p-4 bg-gray-50 border border-gray-100 rounded-lg space-y-2">
+            <div className="flex justify-between text-gray-700"><span>Subtotal</span><span>{formatCurrency(editing ? previewTotals.subtotal : invoice.subtotal)}</span></div>
+            <div className="flex justify-between text-red-600"><span>Discount</span><span>-{formatCurrency(editing ? previewTotals.discount : invoice.discountTotal)}</span></div>
+            <div className="flex justify-between text-blue-600"><span>Tax</span><span>{formatCurrency(editing ? previewTotals.tax : invoice.taxTotal)}</span></div>
+            <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-gray-900">
+              <span>Grand Total</span>
+              <span className="text-[#014582]">{formatCurrency(editing ? previewGrand : invoice.grandTotal)}</span>
             </div>
           </div>
         </div>
-      )}
+        <div className="flex flex-wrap items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50">
+          {canEdit && !editing && (
+            <button onClick={() => setEditing(true)} className="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 flex items-center gap-2">
+              <Edit3 className="w-4 h-4" /> Edit
+            </button>
+          )}
+          {canEdit && editing && (
+            <button
+              onClick={async () => {
+                await onSaveEdit(invoice.id, form);
+                setEditing(false);
+              }}
+              disabled={actionLoading === `save-${invoice.id}`}
+              className="px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] disabled:opacity-50 flex items-center gap-2"
+            >
+              {actionLoading === `save-${invoice.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save
+            </button>
+          )}
+          <button onClick={onClose} className="px-5 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-200 rounded-lg transition-all">Close</button>
+          <button
+            onClick={() => onDownloadPDF(invoice)}
+            disabled={actionLoading === `pdf-${invoice.id}`}
+            className="px-5 py-2 text-sm font-semibold border border-purple-500 text-purple-600 hover:bg-purple-50 rounded-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <Download className="w-3.5 h-3.5" /> Download PDF
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -28,6 +28,11 @@ export interface PurchaseOrderModel {
   canEdit?: boolean;
   purchaseRequisitionId?: string;
   purchaseRequisitionNumber?: string;
+  totalOrderedQty?: number;
+  totalReceivedQty?: number;
+  totalRemainingQty?: number;
+  receivingProgress?: number;
+  receivingStatus?: 'Not Received' | 'Partially Received' | 'Fully Received';
 }
 
 export interface PurchaseOrderItem {
@@ -43,6 +48,10 @@ export interface PurchaseOrderItem {
   lineTotal: number;
   createdAt: string;
   updatedAt: string;
+  receivedQuantity?: number;
+  remainingQuantity?: number;
+  receivingProgress?: number;
+  isFullyReceived?: boolean;
 }
 
 export interface Supplier {
@@ -62,12 +71,15 @@ export interface Supplier {
   isActive: boolean;
 }
 
+import { normalizeProduct } from '../product/route';
+
 export interface Product {
   id: string;
   name: string;
   sku: string;
   costPrice?: number;
   sellingPrice?: number;
+  landingCost?: number;
   taxRate?: number;
   category?: string | { name?: string };
   stockUnitName?: string;
@@ -237,7 +249,23 @@ export const purchaseOrderService = {
       if (!response.success) {
         throw new Error(response.message || 'Failed to search products');
       }
-      return response.data?.data || [];
+      return (response.data?.data || []).map((raw: any) => {
+        const p = normalizeProduct(raw);
+        return {
+          id: String(p.id || p._id || ''),
+          name: p.name || '',
+          sku: p.sku || '',
+          costPrice: Number(p.costPrice ?? 0),
+          sellingPrice: Number(p.sellingPrice ?? 0),
+          landingCost: Number((p as any).landingCost ?? 0),
+          taxRate: Number(p.taxRate ?? 0),
+          category: p.categoryName || p.category,
+          stockUnitName: p.stockUnitName,
+          barcode: p.barcodeNumber,
+          currentStock: Number(p.currentStock ?? 0),
+          isActive: p.isActive !== false,
+        } as Product;
+      });
     } catch (error: any) {
       console.error('Search products error:', error);
       return [];

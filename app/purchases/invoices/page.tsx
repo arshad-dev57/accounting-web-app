@@ -107,7 +107,10 @@ export function PurchaseInvoicesPage() {
   const selectedTotalDiscount = wizardState.lineDrafts.reduce((sum, line) => sum + line.discountAmount, 0);
   const selectedTotalTax = wizardState.lineDrafts.reduce((sum, line) => sum + line.taxAmount, 0);
   const selectedGrandTotal = selectedSubtotal - selectedTotalDiscount + selectedTotalTax;
-  const totalItems = wizardState.lineDrafts.reduce((sum, line) => sum + line.quantity, 0);
+  const totalItems = wizardState.lineDrafts.reduce(
+    (sum, line) => sum + (line.quantity === '' ? 0 : Number(line.quantity) || 0),
+    0
+  );
 
   const canGoToStep2 = wizardState.selectedSources.length > 0 && wizardState.lineDrafts.length > 0;
   const canGoToStep3 = wizardState.lineDrafts.length > 0;
@@ -302,10 +305,14 @@ export function PurchaseInvoicesPage() {
         productId: item.productId || '',
         productName: item.productName || '',
         sku: item.sku || '',
+        purchaseOrderItemId: item.purchaseOrderItemId || null,
         quantity: item.quantity || item.receivingQuantity || 0,
         unitPrice: item.unitPrice || item.costPrice || 0,
         discount: item.discount || 0,
         taxRate: item.taxRate || 0,
+        totalReceivedOnPoLine: item.totalReceivedOnPoLine,
+        totalReturnedOnPoLine: item.totalReturnedOnPoLine,
+        previouslyInvoiced: item.previouslyInvoiced,
         subtotal: 0,
         discountAmount: 0,
         taxableAmount: 0,
@@ -327,10 +334,30 @@ export function PurchaseInvoicesPage() {
 
   const selectSource = (source: GRNSource | POSource) => {
     setWizardState(prev => {
-      const exists = prev.selectedSources.find((s) => s.id === source.id);
+      const exists = prev.selectedSources.find((s) => {
+        if (s.id === source.id) return true;
+        if (
+          prev.sourceType === 'grn' &&
+          source.purchaseOrderId &&
+          s.purchaseOrderId === source.purchaseOrderId
+        ) {
+          return true;
+        }
+        return false;
+      });
       let selectedSources: (GRNSource | POSource)[];
       if (exists) {
-        selectedSources = prev.selectedSources.filter((s) => s.id !== source.id);
+        selectedSources = prev.selectedSources.filter((s) => {
+          if (s.id === source.id) return false;
+          if (
+            prev.sourceType === 'grn' &&
+            source.purchaseOrderId &&
+            s.purchaseOrderId === source.purchaseOrderId
+          ) {
+            return false;
+          }
+          return true;
+        });
       } else {
         if (prev.selectedSources.length > 0 && prev.selectedSources[0].supplierId !== source.supplierId) {
           alert('All selected documents must belong to the same supplier');
@@ -388,13 +415,22 @@ export function PurchaseInvoicesPage() {
         paymentTerms: wizardState.paymentTerms || 'Net 30',
         notes: wizardState.notes || undefined,
         supplierInvoiceNo: wizardState.supplierInvoiceNo || undefined,
-        items: wizardState.lineDrafts,
+        items: wizardState.lineDrafts.map((line) => ({
+          ...line,
+          quantity: line.quantity === '' ? 0 : Number(line.quantity) || 0,
+          unitPrice: line.unitPrice === '' ? 0 : Number(line.unitPrice) || 0,
+          discount: line.discount === '' ? 0 : Number(line.discount) || 0,
+        })),
       };
 
       if (wizardState.sourceType === 'grn') {
-        payload.goodsReceivingIds = wizardState.selectedSources.map((s) => s.id);
-        if (wizardState.selectedSources.length === 1) {
-          payload.goodsReceivingId = wizardState.selectedSources[0].id;
+        payload.goodsReceivingIds = wizardState.selectedSources.flatMap((s) =>
+          (s as GRNSource).goodsReceivingIds?.length
+            ? (s as GRNSource).goodsReceivingIds!
+            : [s.id]
+        );
+        if (payload.goodsReceivingIds.length === 1) {
+          payload.goodsReceivingId = payload.goodsReceivingIds[0];
         }
       } else {
         payload.purchaseOrderIds = wizardState.selectedSources.map((s) => s.id);
@@ -515,16 +551,6 @@ export function PurchaseInvoicesPage() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Draft': return <FileText className="w-4 h-4 text-orange-600" />;
-      case 'Posted': return <Send className="w-4 h-4 text-blue-600" />;
-      case 'Partially Paid': return <Clock className="w-4 h-4 text-purple-600" />;
-      case 'Paid': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'Cancelled': return <Ban className="w-4 h-4 text-red-600" />;
-      default: return <Clock className="w-4 h-4 text-gray-600" />;
-    }
-  };
 
   const formatCurrency = (amount: number | undefined | null) => {
     if (amount === undefined || amount === null) return 'Rs. 0.00';
@@ -772,9 +798,8 @@ export function PurchaseInvoicesPage() {
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
                           <div className="flex flex-col gap-0.5">
-                            <span className={`text-[8px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full flex items-center gap-1 md:gap-1.5 w-fit ${getStatusColor(invoice.invoiceStatus)}`}>
-                              {getStatusIcon(invoice.invoiceStatus)}
-                              <span className="hidden xs:inline">{invoice.invoiceStatus === 'Partially Paid' ? 'Partial' : invoice.invoiceStatus}</span>
+                            <span className={`text-[8px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full w-fit ${getStatusColor(invoice.invoiceStatus)}`}>
+                              {invoice.invoiceStatus === 'Partially Paid' ? 'Partial' : invoice.invoiceStatus}
                             </span>
                             {invoice.isOverdue && (
                               <span className="text-[8px] md:text-[10px] font-bold text-red-600">OVERDUE</span>
@@ -945,7 +970,6 @@ export function PurchaseInvoicesPage() {
           formatCurrency={formatCurrency}
           formatDate={formatDate}
           getStatusColor={getStatusColor}
-          getStatusIcon={getStatusIcon}
           submitting={submitting}
         />
       )}
@@ -1015,7 +1039,6 @@ function InvoiceDetailModal({
   formatCurrency,
   formatDate,
   getStatusColor,
-  getStatusIcon,
   submitting
 }: any) {
   const canEdit = invoice.invoiceStatus === 'Draft' || invoice.canEdit;
@@ -1072,8 +1095,7 @@ function InvoiceDetailModal({
             <div>
               <h2 className="text-lg md:text-xl font-bold text-gray-900">{invoice.invoiceNumber}</h2>
               <div className="flex flex-wrap items-center gap-1 md:gap-2 mt-1">
-                <span className={`text-[10px] md:text-xs font-semibold px-2 md:px-2.5 py-0.5 md:py-1 rounded-full flex items-center gap-1 md:gap-1.5 ${getStatusColor(invoice.invoiceStatus)}`}>
-                  {getStatusIcon(invoice.invoiceStatus)}
+                <span className={`text-[10px] md:text-xs font-semibold px-2 md:px-2.5 py-0.5 md:py-1 rounded-full ${getStatusColor(invoice.invoiceStatus)}`}>
                   {invoice.invoiceStatus === 'Partially Paid' ? 'Partial' : invoice.invoiceStatus}
                 </span>
                 <span className="text-[10px] md:text-xs text-gray-400">•</span>

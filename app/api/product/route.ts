@@ -167,6 +167,10 @@ export function normalizeProduct(raw: any): Product {
     qrCode: raw.qrCode || '',
     currentStock: locationQty,
     minimumStock: Number(raw.minimumStock ?? 0),
+    costPrice: Number(raw.costPrice ?? 0),
+    sellingPrice: Number(raw.sellingPrice ?? 0),
+    landingCost: Number(raw.landingCost ?? 0),
+    taxRate: Number(raw.taxRate ?? 0),
   };
 }
 

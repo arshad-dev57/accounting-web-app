@@ -352,7 +352,7 @@ export function GoodsReceivingPage() {
   };
 
 
-  const handleCreateGRN = async () => {
+  const handleCreateGRN = async (confirmOnCreate = false) => {
     if (!wizardState.selectedOrders.length) {
       alert('Please select at least one purchase order');
       return;
@@ -377,7 +377,7 @@ export function GoodsReceivingPage() {
         receivingDate: wizardState.receivingDate,
         receivedBy: wizardState.receivedBy || undefined,
         notes: wizardState.notes || undefined,
-        status: 'Draft',
+        status: confirmOnCreate ? 'Confirmed' : 'Draft',
         items,
         locationId: selectedLocationId || undefined,
       });
@@ -469,14 +469,6 @@ export function GoodsReceivingPage() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Draft': return <FileText className="w-4 h-4 text-orange-600" />;
-      case 'Partially Received': return <Package className="w-4 h-4 text-blue-600" />;
-      case 'Fully Received': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      default: return <Clock className="w-4 h-4 text-gray-600" />;
-    }
-  };
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -707,13 +699,13 @@ export function GoodsReceivingPage() {
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
                           <p className="text-xs md:text-sm font-semibold text-gray-700">
-                            {grn.totalReceivedQty}/{grn.totalOrderedQty}
+                            {grn.totalCumulativeReceivedQty || grn.totalReceivedQty}/{grn.totalOrderedQty}
                           </p>
                           <div className="w-16 md:w-20 h-1.5 bg-gray-200 rounded-full mt-1">
                             <div 
                               className="h-full rounded-full transition-all"
                               style={{ 
-                                width: `${Math.min(100, (grn.totalReceivedQty / grn.totalOrderedQty) * 100)}%`,
+                                width: `${Math.min(100, (((grn.totalCumulativeReceivedQty || grn.totalReceivedQty) / grn.totalOrderedQty) * 100))}%`,
                                 backgroundColor: grn.status === 'Fully Received' ? '#22c55e' : grn.status === 'Partially Received' ? '#3b82f6' : '#f59e0b'
                               }}
                             />
@@ -723,9 +715,10 @@ export function GoodsReceivingPage() {
                           <p className="text-xs md:text-sm text-gray-600">{formatDate(grn.receivingDate)}</p>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
-                          <span className={`text-[8px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full flex items-center gap-1 md:gap-1.5 w-fit ${getStatusColor(grn.status)}`}>
-                            {getStatusIcon(grn.status)}
-                            <span className="hidden xs:inline">{grn.status === 'Partially Received' ? 'Partial' : grn.status}</span>
+                          <span className={`text-[8px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full w-fit ${getStatusColor(!grn.confirmedAt && grn.status !== 'Draft' ? 'Draft' : grn.status)}`}>
+                            {!grn.confirmedAt && grn.status !== 'Draft'
+                              ? 'Pending Confirm'
+                              : grn.status === 'Partially Received' ? 'Partial' : grn.status}
                           </span>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
@@ -752,7 +745,7 @@ export function GoodsReceivingPage() {
                             >
                               <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
                             </button>
-                            {(grn.canEdit || grn.status === 'Draft') && (
+                            {(grn.canEdit || (!grn.confirmedAt && grn.status !== 'Cancelled')) && (
                               <button
                                 onClick={() => viewGRNDetail(grn, true)}
                                 className="p-1 md:p-1.5 text-gray-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"
@@ -761,7 +754,7 @@ export function GoodsReceivingPage() {
                                 <Edit3 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                               </button>
                             )}
-                            {grn.canConfirm && (
+                            {(grn.canConfirm || (!grn.confirmedAt && grn.status !== 'Cancelled')) && (
                               <button
                                 onClick={() => {
                                   setGrnToActOn(grn.id);
@@ -891,7 +884,6 @@ export function GoodsReceivingPage() {
           formatDate={formatDate}
           formatCurrency={formatCurrency}
           getStatusColor={getStatusColor}
-          getStatusIcon={getStatusIcon}
           submitting={submitting}
         />
       )}
@@ -1225,14 +1217,24 @@ function CreateGRNWizard({
               Next →
             </button>
           ) : (
-            <button
-              onClick={handleCreateGRN}
-              disabled={submitting}
-              className="px-5 md:px-7 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#014582]/25 flex items-center gap-2"
-            >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Save Draft
-            </button>
+            <>
+              <button
+                onClick={() => handleCreateGRN(false)}
+                disabled={submitting}
+                className="px-4 md:px-6 py-2 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save Draft
+              </button>
+              <button
+                onClick={() => handleCreateGRN(true)}
+                disabled={submitting}
+                className="px-5 md:px-7 py-2 md:py-2.5 bg-green-600 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-600/25 flex items-center gap-2"
+              >
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <PackageCheck className="w-4 h-4" />}
+                Confirm & Update Stock
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1252,10 +1254,10 @@ function GRNDetailModal({
   formatDate,
   formatCurrency,
   getStatusColor,
-  getStatusIcon,
   submitting
 }: any) {
-  const canEdit = grn.status === 'Draft' || grn.canEdit;
+  const canEdit = !grn.confirmedAt && grn.status !== 'Cancelled';
+  const canConfirm = !grn.confirmedAt && grn.status !== 'Cancelled';
   const [editing, setEditing] = useState(Boolean(initialEditing) && canEdit);
   const [form, setForm] = useState({
     receivingDate: grn.receivingDate?.slice?.(0, 10) || '',
@@ -1277,7 +1279,7 @@ function GRNDetailModal({
   });
 
   useEffect(() => {
-    setEditing(Boolean(initialEditing) && (grn.status === 'Draft' || grn.canEdit));
+    setEditing(Boolean(initialEditing) && (!grn.confirmedAt && grn.status !== 'Cancelled'));
     setForm({
       receivingDate: grn.receivingDate?.slice?.(0, 10) || '',
       receivedBy: grn.receivedBy || '',
@@ -1326,9 +1328,10 @@ function GRNDetailModal({
             <div>
               <h2 className="text-lg md:text-xl font-bold text-gray-900">{grn.grnNumber}</h2>
               <div className="flex flex-wrap items-center gap-1 md:gap-2 mt-1">
-                <span className={`text-[10px] md:text-xs font-semibold px-2 md:px-2.5 py-0.5 md:py-1 rounded-full flex items-center gap-1 md:gap-1.5 ${getStatusColor(grn.status)}`}>
-                  {getStatusIcon(grn.status)}
-                  {grn.status === 'Partially Received' ? 'Partial' : grn.status}
+                <span className={`text-[10px] md:text-xs font-semibold px-2 md:px-2.5 py-0.5 md:py-1 rounded-full ${getStatusColor(!grn.confirmedAt && grn.status !== 'Draft' ? 'Draft' : grn.status)}`}>
+                  {!grn.confirmedAt && grn.status !== 'Draft'
+                    ? 'Pending Confirm'
+                    : grn.status === 'Partially Received' ? 'Partial' : grn.status}
                 </span>
                 <span className="text-[10px] md:text-xs text-gray-400">•</span>
                 <span className="text-[10px] md:text-xs text-gray-500">{formatDate(grn.receivingDate)}</span>
@@ -1408,9 +1411,21 @@ function GRNDetailModal({
                       </p>
                       <p className="text-[10px] md:text-xs text-gray-400 mt-0.5">
                         Ordered: {item.orderedQuantity}
-                        {typeof item.previouslyReceivedQty === 'number'
-                          ? ` · Already received elsewhere: ${item.previouslyReceivedQty}`
-                          : ''}
+                        {' · '}
+                        Received now: {item.receivingQuantity}
+                        {(item.previouslyReceivedQty ?? 0) > 0 && (
+                          <> · Previously received: {item.previouslyReceivedQty}</>
+                        )}
+                        {' · '}
+                        Total received: {item.totalReceivedQty ?? ((item.previouslyReceivedQty ?? 0) + (item.receivingQuantity ?? 0))}
+                        {(item.returnedQuantity ?? 0) > 0 && (
+                          <> · Returned: {item.returnedQuantity}</>
+                        )}
+                        {(item.returnedQuantity ?? 0) > 0 && (
+                          <> · Net from GRN: {item.netReceivedQty ?? Math.max(0, (item.receivingQuantity ?? 0) - (item.returnedQuantity ?? 0))}</>
+                        )}
+                        {' · '}
+                        Remaining: {item.remainingQuantity ?? Math.max(0, (item.orderedQuantity ?? 0) - ((item.previouslyReceivedQty ?? 0) + (item.receivingQuantity ?? 0)))}
                       </p>
                     </div>
                     {editing ? (
@@ -1436,7 +1451,9 @@ function GRNDetailModal({
                       <div className={`text-xs font-semibold px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${
                         item.isFullyReceived ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
                       }`}>
-                        {item.isFullyReceived ? 'Complete' : `${item.receivingQuantity}/${item.orderedQuantity}`}
+                        {item.isFullyReceived
+                          ? 'Complete'
+                          : `${item.totalReceivedQty ?? ((item.previouslyReceivedQty ?? 0) + (item.receivingQuantity ?? 0))}/${item.orderedQuantity}`}
                       </div>
                     )}
                   </div>
@@ -1514,7 +1531,7 @@ function GRNDetailModal({
               Save
             </button>
           )}
-          {grn.canConfirm && !editing && (
+          {canConfirm && !editing && (
             <button
               onClick={() => onConfirm(grn.id)}
               disabled={submitting}
@@ -1524,7 +1541,7 @@ function GRNDetailModal({
               Confirm
             </button>
           )}
-          {grn.canDelete && !editing && (
+          {canEdit && !editing && (
             <button
               onClick={() => onDelete(grn.id)}
               disabled={submitting}

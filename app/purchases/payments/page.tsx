@@ -16,6 +16,8 @@ import {
   User, Phone, Mail, Building, Edit3
 } from 'lucide-react';
 import { purchasePaymentService, PurchasePaymentModel, PurchasePaymentStats, Supplier, BankAccount, PurchaseInvoiceForPayment } from '../../api/purchasepayments/route';
+import { bankAccountService } from '@/lib/bank-accounts-service';
+import CreateBankAccountForm from '@/components/accounting/CreateBankAccountForm';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -215,6 +217,7 @@ export function PurchasePaymentsPage() {
 
   const openCreateForm = () => {
     resetForm();
+    fetchBankAccounts();
     setShowCreateForm(true);
   };
 
@@ -224,7 +227,7 @@ export function PurchasePaymentsPage() {
   };
 
   const resetForm = () => {
-    setFormState({
+    setFormState((prev) => ({
       selectedSupplier: null,
       supplierSearchResults: [],
       isSearchingSuppliers: false,
@@ -233,12 +236,12 @@ export function PurchasePaymentsPage() {
       isLoadingInvoices: false,
       paymentMethod: 'Cash',
       selectedBankAccount: null,
-      bankAccounts: [],
+      bankAccounts: prev.bankAccounts,
       paymentDate: new Date().toISOString().split('T')[0],
       paymentAmount: '',
       paymentReference: '',
       paymentNotes: ''
-    });
+    }));
   };
 
   const searchSuppliers = async (query: string) => {
@@ -303,31 +306,28 @@ export function PurchasePaymentsPage() {
 
   const updateInvoiceAmount = (invoiceId: string, amount: number) => {
     setFormState((prev: CreateFormState) => {
-      const updated = prev.selectedInvoices.map(inv => {
-        if (inv.id === invoiceId) {
-          const maxAmount = Math.min(amount, inv.outstanding);
-          return { ...inv, amountToPay: Math.max(0, maxAmount) };
-        }
-        return inv;
+      const updated = prev.selectedInvoices.map((inv) => {
+        if (inv.id !== invoiceId) return inv;
+        const capped = Math.min(Math.max(0, amount), inv.outstanding);
+        return { ...inv, amountToPay: capped };
       });
       const total = updated.reduce((sum, inv) => sum + inv.amountToPay, 0);
       return { ...prev, selectedInvoices: updated, paymentAmount: total.toFixed(2) };
     });
   };
 
-  // ─── Fetch Bank Accounts ────────────────────────────────────
+  const fetchBankAccounts = useCallback(async () => {
+    try {
+      const response = await bankAccountService.getAccounts({ limit: 100, status: 'Active' });
+      setFormState((prev: CreateFormState) => ({ ...prev, bankAccounts: response.data }));
+    } catch (error) {
+      console.error('Failed to fetch bank accounts:', error);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchBankAccounts = async () => {
-      try {
-        const accounts = await purchasePaymentService.getBankAccounts();
-        setFormState((prev: CreateFormState) => ({ ...prev, bankAccounts: accounts }));
-      } catch (error) {
-        console.error('Failed to fetch bank accounts:', error);
-      }
-    };
     fetchBankAccounts();
-  }, []);
+  }, [fetchBankAccounts]);
 
   // ─── Submit Payment ─────────────────────────────────────────
 
@@ -340,9 +340,26 @@ export function PurchasePaymentsPage() {
       alert('Please select at least one invoice');
       return;
     }
+    for (const inv of formState.selectedInvoices) {
+      if (inv.amountToPay <= 0) {
+        alert(`Enter a valid amount for invoice ${inv.invoiceNumber}`);
+        return;
+      }
+      if (inv.amountToPay > inv.outstanding) {
+        alert(`Amount for ${inv.invoiceNumber} cannot exceed outstanding ${inv.outstanding}`);
+        return;
+      }
+    }
+
     const amount = parseFloat(formState.paymentAmount);
     if (isNaN(amount) || amount <= 0) {
       alert('Enter a valid payment amount');
+      return;
+    }
+
+    const invoiceTotal = formState.selectedInvoices.reduce((sum, inv) => sum + inv.amountToPay, 0);
+    if (Math.abs(amount - invoiceTotal) > 0.01) {
+      alert('Total payment amount must match the sum of selected invoice amounts');
       return;
     }
     
@@ -438,15 +455,6 @@ export function PurchasePaymentsPage() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Completed': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'Pending': return <Clock className="w-4 h-4 text-yellow-600" />;
-      case 'Failed': return <AlertCircle className="w-4 h-4 text-red-600" />;
-      case 'Cancelled': return <Ban className="w-4 h-4 text-gray-600" />;
-      default: return <Clock className="w-4 h-4 text-gray-600" />;
-    }
-  };
 
   const formatCurrency = (amount: number | undefined | null) => {
     if (amount == null) return 'Rs. 0.00';
@@ -674,9 +682,8 @@ export function PurchasePaymentsPage() {
                           <p className="text-xs md:text-sm text-gray-600">{formatDate(payment.paymentDate)}</p>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
-                          <span className={`text-[8px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full flex items-center gap-1 md:gap-1.5 w-fit ${getStatusColor(payment.status)}`}>
-                            {getStatusIcon(payment.status)}
-                            <span className="hidden xs:inline">{payment.status}</span>
+                          <span className={`text-[8px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full w-fit ${getStatusColor(payment.status)}`}>
+                            {payment.status}
                           </span>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
@@ -816,7 +823,6 @@ export function PurchasePaymentsPage() {
           formatCurrency={formatCurrency}
           formatDate={formatDate}
           getStatusColor={getStatusColor}
-          getStatusIcon={getStatusIcon}
           submitting={submitting}
         />
       )}
@@ -891,6 +897,8 @@ function CreatePaymentForm({
   paymentMethods
 }: any) {
   const [supplierSearchQuery, setSupplierSearchQuery] = useState('');
+  const [showAddBankModal, setShowAddBankModal] = useState(false);
+  const [creatingBank, setCreatingBank] = useState(false);
 
   const handleSearchSuppliers = (query: string) => {
     setSupplierSearchQuery(query);
@@ -900,6 +908,38 @@ function CreatePaymentForm({
   const isBankTransfer = formState.paymentMethod === 'Bank Transfer' || 
                          formState.paymentMethod === 'Cheque' || 
                          formState.paymentMethod === 'Online Payment';
+
+  const handleCreateBankAccount = async (data: Record<string, unknown>) => {
+    setCreatingBank(true);
+    try {
+      const created = await bankAccountService.createAccount(data as any);
+      const response = await bankAccountService.getAccounts({ limit: 100, status: 'Active' });
+      const accounts = response.data;
+      const selectedBankAccount =
+        accounts.find((acc) => acc.id === created.id) ||
+        ({
+          id: created.id,
+          accountName: created.accountName,
+          bankName: created.bankName,
+          accountNumber: created.accountNumber,
+          accountType: created.accountType,
+          balance: created.currentBalance,
+          currency: created.currency,
+          isActive: created.status === 'Active',
+        } as BankAccount);
+
+      setFormState((prev: CreateFormState) => ({
+        ...prev,
+        bankAccounts: accounts,
+        selectedBankAccount,
+      }));
+      setShowAddBankModal(false);
+    } catch (error: any) {
+      alert(error.message || 'Failed to create bank account');
+    } finally {
+      setCreatingBank(false);
+    }
+  };
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -1015,7 +1055,9 @@ function CreatePaymentForm({
               ) : (
                 <div className="space-y-2 max-h-64 md:max-h-80 overflow-y-auto">
                   {formState.availableInvoices.map((invoice: PurchaseInvoiceForPayment) => {
-                    const isSelected = formState.selectedInvoices.some((inv: any) => inv.id === invoice.id);
+                    const selectedInv = formState.selectedInvoices.find((inv) => inv.id === invoice.id);
+                    const isSelected = Boolean(selectedInv);
+                    const amountToPay = selectedInv?.amountToPay ?? 0;
                     const isOverdue = new Date(invoice.dueDate) < new Date();
                     return (
                       <div
@@ -1068,14 +1110,29 @@ function CreatePaymentForm({
                                     step="0.01"
                                     min="0"
                                     max={invoice.outstanding}
-                                    value={invoice.amountToPay}
-                                    onChange={(e) => updateInvoiceAmount(invoice.id, parseFloat(e.target.value) || 0)}
+                                    value={amountToPay}
+                                    onFocus={(e) => e.target.select()}
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      if (raw === '') {
+                                        updateInvoiceAmount(invoice.id, 0);
+                                        return;
+                                      }
+                                      const parsed = parseFloat(raw);
+                                      if (!Number.isNaN(parsed)) {
+                                        updateInvoiceAmount(invoice.id, parsed);
+                                      }
+                                    }}
                                     className="w-full px-2 md:px-3 py-1 md:py-1.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                                   />
+                                  <p className="text-[10px] text-gray-400 mt-0.5">
+                                    Max: {formatCurrency(invoice.outstanding)}
+                                  </p>
                                 </div>
                                 <button
+                                  type="button"
                                   onClick={() => updateInvoiceAmount(invoice.id, invoice.outstanding)}
-                                  className="px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all"
+                                  className="self-end px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all"
                                 >
                                   Full
                                 </button>
@@ -1126,7 +1183,16 @@ function CreatePaymentForm({
               {/* Bank Account */}
               {isBankTransfer && (
                 <div>
-                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Bank Account *</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs md:text-sm font-semibold text-gray-700">Bank Account *</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddBankModal(true)}
+                      className="text-[10px] md:text-xs font-semibold text-[#014582] hover:underline"
+                    >
+                      + Add Bank Account
+                    </button>
+                  </div>
                   <select
                     value={formState.selectedBankAccount?.id || ''}
                     onChange={(e) => {
@@ -1236,6 +1302,18 @@ function CreatePaymentForm({
           </div>
         </div>
       </div>
+
+      {showAddBankModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl">
+            <CreateBankAccountForm
+              onCancel={() => setShowAddBankModal(false)}
+              onSave={handleCreateBankAccount}
+              submitting={creatingBank}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1254,7 +1332,6 @@ function PaymentDetailModal({
   formatCurrency,
   formatDate,
   getStatusColor,
-  getStatusIcon,
   submitting
 }: any) {
   const canEdit = payment.canEdit || payment.status !== 'Cancelled';
@@ -1287,8 +1364,7 @@ function PaymentDetailModal({
             <div>
               <h2 className="text-lg md:text-xl font-bold text-gray-900">{payment.paymentNumber}</h2>
               <div className="flex flex-wrap items-center gap-1 md:gap-2 mt-1">
-                <span className={`text-[10px] md:text-xs font-semibold px-2 md:px-2.5 py-0.5 md:py-1 rounded-full flex items-center gap-1 md:gap-1.5 ${getStatusColor(payment.status)}`}>
-                  {getStatusIcon(payment.status)}
+                <span className={`text-[10px] md:text-xs font-semibold px-2 md:px-2.5 py-0.5 md:py-1 rounded-full ${getStatusColor(payment.status)}`}>
                   {payment.status}
                 </span>
                 <span className="text-[10px] md:text-xs text-gray-400">•</span>

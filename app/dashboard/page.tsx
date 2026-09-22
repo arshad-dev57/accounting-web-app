@@ -31,7 +31,7 @@ const banners = [
     accentColor: '#00C2FF',
   },
   {
-    title: 'Warehouse\nModule Live',
+    title: 'Inventory\nModule Live',
     subtitle: 'Manage inventory, orders & stock all in one place',
     badge: 'NOW LIVE',
     btnText: 'Open Warehouse',
@@ -66,7 +66,7 @@ const modules = [
       'Requisitions, purchase orders, goods receiving, supplier bills and payments for the buying cycle.',
   },
   {
-    title: 'Warehouse',
+    title: 'Inventory',
     href: '/warehouse/dashboard',
     icon: Warehouse,
     color: '#014582',
@@ -194,9 +194,8 @@ export default function DashboardPage() {
                   <button
                     key={index}
                     onClick={() => setCurrentIndex(index)}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      index === currentIndex ? 'w-8 bg-white' : 'w-2 bg-white/30'
-                    }`}
+                    className={`h-2 rounded-full transition-all duration-300 ${index === currentIndex ? 'w-8 bg-white' : 'w-2 bg-white/30'
+                      }`}
                   />
                 ))}
               </div>

@@ -34,6 +34,11 @@ yarn-error.log*
 # .env.production only has public URLs (no secrets) so we allow it.
 .env*
 !.env.production
+!.env.onprem.example
+
+# On-prem standalone package output + PM2 logs
+deploy/on-prem/windows/package/
+deploy/on-prem/windows/logs/*.log
 
 # vercel
 .vercel

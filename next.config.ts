@@ -4,6 +4,18 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   skipTrailingSlashRedirect: true,
   generateEtags: false,
+  
+  // ⚡ COMPILATION SPEED BOOST FOR HEAVY LIBRARIES
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+      'jspdf',
+      'xlsx',
+      'country-flag-icons',
+    ],
+  },
+
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -52,6 +64,10 @@ const nextConfig: NextConfig = {
     ];
   },
   async headers() {
+    // Only apply strict no-store in Production to avoid dev navigation block
+    if (process.env.NODE_ENV === 'development') {
+      return [];
+    }
     return [
       {
         source: '/downloads/:file*',

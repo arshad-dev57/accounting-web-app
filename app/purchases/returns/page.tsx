@@ -18,7 +18,34 @@ import {
   Edit3, File, Printer, Download,
   Receipt, Save, Undo, Boxes, PackageX
 } from 'lucide-react';
-import { purchaseReturnService, PurchaseReturnModel, PurchaseReturnStats, Supplier, InvoiceForReturn, ReturnItemForForm } from '../../api/purchasereturns/route';
+import { purchaseReturnService, PurchaseReturnModel, PurchaseReturnStats, Supplier, GRNForReturn, InvoiceForReturn, ReturnItemForForm } from '../../api/purchasereturns/route';
+
+function computeSelectedReturnQty(item: ReturnItemForForm) {
+  const available = Number(item.availableQuantity) || 0;
+  if (available <= 0) {
+    return { returnQuantity: 0, boxes: 0, quantityPerBox: 0, lineTotal: 0 };
+  }
+
+  let returnQuantity = available;
+  let boxes = 0;
+  let quantityPerBox = 0;
+
+  if (item.isBoxBased && item.boxQuantity > 0) {
+    quantityPerBox = item.boxQuantity;
+    boxes = Math.floor(returnQuantity / item.boxQuantity);
+    if (boxes > 0) {
+      returnQuantity = boxes * item.boxQuantity;
+    }
+  }
+
+  const unitPrice = Number(item.unitPrice) || 0;
+  return {
+    returnQuantity,
+    boxes,
+    quantityPerBox,
+    lineTotal: returnQuantity * unitPrice,
+  };
+}
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -26,9 +53,10 @@ interface CreateFormState {
   selectedSupplier: Supplier | null;
   supplierSearchResults: Supplier[];
   isSearchingSuppliers: boolean;
-  availableInvoices: InvoiceForReturn[];
-  selectedInvoice: InvoiceForReturn | null;
-  isLoadingInvoices: boolean;
+  availableGRNs: GRNForReturn[];
+  selectedGRN: GRNForReturn | null;
+  linkedInvoice: InvoiceForReturn | null;
+  isLoadingGRNs: boolean;
   returnItems: ReturnItemForForm[];
   isLoadingProducts: boolean;
   returnReason: string;
@@ -75,9 +103,10 @@ export function PurchaseReturnsPage() {
     selectedSupplier: null,
     supplierSearchResults: [],
     isSearchingSuppliers: false,
-    availableInvoices: [],
-    selectedInvoice: null,
-    isLoadingInvoices: false,
+    availableGRNs: [],
+    selectedGRN: null,
+    linkedInvoice: null,
+    isLoadingGRNs: false,
     returnItems: [],
     isLoadingProducts: false,
     returnReason: '',
@@ -94,7 +123,7 @@ export function PurchaseReturnsPage() {
   const totalReturnQty = formState.returnItems.reduce((sum, item) => sum + item.returnQuantity, 0);
   
   const canCreateReturn = formState.selectedSupplier !== null && 
-    formState.selectedInvoice !== null && 
+    formState.selectedGRN !== null && 
     formState.returnItems.some(item => item.isSelected && item.returnQuantity > 0) &&
     totalReturnAmount > 0;
 
@@ -164,7 +193,8 @@ export function PurchaseReturnsPage() {
         const query = searchTerm.toLowerCase();
         const matches = item.returnNumber.toLowerCase().includes(query) ||
           item.supplierName.toLowerCase().includes(query) ||
-          item.purchaseInvoiceNumber.toLowerCase().includes(query);
+          (item.grnNumber && item.grnNumber.toLowerCase().includes(query)) ||
+          (item.purchaseInvoiceNumber && item.purchaseInvoiceNumber.toLowerCase().includes(query));
         if (!matches) return false;
       }
       return true;
@@ -227,9 +257,10 @@ export function PurchaseReturnsPage() {
       selectedSupplier: null,
       supplierSearchResults: [],
       isSearchingSuppliers: false,
-      availableInvoices: [],
-      selectedInvoice: null,
-      isLoadingInvoices: false,
+      availableGRNs: [],
+      selectedGRN: null,
+      linkedInvoice: null,
+      isLoadingGRNs: false,
       returnItems: [],
       isLoadingProducts: false,
       returnReason: '',
@@ -258,105 +289,153 @@ export function PurchaseReturnsPage() {
   const selectSupplier = async (supplier: Supplier) => {
     setFormState(prev => ({ ...prev, selectedSupplier: supplier, supplierSearchResults: [] }));
     
-    setFormState(prev => ({ ...prev, isLoadingInvoices: true }));
+    setFormState(prev => ({ ...prev, isLoadingGRNs: true }));
     try {
-      const invoices = await purchaseReturnService.getSupplierInvoices(supplier.id);
+      const grns = await purchaseReturnService.getSupplierGRNs(supplier.id);
       setFormState(prev => ({ 
         ...prev, 
-        availableInvoices: invoices, 
-        selectedInvoice: null,
+        availableGRNs: grns, 
+        selectedGRN: null,
+        linkedInvoice: null,
         returnItems: [],
-        isLoadingInvoices: false 
+        isLoadingGRNs: false 
       }));
     } catch (error) {
-      console.error('Failed to fetch invoices:', error);
-      setFormState(prev => ({ ...prev, availableInvoices: [], isLoadingInvoices: false }));
+      console.error('Failed to fetch GRNs:', error);
+      setFormState(prev => ({ ...prev, availableGRNs: [], isLoadingGRNs: false }));
     }
   };
 
-  const selectInvoice = async (invoice: InvoiceForReturn) => {
-    setFormState(prev => ({ ...prev, selectedInvoice: invoice }));
+  const selectGRN = async (grn: GRNForReturn) => {
+    setFormState(prev => ({ ...prev, selectedGRN: grn }));
     
     setFormState(prev => ({ ...prev, isLoadingProducts: true }));
     try {
-      const products = await purchaseReturnService.getInvoiceProducts(invoice.id);
-      setFormState(prev => ({ ...prev, returnItems: products, isLoadingProducts: false }));
+      const res = await purchaseReturnService.getGRNProducts(grn.id);
+      setFormState(prev => ({ 
+        ...prev, 
+        linkedInvoice: res.linkedInvoice,
+        returnItems: res.products, 
+        isLoadingProducts: false 
+      }));
     } catch (error) {
-      console.error('Failed to fetch products:', error);
-      setFormState(prev => ({ ...prev, returnItems: [], isLoadingProducts: false }));
+      console.error('Failed to fetch GRN products:', error);
+      setFormState(prev => ({ ...prev, linkedInvoice: null, returnItems: [], isLoadingProducts: false }));
     }
   };
 
   const toggleItemSelection = (index: number) => {
-    setFormState(prev => {
-      const newItems = [...prev.returnItems];
-      const item = newItems[index];
-      item.isSelected = !item.isSelected;
-      if (item.isSelected) {
-        item.returnQuantity = item.availableQuantity > 0 ? item.availableQuantity : 0;
-        if (item.isBoxBased && item.boxQuantity > 0) {
-          item.boxes = Math.floor(item.returnQuantity / item.boxQuantity);
-          item.quantityPerBox = item.boxQuantity;
-          item.returnQuantity = item.boxes! * item.boxQuantity;
+    setFormState(prev => ({
+      ...prev,
+      returnItems: prev.returnItems.map((item, i) => {
+        if (i !== index) return item;
+        if ((Number(item.availableQuantity) || 0) <= 0) return item;
+
+        const nextSelected = !item.isSelected;
+        if (!nextSelected) {
+          return {
+            ...item,
+            isSelected: false,
+            returnQuantity: 0,
+            boxes: 0,
+            quantityPerBox: 0,
+            lineTotal: 0,
+          };
         }
-        item.lineTotal = item.returnQuantity * item.unitPrice;
-      } else {
-        item.returnQuantity = 0;
-        item.boxes = 0;
-        item.quantityPerBox = 0;
-        item.lineTotal = 0;
-      }
-      return { ...prev, returnItems: newItems };
-    });
+
+        return {
+          ...item,
+          isSelected: true,
+          ...computeSelectedReturnQty(item),
+        };
+      }),
+    }));
   };
 
   const updateReturnQuantity = (index: number, quantity: number) => {
-    setFormState(prev => {
-      const newItems = [...prev.returnItems];
-      const item = newItems[index];
-      const maxQty = Math.min(quantity, item.availableQuantity);
-      item.returnQuantity = Math.max(0, maxQty);
-      item.lineTotal = item.returnQuantity * item.unitPrice;
-      return { ...prev, returnItems: newItems };
-    });
+    setFormState(prev => ({
+      ...prev,
+      returnItems: prev.returnItems.map((item, i) => {
+        if (i !== index) return item;
+        const maxQty = Math.min(quantity, Number(item.availableQuantity) || 0);
+        const returnQuantity = Math.max(0, maxQty);
+        return {
+          ...item,
+          isSelected: returnQuantity > 0,
+          returnQuantity,
+          lineTotal: returnQuantity * (Number(item.unitPrice) || 0),
+        };
+      }),
+    }));
   };
 
   const updateBoxes = (index: number, boxes: number) => {
-    setFormState(prev => {
-      const newItems = [...prev.returnItems];
-      const item = newItems[index];
-      item.boxes = Math.max(0, boxes);
-      if (item.quantityPerBox && item.quantityPerBox > 0) {
-        const qty = boxes * item.quantityPerBox;
-        if (qty > item.availableQuantity) {
-          item.boxes = Math.floor(item.availableQuantity / item.quantityPerBox);
-          item.returnQuantity = item.boxes! * item.quantityPerBox;
-        } else {
-          item.returnQuantity = qty;
+    setFormState(prev => ({
+      ...prev,
+      returnItems: prev.returnItems.map((item, i) => {
+        if (i !== index) return item;
+        const nextBoxes = Math.max(0, boxes);
+        let returnQuantity = item.returnQuantity;
+        if (item.quantityPerBox && item.quantityPerBox > 0) {
+          const qty = nextBoxes * item.quantityPerBox;
+          const available = Number(item.availableQuantity) || 0;
+          if (qty > available) {
+            const cappedBoxes = Math.floor(available / item.quantityPerBox);
+            returnQuantity = cappedBoxes * item.quantityPerBox;
+            return {
+              ...item,
+              isSelected: returnQuantity > 0,
+              boxes: cappedBoxes,
+              returnQuantity,
+              lineTotal: returnQuantity * (Number(item.unitPrice) || 0),
+            };
+          }
+          returnQuantity = qty;
         }
-        item.lineTotal = item.returnQuantity * item.unitPrice;
-      }
-      return { ...prev, returnItems: newItems };
-    });
+        return {
+          ...item,
+          isSelected: returnQuantity > 0,
+          boxes: nextBoxes,
+          returnQuantity,
+          lineTotal: returnQuantity * (Number(item.unitPrice) || 0),
+        };
+      }),
+    }));
   };
 
   const updateQtyPerBox = (index: number, qtyPerBox: number) => {
-    setFormState(prev => {
-      const newItems = [...prev.returnItems];
-      const item = newItems[index];
-      item.quantityPerBox = Math.max(0, qtyPerBox);
-      if (item.boxes && item.boxes > 0 && qtyPerBox > 0) {
-        const qty = item.boxes * qtyPerBox;
-        if (qty > item.availableQuantity) {
-          item.boxes = Math.floor(item.availableQuantity / qtyPerBox);
-          item.returnQuantity = item.boxes! * qtyPerBox;
-        } else {
-          item.returnQuantity = qty;
+    setFormState(prev => ({
+      ...prev,
+      returnItems: prev.returnItems.map((item, i) => {
+        if (i !== index) return item;
+        const nextQtyPerBox = Math.max(0, qtyPerBox);
+        let returnQuantity = item.returnQuantity;
+        if (item.boxes && item.boxes > 0 && nextQtyPerBox > 0) {
+          const qty = item.boxes * nextQtyPerBox;
+          const available = Number(item.availableQuantity) || 0;
+          if (qty > available) {
+            const cappedBoxes = Math.floor(available / nextQtyPerBox);
+            returnQuantity = cappedBoxes * nextQtyPerBox;
+            return {
+              ...item,
+              isSelected: returnQuantity > 0,
+              quantityPerBox: nextQtyPerBox,
+              boxes: cappedBoxes,
+              returnQuantity,
+              lineTotal: returnQuantity * (Number(item.unitPrice) || 0),
+            };
+          }
+          returnQuantity = qty;
         }
-        item.lineTotal = item.returnQuantity * item.unitPrice;
-      }
-      return { ...prev, returnItems: newItems };
-    });
+        return {
+          ...item,
+          isSelected: returnQuantity > 0,
+          quantityPerBox: nextQtyPerBox,
+          returnQuantity,
+          lineTotal: returnQuantity * (Number(item.unitPrice) || 0),
+        };
+      }),
+    }));
   };
 
   // ─── Create Return ─────────────────────────────────────────
@@ -384,6 +463,7 @@ export function PurchaseReturnsPage() {
         productId: item.productId,
         productName: item.productName,
         sku: item.sku,
+        goodsReceivingItemId: item.goodsReceivingItemId,
         purchaseInvoiceItemId: item.purchaseInvoiceItemId,
         returnQuantity: item.returnQuantity,
         isBoxBased: item.isBoxBased,
@@ -397,8 +477,10 @@ export function PurchaseReturnsPage() {
       await purchaseReturnService.createDraftReturn({
         supplierId: formState.selectedSupplier!.id,
         supplierName: formState.selectedSupplier!.name,
-        purchaseInvoiceId: formState.selectedInvoice!.id,
-        purchaseInvoiceNumber: formState.selectedInvoice!.invoiceNumber,
+        goodsReceivingId: formState.selectedGRN!.id,
+        grnNumber: formState.selectedGRN!.grnNumber,
+        purchaseInvoiceId: formState.linkedInvoice?.id || undefined,
+        purchaseInvoiceNumber: formState.linkedInvoice?.invoiceNumber || undefined,
         returnReason: formState.returnReason,
         notes: formState.notes || undefined,
         items
@@ -416,10 +498,13 @@ export function PurchaseReturnsPage() {
 
   // ─── Return Actions ─────────────────────────────────────────
 
-  const handleProcessReturn = async (id: string) => {
+  const handleProcessReturn = async (id: string, reconcileStock = false) => {
     setSubmitting(true);
     try {
       await purchaseReturnService.processReturn(id);
+      if (reconcileStock) {
+        alert('Return inventory updated successfully');
+      }
       setViewingReturn(null);
       fetchReturns(true);
     } catch (error: any) {
@@ -480,14 +565,6 @@ export function PurchaseReturnsPage() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Processed': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'Draft': return <FileText className="w-4 h-4 text-orange-600" />;
-      case 'Cancelled': return <Ban className="w-4 h-4 text-gray-600" />;
-      default: return <Clock className="w-4 h-4 text-gray-600" />;
-    }
-  };
 
   const formatCurrency = (amount: number | undefined | null) => {
     if (amount === undefined || amount === null) return 'Rs. 0.00';
@@ -508,7 +585,7 @@ export function PurchaseReturnsPage() {
           setFormState={setFormState}
           searchSuppliers={searchSuppliers}
           selectSupplier={selectSupplier}
-          selectInvoice={selectInvoice}
+          selectGRN={selectGRN}
           toggleItemSelection={toggleItemSelection}
           updateReturnQuantity={updateReturnQuantity}
           updateBoxes={updateBoxes}
@@ -668,7 +745,7 @@ export function PurchaseReturnsPage() {
                     <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Return</th>
                     <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Supplier</th>
                     <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Invoice</th>
+                    <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">GRN / Invoice</th>
                     <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Date</th>
                     <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
@@ -706,15 +783,17 @@ export function PurchaseReturnsPage() {
                           <p className="font-semibold text-gray-800 text-xs md:text-sm">{formatCurrency(returnItem.grandTotal)}</p>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3 hidden md:table-cell">
-                          <p className="text-xs md:text-sm text-gray-600">{returnItem.purchaseInvoiceNumber}</p>
+                          <p className="text-xs md:text-sm font-medium text-gray-700">{returnItem.grnNumber || '-'}</p>
+                          {returnItem.purchaseInvoiceNumber && (
+                            <p className="text-[10px] md:text-xs text-gray-400">Inv: {returnItem.purchaseInvoiceNumber}</p>
+                          )}
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3 hidden lg:table-cell">
                           <p className="text-xs md:text-sm text-gray-600">{formatDate(returnItem.returnDate)}</p>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
-                          <span className={`text-[8px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full flex items-center gap-1 md:gap-1.5 w-fit ${getStatusColor(returnItem.status)}`}>
-                            {getStatusIcon(returnItem.status)}
-                            <span className="hidden xs:inline">{returnItem.status}</span>
+                          <span className={`text-[8px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full w-fit ${getStatusColor(returnItem.status)}`}>
+                            {returnItem.status}
                           </span>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
@@ -733,6 +812,15 @@ export function PurchaseReturnsPage() {
                                 title="Process"
                               >
                                 <CheckCircle className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                              </button>
+                            )}
+                            {returnItem.status === 'Processed' && (
+                              <button
+                                onClick={() => handleProcessReturn(returnItem.id, true)}
+                                className="p-1 md:p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                title="Sync inventory from return"
+                              >
+                                <Package className="w-3.5 h-3.5 md:w-4 md:h-4" />
                               </button>
                             )}
                             {returnItem.canCancel && (
@@ -836,7 +924,6 @@ export function PurchaseReturnsPage() {
           formatCurrency={formatCurrency}
           formatDate={formatDate}
           getStatusColor={getStatusColor}
-          getStatusIcon={getStatusIcon}
           submitting={submitting}
         />
       )}
@@ -900,7 +987,6 @@ function ReturnDetailModal({
   formatCurrency,
   formatDate,
   getStatusColor,
-  getStatusIcon,
   submitting
 }: any) {
   return (
@@ -914,8 +1000,7 @@ function ReturnDetailModal({
             <div>
               <h2 className="text-xl font-bold text-gray-900">{returnItem.returnNumber}</h2>
               <div className="flex items-center gap-2 mt-1">
-                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 ${getStatusColor(returnItem.status)}`}>
-                  {getStatusIcon(returnItem.status)}
+                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${getStatusColor(returnItem.status)}`}>
                   {returnItem.status}
                 </span>
                 <span className="text-xs text-gray-400">•</span>
@@ -935,8 +1020,14 @@ function ReturnDetailModal({
               <p className="text-sm font-semibold text-gray-800 mt-1">{returnItem.supplierName}</p>
             </div>
             <div>
+              <p className="text-xs text-gray-400 font-medium">GRN Number</p>
+              <p className="text-sm font-semibold text-[#014582] mt-1">{returnItem.grnNumber || 'N/A'}</p>
+            </div>
+            <div>
               <p className="text-xs text-gray-400 font-medium">Purchase Invoice</p>
-              <p className="text-sm font-semibold text-[#014582] mt-1">{returnItem.purchaseInvoiceNumber}</p>
+              <p className="text-sm font-semibold text-[#014582] mt-1">
+                {returnItem.purchaseInvoiceNumber ? returnItem.purchaseInvoiceNumber : <span className="text-gray-400 font-normal italic">Not Invoiced Yet</span>}
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Total Amount</p>
@@ -993,6 +1084,21 @@ function ReturnDetailModal({
             </div>
           )}
 
+          {returnItem.status === 'Processed' && (
+            <div className="border-t border-gray-100 pt-4 mt-4">
+              <button
+                onClick={() => onProcess(returnItem.id, true)}
+                disabled={submitting}
+                className="w-full px-4 py-2.5 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600 transition-all disabled:opacity-50"
+              >
+                Sync Inventory from Return
+              </button>
+              <p className="text-[11px] text-gray-400 mt-2 text-center">
+                Use this if product stock did not decrease after the return was created.
+              </p>
+            </div>
+          )}
+
           {returnItem.status === 'Draft' && (
             <div className="border-t border-gray-100 pt-4 mt-4 flex gap-3">
               <button
@@ -1036,7 +1142,7 @@ function CreateReturnForm({
   setFormState,
   searchSuppliers,
   selectSupplier,
-  selectInvoice,
+  selectGRN,
   toggleItemSelection,
   updateReturnQuantity,
   updateBoxes,
@@ -1051,6 +1157,7 @@ function CreateReturnForm({
   formatDate
 }: any) {
   const [supplierSearchQuery, setSupplierSearchQuery] = useState('');
+  const [grnSearchFilter, setGrnSearchFilter] = useState('');
 
   const handleSearchSuppliers = (query: string) => {
     setSupplierSearchQuery(query);
@@ -1076,7 +1183,7 @@ function CreateReturnForm({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        {/* Left Column - Supplier, Invoice & Items */}
+        {/* Left Column - Supplier, GRN & Items */}
         <div className="lg:col-span-2 space-y-4">
           {/* Supplier Selection */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5">
@@ -1132,8 +1239,9 @@ function CreateReturnForm({
                         ...prev, 
                         selectedSupplier: null, 
                         supplierSearchResults: [],
-                        availableInvoices: [],
-                        selectedInvoice: null,
+                        availableGRNs: [],
+                        selectedGRN: null,
+                        linkedInvoice: null,
                         returnItems: []
                       }));
                       setSupplierSearchQuery('');
@@ -1147,56 +1255,200 @@ function CreateReturnForm({
             )}
           </div>
 
-          {/* Invoice Selection */}
+          {/* GRN Selection */}
           {formState.selectedSupplier && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5">
-              <h3 className="text-sm md:text-base font-bold text-gray-700 mb-3">Select Purchase Invoice</h3>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <h3 className="text-sm md:text-base font-bold text-gray-700">Select Goods Receiving Note (GRN)</h3>
+                <span className="text-xs text-gray-400">
+                  {formState.availableGRNs.length} {formState.availableGRNs.length === 1 ? 'GRN available' : 'GRNs available'}
+                </span>
+              </div>
 
-              {formState.isLoadingInvoices ? (
+              {/* GRN Filter Input */}
+              {formState.availableGRNs.length > 0 && (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Filter GRNs by number, PO, product, invoice..."
+                    value={grnSearchFilter}
+                    onChange={(e) => setGrnSearchFilter(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
+                  />
+                  {grnSearchFilter && (
+                    <button onClick={() => setGrnSearchFilter('')} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                      <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {formState.isLoadingGRNs ? (
                 <div className="text-center py-8">
                   <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
-                  <p className="mt-2 text-xs md:text-sm text-gray-400">Loading invoices...</p>
+                  <p className="mt-2 text-xs md:text-sm text-gray-400">Loading GRNs...</p>
                 </div>
-              ) : formState.availableInvoices.length === 0 ? (
+              ) : formState.availableGRNs.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
-                  <Receipt className="w-8 h-8 md:w-10 md:h-10 mx-auto mb-2 text-gray-300" />
-                  <p className="text-sm md:text-base">No invoices found for this supplier</p>
+                  <Truck className="w-8 h-8 md:w-10 md:h-10 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm md:text-base font-medium">No GRNs found for this supplier</p>
+                  <p className="text-xs text-gray-400 mt-1">Confirmed GRNs will appear here for return processing</p>
                 </div>
               ) : (
-                <div className="space-y-2 max-h-64 md:max-h-80 overflow-y-auto">
-                  {formState.availableInvoices.map((invoice: InvoiceForReturn) => {
-                    const isSelected = formState.selectedInvoice?.id === invoice.id;
-                    return (
-                      <div
-                        key={invoice.id}
-                        className={`p-3 border rounded-lg transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-[#014582] bg-[#014582]/5'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                        onClick={() => selectInvoice(invoice)}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-medium text-[#014582] text-sm">{invoice.invoiceNumber}</p>
-                            <p className="text-[10px] md:text-xs text-gray-400">
-                              Date: {formatDate(invoice.invoiceDate)}
+                <div className="space-y-3 max-h-72 md:max-h-96 overflow-y-auto pr-1">
+                  {formState.availableGRNs
+                    .filter((grn: GRNForReturn) => {
+                      if (!grnSearchFilter.trim()) return true;
+                      const q = grnSearchFilter.toLowerCase();
+                      const matchNumber = grn.grnNumber.toLowerCase().includes(q);
+                      const matchPO = (grn.purchaseOrderNumber || grn.purchaseOrderNumbers || '').toLowerCase().includes(q);
+                      const matchInv = (grn.linkedInvoice?.invoiceNumber || '').toLowerCase().includes(q);
+                      const matchItems = (grn.items || []).some(it => 
+                        (it.productName || '').toLowerCase().includes(q) || 
+                        (it.sku || '').toLowerCase().includes(q)
+                      );
+                      return matchNumber || matchPO || matchInv || matchItems;
+                    })
+                    .map((grn: GRNForReturn) => {
+                      const isSelected = formState.selectedGRN?.id === grn.id;
+                      const poText = grn.purchaseOrderNumber || grn.purchaseOrderNumbers || '';
+                      const inv = grn.linkedInvoice;
+
+                      return (
+                        <div
+                          key={grn.id}
+                          className={`p-3.5 border rounded-xl transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-[#014582] bg-[#014582]/5 ring-2 ring-[#014582]/20 shadow-sm'
+                              : 'border-gray-200 hover:border-[#014582]/40 hover:bg-gray-50/50'
+                          }`}
+                          onClick={() => selectGRN(grn)}
+                        >
+                          {/* Header Line */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-[#014582] text-sm md:text-base">{grn.grnNumber}</span>
+                                <span className="text-[10px] font-medium bg-blue-100/80 text-blue-800 px-2 py-0.5 rounded-md">
+                                  {grn.status || 'Received'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
+                                <CalendarDays className="w-3.5 h-3.5 text-gray-400" />
+                                {formatDate(grn.receivingDate)}
+                                {grn.locationName && (
+                                  <>
+                                    <span>•</span>
+                                    <Warehouse className="w-3.5 h-3.5 text-gray-400" />
+                                    <span>{grn.locationName}</span>
+                                  </>
+                                )}
+                              </p>
+                            </div>
+
+                            <div className="text-right flex flex-col items-end gap-1">
+                              {inv ? (
+                                <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <Receipt className="w-3 h-3" />
+                                  Inv: {inv.invoiceNumber}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full">
+                                  Not Invoiced
+                                </span>
+                              )}
+                              {grn.totalAmount !== undefined && grn.totalAmount > 0 && (
+                                <span className="font-bold text-gray-800 text-xs md:text-sm">
+                                  {formatCurrency(grn.totalAmount)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Quick Stats Grid */}
+                          <div className="mt-2.5 pt-2.5 border-t border-gray-100 grid grid-cols-2 xs:grid-cols-4 gap-2 text-xs">
+                            <div className="bg-gray-50/80 p-1.5 rounded-md">
+                              <p className="text-[10px] text-gray-400 font-medium">Purchase Order</p>
+                              <p className="font-semibold text-gray-700 text-xs truncate">{poText || 'N/A'}</p>
+                            </div>
+
+                            <div className="bg-gray-50/80 p-1.5 rounded-md">
+                              <p className="text-[10px] text-gray-400 font-medium">Total Received</p>
+                              <p className="font-semibold text-gray-700 text-xs">
+                                {grn.totalReceivedQty !== undefined ? `${grn.totalReceivedQty} Pcs` : `${grn.items?.length || 0} Lines`}
+                              </p>
+                            </div>
+
+                            <div className="bg-gray-50/80 p-1.5 rounded-md">
+                              <p className="text-[10px] text-gray-400 font-medium">Prev Returned</p>
+                              <p className={`font-semibold text-xs ${grn.totalReturnedQty ? 'text-amber-600' : 'text-gray-500'}`}>
+                                {grn.totalReturnedQty !== undefined ? `${grn.totalReturnedQty} Pcs` : '0 Pcs'}
+                              </p>
+                            </div>
+
+                            <div className="bg-gray-50/80 p-1.5 rounded-md">
+                              <p className="text-[10px] text-gray-400 font-medium">Returnable Qty</p>
+                              <p className={`font-semibold text-xs ${grn.totalAvailableReturnQty !== undefined && grn.totalAvailableReturnQty > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                                {grn.totalAvailableReturnQty !== undefined ? `${grn.totalAvailableReturnQty} Pcs` : 'Available'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Product Preview Chips */}
+                          {grn.items && grn.items.length > 0 && (
+                            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                              <span className="text-[10px] text-gray-400 font-medium mr-1">Products:</span>
+                              {grn.items.slice(0, 3).map((it, idx) => (
+                                <span
+                                  key={it.id || idx}
+                                  className="text-[10px] bg-white border border-gray-200 text-gray-700 px-2 py-0.5 rounded-md font-medium truncate max-w-[150px]"
+                                >
+                                  {it.productName} ({it.receivingQuantity} {it.unit || 'pcs'})
+                                </span>
+                              ))}
+                              {grn.items.length > 3 && (
+                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md font-medium">
+                                  +{grn.items.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {grn.notes && (
+                            <p className="text-[11px] text-gray-500 italic mt-2 bg-gray-50 p-1.5 rounded border border-gray-100">
+                              Note: {grn.notes}
                             </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-gray-800 text-sm">{formatCurrency(invoice.grandTotal)}</p>
-                          </div>
+                          )}
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                </div>
+              )}
+
+              {formState.selectedGRN && formState.linkedInvoice && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="w-4 h-4 text-blue-600" />
+                    <div>
+                      <span className="text-blue-900 font-semibold">
+                        Linked Invoice: {formState.linkedInvoice.invoiceNumber}
+                      </span>
+                      <p className="text-[10px] text-blue-700">
+                        Status: {formState.linkedInvoice.invoiceStatus} • Total: {formatCurrency(formState.linkedInvoice.grandTotal)}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-blue-600 text-white font-medium px-2 py-1 rounded-md">
+                    AP Balance Adjustment Active
+                  </span>
                 </div>
               )}
             </div>
           )}
 
           {/* Return Items */}
-          {formState.selectedInvoice && (
+          {formState.selectedGRN && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm md:text-base font-bold text-gray-700">Select Items to Return</h3>
@@ -1213,26 +1465,35 @@ function CreateReturnForm({
               ) : formState.returnItems.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   <Package className="w-8 h-8 md:w-10 md:h-10 mx-auto mb-2 text-gray-300" />
-                  <p className="text-sm md:text-base">No items found in this invoice</p>
+                  <p className="text-sm md:text-base">No items found in this GRN</p>
                 </div>
               ) : (
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {formState.returnItems.map((item: any, index: number) => (
+                  {formState.returnItems.map((item: ReturnItemForForm, index: number) => {
+                    const canSelect = (Number(item.availableQuantity) || 0) > 0;
+                    return (
                     <div
-                      key={index}
+                      key={item.goodsReceivingItemId || `${item.productId}-${index}`}
                       className={`p-3 border rounded-lg transition-all ${
                         item.isSelected
                           ? 'border-[#014582] bg-[#014582]/5'
-                          : 'border-gray-200'
+                          : canSelect
+                            ? 'border-gray-200 hover:border-[#014582]/40 cursor-pointer'
+                            : 'border-gray-200 bg-gray-50 opacity-70'
                       }`}
+                      onClick={() => {
+                        // Row click only selects; deselect via checkbox to avoid closing qty fields.
+                        if (canSelect && !item.isSelected) toggleItemSelection(index);
+                      }}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="mt-1">
+                        <div className="mt-1" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
-                            checked={item.isSelected}
+                            checked={Boolean(item.isSelected)}
+                            disabled={!canSelect}
                             onChange={() => toggleItemSelection(index)}
-                            className="w-4 h-4 text-[#014582] rounded border-gray-300 focus:ring-[#014582] cursor-pointer"
+                            className="w-4 h-4 text-[#014582] rounded border-gray-300 focus:ring-[#014582] cursor-pointer disabled:cursor-not-allowed"
                           />
                         </div>
                         <div className="flex-1">
@@ -1240,8 +1501,14 @@ function CreateReturnForm({
                             <div>
                               <p className="font-medium text-gray-800 text-sm">{item.productName}</p>
                               <p className="text-[10px] md:text-xs text-gray-400">
-                                SKU: {item.sku} • Available: {item.availableQuantity}
+                                SKU: {item.sku} {item.purchaseOrderNumber ? `• PO: ${item.purchaseOrderNumber}` : ''} • GRN Received: {item.receivedQuantity ?? item.purchasedQuantity} • Available: {item.availableQuantity}
+                                {item.previouslyReturned > 0 ? ` • Already returned: ${item.previouslyReturned}` : ''}
                               </p>
+                              {!canSelect && (
+                                <p className="text-[10px] md:text-xs text-amber-600 mt-0.5">
+                                  No remaining received quantity left to return on this GRN line
+                                </p>
+                              )}
                               <p className="text-[10px] md:text-xs text-gray-400">
                                 Unit Price: {formatCurrency(item.unitPrice)}
                               </p>
@@ -1252,7 +1519,11 @@ function CreateReturnForm({
                           </div>
 
                           {item.isSelected && (
-                            <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <div
+                              className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2"
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            >
                               <div>
                                 <label className="text-[10px] md:text-xs text-gray-500">Return Qty</label>
                                 <input
@@ -1261,6 +1532,8 @@ function CreateReturnForm({
                                   max={item.availableQuantity}
                                   value={item.returnQuantity}
                                   onChange={(e) => updateReturnQuantity(index, parseFloat(e.target.value) || 0)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onFocus={(e) => e.stopPropagation()}
                                   className="w-full px-2 py-1 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                                 />
                               </div>
@@ -1274,6 +1547,8 @@ function CreateReturnForm({
                                       min="0"
                                       value={item.boxes || 0}
                                       onChange={(e) => updateBoxes(index, parseFloat(e.target.value) || 0)}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onFocus={(e) => e.stopPropagation()}
                                       className="w-full px-2 py-1 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                                     />
                                   </div>
@@ -1284,6 +1559,8 @@ function CreateReturnForm({
                                       min="0"
                                       value={item.quantityPerBox || 0}
                                       onChange={(e) => updateQtyPerBox(index, parseFloat(e.target.value) || 0)}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onFocus={(e) => e.stopPropagation()}
                                       className="w-full px-2 py-1 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                                     />
                                   </div>
@@ -1299,7 +1576,7 @@ function CreateReturnForm({
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );})}
                 </div>
               )}
             </div>

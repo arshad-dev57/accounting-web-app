@@ -3,11 +3,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import { 
   Plus, Search, RefreshCw, FileText, Clock, 
-  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, MapPin, Ban, ShoppingCart
+  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, MapPin, Ban, ShoppingCart, Edit3, Send, Download
 } from 'lucide-react';
 import { Quotation } from '@/lib/types/quotation';
 import CreateQuotationWizard from '@/components/quotations/CreateQuotationWizard';
 import { useLocation } from '@/lib/location-context';
+import PDFService from '@/lib/pdf-service';
 
 const STATUS_COLORS: Record<string, string> = {
   Draft: 'bg-gray-100 text-gray-700',
@@ -24,11 +25,12 @@ const pill = (map: Record<string, string>, val: string) =>
 
 const STATUS_OPTIONS = ['all', 'Draft', 'Sent', 'Accepted', 'Rejected', 'Expired', 'Converted', 'Cancelled'];
 
-export default function QuotationsPage() {
+export function QuotationsPage() {
   const { selectedLocationId, selectedLocation } = useLocation();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
+  const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
@@ -68,14 +70,28 @@ export default function QuotationsPage() {
       });
       const result = await response.json();
 
-      if (result.success && result.data) {
-        setQuotations(result.data);
-        if (result.pagination) {
-          setTotalRecords(result.pagination.total);
-          setTotalPages(result.pagination.pages);
-          setHasNext(result.pagination.hasNext);
-          setHasPrev(result.pagination.hasPrev);
-        }
+      if (!response.ok || result.success === false) {
+        console.error('Failed to fetch quotations:', result.message || response.status);
+        setQuotations([]);
+        return;
+      }
+
+      const rows = Array.isArray(result.data)
+        ? result.data
+        : Array.isArray(result.data?.data)
+          ? result.data.data
+          : [];
+
+      setQuotations(rows);
+
+      const pagination = result.pagination || result.data?.pagination;
+      if (pagination) {
+        setTotalRecords(pagination.total || 0);
+        setTotalPages(pagination.pages || 1);
+        setHasNext(Boolean(pagination.hasNext));
+        setHasPrev(Boolean(pagination.hasPrev));
+      } else {
+        setTotalRecords(rows.length);
       }
     } catch (error) {
       console.error('Failed to fetch quotations:', error);
@@ -90,7 +106,42 @@ export default function QuotationsPage() {
 
   const handleCreateSuccess = () => {
     setShowCreateWizard(false);
-    fetchQuotations();
+    setEditingQuotation(null);
+    if (currentPage === 1) {
+      fetchQuotations();
+    } else {
+      setCurrentPage(1);
+    }
+  };
+
+  const handleSendQuotation = async (quotationId: string) => {
+    if (!confirm('Mark this quotation as sent to the customer?')) return;
+    setActionLoading(`send-${quotationId}`);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(`/api/quotations/${quotationId}/status`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ status: 'Sent', notes: 'Sent to customer' }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        fetchQuotations();
+        if (selectedQuotation?.id === quotationId) {
+          setSelectedQuotation({ ...selectedQuotation, status: 'Sent' });
+        }
+      } else {
+        alert(result.message || 'Failed to send quotation');
+      }
+    } catch (error) {
+      console.error('Failed to send quotation:', error);
+      alert('Failed to send quotation');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleQuotationClick = (quotation: Quotation) => {
@@ -160,6 +211,27 @@ export default function QuotationsPage() {
     } catch (error) {
       console.error('Failed to cancel quotation:', error);
       alert('Failed to cancel quotation');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDownloadQuotationPDF = async (quotation: Quotation) => {
+    setActionLoading(`pdf-${quotation.id}`);
+    try {
+      let data: Quotation = quotation;
+      if (!data.items?.length) {
+        const token = localStorage.getItem('auth_token');
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const response = await fetch(`/api/quotations/${quotation.id}`, { headers });
+        const result = await response.json();
+        if (result?.success && result.data) data = result.data;
+      }
+      await PDFService.downloadQuotationPDF(data, undefined, `Quotation_${data.quotationNumber}.pdf`);
+    } catch (error: any) {
+      console.error('Failed to download quotation:', error);
+      alert(error.message || 'Failed to download quotation PDF');
     } finally {
       setActionLoading(null);
     }
@@ -241,7 +313,10 @@ export default function QuotationsPage() {
             <RefreshCw className="w-4 h-4" /> Refresh
           </button>
           <button
-            onClick={() => setShowCreateWizard(true)}
+            onClick={() => {
+              setEditingQuotation(null);
+              setShowCreateWizard(true);
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
           >
             <Plus className="w-4 h-4" /> Create Quotation
@@ -347,12 +422,42 @@ export default function QuotationsPage() {
                     <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         <button
+                          onClick={() => handleDownloadQuotationPDF(quotation)}
+                          disabled={actionLoading === `pdf-${quotation.id}`}
+                          className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all disabled:opacity-50"
+                          title="Download PDF"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleQuotationClick(quotation)}
                           className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                           title="View"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
+                        {(quotation.status === 'Draft' || quotation.status === 'Sent') && (
+                          <button
+                            onClick={() => {
+                              setEditingQuotation(quotation);
+                              setShowCreateWizard(true);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-[#014582] hover:bg-blue-50 rounded-lg transition-all"
+                            title="Edit"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {quotation.status === 'Draft' && (
+                          <button
+                            onClick={() => handleSendQuotation(quotation.id)}
+                            disabled={actionLoading === `send-${quotation.id}`}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all disabled:opacity-50"
+                            title="Send to Customer"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                        )}
                         {(quotation.status === 'Draft' || quotation.status === 'Sent') && (
                           <button
                             onClick={() => handleCancelQuotation(quotation)}
@@ -414,7 +519,11 @@ export default function QuotationsPage() {
 
       {showCreateWizard && (
         <CreateQuotationWizard
-          onClose={() => setShowCreateWizard(false)}
+          quotation={editingQuotation}
+          onClose={() => {
+            setShowCreateWizard(false);
+            setEditingQuotation(null);
+          }}
           onSuccess={handleCreateSuccess}
         />
       )}
@@ -433,6 +542,21 @@ export default function QuotationsPage() {
               ? () => handleConvertQuotation(selectedQuotation.id)
               : undefined
           }
+          onEdit={
+            selectedQuotation.status === 'Draft' || selectedQuotation.status === 'Sent'
+              ? () => {
+                  setEditingQuotation(selectedQuotation);
+                  setShowDetailModal(false);
+                  setShowCreateWizard(true);
+                }
+              : undefined
+          }
+          onSend={
+            selectedQuotation.status === 'Draft'
+              ? () => handleSendQuotation(selectedQuotation.id)
+              : undefined
+          }
+          onDownload={() => handleDownloadQuotationPDF(selectedQuotation)}
           actionLoading={actionLoading}
         />
       )}
@@ -440,17 +564,28 @@ export default function QuotationsPage() {
   );
 }
 
+/** Next.js route shell — real UI mounts via SalesViewHost. */
+export default function SalesRoutePlaceholder() {
+  return null;
+}
+
 function QuotationDetailModal({
   quotation,
   onClose,
   onCancel,
   onConvert,
+  onEdit,
+  onSend,
+  onDownload,
   actionLoading,
 }: {
   quotation: Quotation;
   onClose: () => void;
   onCancel?: () => void;
   onConvert?: () => void;
+  onEdit?: () => void;
+  onSend?: () => void;
+  onDownload?: () => void;
   actionLoading?: string | null;
 }) {
   const formatCurrency = (amount: number) => {
@@ -563,8 +698,35 @@ function QuotationDetailModal({
             </div>
           )}
 
-          {(onCancel || onConvert) && (
-            <div className="border-t border-gray-100 pt-4 flex gap-3">
+          {(onEdit || onSend || onDownload || onCancel || onConvert) && (
+            <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-3">
+              {onDownload && (
+                <button
+                  onClick={onDownload}
+                  disabled={actionLoading === `pdf-${quotation.id}`}
+                  className="flex-1 min-w-[120px] px-4 py-2.5 border border-purple-500 text-purple-600 rounded-lg text-sm font-semibold hover:bg-purple-50 transition-all disabled:opacity-50"
+                >
+                  Download PDF
+                </button>
+              )}
+              {onEdit && (
+                <button
+                  onClick={onEdit}
+                  disabled={!!actionLoading}
+                  className="flex-1 min-w-[120px] px-4 py-2.5 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 transition-all disabled:opacity-50"
+                >
+                  Edit
+                </button>
+              )}
+              {onSend && (
+                <button
+                  onClick={onSend}
+                  disabled={actionLoading === `send-${quotation.id}`}
+                  className="flex-1 min-w-[120px] px-4 py-2.5 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-50"
+                >
+                  Send to Customer
+                </button>
+              )}
               {onConvert && (
                 <button
                   onClick={onConvert}

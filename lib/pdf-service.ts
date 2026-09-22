@@ -105,7 +105,20 @@ export class PDFService {
     const { createInvoicePDFData } = require('./pdf-generator');
     const finalCompanyInfo = companyInfo || this.getCompanyInfo();
     const pdfData = createInvoicePDFData(invoiceData, finalCompanyInfo);
-    await this.downloadPDF(pdfData, filename);
+    const number = invoiceData.invoiceNumber || 'invoice';
+    const isSales = Boolean(invoiceData.customerName || invoiceData.customerId);
+    await this.downloadPDF(
+      pdfData,
+      filename || `${isSales ? 'Sales' : 'Purchase'}_Invoice_${number}.pdf`
+    );
+  }
+
+  static async downloadQuotationPDF(quotationData: any, companyInfo?: any, filename?: string): Promise<void> {
+    const { createQuotationPDFData } = require('./pdf-generator');
+    const finalCompanyInfo = companyInfo || this.getCompanyInfo();
+    const pdfData = createQuotationPDFData(quotationData, finalCompanyInfo);
+    const number = quotationData.quotationNumber || 'quotation';
+    await this.downloadPDF(pdfData, filename || `Quotation_${number}.pdf`);
   }
 
   static async downloadGoodsReceivingPDF(grnData: any, companyInfo?: any, filename?: string): Promise<void> {

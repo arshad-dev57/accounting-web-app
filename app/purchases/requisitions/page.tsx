@@ -77,12 +77,6 @@ function getStatusColor(status: string) {
   return map[status] || 'bg-gray-100 text-gray-700';
 }
 
-function getStatusIcon(status: string) {
-  if (status === 'Approved' || status === 'Converted') return <CheckCircle className="w-3.5 h-3.5" />;
-  if (status === 'Submitted' || status === 'Partially Converted') return <Clock className="w-3.5 h-3.5" />;
-  if (status === 'Rejected' || status === 'Cancelled') return <Ban className="w-3.5 h-3.5" />;
-  return <ClipboardList className="w-3.5 h-3.5" />;
-}
 
 export function PurchaseRequisitionsPage() {
   const { selectedLocationId } = useLocation();
@@ -847,8 +841,8 @@ export function PurchaseRequisitionsPage() {
                     <td className="px-3 md:px-6 py-2 md:py-3 hidden md:table-cell">{row.priority}</td>
                     <td className="px-3 md:px-6 py-2 md:py-3 font-semibold">{formatMoney(row.estimatedTotal)}</td>
                     <td className="px-3 md:px-6 py-2 md:py-3">
-                      <span className={`inline-flex items-center gap-1 text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full ${getStatusColor(row.status)}`}>
-                        {getStatusIcon(row.status)} {row.status}
+                      <span className={`inline-flex text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full ${getStatusColor(row.status)}`}>
+                        {row.status}
                       </span>
                     </td>
                     <td className="px-3 md:px-6 py-2 md:py-3">
@@ -897,8 +891,8 @@ export function PurchaseRequisitionsPage() {
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">{viewing.requisitionNumber}</h2>
                   <div className="flex flex-wrap items-center gap-2 mt-1">
-                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ${getStatusColor(viewing.status)}`}>
-                      {getStatusIcon(viewing.status)} {viewing.status}
+                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full inline-flex ${getStatusColor(viewing.status)}`}>
+                      {viewing.status}
                     </span>
                     <span className="text-xs text-gray-500">{formatDate(viewing.createdAt)}</span>
                   </div>
