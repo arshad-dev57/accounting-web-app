@@ -99,6 +99,7 @@ export interface Product {
   mainImage?: string;
   images?: string[];
   qrCode?: string;
+  volume?: number;
 }
 
 export interface ProductListResponse {
@@ -157,10 +158,17 @@ export function normalizeProduct(raw: any): Product {
     countryOfOriginName: raw.countryOfOriginName || raw.countryOfOrigin || '',
     taxType: raw.taxType || raw.taxTypeName || '',
     taxTypeName: raw.taxTypeName || raw.taxType || '',
-    weightUnit: raw.weightUnit || raw.weightUnitName || '',
-    dimensionUnit: raw.dimensionUnit || raw.dimensionUnitName || '',
-    rackLocation: raw.rackLocation || raw.location || '',
-    location: raw.location || raw.rackLocation || '',
+    weightUnit: raw.weightUnit || raw.weightUnitName || 'KG',
+    weightUnitName: raw.weightUnitName || raw.weightUnit || 'KG',
+    dimensionUnit: raw.dimensionUnit || raw.dimensionUnitName || 'cm',
+    dimensionUnitName: raw.dimensionUnitName || raw.dimensionUnit || 'cm',
+    weight: Number(raw.weight ?? 0),
+    length: Number(raw.length ?? 0),
+    width: Number(raw.width ?? 0),
+    height: Number(raw.height ?? 0),
+    volume: Number(raw.volume ?? 0),
+    rackLocation: raw.rackLocation || raw.rackLocationName || raw.location || '',
+    location: raw.location || raw.rackLocation || raw.rackLocationName || '',
     images: Array.isArray(raw.images) ? raw.images : [],
     mainImage: raw.mainImage || (Array.isArray(raw.images) && raw.images[0]) || undefined,
     barcodeImage: raw.barcodeImage || raw.barcode?.image || undefined,

@@ -1,12 +1,23 @@
 'use client';
 
 import React from 'react';
-import { HcmCrudPage, HRStatusBadge } from '../hcm-ui';
+import { HcmCrudPage } from '../hcm-ui';
 import { HRTableCell } from '../ui';
 import { hrHcmService } from '@/lib/hr-hcm-service';
+import { hrCostCenterService, CostCenter } from '@/lib/hr-cost-center-service';
 
 export default function OrganizationPage() {
   const [tab, setTab] = React.useState<'dept' | 'desig'>('dept');
+  const [costCenters, setCostCenters] = React.useState<CostCenter[]>([]);
+
+  React.useEffect(() => {
+    hrCostCenterService.list().then(setCostCenters).catch(() => {});
+  }, []);
+
+  const costCenterOptions = costCenters
+    .filter((c) => c.status === 'active')
+    .map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }));
+
   return (
     <div>
       <div className="max-w-6xl mx-auto px-4 pt-4 flex gap-2">
@@ -17,18 +28,27 @@ export default function OrganizationPage() {
         <HcmCrudPage
           title="Departments"
           subtitle="Organization structure · cost centers · reporting units"
-          notice="Employee department remains the existing text field on the profile. This catalog standardizes names, sub-departments and cost centers without replacing current employee records."
+          notice="Each department links to a Cost Center master record. Employee payroll uses the employee's cost center (direct assignment or department default)."
           columns={['Name', 'Cost center', 'Headcount']}
           load={() => hrHcmService.departments()}
           create={(input) => hrHcmService.saveDepartment(input)}
           fields={[
             { key: 'name', label: 'Department name' },
-            { key: 'costCenter', label: 'Cost center' },
+            {
+              key: 'costCenterId',
+              label: 'Cost center',
+              options: costCenterOptions.map((o) => o.label),
+              optionValues: costCenterOptions.map((o) => o.value),
+            },
           ]}
           rowCells={(r) => (
             <>
               <HRTableCell className="font-bold">{r.name}</HRTableCell>
-              <HRTableCell>{r.costCenter || '—'}</HRTableCell>
+              <HRTableCell>
+                {r.costCenterRef
+                  ? `${r.costCenterRef.code} — ${r.costCenterRef.name}`
+                  : (r.costCenter || '—')}
+              </HRTableCell>
               <HRTableCell>{r.headcount || 0}</HRTableCell>
             </>
           )}

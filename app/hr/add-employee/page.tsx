@@ -10,6 +10,7 @@ import { hrEmployeesService } from '@/lib/hr-employees-service';
 import { hrOfficesService } from '@/lib/hr-offices-service';
 import { hrShiftsService } from '@/lib/hr-shifts-service';
 import { hrHcmService } from '@/lib/hr-hcm-service';
+import { hrCostCenterService, CostCenter } from '@/lib/hr-cost-center-service';
 
 const inputCls =
   'w-full bg-white rounded-xl py-2.5 px-4 text-sm text-[#1A1A2E] border border-[#DDE4EE] focus:outline-none focus:ring-2 focus:ring-[#014582]/20 focus:border-[#014582]/50 transition-all disabled:opacity-60';
@@ -20,6 +21,7 @@ const inputErrorCls =
 const STATUSES = ['Active', 'On Leave', 'Inactive'] as const;
 
 const EMPLOYEE_TYPES = ['Office Employee', 'Field Employee', 'Salesman', 'Delivery Staff'];
+const EMPLOYMENT_TYPES = ['Full Time', 'Part Time', 'Contract', 'Intern', 'Probation'] as const;
 
 type FormState = {
   firstName: string;
@@ -28,13 +30,25 @@ type FormState = {
   phone: string;
   designation: string;
   department: string;
+  costCenterId: string;
   officeId: string;
   shift: string;
   joiningDate: string;
   status: (typeof STATUSES)[number];
   employeeType: string;
+  employmentType: string;
   salary: string;
   payBasis: 'monthly' | 'hourly' | 'daily';
+  payGrade: string;
+  probationEndDate: string;
+  confirmationDate: string;
+  contractEndDate: string;
+  terminationDate: string;
+  bankName: string;
+  bankAccount: string;
+  bankBranch: string;
+  emergencyContact: string;
+  emergencyPhone: string;
   password: string;
   confirmPassword: string;
 };
@@ -46,13 +60,25 @@ const EMPTY_FORM: FormState = {
   phone: '',
   designation: '',
   department: '',
+  costCenterId: '',
   officeId: '',
   shift: '',
   joiningDate: new Date().toISOString().split('T')[0],
   status: 'Active',
   employeeType: 'Office Employee',
+  employmentType: 'Full Time',
   salary: '',
   payBasis: 'monthly',
+  payGrade: '',
+  probationEndDate: '',
+  confirmationDate: '',
+  contractEndDate: '',
+  terminationDate: '',
+  bankName: '',
+  bankAccount: '',
+  bankBranch: '',
+  emergencyContact: '',
+  emergencyPhone: '',
   password: '',
   confirmPassword: '',
 };
@@ -104,18 +130,20 @@ export default function AddEmployeePage() {
   const [offices, setOffices] = React.useState<{ id: string; name: string }[]>([]);
   const [shifts, setShifts] = React.useState<string[]>([]);
   const [departments, setDepartments] = React.useState<string[]>([]);
+  const [costCenters, setCostCenters] = React.useState<CostCenter[]>([]);
   const [designations, setDesignations] = React.useState<string[]>([]);
   const [showPassword, setShowPassword] = React.useState(false);
 
   React.useEffect(() => {
     let mounted = true;
-    Promise.all([hrHcmService.departments(), hrHcmService.designations()])
-      .then(([deps, desigs]) => {
+    Promise.all([hrHcmService.departments(), hrHcmService.designations(), hrCostCenterService.list()])
+      .then(([deps, desigs, centers]) => {
         if (!mounted) return;
         const deptNames = deps.map((d: any) => String(d.name || '').trim()).filter(Boolean);
         const desigNames = desigs.map((d: any) => String(d.name || '').trim()).filter(Boolean);
         setDepartments(deptNames);
         setDesignations(desigNames);
+        setCostCenters(centers.filter((c) => c.status === 'active'));
         setForm((prev) => ({
           ...prev,
           department: deptNames.includes(prev.department) ? prev.department : deptNames[0] || '',
@@ -224,13 +252,25 @@ export default function AddEmployeePage() {
         phone: form.phone,
         designation: form.designation,
         department: form.department,
+        costCenterId: form.costCenterId || undefined,
         officeId: form.officeId,
         shift: form.shift,
         joiningDate: form.joiningDate,
         status: form.status,
         employeeType: form.employeeType,
+        employmentType: form.employmentType,
         salary: Number(form.salary),
         payBasis: form.payBasis,
+        payGrade: form.payGrade || null,
+        probationEndDate: form.probationEndDate || null,
+        confirmationDate: form.confirmationDate || null,
+        contractEndDate: form.contractEndDate || null,
+        terminationDate: form.terminationDate || null,
+        bankName: form.bankName || null,
+        bankAccount: form.bankAccount || null,
+        bankBranch: form.bankBranch || null,
+        emergencyContact: form.emergencyContact || null,
+        emergencyPhone: form.emergencyPhone || null,
         password: form.password,
       });
       toast.success(
@@ -384,6 +424,22 @@ export default function AddEmployeePage() {
                 )}
               </Field>
               <Field
+                label="Cost Center"
+                action={<Link href="/hr/cost-centers" className="text-[10px] font-bold text-[#014582]">Manage</Link>}
+              >
+                <select
+                  className={inputCls}
+                  value={form.costCenterId}
+                  onChange={(e) => set('costCenterId')(e.target.value)}
+                  disabled={saving}
+                >
+                  <option value="">Inherit from department (if linked)</option>
+                  {costCenters.map((c) => (
+                    <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field
                 label="Designation"
                 required
                 error={errors.designation}
@@ -417,40 +473,74 @@ export default function AddEmployeePage() {
                   </div>
                 )}
               </Field>
-              <Field label="Pay format" required>
-                <select
-                  className={inputCls}
-                  value={form.payBasis}
-                  onChange={(e) => set('payBasis')(e.target.value)}
-                  disabled={saving}
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Employee type">
+                  <select
+                    className={inputCls}
+                    value={form.employeeType}
+                    onChange={(e) => set('employeeType')(e.target.value)}
+                    disabled={saving}
+                  >
+                    {EMPLOYEE_TYPES.map((t) => (
+                      <option key={t}>{t}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Employment type">
+                  <select
+                    className={inputCls}
+                    value={form.employmentType}
+                    onChange={(e) => set('employmentType')(e.target.value)}
+                    disabled={saving}
+                  >
+                    {EMPLOYMENT_TYPES.map((t) => (
+                      <option key={t}>{t}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Pay format" required>
+                  <select
+                    className={inputCls}
+                    value={form.payBasis}
+                    onChange={(e) => set('payBasis')(e.target.value)}
+                    disabled={saving}
+                  >
+                    <option value="monthly">Monthly package</option>
+                    <option value="daily">Daily rate</option>
+                    <option value="hourly">Hourly rate</option>
+                  </select>
+                </Field>
+                <Field
+                  label={
+                    form.payBasis === 'hourly'
+                      ? 'Hourly rate (Rs)'
+                      : form.payBasis === 'daily'
+                        ? 'Daily rate (Rs)'
+                        : 'Monthly package (Rs)'
+                  }
+                  required
+                  error={errors.salary}
                 >
-                  <option value="monthly">Monthly package</option>
-                  <option value="daily">Daily rate</option>
-                  <option value="hourly">Hourly rate</option>
-                </select>
-                <p className="mt-1 text-[10px] text-[#7A8FA6]">
-                  Payroll builds the monthly slip from this format (hourly/daily is converted to a month package).
-                </p>
-              </Field>
-              <Field
-                label={
-                  form.payBasis === 'hourly'
-                    ? 'Hourly rate (Rs)'
-                    : form.payBasis === 'daily'
-                      ? 'Daily rate (Rs)'
-                      : 'Monthly salary (package)'
-                }
-                required
-                error={errors.salary}
-              >
+                  <input
+                    className={errors.salary ? inputErrorCls : inputCls}
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={form.salary}
+                    onChange={(e) => set('salary')(e.target.value)}
+                    placeholder={form.payBasis === 'hourly' ? 'e.g. 500' : form.payBasis === 'daily' ? 'e.g. 4000' : 'e.g. 80000'}
+                    disabled={saving}
+                  />
+                </Field>
+              </div>
+              <Field label="Pay grade / band">
                 <input
-                  className={errors.salary ? inputErrorCls : inputCls}
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={form.salary}
-                  onChange={(e) => set('salary')(e.target.value)}
-                  placeholder={form.payBasis === 'hourly' ? 'e.g. 500' : form.payBasis === 'daily' ? 'e.g. 4000' : 'e.g. 80000'}
+                  className={inputCls}
+                  placeholder="e.g. G-7, BPS-17, Band-3"
+                  value={form.payGrade}
+                  onChange={(e) => set('payGrade')(e.target.value)}
                   disabled={saving}
                 />
               </Field>
@@ -470,18 +560,6 @@ export default function AddEmployeePage() {
                   ) : (
                     <option value="">No offices yet — add one first</option>
                   )}
-                </select>
-              </Field>
-              <Field label="Employee type">
-                <select
-                  className={inputCls}
-                  value={form.employeeType}
-                  onChange={(e) => set('employeeType')(e.target.value)}
-                  disabled={saving}
-                >
-                  {EMPLOYEE_TYPES.map((t) => (
-                    <option key={t}>{t}</option>
-                  ))}
                 </select>
               </Field>
               <Field label="Shift">
@@ -525,6 +603,52 @@ export default function AddEmployeePage() {
                   </select>
                 </Field>
               </div>
+            </div>
+          </HRCard>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <HRCard title="Employment lifecycle">
+            <div className="space-y-4">
+              <p className="text-xs text-[#7A8FA6]">
+                Probation end date is used by payroll to waive PF and flag the slip. Termination date triggers final-settlement pro-rating.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Probation end date">
+                  <input type="date" className={inputCls} value={form.probationEndDate} onChange={(e) => set('probationEndDate')(e.target.value)} disabled={saving} />
+                </Field>
+                <Field label="Confirmation date">
+                  <input type="date" className={inputCls} value={form.confirmationDate} onChange={(e) => set('confirmationDate')(e.target.value)} disabled={saving} />
+                </Field>
+                <Field label="Contract end date">
+                  <input type="date" className={inputCls} value={form.contractEndDate} onChange={(e) => set('contractEndDate')(e.target.value)} disabled={saving} />
+                </Field>
+                <Field label="Termination / last working day">
+                  <input type="date" className={inputCls} value={form.terminationDate} onChange={(e) => set('terminationDate')(e.target.value)} disabled={saving} />
+                </Field>
+              </div>
+            </div>
+          </HRCard>
+
+          <HRCard title="Bank & emergency">
+            <div className="space-y-4">
+              <Field label="Bank name">
+                <input className={inputCls} placeholder="e.g. HBL, UBL, Meezan" value={form.bankName} onChange={(e) => set('bankName')(e.target.value)} disabled={saving} />
+              </Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Account number / IBAN">
+                  <input className={inputCls} placeholder="Account or IBAN" value={form.bankAccount} onChange={(e) => set('bankAccount')(e.target.value)} disabled={saving} />
+                </Field>
+                <Field label="Branch / IFSC">
+                  <input className={inputCls} placeholder="Branch name or code" value={form.bankBranch} onChange={(e) => set('bankBranch')(e.target.value)} disabled={saving} />
+                </Field>
+              </div>
+              <Field label="Emergency contact name">
+                <input className={inputCls} placeholder="Next of kin" value={form.emergencyContact} onChange={(e) => set('emergencyContact')(e.target.value)} disabled={saving} />
+              </Field>
+              <Field label="Emergency contact phone">
+                <input className={inputCls} placeholder="+92 3xx xxxxxxx" value={form.emergencyPhone} onChange={(e) => set('emergencyPhone')(e.target.value)} disabled={saving} />
+              </Field>
             </div>
           </HRCard>
         </div>

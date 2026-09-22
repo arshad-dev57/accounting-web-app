@@ -25,6 +25,10 @@ export interface HREmployee {
   phone: string;
   designation: string;
   department: string;
+  costCenterId?: string | null;
+  costCenter?: string;
+  costCenterCode?: string;
+  costCenterName?: string;
   office: string;
   officeId: string | null;
   shift: string;
@@ -56,6 +60,7 @@ export interface CreateEmployeeInput {
   phone: string;
   designation: string;
   department: string;
+  costCenterId?: string | null;
   officeId?: string | null;
   shift: string;
   joiningDate: string;
@@ -65,6 +70,16 @@ export interface CreateEmployeeInput {
   salary?: number;
   payBasis?: 'monthly' | 'hourly' | 'daily';
   password?: string;
+  probationEndDate?: string | null;
+  confirmationDate?: string | null;
+  contractEndDate?: string | null;
+  terminationDate?: string | null;
+  bankName?: string | null;
+  bankAccount?: string | null;
+  bankBranch?: string | null;
+  emergencyContact?: string | null;
+  emergencyPhone?: string | null;
+  payGrade?: string | null;
 }
 
 function mapEmployee(e: any): HREmployee {
@@ -81,6 +96,10 @@ function mapEmployee(e: any): HREmployee {
     phone: e.phone || '',
     designation: e.designation || '',
     department: e.department || '',
+    costCenterId: e.costCenterId || null,
+    costCenter: e.costCenter || '',
+    costCenterCode: e.costCenterCode || '',
+    costCenterName: e.costCenterName || '',
     office: e.office || '',
     officeId: e.officeId || null,
     shift: e.shift || '',
@@ -119,16 +138,9 @@ export const hrEmployeesService = {
   create: async (input: CreateEmployeeInput) => {
     const body = unwrap(
       await apiClient.post('/api/hr/employees', {
-        firstName: input.firstName,
-        lastName: input.lastName,
-        email: input.email,
-        phone: input.phone,
-        designation: input.designation,
-        department: input.department,
+        ...input,
         officeId: input.officeId || null,
-        shift: input.shift,
-        joiningDate: input.joiningDate,
-        status: input.status,
+        costCenterId: input.costCenterId || undefined,
         employmentType: input.employmentType || 'Full Time',
         employeeType: input.employeeType || 'Office Employee',
         salary: input.salary || 0,

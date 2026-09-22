@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
   CalendarDays,
   Fingerprint,
@@ -194,6 +195,12 @@ export default function AttendancePage() {
         backHref="/hr/dashboard"
         actions={
           <div className="flex items-center gap-2">
+            <Link
+              href="/hr/attendance/reports"
+              className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white px-3 py-2 rounded-lg text-xs font-bold"
+            >
+              <CalendarDays className="w-3.5 h-3.5" /> Reports
+            </Link>
             <button
               type="button"
               onClick={openNew}

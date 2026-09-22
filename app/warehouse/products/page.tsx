@@ -23,6 +23,12 @@ import { useLocation } from '@/lib/location-context';
 import { useCurrency } from '@/lib/currency-context';
 import { useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 import { BarcodeScannerModal } from '@/lib/barcode-scanner-modal';
+import {
+  formatProductDimensions,
+  formatProductVolume,
+  formatProductWeight,
+  hasProductDimensions,
+} from '@/lib/product-dimensions';
 
 // ============================================================
 // BARCODE DISPLAY COMPONENT
@@ -326,6 +332,9 @@ function ProductImageStrip({ product }: { product: Product }) {
 function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose: () => void; onEdit: () => void }) {
   const { formatAmount } = useCurrency();
   const [activeTab, setActiveTab] = useState('overview');
+  const dimensionText = formatProductDimensions(product);
+  const weightText = formatProductWeight(product);
+  const volumeInfo = formatProductVolume(product);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Info },
@@ -449,6 +458,15 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
                 <DetailRow label="Supplier" value={product.supplierName} />
                 <DetailRow label="Brand" value={product.brand} />
                 <DetailRow label="Model No." value={product.modelNumber} />
+                {(dimensionText || weightText || volumeInfo) && (
+                  <>
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 pt-4">Physical Summary</h4>
+                    <DetailRow label="Dimensions" value={dimensionText || undefined} />
+                    <DetailRow label="Weight" value={weightText || undefined} />
+                    <DetailRow label="Volume" value={volumeInfo?.volumeText} />
+                    <DetailRow label="CBM" value={volumeInfo?.cbmText || undefined} />
+                  </>
+                )}
               </div>
               <div className="space-y-1">
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Description</h4>
@@ -553,10 +571,20 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Dimensions & Weight</h4>
-                <DetailRow label="Weight" value={product.weight ? `${product.weight} ${product.weightUnit || 'KG'}` : undefined} />
-                <DetailRow label="Length" value={product.length ? `${product.length} ${product.dimensionUnit || 'cm'}` : undefined} />
-                <DetailRow label="Width" value={product.width ? `${product.width} ${product.dimensionUnit || 'cm'}` : undefined} />
-                <DetailRow label="Height" value={product.height ? `${product.height} ${product.dimensionUnit || 'cm'}` : undefined} />
+                <DetailRow label="Weight" value={weightText || undefined} />
+                <DetailRow label="Length" value={Number(product.length) > 0 ? `${product.length} ${product.dimensionUnit || 'cm'}` : undefined} />
+                <DetailRow label="Width" value={Number(product.width) > 0 ? `${product.width} ${product.dimensionUnit || 'cm'}` : undefined} />
+                <DetailRow label="Height" value={Number(product.height) > 0 ? `${product.height} ${product.dimensionUnit || 'cm'}` : undefined} />
+                <DetailRow label="Combined Size" value={dimensionText || undefined} />
+                {volumeInfo && (
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-1">
+                    <p className="text-xs text-blue-600 font-medium">Calculated Volume</p>
+                    <p className="text-sm font-bold text-blue-800">{volumeInfo.volumeText}</p>
+                    {volumeInfo.cbmText && (
+                      <p className="text-xs text-blue-700">CBM: {volumeInfo.cbmText}</p>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Attributes</h4>
@@ -791,6 +819,7 @@ function ProductList({
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Product Name</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Category</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Supplier</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Dimensions</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">
                   Stock{locationName ? ` (${locationName})` : ''}
@@ -801,12 +830,12 @@ function ProductList({
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="text-center py-8 md:py-12">
+                <tr><td colSpan={10} className="text-center py-8 md:py-12">
                   <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
                   <p className="mt-2 text-xs md:text-sm text-gray-500">Loading...</p>
                 </td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 md:py-12 text-gray-400">
+                <tr><td colSpan={10} className="text-center py-8 md:py-12 text-gray-400">
                   <Package className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-3 text-gray-300" />
                   <p className="text-sm md:text-lg font-medium text-gray-500">No products found</p>
                   <p className="text-xs md:text-sm text-gray-400">Try adjusting your search or filters</p>
@@ -828,6 +857,23 @@ function ProductList({
                     <td className="px-3 md:px-6 py-2 md:py-3 font-medium text-gray-800 text-xs md:text-sm">{product.name}</td>
                     <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden sm:table-cell">{product.categoryName || '-'}</td>
                     <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden md:table-cell">{product.supplierName || '-'}</td>
+                    <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden lg:table-cell">
+                      {hasProductDimensions(product) ? (
+                        <div className="space-y-0.5">
+                          <p className="font-medium text-gray-700">{formatProductDimensions(product)}</p>
+                          {formatProductVolume(product) && (
+                            <p className="text-[10px] text-gray-400">Vol: {formatProductVolume(product)?.volumeText}</p>
+                          )}
+                          {formatProductWeight(product) && (
+                            <p className="text-[10px] text-gray-400">Wt: {formatProductWeight(product)}</p>
+                          )}
+                        </div>
+                      ) : formatProductWeight(product) ? (
+                        <span>{formatProductWeight(product)}</span>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
                     <td className="px-3 md:px-6 py-2 md:py-3 font-semibold text-gray-700 text-xs md:text-sm">{formatAmount(Number(product.sellingPrice))}</td>
                     <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden lg:table-cell">
                       {Number(product.currentStock || 0).toLocaleString()}
@@ -1176,8 +1222,8 @@ function ProductForm({
         productType: 'productType',
         stockUnit: 'stockUnitName',
         weightUnit: 'weightUnitName',
-        dimensionUnit: 'dimensionUnitName',
-        taxType: 'taxTypeName',
+        dimensionUnit: 'dimensionUnit',
+        taxType: 'taxType',
         zone: 'zoneName',
         storageCondition: 'storageConditionName',
         brand: 'brandName',

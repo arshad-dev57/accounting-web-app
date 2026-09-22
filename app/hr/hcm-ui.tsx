@@ -22,7 +22,7 @@ export function HcmCrudPage({
   columns: string[];
   load: () => Promise<any[]>;
   create: (input: Record<string, unknown>) => Promise<any>;
-  fields: { key: string; label: string; type?: string; options?: string[] }[];
+  fields: { key: string; label: string; type?: string; options?: string[]; optionValues?: string[] }[];
   rowCells: (row: any) => React.ReactNode;
   createLabel?: string;
 }) {
@@ -54,6 +54,11 @@ export function HcmCrudPage({
     try {
       const payload: Record<string, unknown> = {};
       fields.forEach((f) => {
+        if (f.options && f.optionValues) {
+          const idx = f.options.indexOf(form[f.key] || '');
+          payload[f.key] = idx >= 0 ? f.optionValues[idx] : '';
+          return;
+        }
         payload[f.key] = f.type === 'number' ? Number(form[f.key] || 0) : form[f.key] || '';
       });
       await create(payload);

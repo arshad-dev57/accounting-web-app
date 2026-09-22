@@ -33,6 +33,7 @@ import {
   UsersRound,
   Headset,
   Phone,
+  FileText,
 } from 'lucide-react';
 import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
@@ -51,6 +52,7 @@ const SECTIONS: {
       { href: '/hr/add-employee', label: 'Add Employee', icon: UserPlus },
       { href: '/hr/offices', label: 'Offices', icon: Building2 },
       { href: '/hr/organization', label: 'Departments', icon: GitBranch },
+      { href: '/hr/cost-centers', label: 'Cost Centers', icon: Landmark },
       { href: '/hr/team', label: 'My Team', icon: UsersRound },
     ],
   },
@@ -58,6 +60,7 @@ const SECTIONS: {
     label: 'TIME & ATTENDANCE',
     items: [
       { href: '/hr/attendance', label: 'Attendance', icon: Fingerprint },
+      { href: '/hr/attendance/reports', label: 'Attendance Reports', icon: FileText },
       { href: '/hr/shifts', label: 'Shifts', icon: Clock },
       { href: '/hr/shift-plans', label: 'Shift Plans', icon: Clock },
       { href: '/hr/calendar', label: 'Calendar View', icon: CalendarDays },

@@ -8,5 +8,15 @@
     "status": "Active",
     "createdAt": "2026-09-07T00:00:00.000Z",
     "updatedAt": "2026-09-07T00:00:00.000Z"
+  },
+  {
+    "id": "shift_1790081852308_qjqb43",
+    "name": "night shift",
+    "startTime": "09:00 pm",
+    "endTime": "7 am",
+    "graceMinutes": 15,
+    "status": "Active",
+    "createdAt": "2026-09-22T12:57:32.308Z",
+    "updatedAt": "2026-09-22T12:57:32.308Z"
   }
 ]

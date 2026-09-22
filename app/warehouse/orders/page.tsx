@@ -21,6 +21,7 @@ import { orderService, Order, OrderListResponse } from '../../api/order/route';
 import { settingService } from '../../api/settings/route';
 import { productService, Product } from '../../api/product/route';
 import { customerService, Customer } from '../../api/customer/route';
+import { formatProductDimensions } from '@/lib/product-dimensions';
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
@@ -867,9 +868,7 @@ function CreateOrderForm({
         totalPrice: selectedProduct.sellingPrice * quantity,
         weight: selectedProduct.weight || 0,
         weightUnit: selectedProduct.weightUnit || 'KG',
-        dimensions: selectedProduct.dimensions
-          ? `${selectedProduct.dimensions.length}x${selectedProduct.dimensions.width}x${selectedProduct.dimensions.height} ${selectedProduct.dimensions.unit}`
-          : '',
+        dimensions: formatProductDimensions(selectedProduct) || '',
         taxRate: 0, taxAmount: 0, discount: 0, notes: ''
       }]);
     }

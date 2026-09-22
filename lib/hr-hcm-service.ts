@@ -51,6 +51,20 @@ export const hrHcmService = {
     const qs = date ? `?date=${encodeURIComponent(date)}` : '';
     return unwrap(await apiClient.get(`/api/hr/attendance/summary${qs}`));
   },
+  attendanceReport: async (params: {
+    from: string;
+    to: string;
+    employeeId?: string;
+    department?: string;
+  }) => {
+    const qs = new URLSearchParams();
+    qs.set('from', params.from);
+    qs.set('to', params.to);
+    if (params.employeeId) qs.set('employeeId', params.employeeId);
+    if (params.department) qs.set('department', params.department);
+    const body = unwrap(await apiClient.get(`/api/hr/attendance/report?${qs.toString()}`));
+    return body.data;
+  },
   corrections: () => getList('/api/hr/attendance/corrections'),
   createCorrection: (input: Record<string, unknown>) => postData('/api/hr/attendance/corrections', input),
   updateCorrection: (id: string, status: string) => putData(`/api/hr/attendance/corrections/${id}`, { status }),

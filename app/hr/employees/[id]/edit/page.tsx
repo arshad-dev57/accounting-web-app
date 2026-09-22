@@ -10,6 +10,7 @@ import { hrEmployeesService } from '@/lib/hr-employees-service';
 import { hrOfficesService } from '@/lib/hr-offices-service';
 import { hrShiftsService } from '@/lib/hr-shifts-service';
 import { hrHcmService } from '@/lib/hr-hcm-service';
+import { hrCostCenterService, CostCenter } from '@/lib/hr-cost-center-service';
 
 const inputCls =
   'w-full bg-white rounded-xl py-2.5 px-4 text-sm text-[#1A1A2E] border border-[#DDE4EE] focus:outline-none focus:ring-2 focus:ring-[#014582]/20 focus:border-[#014582]/50 transition-all disabled:opacity-60';
@@ -29,6 +30,7 @@ type FormState = {
   phone: string;
   designation: string;
   department: string;
+  costCenterId: string;
   officeId: string;
   shift: string;
   joiningDate: string;
@@ -99,11 +101,12 @@ export default function EditEmployeePage() {
   const [offices, setOffices] = React.useState<{ id: string; name: string }[]>([]);
   const [shifts, setShifts] = React.useState<string[]>([]);
   const [departments, setDepartments] = React.useState<string[]>([]);
+  const [costCenters, setCostCenters] = React.useState<CostCenter[]>([]);
   const [designations, setDesignations] = React.useState<string[]>([]);
   const [code, setCode] = React.useState('');
   const [form, setForm] = React.useState<FormState>({
     firstName: '', lastName: '', email: '', phone: '',
-    designation: '', department: '', officeId: '', shift: '',
+    designation: '', department: '', costCenterId: '', officeId: '', shift: '',
     joiningDate: '', status: 'Active',
     employeeType: 'Office Employee', employmentType: 'Full Time',
     salary: '', payBasis: 'monthly',
@@ -117,12 +120,13 @@ export default function EditEmployeePage() {
     let mounted = true;
     (async () => {
       try {
-        const [emp, officeList, shiftList, deps, desigs] = await Promise.all([
+        const [emp, officeList, shiftList, deps, desigs, centers] = await Promise.all([
           hrEmployeesService.get(id),
           hrOfficesService.list(),
           hrShiftsService.list().catch(() => []),
           hrHcmService.departments().catch(() => []),
           hrHcmService.designations().catch(() => []),
+          hrCostCenterService.list().catch(() => []),
         ]);
         if (!mounted) return;
         const deptNames = deps.map((d: any) => String(d.name || '').trim()).filter(Boolean);
@@ -131,6 +135,7 @@ export default function EditEmployeePage() {
         const activeOffices = officeList.filter((o) => o.status === 'Active');
         setDepartments(deptNames);
         setDesignations(desigNames);
+        setCostCenters(centers.filter((c) => c.status === 'active'));
         setShifts(shiftNames);
         setOffices(activeOffices.map((o) => ({ id: o.id, name: o.name })));
         setCode(emp.employeeCode);
@@ -143,6 +148,7 @@ export default function EditEmployeePage() {
           phone: emp.phone || '',
           designation: emp.designation || desigNames[0] || '',
           department: emp.department || deptNames[0] || '',
+          costCenterId: emp.costCenterId || '',
           officeId: emp.officeId || activeOffices[0]?.id || '',
           shift: emp.shift || shiftNames[0] || '',
           joiningDate: emp.joiningDate ? String(emp.joiningDate).slice(0, 10) : '',
@@ -211,6 +217,7 @@ export default function EditEmployeePage() {
         phone: form.phone,
         designation: form.designation,
         department: form.department,
+        costCenterId: form.costCenterId || null,
         officeId: form.officeId || null,
         shift: form.shift,
         joiningDate: form.joiningDate,
@@ -286,6 +293,14 @@ export default function EditEmployeePage() {
                   <option value="">Select</option>
                   {departments.map((d) => <option key={d} value={d}>{d}</option>)}
                   {form.department && !departments.includes(form.department) && <option value={form.department}>{form.department} (current)</option>}
+                </select>
+              </Field>
+              <Field label="Cost Center">
+                <select className={inputCls} value={form.costCenterId} onChange={(e) => set('costCenterId')(e.target.value)} disabled={saving}>
+                  <option value="">Inherit from department (if linked)</option>
+                  {costCenters.map((c) => (
+                    <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
+                  ))}
                 </select>
               </Field>
               <Field label="Designation" required error={errors.designation} action={<OrgLink label="Manage" />}>
