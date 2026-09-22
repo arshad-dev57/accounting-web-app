@@ -35,7 +35,7 @@ const banners = [
     title: 'Inventory\nModule Live',
     subtitle: 'Manage inventory, orders & stock all in one place',
     badge: 'NOW LIVE',
-    btnText: 'Open Warehouse',
+    btnText: 'Open Inventory',
     image: 'https://images.unsplash.com/photo-1553413077-190dd305871c?w=1200&q=80',
     accentColor: '#014582',
   },

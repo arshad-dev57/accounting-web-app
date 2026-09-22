@@ -10,7 +10,7 @@ const MODULES: Record<string, { label: string; href: string }> = {
   accounting: { label: 'Accounting', href: '/accounting/dashboard' },
   sales: { label: 'Sales', href: '/sales/dashboard' },
   purchases: { label: 'Purchases', href: '/purchases/dashboard' },
-  warehouse: { label: 'Warehouse', href: '/warehouse/dashboard' },
+  warehouse: { label: 'Inventory', href: '/warehouse/dashboard' },
   manufacturing: { label: 'Manufacturing', href: '/manufacturing/dashboard' },
   tax: { label: 'Tax', href: '/tax' },
   pos: { label: 'POS', href: '/pos' },

@@ -90,12 +90,12 @@ function WarehouseSidebar() {
 
   return (
     <div className="w-56 h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0 fixed left-0 top-0">
-      <BrandHeader subtitle="Warehouse Module" />
+      <BrandHeader subtitle="Inventory Module" />
 
       {/* Menu Items */}
       <div className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
         <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3">
-          WAREHOUSE MENU
+          INVENTORY MENU
         </p>
         
         {filteredMenuItems.map((item) => (
@@ -187,7 +187,7 @@ export default function WarehouseLayout({
         {/* Top Bar */}
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
           <TopBarBrand
-            title="Warehouse Management"
+            title="Inventory Management"
             icon={<Warehouse className="w-5 h-5 text-[#014582]" />}
           />
 

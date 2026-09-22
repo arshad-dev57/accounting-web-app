@@ -17,6 +17,7 @@ import {
   Loader2,
   DollarSign,
   Receipt,
+  FileText,
   Users,
   ArrowUpRight,
   ArrowDownRight,

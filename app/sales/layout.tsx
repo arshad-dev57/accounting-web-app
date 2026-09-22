@@ -275,7 +275,7 @@ function SalesSidebar() {
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
           >
             <Warehouse className="w-5 h-5" />
-            <span className="text-sm font-medium">Warehouse</span>
+            <span className="text-sm font-medium">Inventory</span>
           </Link>
         )}
 

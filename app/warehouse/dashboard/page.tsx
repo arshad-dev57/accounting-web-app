@@ -175,7 +175,7 @@ export function WarehouseDashboardPage() {
         if (result.data) setData(result.data);
       }
     } catch (e) {
-      console.error('Failed to load warehouse dashboard:', e);
+      console.error('Failed to load Inventory dashboard:', e);
       setError('Failed to load dashboard');
     } finally {
       setLoading(false);
@@ -342,7 +342,7 @@ export function WarehouseDashboardPage() {
       {/* Header — same pattern as accounting dashboard */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Warehouse Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Inventory Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
             Stock value, movements and inventory health for {period.toLowerCase()}
             {selectedLocation ? ` · ${selectedLocation.name}` : ''}
@@ -355,11 +355,10 @@ export function WarehouseDashboardPage() {
               key={p.label}
               onClick={() => selectPeriod(p.label, p.value)}
               disabled={isBusy}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                period === p.label
-                  ? 'bg-[#1088dd] text-white shadow-sm'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed ${period === p.label
+                ? 'bg-[#1088dd] text-white shadow-sm'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                }`}
             >
               {p.label}
             </button>
@@ -432,9 +431,8 @@ export function WarehouseDashboardPage() {
                       <Icon className="w-5 h-5" />
                     </div>
                     <span
-                      className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                        item.trendUp ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                      }`}
+                      className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${item.trendUp ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                        }`}
                     >
                       {item.trend === 'Alert' || item.trend === 'Clear' ? (
                         item.trendUp ? (
@@ -719,9 +717,8 @@ export function WarehouseDashboardPage() {
                         className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
                       >
                         <div
-                          className={`p-2.5 rounded-xl ${
-                            isIn ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-                          }`}
+                          className={`p-2.5 rounded-xl ${isIn ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                            }`}
                         >
                           {isIn ? (
                             <ArrowUpRight className="w-4 h-4" />
@@ -735,11 +732,10 @@ export function WarehouseDashboardPage() {
                               {activity.action || 'Movement'}
                             </p>
                             <span
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                                isIn
-                                  ? 'bg-emerald-50 text-emerald-600'
-                                  : 'bg-red-50 text-red-600'
-                              }`}
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isIn
+                                ? 'bg-emerald-50 text-emerald-600'
+                                : 'bg-red-50 text-red-600'
+                                }`}
                             >
                               {isIn ? 'In' : 'Out'}
                             </span>

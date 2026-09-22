@@ -97,7 +97,7 @@ export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: str
         },
         {
           icon: <Warehouse className="w-5 h-5" />,
-          label: 'Warehouse',
+          label: 'Inventory',
           path: '/warehouse/dashboard',
           show: isAdmin || hasModuleAccess('warehouse'),
         },
