@@ -47,16 +47,24 @@ const TABS: { id: ReportTab; label: string }[] = [
   { id: 'history', label: 'Payroll history' },
 ];
 
+import { hrPrintService, HRPrintSettingItem } from '@/lib/hr-print-service';
+
 export default function PayrollReportsPage() {
   const [tab, setTab] = React.useState<ReportTab>('summary');
   const [period, setPeriod] = React.useState(currentPeriod());
   const [loading, setLoading] = React.useState(true);
   const [payroll, setPayroll] = React.useState<any>(null);
+  const [hrSettings, setHrSettings] = React.useState<HRPrintSettingItem | null>(null);
 
   const load = React.useCallback(async (p = period) => {
     setLoading(true);
     try {
-      setPayroll(await hrWorkforceService.payrollReport(p));
+      const [payData, printData] = await Promise.all([
+        hrWorkforceService.payrollReport(p),
+        hrPrintService.getSettings().catch(() => null)
+      ]);
+      setPayroll(payData);
+      setHrSettings(printData);
     } catch (error: any) {
       toast.error(error.message || 'Failed to load payroll report');
     } finally {
@@ -118,6 +126,7 @@ export default function PayrollReportsPage() {
         { label: 'Net Payable', value: pkr(summary.net || 0) },
       ],
       includeSignature: true,
+      hrSettings
     });
   };
 

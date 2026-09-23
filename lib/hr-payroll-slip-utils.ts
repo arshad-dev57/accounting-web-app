@@ -107,25 +107,62 @@ export function paymentStatusLabel(status: string): string {
   return 'Unpaid';
 }
 
-export function printPayslip(slip: PayrollSlipRow | any, payDate?: string, settings?: any) {
+export function printPayslip(slip: PayrollSlipRow | any, payDate?: string, hrSettings?: any) {
   const p = slipParts(slip);
   const b = slip.breakdown || {};
-  const win = window.open('', '_blank', 'width=860,height=1150');
+  const win = window.open('', '_blank', 'width=900,height=1150');
   if (!win) return;
   const paid = slip.paidAt ? String(slip.paidAt).slice(0, 10) : payDate || 'Pending';
+
+  const companyName = hrSettings?.companyName || 'Bisonstechs ERP';
+  const companyAddress = hrSettings?.companyAddress || '';
+  const primaryLogo = hrSettings?.showLogo && hrSettings?.primaryLogo ? hrSettings.primaryLogo : '';
+  const secondaryLogo = hrSettings?.showLogo && hrSettings?.secondaryLogo ? hrSettings.secondaryLogo : '';
+  const officialStamp = hrSettings?.showStamp && hrSettings?.officialStamp ? hrSettings.officialStamp : '';
+  const accentColor = hrSettings?.primaryColor || '#014582';
+  const fontFamily = hrSettings?.fontFamily || 'Segoe UI, Arial, sans-serif';
+  const payslipTitle = hrSettings?.payslipTitle || 'PAYSLIP STATEMENT';
+
+  const sigList = hrSettings?.signatories || [];
+
   const rows = (items: [string, string | number][]) =>
     items.map(([label, val]) =>
       `<tr><td>${label}</td><td style="text-align:right;font-weight:600">${typeof val === 'number' ? pkr(val) : val}</td></tr>`
     ).join('');
 
-  win.document.write(`<!doctype html><html><head><title>Payslip · ${slip.employee} · ${slip.period}</title>
+  const signatureHtml = sigList.length > 0
+    ? `
+      <div style="margin-top: 32px; border-top: 1px border-dashed #DDE4EE; padding-top: 20px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 11px; color: #1A1A2E;">
+        ${sigList.map((sig: any) => `
+          <div style="width: 22%; text-align: ${sig.alignment || 'left'};">
+            <div style="height: 44px; display: flex; align-items: flex-end; justify-content: ${sig.alignment === 'right' ? 'flex-end' : sig.alignment === 'center' ? 'center' : 'flex-start'};">
+              ${sig.signatureUrl ? `<img src="${sig.signatureUrl}" style="max-height: 38px; max-width: 120px; object-fit: contain;" />` : '<div style="border-bottom: 1px solid #CBD5E1; width: 100%; height: 28px;"></div>'}
+              ${sig.stampUrl ? `<img src="${sig.stampUrl}" style="height: 24px; margin-left: 4px;" />` : ''}
+            </div>
+            <div style="border-top: 1px solid #CBD5E1; padding-top: 4px; font-weight: 800;">${sig.label}</div>
+            ${sig.name ? `<div style="font-size: 10px; color: #475569;">${sig.name}</div>` : ''}
+            ${sig.designation ? `<div style="font-size: 9px; color: #64748B;">${sig.designation}</div>` : ''}
+          </div>
+        `).join('')}
+
+        ${officialStamp ? `
+          <div style="text-align: right;">
+            <img src="${officialStamp}" style="max-height: 55px; max-width: 85px; object-fit: contain;" />
+            <div style="font-size: 9px; color: #94A3B8; margin-top: 2px;">Official Seal</div>
+          </div>
+        ` : ''}
+      </div>
+    `
+    : '';
+
+  win.document.write(`<!doctype html><html><head><title>${payslipTitle} · ${slip.employee} · ${slip.period}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Arial,sans-serif;color:#1A1A2E;background:#fff;padding:40px}
-    .wrap{max-width:720px;margin:0 auto}
-    .header{background:#014582;color:#fff;padding:20px 24px;border-radius:12px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+    body{font-family:${fontFamily};color:#1A1A2E;background:#fff;padding:32px}
+    .wrap{max-width:740px;margin:0 auto}
+    .header{background:${accentColor};color:#fff;padding:20px 24px;border-radius:12px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
     .header h1{font-size:18px;font-weight:800;margin-bottom:2px}
-    .header .sub{font-size:12px;opacity:0.8}
+    .header .sub{font-size:11px;opacity:0.85;text-transform:uppercase;letter-spacing:0.05em}
     .header .badge{background:rgba(255,255,255,0.15);border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;text-align:center}
     .section{margin-bottom:16px}
     .section-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#7A8FA6;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #EEF2F7}
@@ -136,26 +173,25 @@ export function printPayslip(slip: PayrollSlipRow | any, payDate?: string, setti
     td{padding:9px 4px;border-bottom:1px solid #EEF2F7;font-size:13px}
     tr:last-child td{border-bottom:none}
     .subtotal td{font-weight:700;background:#F8FAFC;font-size:12px}
-    .net-bar{background:#014582;color:#fff;padding:16px 20px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;margin-top:20px}
+    .net-bar{background:${accentColor};color:#fff;padding:16px 20px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;margin-top:20px}
     .net-bar .label{font-size:13px;font-weight:600;opacity:0.9}
-    .net-bar .amount{font-size:26px;font-weight:800}
-    .statutory{font-size:10px;color:#7A8FA6;margin-top:14px;text-align:center}
-    .footer{margin-top:28px;border-top:1px solid #EEF2F7;padding-top:16px;display:flex;justify-content:space-between}
-    .footer .sig{width:180px;border-top:1px solid #1A1A2E;padding-top:6px;font-size:10px;color:#7A8FA6;text-align:center}
-    @media print{body{padding:20px}.header{-webkit-print-color-adjust:exact;print-color-adjust:exact}.net-bar{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+    .net-bar .amount{font-size:24px;font-weight:800}
+    @media print{body{padding:16px}.header{-webkit-print-color-adjust:exact;print-color-adjust:exact}.net-bar{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
   </style></head><body><div class="wrap">
   <div class="header">
-    <div>
-      <div class="sub">SALARY PAYSLIP</div>
-      <h1>${slip.employee}${p.isOnProbation ? ' <span style="font-size:12px;opacity:0.8">(Probation)</span>' : ''}</h1>
-      <div class="sub">${slip.designation || ''} ${slip.department ? '· ' + slip.department : ''}</div>
-      <div class="sub" style="margin-top:4px">${slip.employeeCode || ''} ${slip.office ? '· ' + slip.office : ''}</div>
+    <div style="display:flex;align-items:center;gap:12px">
+      ${primaryLogo ? `<img src="${primaryLogo}" style="height:46px;max-width:130px;object-fit:contain" />` : ''}
+      <div>
+        <div class="sub">${payslipTitle}</div>
+        <h1>${slip.employee}${p.isOnProbation ? ' <span style="font-size:12px;opacity:0.8">(Probation)</span>' : ''}</h1>
+        <div class="sub">${slip.designation || ''} ${slip.department ? '· ' + slip.department : ''}</div>
+        <div class="sub" style="margin-top:2px">${companyName} ${companyAddress ? '· ' + companyAddress : ''}</div>
+      </div>
     </div>
-    <div class="badge">
-      <div style="opacity:0.8;font-size:10px">Period</div>
-      <div>${slip.periodLabel || slip.period}</div>
-      <div style="margin-top:4px;opacity:0.8;font-size:10px">Pay date</div>
-      <div>${paid}</div>
+    <div className="badge" style="text-align:right">
+      ${secondaryLogo ? `<img src="${secondaryLogo}" style="height:28px;margin-bottom:4px" /><br/>` : ''}
+      <div style="opacity:0.8;font-size:10px">Period: ${slip.periodLabel || slip.period}</div>
+      <div style="margin-top:2px;opacity:0.8;font-size:10px">Pay date: ${paid}</div>
     </div>
   </div>
   <div class="info-grid">
@@ -194,6 +230,14 @@ export function printPayslip(slip: PayrollSlipRow | any, payDate?: string, setti
     <div><div class="label">Net pay</div></div>
     <div class="amount">${pkr(p.net)}</div>
   </div>
+
+  ${signatureHtml}
+
+  ${hrSettings?.payslipNotes ? `
+    <div style="margin-top:20px;font-size:10px;color:#7A8FA6;text-align:center;font-style:italic">
+      ${hrSettings.payslipNotes}
+    </div>
+  ` : ''}
   </div></body></html>`);
   win.document.close();
   win.focus();

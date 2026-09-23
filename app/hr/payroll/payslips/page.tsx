@@ -35,6 +35,8 @@ function currentPeriodKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+import { hrPrintService, HRPrintSettingItem } from '@/lib/hr-print-service';
+
 function PayslipsContent() {
   const searchParams = useSearchParams();
   const periodParam = searchParams.get('period');
@@ -47,15 +49,20 @@ function PayslipsContent() {
   const [slips, setSlips] = React.useState<any[]>([]);
   const [search, setSearch] = React.useState('');
   const [viewingSlip, setViewingSlip] = React.useState<any | null>(null);
+  const [hrSettings, setHrSettings] = React.useState<HRPrintSettingItem | null>(null);
 
   const loadPayslips = React.useCallback(async (pKey = periodKey) => {
     setLoading(true);
     try {
-      const list = await hrWorkforceService.listPayPeriods().catch(() => []);
-      setPeriodList(Array.isArray(list) ? list : []);
+      const [list, periodRow, printData] = await Promise.all([
+        hrWorkforceService.listPayPeriods().catch(() => []),
+        hrWorkforceService.ensurePayPeriod(pKey).catch(() => null),
+        hrPrintService.getSettings().catch(() => null)
+      ]);
 
-      const periodRow = await hrWorkforceService.ensurePayPeriod(pKey).catch(() => null);
+      setPeriodList(Array.isArray(list) ? list : []);
       setPayPeriod(periodRow);
+      setHrSettings(printData);
 
       if (periodRow?.id) {
         const reviewData = await hrWorkforceService.getPayrollReview(periodRow.id).catch(() => null);
@@ -85,8 +92,8 @@ function PayslipsContent() {
     try {
       printPayslip(
         slipRow,
-        payPeriod?.name || periodKey,
-        payPeriod?.payDate
+        payPeriod?.payDate || payPeriod?.name || periodKey,
+        hrSettings
       );
     } catch (err: any) {
       toast.error('Print preview error');

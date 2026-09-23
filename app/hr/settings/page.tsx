@@ -2,10 +2,11 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Settings, Loader2, ExternalLink, Clock, DollarSign, Percent, Award, BookOpen, Save } from 'lucide-react';
+import { Settings, Loader2, ExternalLink, Clock, DollarSign, Percent, Award, BookOpen, Save, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { HRPage, HRPageHeader, HRCard, HRWorkflowNotice } from '../ui';
 import { hrWorkforceService } from '@/lib/hr-workforce-service';
+import { HRDocumentsSettingsTab } from '@/components/hr/hr-documents-settings-tab';
 
 const TOGGLES = [
   { key: 'geofence', label: 'Auto Geofence Check-in', desc: 'Automatically check employees in when they enter the office geofence' },
@@ -50,7 +51,7 @@ const DEFAULTS: Record<string, any> = {
 };
 
 export default function HRSettingsPage() {
-  const [activeTab, setActiveTab] = React.useState<'attendance' | 'compensation' | 'deductions' | 'commissions' | 'accounting'>('attendance');
+  const [activeTab, setActiveTab] = React.useState<'attendance' | 'compensation' | 'deductions' | 'commissions' | 'accounting' | 'documents-printing'>('attendance');
   const [enabled, setEnabled] = React.useState<Record<string, any>>(DEFAULTS);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
@@ -87,10 +88,10 @@ export default function HRSettingsPage() {
 
   return (
     <HRPage>
-      <HRPageHeader title="HR & Payroll Settings" subtitle="Attendance · Package breakdown · Statutory rules · Accounting integration" backHref="/hr/dashboard" />
+      <HRPageHeader title="HR & Payroll Settings" subtitle="Attendance · Package breakdown · Statutory rules · Accounting · Documents & Printing" backHref="/hr/dashboard" />
       <HRWorkflowNotice
         title="Enterprise HR Rules Engine"
-        detail="Changes made here immediately govern the next payroll calculation cycle. Rules apply deterministically; manual HR overrides are logged in the pay register audit trail."
+        detail="Changes made here immediately govern the next payroll calculation cycle and HR document printing. Rules apply deterministically; manual HR overrides are logged in the pay register audit trail."
         action={
           <Link href="/hr/payroll/dashboard" className="inline-flex items-center gap-1 text-[11px] font-extrabold text-[#014582] hover:underline">
             Open Payroll Engine <ExternalLink className="w-3 h-3" />
@@ -106,6 +107,7 @@ export default function HRSettingsPage() {
           { id: 'deductions', label: 'Deductions & Statutory', icon: Percent },
           { id: 'commissions', label: 'Sales & Commissions', icon: Award },
           { id: 'accounting', label: 'Accounting Integration', icon: BookOpen },
+          { id: 'documents-printing', label: 'HR Documents & Printing', icon: FileText },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -342,18 +344,25 @@ export default function HRSettingsPage() {
             </HRCard>
           )}
 
-          {/* Action Footer */}
-          <div className="flex justify-end pt-4">
-            <button
-              type="button"
-              onClick={save}
-              disabled={saving}
-              className="inline-flex items-center gap-2 bg-[#014582] hover:bg-[#014582]/90 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-sm transition-all disabled:opacity-60"
-            >
-              <Save className="w-4 h-4" />
-              {saving ? 'Saving Settings…' : 'Save All Settings'}
-            </button>
-          </div>
+          {/* Tab 6: HR Documents & Printing */}
+          {activeTab === 'documents-printing' && (
+            <HRDocumentsSettingsTab />
+          )}
+
+          {/* Action Footer (for non-documents tabs) */}
+          {activeTab !== 'documents-printing' && (
+            <div className="flex justify-end pt-4">
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="inline-flex items-center gap-2 bg-[#014582] hover:bg-[#014582]/90 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-sm transition-all disabled:opacity-60"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'Saving Settings…' : 'Save All Settings'}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </HRPage>
