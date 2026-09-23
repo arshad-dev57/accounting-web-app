@@ -217,7 +217,7 @@ export default function SalesPayrollPage() {
       <HRPageHeader
         title="Sales payroll"
         subtitle={periodLabel ? `${periodLabel} · ${rows.length} sales staff` : 'Basic + sales commission'}
-        backHref="/hr/payroll"
+        backHref="/hr/payroll/dashboard"
         actions={
           <Link
             href="/hr/payroll"

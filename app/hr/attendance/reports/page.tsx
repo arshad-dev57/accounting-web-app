@@ -4,6 +4,7 @@ import React from 'react';
 import {
   Download,
   FileSpreadsheet,
+  FileText,
   Loader2,
   Printer,
   Search,
@@ -28,45 +29,15 @@ import {
 } from '../../ui';
 import { hrHcmService } from '@/lib/hr-hcm-service';
 import { hrEmployeesService } from '@/lib/hr-employees-service';
+import {
+  type AttendanceReportData,
+  fmtHours,
+  fmtTime,
+  printAttendanceReport,
+  downloadAttendanceReportPdf,
+} from '@/lib/hr-attendance-report-export';
 
 const COLORS = { primary: '#014582', success: '#2ECC71', danger: '#E74C3C', warning: '#F39C12' };
-
-type ReportRow = {
-  date: string;
-  dayName: string;
-  employeeId: string;
-  employeeCode: string;
-  employee: string;
-  department: string;
-  designation: string;
-  status: string;
-  checkIn: string | null;
-  checkOut: string | null;
-  workingMinutes: number;
-  source: string | null;
-};
-
-type ReportData = {
-  from: string;
-  to: string;
-  dayCount: number;
-  employeeCount: number;
-  employee: { id: string; employeeCode: string; name: string; department: string } | null;
-  summary: {
-    totalDays: number;
-    present: number;
-    late: number;
-    absent: number;
-    halfDay: number;
-    onLeave: number;
-    holiday: number;
-    weekend: number;
-    missingCheckout: number;
-    totalWorkingMinutes: number;
-    avgWorkingMinutes: number;
-  };
-  rows: ReportRow[];
-};
 
 const PRESETS = [
   { id: 'this_week', label: 'This week' },
@@ -111,21 +82,6 @@ function presetRange(preset: string): { from: string; to: string } {
   return { from: fmtDate(start), to: fmtDate(today) };
 }
 
-function fmtTime(value?: string | null) {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-}
-
-function fmtHours(minutes?: number) {
-  const m = Number(minutes || 0);
-  if (m <= 0) return '—';
-  const h = Math.floor(m / 60);
-  const rest = m % 60;
-  return `${h}h ${String(rest).padStart(2, '0')}m`;
-}
-
 function statusTone(status: string) {
   if (status === 'Present') return 'Active';
   if (status === 'Late') return 'Pending';
@@ -147,8 +103,9 @@ export default function AttendanceReportsPage() {
   const [employeeId, setEmployeeId] = React.useState('');
   const [department, setDepartment] = React.useState('');
   const [employees, setEmployees] = React.useState<any[]>([]);
-  const [report, setReport] = React.useState<ReportData | null>(null);
+  const [report, setReport] = React.useState<AttendanceReportData | null>(null);
   const [loading, setLoading] = React.useState(false);
+  const [exportingPdf, setExportingPdf] = React.useState(false);
   const [query, setQuery] = React.useState('');
 
   React.useEffect(() => {
@@ -189,7 +146,7 @@ export default function AttendanceReportsPage() {
         employeeId: employeeId || undefined,
         department: department || undefined,
       });
-      setReport(data as ReportData);
+      setReport(data as AttendanceReportData);
     } catch (error: any) {
       toast.error(error.message || 'Failed to generate report');
       setReport(null);
@@ -240,12 +197,41 @@ export default function AttendanceReportsPage() {
     toast.success('CSV downloaded');
   };
 
-  const printReport = () => {
-    if (!report) {
+  const exportRows = () => {
+    if (!report?.rows?.length) {
       toast.error('Generate a report first');
-      return;
+      return null;
     }
-    window.print();
+    const rows = filteredRows.length > 0 ? filteredRows : report.rows;
+    if (rows.length === 0) {
+      toast.error('No rows to export');
+      return null;
+    }
+    return rows;
+  };
+
+  const printReport = () => {
+    const rows = exportRows();
+    if (!report || !rows) return;
+    try {
+      printAttendanceReport(report, rows, !!employeeId);
+    } catch (error: any) {
+      toast.error(error.message || 'Print failed');
+    }
+  };
+
+  const downloadPdf = async () => {
+    const rows = exportRows();
+    if (!report || !rows) return;
+    setExportingPdf(true);
+    try {
+      await downloadAttendanceReportPdf(report, rows, !!employeeId);
+      toast.success('PDF downloaded');
+    } catch (error: any) {
+      toast.error(error.message || 'PDF export failed');
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const summary = report?.summary;
@@ -258,13 +244,26 @@ export default function AttendanceReportsPage() {
         backHref="/hr/attendance"
         actions={
           report ? (
-            <div className="flex items-center gap-2 print:hidden">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={downloadCsv}
                 className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white px-3 py-2 rounded-lg text-xs font-bold"
               >
                 <Download className="w-3.5 h-3.5" /> CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => void downloadPdf()}
+                disabled={exportingPdf}
+                className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white px-3 py-2 rounded-lg text-xs font-bold disabled:opacity-60"
+              >
+                {exportingPdf ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <FileText className="w-3.5 h-3.5" />
+                )}
+                PDF
               </button>
               <button
                 type="button"
@@ -280,10 +279,10 @@ export default function AttendanceReportsPage() {
 
       <HRWorkflowNotice
         title="Professional attendance register"
-        detail="Pick an employee or all staff, choose weekly/monthly/custom dates, generate the report, then download CSV or print. Leave and holidays are included in status classification."
+        detail="Pick an employee or all staff, choose weekly/monthly/custom dates, generate the report, then export CSV, PDF, or print a formatted register. Leave and holidays are included in status classification."
       />
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 print:hidden">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <HRCard title="Report filters" className="xl:col-span-1">
           <div className="space-y-4">
             <div>
@@ -412,7 +411,7 @@ export default function AttendanceReportsPage() {
             title="Attendance register"
             action={
               report ? (
-                <div className="relative w-48 print:hidden">
+                <div className="relative w-48">
                   <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#7A8FA6]" />
                   <input
                     value={query}
@@ -475,16 +474,6 @@ export default function AttendanceReportsPage() {
         </div>
       </div>
 
-      {/* Print-only header */}
-      {report && (
-        <div className="hidden print:block mt-8">
-          <h1 className="text-xl font-bold">Attendance Report</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            {report.from} to {report.to}
-            {report.employee ? ` · ${report.employee.name} (${report.employee.employeeCode})` : ` · ${report.employeeCount} employees`}
-          </p>
-        </div>
-      )}
     </HRPage>
   );
 }

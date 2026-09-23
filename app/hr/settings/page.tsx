@@ -88,8 +88,8 @@ export default function HRSettingsPage() {
         title="HR controls the full salary flow"
         detail="1) Set rules here (late / absent cuts). 2) Edit any day on the Attendance page. 3) Payroll → Calculate → Edit commission/cuts per employee → Approve / Mark paid. Employees do not approve — HR does."
         action={
-          <Link href="/hr/payroll" className="inline-flex items-center gap-1 text-[11px] font-extrabold text-[#014582]">
-            Open Salary build <ExternalLink className="w-3 h-3" />
+          <Link href="/hr/payroll/dashboard" className="inline-flex items-center gap-1 text-[11px] font-extrabold text-[#014582]">
+            Open payroll <ExternalLink className="w-3 h-3" />
           </Link>
         }
       />

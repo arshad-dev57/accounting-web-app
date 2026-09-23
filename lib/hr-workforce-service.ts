@@ -103,6 +103,38 @@ export const hrWorkforceService = {
     };
   },
 
+  listPayPeriods: async () => listOf(unwrap(await apiClient.get('/api/hr/payroll/periods')).data),
+  ensurePayPeriod: async (periodKey: string, payDate?: string) =>
+    unwrap(await apiClient.post('/api/hr/payroll/periods/ensure', { periodKey, payDate })).data,
+  getPayPeriod: async (id: string) => unwrap(await apiClient.get(`/api/hr/payroll/periods/${id}`)).data,
+  validatePayPeriod: async (id: string, mode?: 'all' | 'office' | 'sales') =>
+    unwrap(await apiClient.post(`/api/hr/payroll/periods/${id}/validate`, { mode: mode || 'office' })),
+  getPayPeriodValidation: async (id: string, mode?: 'all' | 'office' | 'sales') => {
+    const qs = mode ? `?mode=${mode}` : '';
+    return unwrap(await apiClient.get(`/api/hr/payroll/periods/${id}/validation${qs}`));
+  },
+  calculatePayPeriod: async (id: string, mode?: 'all' | 'office' | 'sales', force?: boolean) => {
+    const body = unwrap(
+      await apiClient.post(`/api/hr/payroll/periods/${id}/calculate`, {
+        mode: mode || 'office',
+        ...(force ? { force: true } : {}),
+      })
+    );
+    return {
+      items: listOf(body.data),
+      period: body.period as string,
+      periodLabel: body.periodLabel as string,
+      payPeriod: body.payPeriod,
+      run: body.run,
+      validation: body.validation,
+      summary: body.summary || {},
+    };
+  },
+  getPayrollReview: async (id: string) => unwrap(await apiClient.get(`/api/hr/payroll/periods/${id}/review`)),
+  getPayRegister: async (id: string) => unwrap(await apiClient.get(`/api/hr/payroll/periods/${id}/register`)),
+  transitionPayPeriod: async (id: string, status: string) =>
+    unwrap(await apiClient.patch(`/api/hr/payroll/periods/${id}/status`, { status })).data,
+
   orgChart: async () => unwrap(await apiClient.get('/api/hr/org-chart')).data,
   notifications: async () => listOf(unwrap(await apiClient.get('/api/hr/notifications')).data),
   settings: async () => unwrap(await apiClient.get('/api/hr/settings')).data || {},

@@ -243,12 +243,13 @@ export function HRSearchInput({
 }
 
 // ============================================================
-// STATUS BADGE
+// STATUS BADGE & PAYROLL STATUS BADGE
 // ============================================================
 export function HRStatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     Active: '#2ECC71',
     Approved: '#2ECC71',
+    APPROVED: '#2ECC71',
     Present: '#2ECC71',
     CheckedIn: '#2ECC71',
     'On Leave': '#F39C12',
@@ -258,23 +259,90 @@ export function HRStatusBadge({ status }: { status: string }) {
     Absent: '#E74C3C',
     Rejected: '#E74C3C',
     Paid: '#2ECC71',
+    PAID: '#2ECC71',
     Draft: '#7A8FA6',
     Scheduled: '#0FA3E0',
     Review: '#8E44AD',
+    REVIEW: '#8E44AD',
     Open: '#0FA3E0',
+    OPEN: '#0FA3E0',
+    CALCULATING: '#F39C12',
+    CALCULATED: '#3498DB',
+    FINALIZED: '#E67E22',
     Closed: '#7A8FA6',
+    CLOSED: '#7A8FA6',
     'Needs action': '#E74C3C',
   };
-  const color = map[status] || '#7A8FA6';
+  const norm = String(status || '').toUpperCase();
+  const displayStatus = status || 'OPEN';
+  const color = map[status] || map[norm] || '#7A8FA6';
   return (
     <span
-      className="px-2.5 py-1 rounded-full text-[10px] font-bold"
-      style={{ backgroundColor: `${color}1A`, color }}
+      className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border"
+      style={{ backgroundColor: `${color}15`, color, borderColor: `${color}30` }}
     >
-      {status}
+      {displayStatus}
     </span>
   );
 }
+
+export function HRPayrollNextActionCard({
+  title,
+  subtitle,
+  actionLabel,
+  onAction,
+  href,
+  disabled = false,
+  hint,
+}: {
+  title: string;
+  subtitle: string;
+  actionLabel: string;
+  onAction?: () => void;
+  href?: string;
+  disabled?: boolean;
+  hint?: string;
+}) {
+  return (
+    <div className="bg-gradient-to-r from-[#014582] to-[#015db2] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden">
+      <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full pointer-events-none" />
+      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span className="inline-block text-[10px] font-extrabold uppercase tracking-widest text-white/70 bg-white/15 px-2.5 py-0.5 rounded-md mb-1.5">
+            Recommended Next Step
+          </span>
+          <h3 className="text-base font-extrabold">{title}</h3>
+          <p className="text-xs text-white/80 mt-1 max-w-xl">{subtitle}</p>
+          {hint && <p className="text-[11px] text-amber-200 mt-1.5 font-medium">{hint}</p>}
+        </div>
+        <div>
+          {href ? (
+            <Link
+              href={href}
+              className={`inline-flex items-center justify-center px-5 py-3 rounded-xl font-extrabold text-xs bg-white text-[#014582] shadow-md hover:bg-white/90 transition-all shrink-0 ${
+                disabled ? 'opacity-50 pointer-events-none' : ''
+              }`}
+            >
+              {actionLabel}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={onAction}
+              disabled={disabled}
+              className={`inline-flex items-center justify-center px-5 py-3 rounded-xl font-extrabold text-xs bg-white text-[#014582] shadow-md hover:bg-white/90 transition-all shrink-0 ${
+                disabled ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {actionLabel}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 // ============================================================
 // SIMPLE TABLE

@@ -34,22 +34,27 @@ import {
   Headset,
   Phone,
   FileText,
+  Layers,
+  Play,
+  ShieldCheck,
+  Banknote,
+  History,
+  TrendingUp,
 } from 'lucide-react';
 import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
 import { performLogout } from '../../lib/auth-logout';
+
 const SECTIONS: {
   label: string;
-  items: { href: string; label: string; icon: React.ElementType }[];
+  items: { href: string; label: string; icon: React.ElementType; matchPrefix?: boolean }[];
 }[] = [
   {
     label: 'MAIN',
     items: [
       { href: '/hr/dashboard', label: 'Dashboard', icon: Home },
-      { href: '/hr/employees', label: 'Employees', icon: Users },
-      { href: '/hr/add-employee', label: 'Add Employee', icon: UserPlus },
       { href: '/hr/offices', label: 'Offices', icon: Building2 },
       { href: '/hr/organization', label: 'Departments', icon: GitBranch },
       { href: '/hr/cost-centers', label: 'Cost Centers', icon: Landmark },
@@ -57,28 +62,19 @@ const SECTIONS: {
     ],
   },
   {
-    label: 'TIME & ATTENDANCE',
+    label: 'WORKFORCE',
     items: [
-      { href: '/hr/attendance', label: 'Attendance', icon: Fingerprint },
-      { href: '/hr/attendance/reports', label: 'Attendance Reports', icon: FileText },
-      { href: '/hr/shifts', label: 'Shifts', icon: Clock },
+      { href: '/hr/employees', label: 'Employees', icon: Users, matchPrefix: true },
+      { href: '/hr/add-employee', label: 'Add Employee', icon: UserPlus },
       { href: '/hr/shift-plans', label: 'Shift Plans', icon: Clock },
+      { href: '/hr/roster', label: 'Roster', icon: CalendarRange },
+      { href: '/hr/attendance', label: 'Attendance', icon: Fingerprint, matchPrefix: true },
       { href: '/hr/calendar', label: 'Calendar View', icon: CalendarDays },
       { href: '/hr/leaves', label: 'Leave Management', icon: PlaneTakeoff },
       { href: '/hr/leave-policies', label: 'Leave Policies', icon: PlaneTakeoff },
       { href: '/hr/holidays', label: 'Holidays', icon: Palmtree },
       { href: '/hr/overtime', label: 'Overtime', icon: Timer },
-      { href: '/hr/roster', label: 'Roster', icon: CalendarRange },
       { href: '/hr/live-tracking', label: 'Live Tracking', icon: MapPin },
-    ],
-  },
-  {
-    label: 'WORKFORCE',
-    items: [
-      { href: '/hr/payroll', label: 'Payroll', icon: Wallet },
-      { href: '/hr/payroll/sales', label: 'Sales payroll', icon: Award },
-      { href: '/hr/loans', label: 'Loans & Advances', icon: Landmark },
-      { href: '/hr/bonuses', label: 'Bonuses', icon: Award },
       { href: '/hr/lifecycle', label: 'Lifecycle', icon: GitBranch },
       { href: '/hr/documents', label: 'Documents', icon: FolderOpen },
       { href: '/hr/approvals', label: 'Approvals', icon: Inbox },
@@ -88,20 +84,65 @@ const SECTIONS: {
     ],
   },
   {
-    label: 'INSIGHTS & SETTINGS',
+    label: 'PAYROLL PROCESSING',
     items: [
-      { href: '/hr/reports', label: 'Reports & Analytics', icon: BarChart3 },
-      { href: '/hr/notifications', label: 'Notifications', icon: Bell },
+      { href: '/hr/payroll/dashboard', label: 'Payroll Dashboard', icon: Wallet, matchPrefix: true },
+      { href: '/hr/payroll/periods', label: 'Pay Periods', icon: CalendarDays },
+      { href: '/hr/payroll/run', label: 'Payroll Processing', icon: Play },
+    ],
+  },
+  {
+    label: 'PAYROLL RECORDS',
+    items: [
+      { href: '/hr/payroll/pay-register', label: 'Pay Register', icon: FileText },
+      { href: '/hr/payroll/payslips', label: 'Payslips', icon: FileText },
+      { href: '/hr/payroll/payments', label: 'Payroll Payments', icon: Banknote },
+      { href: '/hr/payroll/history', label: 'Payroll History', icon: History },
+    ],
+  },
+  {
+    label: 'PAYROLL MANAGEMENT',
+    items: [
+      { href: '/hr/payroll/salary-structures', label: 'Salary Structures', icon: Layers },
+      { href: '/hr/payroll/employee-salary', label: 'Employee Salary', icon: Users },
+      { href: '/hr/loans', label: 'Loans & Advances', icon: Landmark },
+      { href: '/hr/bonuses', label: 'Bonuses', icon: Award },
+      { href: '/hr/payroll/sales', label: 'Sales Payroll / Commission', icon: Award },
+    ],
+  },
+  {
+    label: 'REPORTS & INSIGHTS',
+    items: [
+      { href: '/hr/reports/payroll', label: 'Payroll Reports', icon: Wallet, matchPrefix: true },
+      { href: '/hr/reports', label: 'HR Reports', icon: BarChart3 },
+      { href: '/hr/dashboard', label: 'Analytics', icon: TrendingUp },
+      { href: '/hr/attendance/reports', label: 'Attendance Reports', icon: FileText },
+    ],
+  },
+  {
+    label: 'SETTINGS',
+    items: [
       { href: '/hr/settings', label: 'HR Settings', icon: Settings },
+      { href: '/hr/settings/payroll', label: 'Payroll Settings', icon: Wallet },
+      { href: '/hr/notifications', label: 'Notifications', icon: Bell },
     ],
   },
 ];
 
 function HRSidebar() {
   const pathname = usePathname();
-  const isActive = (path: string): boolean => {
-    if (path === '/hr/payroll') return pathname === '/hr/payroll';
-    return pathname === path || pathname.startsWith(`${path}/`);
+
+  const isActive = (path: string, label: string, matchPrefix?: boolean): boolean => {
+    if (label === 'Analytics') return false;
+    if (path === '/hr/payroll/dashboard') return pathname === '/hr/payroll/dashboard';
+    if (path === '/hr/payroll/run') return pathname === '/hr/payroll/run' || pathname === '/hr/payroll';
+    if (path === '/hr/payroll/pay-register') return pathname === '/hr/payroll/pay-register';
+    if (path === '/hr/reports') return pathname === '/hr/reports';
+    if (path === '/hr/reports/payroll') {
+      return pathname === '/hr/reports/payroll' || pathname.startsWith('/hr/reports/payroll/');
+    }
+    if (matchPrefix) return pathname === path || pathname.startsWith(`${path}/`);
+    return pathname === path;
   };
 
   return (
@@ -118,7 +159,6 @@ function HRSidebar() {
         </Link>
       </div>
 
-      {/* Navigation */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-4 custom-scrollbar">
         {SECTIONS.map((section) => (
           <div key={section.label}>
@@ -128,10 +168,10 @@ function HRSidebar() {
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const Icon = item.icon;
-                const active = isActive(item.href);
+                const active = isActive(item.href, item.label, item.matchPrefix);
                 return (
                   <Link
-                    key={item.href}
+                    key={item.href + item.label}
                     href={item.href}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
                       active
@@ -140,8 +180,8 @@ function HRSidebar() {
                     }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
-                    <span>{item.label}</span>
-                    {active && <ChevronRight className="w-3 h-3 ml-auto" />}
+                    <span className="truncate">{item.label}</span>
+                    {active && <ChevronRight className="w-3 h-3 ml-auto flex-shrink-0" />}
                   </Link>
                 );
               })}
@@ -150,7 +190,6 @@ function HRSidebar() {
         ))}
       </div>
 
-      {/* Bottom — mirrors the mobile drawer's logout */}
       <div className="px-3 pb-6 pt-2 flex-shrink-0 border-t border-white/10">
         <Link
           href="/dashboard"
@@ -181,7 +220,6 @@ export default function HRLayout({
     <>
       <HRSidebar />
       <div className="ml-64 min-h-screen bg-[#F0F4F8] flex flex-col">
-        {/* Top Bar */}
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
           <TopBarBrand
             title="HR Management"
@@ -216,7 +254,6 @@ export default function HRLayout({
 
         <AppBreadcrumbs />
 
-        {/* Page Content */}
         <div className="flex-1 p-6">{children}</div>
       </div>
     </>
