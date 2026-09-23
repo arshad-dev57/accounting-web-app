@@ -16,6 +16,9 @@ import {
 } from '../../ui';
 import { hrWorkforceService } from '@/lib/hr-workforce-service';
 
+import { openReportPrintPreview } from '@/lib/hr-reports-generator';
+import { Printer } from 'lucide-react';
+
 const COLORS = { success: '#2ECC71', warning: '#F39C12', primary: '#014582', danger: '#E74C3C' };
 const pkr = (n: number) =>
   `Rs ${Number(n || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 })}`;
@@ -83,6 +86,41 @@ export default function PayrollReportsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const printCorporateReport = () => {
+    const rows = register.map((r: any) => ({
+      employeeCode: r.employeeCode || '—',
+      employee: r.employee || 'Emp',
+      department: r.department || 'General',
+      gross: pkr(r.breakdown?.earnings?.gross ?? r.base ?? 0),
+      deductions: pkr(r.deductions || 0),
+      net: pkr(r.net || 0),
+      status: r.status || 'Approved',
+    }));
+
+    openReportPrintPreview({
+      title: `Payroll Report — ${tab.toUpperCase()} (${period})`,
+      subtitle: `Authoritative stored payroll calculation records`,
+      filterSummary: `Month: ${period} · Headcount: ${register.length}`,
+      columns: [
+        { key: 'employeeCode', label: 'Employee ID' },
+        { key: 'employee', label: 'Employee Name' },
+        { key: 'department', label: 'Department' },
+        { key: 'gross', label: 'Gross Salary' },
+        { key: 'deductions', label: 'Total Deductions' },
+        { key: 'net', label: 'Net Payable' },
+        { key: 'status', label: 'Status' },
+      ],
+      rows,
+      summaryCards: [
+        { label: 'Headcount', value: register.length },
+        { label: 'Gross Payroll', value: pkr(summary.gross || 0) },
+        { label: 'Total Deductions', value: pkr(summary.deductions || 0) },
+        { label: 'Net Payable', value: pkr(summary.net || 0) },
+      ],
+      includeSignature: true,
+    });
+  };
+
   return (
     <HRPage>
       <HRPageHeader
@@ -99,10 +137,17 @@ export default function PayrollReportsPage() {
             />
             <button
               type="button"
+              onClick={printCorporateReport}
+              className="flex items-center gap-2 bg-[#014582] text-white px-3 py-2 rounded-lg text-xs font-bold shadow-md hover:bg-[#013a6b]"
+            >
+              <Printer className="w-4 h-4" /> Print PDF Report
+            </button>
+            <button
+              type="button"
               onClick={exportCsv}
               className="flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white px-3 py-2 rounded-lg text-xs font-bold"
             >
-              <Download className="w-4 h-4" /> Export
+              <Download className="w-4 h-4" /> Export CSV
             </button>
           </div>
         }

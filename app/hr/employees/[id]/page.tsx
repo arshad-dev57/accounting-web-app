@@ -250,17 +250,51 @@ export default function EmployeeDossierPage() {
         </div>
       )}
       {tab === 'docs' && (
-        <HRCard title="Documents">
-          {(data.documents || []).map((r: any) => (
-            <p key={r.id} className="text-sm border-b border-[#F0F4F8] py-2">{r.title} · {r.category} · exp {r.expiresAt || '—'}</p>
-          ))}
+        <HRCard
+          title="Employee Documents"
+          action={
+            <Link
+              href="/hr/documents"
+              className="text-xs font-bold text-[#014582] hover:underline"
+            >
+              Upload / Manage in Central HR
+            </Link>
+          }
+        >
+          {(data.documents || []).length === 0 ? (
+            <p className="py-6 text-center text-xs text-[#7A8FA6]">No document records found for this employee.</p>
+          ) : (
+            <HRTable columns={['Title', 'Category', 'Reference / Doc #', 'Expiry Date', 'Status']}>
+              {(data.documents || []).map((r: any) => (
+                <HRTableRow key={r.id}>
+                  <HRTableCell><span className="font-extrabold text-[#1A1A2E]">{r.title}</span></HRTableCell>
+                  <HRTableCell><span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#F0F4F8] text-[#014582]">{r.category || 'HR'}</span></HRTableCell>
+                  <HRTableCell><span className="text-[#7A8FA6] font-mono text-xs">{r.documentNumber || r.reference || '—'}</span></HRTableCell>
+                  <HRTableCell><span className="text-xs text-[#1A1A2E]">{r.expiresAt || 'No Expiry'}</span></HRTableCell>
+                  <HRTableCell><HRStatusBadge status={r.status || 'Uploaded'} /></HRTableCell>
+                </HRTableRow>
+              ))}
+            </HRTable>
+          )}
         </HRCard>
       )}
       {tab === 'lifecycle' && (
-        <HRCard title="Lifecycle events">
-          {(data.lifecycle || []).map((r: any) => (
-            <p key={r.id} className="text-sm border-b border-[#F0F4F8] py-2"><b>{r.type}</b> · {r.fromValue} → {r.toValue} · {r.effective}</p>
-          ))}
+        <HRCard title="Employee Career Progression & Lifecycle History">
+          {(data.lifecycle || []).length === 0 ? (
+            <p className="py-6 text-center text-xs text-[#7A8FA6]">No recorded lifecycle events.</p>
+          ) : (
+            <HRTable columns={['Event Type', 'Previous Value', 'New Value', 'Effective Date', 'Notes']}>
+              {(data.lifecycle || []).map((r: any) => (
+                <HRTableRow key={r.id}>
+                  <HRTableCell><span className="font-extrabold text-[#014582] uppercase text-[11px]">{r.type}</span></HRTableCell>
+                  <HRTableCell><span className="text-[#7A8FA6]">{r.fromValue || '—'}</span></HRTableCell>
+                  <HRTableCell><span className="font-bold text-[#1A1A2E]">{r.toValue || '—'}</span></HRTableCell>
+                  <HRTableCell><span className="text-xs text-[#7A8FA6]">{r.effective || r.createdAt}</span></HRTableCell>
+                  <HRTableCell><span className="text-xs text-[#7A8FA6]">{r.notes || '—'}</span></HRTableCell>
+                </HRTableRow>
+              ))}
+            </HRTable>
+          )}
         </HRCard>
       )}
     </HRPage>

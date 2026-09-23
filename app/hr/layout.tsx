@@ -78,7 +78,6 @@ const SECTIONS: {
       { href: '/hr/lifecycle', label: 'Lifecycle', icon: GitBranch },
       { href: '/hr/documents', label: 'Documents', icon: FolderOpen },
       { href: '/hr/approvals', label: 'Approvals', icon: Inbox },
-      { href: '/hr/tasks', label: 'Task Management', icon: ListChecks },
       { href: '/hr/performance', label: 'Performance Reviews', icon: ClipboardCheck },
       { href: '/hr/org-chart', label: 'Organization Chart', icon: Network },
     ],
@@ -107,7 +106,7 @@ const SECTIONS: {
       { href: '/hr/payroll/employee-salary', label: 'Employee Salary', icon: Users },
       { href: '/hr/loans', label: 'Loans & Advances', icon: Landmark },
       { href: '/hr/bonuses', label: 'Bonuses', icon: Award },
-      { href: '/hr/payroll/sales', label: 'Sales Payroll / Commission', icon: Award },
+      { href: '/hr/payroll/sales', label: 'Sales Commission', icon: Award },
     ],
   },
   {
@@ -115,15 +114,13 @@ const SECTIONS: {
     items: [
       { href: '/hr/reports/payroll', label: 'Payroll Reports', icon: Wallet, matchPrefix: true },
       { href: '/hr/reports', label: 'HR Reports', icon: BarChart3 },
-      { href: '/hr/dashboard', label: 'Analytics', icon: TrendingUp },
       { href: '/hr/attendance/reports', label: 'Attendance Reports', icon: FileText },
     ],
   },
   {
     label: 'SETTINGS',
     items: [
-      { href: '/hr/settings', label: 'HR Settings', icon: Settings },
-      { href: '/hr/settings/payroll', label: 'Payroll Settings', icon: Wallet },
+      { href: '/hr/settings', label: 'HR & Payroll Settings', icon: Settings },
       { href: '/hr/notifications', label: 'Notifications', icon: Bell },
     ],
   },
