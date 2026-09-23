@@ -4,10 +4,14 @@ import React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload, Eye, Download, History, RefreshCw, Trash2, FileText, FileImage, FileSpreadsheet, File } from 'lucide-react';
 import { HRPage, HRPageHeader, HRCard, HRTable, HRTableRow, HRTableCell, HRStatusBadge, HRWorkflowNotice, HRStatCard } from '../../ui';
 import { hrHcmService } from '@/lib/hr-hcm-service';
 import { hrEmployeesService } from '@/lib/hr-employees-service';
+import { hrDocumentsService, HRDocumentItem, formatFileSize } from '@/lib/hr-documents-service';
+import { DocumentUploadModal } from '@/components/hr/document-upload-modal';
+import { DocumentPreviewModal } from '@/components/hr/document-preview-modal';
+import { DocumentVersionModal } from '@/components/hr/document-version-modal';
 import { Fingerprint, PlaneTakeoff, Wallet, ClipboardCheck } from 'lucide-react';
 
 export default function EmployeeDossierPage() {
@@ -20,6 +24,46 @@ export default function EmployeeDossierPage() {
   const [payBasis, setPayBasis] = React.useState<'monthly' | 'hourly' | 'daily'>('monthly');
   const [savingSalary, setSavingSalary] = React.useState(false);
   const [deactivating, setDeactivating] = React.useState(false);
+
+  const [showDocUpload, setShowDocUpload] = React.useState(false);
+  const [docReplaceTarget, setDocReplaceTarget] = React.useState<HRDocumentItem | null>(null);
+  const [docPreviewTarget, setDocPreviewTarget] = React.useState<HRDocumentItem | null>(null);
+  const [docVersionTarget, setDocVersionTarget] = React.useState<HRDocumentItem | null>(null);
+
+  const handleDownloadDoc = async (doc: HRDocumentItem) => {
+    try {
+      if (doc.fileUrl) {
+        window.open(doc.fileUrl, '_blank');
+      } else {
+        const res = await hrDocumentsService.downloadDocument(doc.id);
+        if (res.fileUrl) window.open(res.fileUrl, '_blank');
+        else toast.error('No file URL');
+      }
+    } catch {
+      toast.error('Failed downloading document');
+    }
+  };
+
+  const handleVerifyDoc = async (docId: string, status: 'Verified' | 'Rejected') => {
+    try {
+      await hrDocumentsService.updateDocumentStatus(docId, status);
+      toast.success(`Document status updated to ${status}`);
+      reload();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed updating status');
+    }
+  };
+
+  const handleDeleteDoc = async (docId: string, title: string) => {
+    if (!window.confirm(`Delete document "${title}"?`)) return;
+    try {
+      await hrDocumentsService.deleteDocument(docId);
+      toast.success('Document deleted');
+      reload();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed deleting document');
+    }
+  };
 
   const reload = React.useCallback(() => {
     if (!id) return;
@@ -253,25 +297,126 @@ export default function EmployeeDossierPage() {
         <HRCard
           title="Employee Documents"
           action={
-            <Link
-              href="/hr/documents"
-              className="text-xs font-bold text-[#014582] hover:underline"
-            >
-              Upload / Manage in Central HR
-            </Link>
+            <div className="flex items-center space-x-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setDocReplaceTarget(null);
+                  setShowDocUpload(true);
+                }}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center space-x-1.5"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload Document</span>
+              </button>
+              <Link
+                href="/hr/documents"
+                className="text-xs font-bold text-[#014582] hover:underline"
+              >
+                Central HR Docs &rarr;
+              </Link>
+            </div>
           }
         >
           {(data.documents || []).length === 0 ? (
-            <p className="py-6 text-center text-xs text-[#7A8FA6]">No document records found for this employee.</p>
+            <div className="py-8 text-center text-xs text-[#7A8FA6]">
+              <FileText className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+              <p className="font-semibold text-slate-700 text-sm">No Document Files Attached</p>
+              <p className="mt-1">Upload identity, contracts, certifications or compliance records for this employee.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setDocReplaceTarget(null);
+                  setShowDocUpload(true);
+                }}
+                className="mt-3 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl inline-flex items-center space-x-1"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload Now</span>
+              </button>
+            </div>
           ) : (
-            <HRTable columns={['Title', 'Category', 'Reference / Doc #', 'Expiry Date', 'Status']}>
+            <HRTable columns={['Title & Ver', 'Category', 'Reference / Doc #', 'File Info', 'Expiry Date', 'Status', 'Actions']}>
               {(data.documents || []).map((r: any) => (
                 <HRTableRow key={r.id}>
-                  <HRTableCell><span className="font-extrabold text-[#1A1A2E]">{r.title}</span></HRTableCell>
-                  <HRTableCell><span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#F0F4F8] text-[#014582]">{r.category || 'HR'}</span></HRTableCell>
-                  <HRTableCell><span className="text-[#7A8FA6] font-mono text-xs">{r.documentNumber || r.reference || '—'}</span></HRTableCell>
-                  <HRTableCell><span className="text-xs text-[#1A1A2E]">{r.expiresAt || 'No Expiry'}</span></HRTableCell>
-                  <HRTableCell><HRStatusBadge status={r.status || 'Uploaded'} /></HRTableCell>
+                  <HRTableCell>
+                    <div>
+                      <div className="flex items-center space-x-1.5">
+                        <span className="font-extrabold text-[#1A1A2E]">{r.title}</span>
+                        <span className="px-1.5 py-0.2 text-[9px] font-extrabold rounded bg-slate-100 text-slate-600">
+                          v{r.version || 1}
+                        </span>
+                      </div>
+                    </div>
+                  </HRTableCell>
+                  <HRTableCell>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#F0F4F8] text-[#014582]">
+                      {r.category || 'HR'}
+                    </span>
+                  </HRTableCell>
+                  <HRTableCell>
+                    <span className="text-[#7A8FA6] font-mono text-xs">
+                      {r.documentNumber || r.reference || '—'}
+                    </span>
+                  </HRTableCell>
+                  <HRTableCell>
+                    <span className="text-xs text-slate-600">
+                      {r.fileName || 'File'} ({formatFileSize(r.fileSize)})
+                    </span>
+                  </HRTableCell>
+                  <HRTableCell>
+                    <span className="text-xs text-[#1A1A2E]">{r.expiresAt || 'No Expiry'}</span>
+                  </HRTableCell>
+                  <HRTableCell>
+                    <HRStatusBadge status={r.status || 'Uploaded'} />
+                  </HRTableCell>
+                  <HRTableCell>
+                    <div className="flex items-center space-x-1">
+                      <button
+                        type="button"
+                        onClick={() => setDocPreviewTarget(r)}
+                        className="p-1 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                        title="Preview"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadDoc(r)}
+                        className="p-1 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                        title="Download"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDocVersionTarget(r)}
+                        className="p-1 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                        title="Version history"
+                      >
+                        <History className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDocReplaceTarget(r);
+                          setShowDocUpload(true);
+                        }}
+                        className="p-1 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                        title="Replace file"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDoc(r.id, r.title)}
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </HRTableCell>
                 </HRTableRow>
               ))}
             </HRTable>
@@ -297,6 +442,35 @@ export default function EmployeeDossierPage() {
           )}
         </HRCard>
       )}
+
+      {/* Document Modals */}
+      <DocumentUploadModal
+        isOpen={showDocUpload}
+        onClose={() => {
+          setShowDocUpload(false);
+          setDocReplaceTarget(null);
+        }}
+        onSuccess={reload}
+        initialEmployeeId={id}
+        replaceTarget={docReplaceTarget}
+      />
+      <DocumentPreviewModal
+        isOpen={Boolean(docPreviewTarget)}
+        document={docPreviewTarget}
+        onClose={() => setDocPreviewTarget(null)}
+        onDownload={handleDownloadDoc}
+      />
+      <DocumentVersionModal
+        isOpen={Boolean(docVersionTarget)}
+        document={docVersionTarget}
+        onClose={() => setDocVersionTarget(null)}
+        onPreview={(verDoc) => setDocPreviewTarget(verDoc)}
+        onReplace={(targetDoc) => {
+          setDocVersionTarget(null);
+          setDocReplaceTarget(targetDoc);
+          setShowDocUpload(true);
+        }}
+      />
     </HRPage>
   );
 }
