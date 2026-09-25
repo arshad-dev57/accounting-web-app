@@ -24,7 +24,7 @@ function formatDate(value?: string | null) {
 function planLabel(invoice: BillingInvoice) {
   const tier =
     invoice.productTier === 'pos' ? PRICING.pos.label : PRICING.erp_pos.label;
-  if (invoice.plan === 'trial') return '14-day Trial';
+  if (invoice.plan === 'trial') return 'Trial';
   const cycle = invoice.plan === 'yearly' ? 'Yearly' : 'Monthly';
   return `${tier} · ${cycle}`;
 }

@@ -8,6 +8,7 @@ import {
   type SubscriptionSnapshot,
 } from '../lib/subscription-service';
 import { usePermissions } from '../lib/usePermissions';
+import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../lib/subscription-ui';
 
 const BRAND = '#014582';
 
@@ -59,7 +60,9 @@ export default function SubscriptionStatusBanner() {
 
   let message = '';
   if (!hasAccess) {
-    message = 'Your subscription has expired — renew to keep using the ERP';
+    message = SUBSCRIPTION_PURCHASE_UI_ENABLED
+      ? 'Your subscription has expired — renew to keep using the ERP'
+      : 'Your subscription has expired — contact support to renew';
   } else if (isTrial) {
     message =
       days === 1
@@ -93,14 +96,16 @@ export default function SubscriptionStatusBanner() {
             {message}
           </p>
         </div>
-        <Link
-          href="/plans"
-          className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold uppercase tracking-wide hover:underline"
-          style={{ color: urgent || !hasAccess ? '#dc2626' : BRAND }}
-        >
-          {hasAccess ? 'Manage' : 'Renew'}
-          <ArrowRight className="h-3 w-3" />
-        </Link>
+        {SUBSCRIPTION_PURCHASE_UI_ENABLED && (
+          <Link
+            href="/plans"
+            className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold uppercase tracking-wide hover:underline"
+            style={{ color: urgent || !hasAccess ? '#dc2626' : BRAND }}
+          >
+            {hasAccess ? 'Manage' : 'Renew'}
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        )}
       </div>
     </div>
   );

@@ -3,7 +3,6 @@
 import { Building2, Calendar, CreditCard, Users } from 'lucide-react';
 import {
   PRICING,
-  TRIAL_DAYS,
   calculatePrice,
   formatUsd,
   type SubscriptionCapacity,
@@ -32,7 +31,7 @@ function formatDate(value?: string | null) {
 }
 
 function planTitle(capacity: SubscriptionCapacity) {
-  if (capacity.isTrial) return `${TRIAL_DAYS}-day free trial`;
+  if (capacity.isTrial) return 'Free trial';
   const tier = capacity.productTier === 'pos' ? PRICING.pos.label : PRICING.erp_pos.label;
   const cycle = capacity.billingCycle === 'yearly' ? 'Yearly' : 'Monthly';
   return `${tier} · ${cycle}`;

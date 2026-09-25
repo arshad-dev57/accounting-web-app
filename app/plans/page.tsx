@@ -23,7 +23,11 @@ import { performLogout } from '../../lib/auth-logout';
 import { usePermissions } from '../../lib/usePermissions';
 import PricingSection from './PricingSection';
 import CurrentSubscriptionPanel from '../../components/CurrentSubscriptionPanel';
-import { TRIAL_DAYS, type SubscriptionCapacity } from '../../lib/subscription-pricing';
+import {
+  SUBSCRIPTION_PURCHASE_UI_ENABLED,
+  TRIAL_DAYS,
+  type SubscriptionCapacity,
+} from '../../lib/subscription-pricing';
 
 const CUSTOM_CONTACT_EMAIL = 'info@bisonstechs.com';
 const CUSTOM_CONTACT_PHONE = '+92 325 3411482';
@@ -51,9 +55,9 @@ const DISPLAY_PLANS: DisplayPlan[] = [
     priceSub: undefined,
     cta: 'Start free trial',
     ctaStyle: 'outline',
-    includesLabel: '30-DAY FULL ACCESS',
+    includesLabel: `${TRIAL_DAYS}-DAY FULL ACCESS`,
     highlights: [
-      'Full ERP access for 30 days',
+      `Full ERP access for ${TRIAL_DAYS} days`,
       'Accounting, sales, purchases & warehouse',
       'POS terminal & receipts',
       'Reports export to PDF / Excel',
@@ -130,7 +134,7 @@ const COMPARE_ROWS: CompareRow[] = [
   {
     type: 'feature',
     label: 'Active subscription access',
-    values: { trial: '30 days', monthly: true, yearly: true, custom: true },
+    values: { trial: `${TRIAL_DAYS} days`, monthly: true, yearly: true, custom: true },
   },
   {
     type: 'feature',
@@ -417,6 +421,102 @@ export default function PlansPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <Loader2 className="h-8 w-8 animate-spin" style={{ color: BRAND }} />
+      </div>
+    );
+  }
+
+  // Payment gateway not ready — keep trial/subscription backend intact; hide purchase UI.
+  if (!SUBSCRIPTION_PURCHASE_UI_ENABLED) {
+    const trialDaysLeft = snapshot?.subscription.trialDaysRemaining ?? 0;
+    return (
+      <div className="min-h-screen bg-white text-neutral-900">
+        <header className="border-b border-neutral-200">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/bisontechs.png"
+                alt="Bisonstechs"
+                width={32}
+                height={32}
+                className="rounded"
+              />
+              <div>
+                <p className="text-sm font-semibold tracking-tight" style={{ color: BRAND }}>
+                  Bisonstechs
+                </p>
+                <p className="text-xs text-neutral-500">ERP Suite</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {hasAccess && (
+                <button
+                  type="button"
+                  onClick={goHome}
+                  className="rounded-md px-3 py-2 text-sm font-medium hover:bg-[rgba(1,69,130,0.08)]"
+                  style={{ color: BRAND }}
+                >
+                  {isPosOnly ? 'POS' : 'Dashboard'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => performLogout()}
+                className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                style={{ borderColor: BRAND_BORDER }}
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Logout
+              </button>
+            </div>
+          </div>
+        </header>
+        <main className="mx-auto max-w-lg px-5 py-20 text-center">
+          <p className="text-sm font-semibold uppercase tracking-wider" style={{ color: BRAND }}>
+            Subscription
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+            {hasAccess
+              ? isTrial
+                ? 'Your free trial is active'
+                : 'Your subscription is active'
+              : 'Subscription required'}
+          </h1>
+          <p className="mt-4 text-sm text-neutral-500">
+            {hasAccess && isTrial
+              ? `${trialDaysLeft} day(s) remaining on your trial. Online purchase is temporarily unavailable.`
+              : hasAccess
+                ? 'Online purchase and plan changes are temporarily unavailable. Contact support if you need changes.'
+                : isAdmin
+                  ? 'Online purchase is temporarily unavailable. Contact Bisonstechs support to activate or renew your subscription.'
+                  : "Your company's subscription has expired. Please ask your administrator to contact Bisonstechs support."}
+          </p>
+          <div className="mt-8 space-y-3 text-sm">
+            <a
+              href={`mailto:${CUSTOM_CONTACT_EMAIL}`}
+              className="block font-semibold hover:underline"
+              style={{ color: BRAND }}
+            >
+              {CUSTOM_CONTACT_EMAIL}
+            </a>
+            <a
+              href={`tel:${CUSTOM_CONTACT_PHONE_TEL}`}
+              className="block font-semibold hover:underline"
+              style={{ color: BRAND }}
+            >
+              {CUSTOM_CONTACT_PHONE}
+            </a>
+          </div>
+          {hasAccess && (
+            <button
+              type="button"
+              onClick={goHome}
+              className="mt-10 rounded-md px-5 py-2.5 text-sm font-semibold text-white"
+              style={{ backgroundColor: BRAND }}
+            >
+              {isPosOnly ? 'Continue to POS' : 'Continue to ERP'}
+            </button>
+          )}
+        </main>
       </div>
     );
   }

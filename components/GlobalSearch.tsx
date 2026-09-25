@@ -37,6 +37,7 @@ import {
   splitHighlight,
   type GlobalSearchGroupKey,
 } from '../lib/global-search';
+import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../lib/subscription-ui';
 
 const GROUP_ICONS: Record<GlobalSearchGroupKey, ElementType> = {
   home: Home,
@@ -78,6 +79,12 @@ export default function GlobalSearch({ className = '' }: { className?: string })
   const allowedPages = useMemo(
     () =>
       GLOBAL_SEARCH_PAGES.filter((page) => {
+        if (
+          !SUBSCRIPTION_PURCHASE_UI_ENABLED &&
+          (page.path === '/plans' || page.path === '/billing')
+        ) {
+          return false;
+        }
         if (page.ownerOnly) return canViewRegisteredUsers;
         if (page.adminOnly) return isAdmin;
         // Permissions are read from localStorage after mount; until they are

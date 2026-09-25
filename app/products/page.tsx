@@ -21,6 +21,7 @@ import { ProductTaxFields } from '../../components/TaxRateSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import GlobalSearch from '../../components/GlobalSearch';
 import { usePermissions } from '../../lib/usePermissions';
+import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import { useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 import { BarcodeScannerModal } from '@/lib/barcode-scanner-modal';
 
@@ -1842,7 +1843,7 @@ const fetchDropdowns = async () => {
 
         {/* Bottom Section */}
         <div className="px-3 pb-6 space-y-1">
-          {isAdmin && (
+          {isAdmin && SUBSCRIPTION_PURCHASE_UI_ENABLED && (
             <Link
               href="/plans"
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"

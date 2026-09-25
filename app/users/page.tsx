@@ -41,6 +41,7 @@ import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
 import { performLogout } from '../../lib/auth-logout';
 import { useRouter } from 'next/navigation';
+import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 
 export default function UsersDashboard() {
   const router = useRouter();
@@ -464,6 +465,7 @@ export default function UsersDashboard() {
             <span className="text-sm font-medium">Permissions</span>
           </button>
 
+          {SUBSCRIPTION_PURCHASE_UI_ENABLED && (
           <button
             type="button"
             onClick={() => router.push('/plans')}
@@ -472,6 +474,7 @@ export default function UsersDashboard() {
             <CreditCard className="w-4 h-4" />
             <span className="text-sm font-medium">Subscription Plans</span>
           </button>
+          )}
         </div>
 
         <div className="px-3 pb-6 flex-shrink-0 space-y-1">

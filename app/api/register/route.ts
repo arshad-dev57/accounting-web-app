@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // New registrations auto-start a 30-day trial on the backend
+    // New registrations auto-start a trial on the backend (TRIAL_DAYS)
     nextResponse.cookies.set(
       'subscription_access',
       '1',

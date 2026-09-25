@@ -28,6 +28,7 @@ import {
   readCachedProductTier,
   readCachedSubscription,
 } from '../lib/subscription-service';
+import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../lib/subscription-ui';
 
 export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: string }) {
   const { hasModuleAccess, isAdmin, canViewRegisteredUsers } = usePermissions();
@@ -78,13 +79,13 @@ export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: str
           icon: <CreditCard className="w-5 h-5" />,
           label: 'Subscription Plans',
           path: '/plans',
-          show: isAdmin,
+          show: isAdmin && SUBSCRIPTION_PURCHASE_UI_ENABLED,
         },
         {
           icon: <Receipt className="w-5 h-5" />,
           label: 'Billing',
           path: '/billing',
-          show: isAdmin,
+          show: isAdmin && SUBSCRIPTION_PURCHASE_UI_ENABLED,
         },
       ]
     : [
@@ -153,13 +154,13 @@ export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: str
           icon: <CreditCard className="w-5 h-5" />,
           label: 'Subscription Plans',
           path: '/plans',
-          show: isAdmin,
+          show: isAdmin && SUBSCRIPTION_PURCHASE_UI_ENABLED,
         },
         {
           icon: <Receipt className="w-5 h-5" />,
           label: 'Billing',
           path: '/billing',
-          show: isAdmin,
+          show: isAdmin && SUBSCRIPTION_PURCHASE_UI_ENABLED,
         },
       ];
 

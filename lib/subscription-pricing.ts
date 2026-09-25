@@ -1,4 +1,12 @@
-export const TRIAL_DAYS = 14;
+/** Default trial length for NEW trials only. Existing stored trial dates are unchanged. */
+export const TRIAL_DAYS = 5;
+
+/**
+ * Customer-facing subscription purchase / upgrade UI.
+ * Keep false until payment gateway integration is ready.
+ * Backend subscription APIs and admin activation remain fully functional.
+ */
+export const SUBSCRIPTION_PURCHASE_UI_ENABLED = false;
 
 /** PKR list prices → USD (4000 PKR ≈ $14/user/mo) */
 export const PKR_TO_USD = 4000 / 14;

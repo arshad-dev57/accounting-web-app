@@ -26,6 +26,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
+import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import FiscalYearSelect from '../../components/FiscalYearSelect';
 import LocationSelect from '../../components/LocationSelect';
@@ -78,7 +79,7 @@ function WarehouseSidebar() {
 
   // Filter menu items based on permissions
   const filteredMenuItems = menuItems.filter(item => {
-    if (item.path === '/plans') return isAdmin;
+    if (item.path === '/plans') return isAdmin && SUBSCRIPTION_PURCHASE_UI_ENABLED;
     if (item.path === '/warehouse/locations') return isAdmin;
     return item.permission === '*' || isAdmin || hasSubPageAccess('warehouse', item.permission);
   });
@@ -142,7 +143,7 @@ function WarehouseSidebar() {
 
       {/* Bottom Section */}
       <div className="px-3 pb-6 flex-shrink-0">
-        {isAdmin && (
+        {isAdmin && SUBSCRIPTION_PURCHASE_UI_ENABLED && (
           <Link
             href="/plans"
             className="w-full flex items-center gap-3 px-3 py-2.5 mb-2 rounded-lg transition-all text-white/60 hover:text-white hover:bg-white/5"

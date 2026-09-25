@@ -26,6 +26,7 @@ import {
   type CompanyBilling,
 } from '../../lib/subscription-service';
 import { formatUsd } from '../../lib/subscription-pricing';
+import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 
 const BRAND = '#014582';
 
@@ -121,6 +122,7 @@ export default function BillingPage() {
                 Current plan, payment history and invoices for {billing?.company.name || 'your company'}
               </p>
             </div>
+            {SUBSCRIPTION_PURCHASE_UI_ENABLED && (
             <Link
               href="/plans"
               className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white"
@@ -129,6 +131,7 @@ export default function BillingPage() {
               Manage subscription
               <ArrowUpRight className="h-4 w-4" />
             </Link>
+            )}
           </div>
 
           {error && (
@@ -272,6 +275,7 @@ export default function BillingPage() {
                       <p className="mt-1 text-sm text-gray-500">
                         Invoices appear here when you subscribe or upgrade your plan.
                       </p>
+                      {SUBSCRIPTION_PURCHASE_UI_ENABLED && (
                       <Link
                         href="/plans"
                         className="mt-4 inline-flex rounded-lg px-4 py-2 text-sm font-semibold text-white"
@@ -279,6 +283,7 @@ export default function BillingPage() {
                       >
                         View plans
                       </Link>
+                      )}
                     </div>
                   ) : (
                     <div className="overflow-x-auto">

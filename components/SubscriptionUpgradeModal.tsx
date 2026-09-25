@@ -10,6 +10,9 @@ import {
   type UpgradeQuote,
 } from '../lib/subscription-pricing';
 import { upgradeSubscription } from '../lib/subscription-service';
+import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../lib/subscription-ui';
+
+const SUPPORT_EMAIL = 'info@bisonstechs.com';
 
 type Props = {
   open: boolean;
@@ -79,6 +82,43 @@ export default function SubscriptionUpgradeModal({
       setProcessing(false);
     }
   };
+
+  if (!SUBSCRIPTION_PURCHASE_UI_ENABLED) {
+    return (
+      <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/50 p-4">
+        <div className="w-full max-w-lg rounded-2xl border border-neutral-200 bg-white p-6 shadow-xl">
+          <div className="mb-4 flex items-start gap-3">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-white"
+              style={{ backgroundColor: '#014582' }}
+            >
+              {reason === 'user_seat' ? <Users size={20} /> : <Building2 size={20} />}
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-neutral-900">{title}</h2>
+              <p className="mt-1 text-sm text-neutral-500">{description}</p>
+            </div>
+          </div>
+          <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Online upgrades are temporarily unavailable. Contact{' '}
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold underline">
+              {SUPPORT_EMAIL}
+            </a>{' '}
+            to adjust your subscription seats or branches.
+          </p>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-4 py-2.5 text-sm font-medium text-neutral-500 hover:bg-neutral-100"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/50 p-4">
