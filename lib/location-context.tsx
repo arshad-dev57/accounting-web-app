@@ -115,6 +115,17 @@ export function LocationProvider({
   }, [allowAllEnabled]);
 
   useEffect(() => {
+    const onCompany = () => {
+      setStoredLocationId(null);
+      setSelectedId('');
+      setLocations([]);
+      void refresh();
+    };
+    window.addEventListener('active-company-changed', onCompany);
+    return () => window.removeEventListener('active-company-changed', onCompany);
+  }, [refresh]);
+
+  useEffect(() => {
     const cached = getCachedLocations();
     if (cached.length) {
       setLocations(cached);

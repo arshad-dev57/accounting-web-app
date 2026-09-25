@@ -5,6 +5,7 @@ import SubscriptionGuard from '../components/SubscriptionGuard';
 import AppToaster from '../components/AppToaster';
 import HostingerNavFix from '../components/HostingerNavFix';
 import LogoutHistoryGuard from '../components/LogoutHistoryGuard';
+import AppProviders from '../components/AppProviders';
 import { CurrencyProvider } from '../lib/currency-context';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -29,7 +30,9 @@ export default function RootLayout({
         <HostingerNavFix />
         <LogoutHistoryGuard />
         <CurrencyProvider>
-          <SubscriptionGuard>{children}</SubscriptionGuard>
+          <AppProviders>
+            <SubscriptionGuard>{children}</SubscriptionGuard>
+          </AppProviders>
         </CurrencyProvider>
         <AppToaster />
       </body>

@@ -29,6 +29,7 @@ import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import FiscalYearSelect from '../../components/FiscalYearSelect';
+import CompanySwitcher from '../../components/CompanySwitcher';
 import LocationSelect from '../../components/LocationSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
@@ -194,6 +195,7 @@ export default function WarehouseLayout({
           />
 
           <div className="flex items-center gap-4">
+            <CompanySwitcher />
             <LocationSelect />
             <FiscalYearSelect />
 

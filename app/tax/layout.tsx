@@ -26,6 +26,7 @@ import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import FiscalYearSelect from '../../components/FiscalYearSelect';
+import CompanySwitcher from '../../components/CompanySwitcher';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
@@ -147,6 +148,7 @@ export default function TaxLayout({ children }: { children: React.ReactNode }) {
             icon={<Scale className="w-5 h-5 text-[#014582]" />}
           />
           <div className="flex items-center gap-4">
+            <CompanySwitcher />
             <FiscalYearSelect />
             <div className="w-px h-6 bg-gray-200" />
             <button

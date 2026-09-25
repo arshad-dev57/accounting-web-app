@@ -27,7 +27,6 @@ import {
 } from 'lucide-react';
 import { incomeService, Income, IncomeStats, IncomeAccount, Customer, BankAccount } from '../../api/income/route';
 import TaxRateSelect from '../../../components/TaxRateSelect';
-import { useLocation } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -48,7 +47,6 @@ interface IncomeItem {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export function IncomePage() {
-  const { locationIdForApi } = useLocation();
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -122,13 +120,11 @@ export function IncomePage() {
           status: filter.status !== 'All' ? filter.status : undefined,
           incomeType: filter.incomeType !== 'All' ? filter.incomeType : undefined,
           startDate: filter.startDate || undefined,
-          endDate: filter.endDate || undefined,
-          locationId: locationIdForApi || undefined
+          endDate: filter.endDate || undefined
         }),
         incomeService.getStats({
           startDate: filter.startDate || undefined,
           endDate: filter.endDate || undefined,
-          locationId: locationIdForApi || undefined,
           status: filter.status !== 'All' ? filter.status : undefined,
           incomeType: filter.incomeType !== 'All' ? filter.incomeType : undefined
         }).catch(() => null)
@@ -147,7 +143,7 @@ export function IncomePage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, searchTerm, pagination.page, pagination.limit, locationIdForApi]);
+  }, [filter, searchTerm, pagination.page, pagination.limit]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -163,8 +159,7 @@ export function IncomePage() {
         status: filter.status !== 'All' ? filter.status : undefined,
         incomeType: filter.incomeType !== 'All' ? filter.incomeType : undefined,
         startDate: filter.startDate || undefined,
-        endDate: filter.endDate || undefined,
-        locationId: locationIdForApi || undefined
+        endDate: filter.endDate || undefined
       });
 
       setIncomes(prev => [...prev, ...(response.data || [])]);
@@ -174,7 +169,7 @@ export function IncomePage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm, locationIdForApi]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm]);
 
   // ─── Initial Fetch ──────────────────────────────────────────
 
@@ -185,7 +180,7 @@ export function IncomePage() {
 
   useEffect(() => {
     fetchIncomes(true);
-  }, [locationIdForApi]);
+  }, []);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -236,8 +231,7 @@ export function IncomePage() {
     setSubmitting(true);
     try {
       await incomeService.createIncome({
-        ...data,
-        locationId: locationIdForApi || undefined,
+        ...data
       });
       setShowCreateForm(false);
       fetchIncomes(true);

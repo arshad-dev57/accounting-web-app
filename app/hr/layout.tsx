@@ -45,6 +45,7 @@ import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
+import CompanySwitcher from '../../components/CompanySwitcher';
 import { performLogout } from '../../lib/auth-logout';
 
 const SECTIONS: {
@@ -224,6 +225,7 @@ export default function HRLayout({
           />
 
           <div className="flex items-center gap-4">
+            <CompanySwitcher />
             <button
               type="button"
               onClick={() => { window.location.href = '/support'; }}

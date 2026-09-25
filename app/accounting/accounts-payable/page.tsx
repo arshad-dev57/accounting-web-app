@@ -31,7 +31,6 @@ import {
 import { accountsPayableService, Bill, Summary, Supplier, BankAccount, BillItem } from '../../api/accounts-payable/route';
 import TaxRateSelect from '../../../components/TaxRateSelect';
 import { toast } from 'react-hot-toast';
-import { useLocation } from '../../../lib/location-context';
 import { useCurrency } from '../../../lib/currency-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -44,7 +43,6 @@ interface FilterState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export function AccountsPayablePage() {
-  const { locationIdForApi } = useLocation();
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -92,8 +90,7 @@ export function AccountsPayablePage() {
         page,
         limit: pagination.limit,
         search: searchTerm || undefined,
-        status: filter.status !== 'All' ? filter.status : undefined,
-        locationId: locationIdForApi || undefined,
+        status: filter.status !== 'All' ? filter.status : undefined
       });
 
       // Ensure items is always an array
@@ -111,7 +108,7 @@ export function AccountsPayablePage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, searchTerm, pagination.page, pagination.limit, locationIdForApi]);
+  }, [filter, searchTerm, pagination.page, pagination.limit]);
 
   // ─── Fetch Suppliers ─────────────────────────────────────────
 
@@ -140,13 +137,12 @@ export function AccountsPayablePage() {
   const fetchSummary = useCallback(async () => {
     try {
       const data = await accountsPayableService.getSummary({
-        locationId: locationIdForApi || undefined,
       });
       setSummary(data);
     } catch (error) {
       console.error('Failed to fetch summary:', error);
     }
-  }, [locationIdForApi]);
+  }, []);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -159,8 +155,7 @@ export function AccountsPayablePage() {
         page: nextPage,
         limit: pagination.limit,
         search: searchTerm || undefined,
-        status: filter.status !== 'All' ? filter.status : undefined,
-        locationId: locationIdForApi || undefined,
+        status: filter.status !== 'All' ? filter.status : undefined
       });
 
       const newBills = (response.data || []).map(b => ({
@@ -176,7 +171,7 @@ export function AccountsPayablePage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm, locationIdForApi]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm]);
 
   // ─── Initial Fetch ──────────────────────────────────────────
 
@@ -185,7 +180,7 @@ export function AccountsPayablePage() {
     fetchBankAccounts();
     fetchSummary();
     fetchBills(true);
-  }, [locationIdForApi]);
+  }, []);
 
   // ─── Search ──────────────────────────────────────────────────
 

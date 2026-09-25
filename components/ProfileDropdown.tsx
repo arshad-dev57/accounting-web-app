@@ -204,6 +204,12 @@ export default function ProfileDropdown({
   }, [loadProfile]);
 
   useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener('open-profile-dropdown', onOpen);
+    return () => window.removeEventListener('open-profile-dropdown', onOpen);
+  }, []);
+
+  useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       if (signatureOpen) return;
       if (!rootRef.current?.contains(e.target as Node)) {

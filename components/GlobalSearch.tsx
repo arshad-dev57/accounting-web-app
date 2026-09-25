@@ -144,6 +144,13 @@ export default function GlobalSearch({ className = '' }: { className?: string })
     else openPanel();
   }, [open, close, openPanel]);
 
+  // Dashboard module tile (and other UI) can open search via this event.
+  useEffect(() => {
+    const onOpen = () => openPanel();
+    window.addEventListener('open-global-search', onOpen);
+    return () => window.removeEventListener('open-global-search', onOpen);
+  }, [openPanel]);
+
   // Close when clicking anywhere outside the search.
   useEffect(() => {
     if (!open) return;

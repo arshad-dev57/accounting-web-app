@@ -15,6 +15,8 @@ export const LOGOUT_STORAGE_KEYS = [
   'company_name',
   'company_address',
   'bisonstechs_company_branding',
+  'bisonstechs_active_company_id',
+  'bisonstechs_companies_cache',
   'sales_selected_currency',
   'app_currency_code',
   'app_currency_symbol',

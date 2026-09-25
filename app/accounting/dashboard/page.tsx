@@ -157,7 +157,7 @@ export function AccountingDashboard() {
   const [period, setPeriod] = useState<string>('This Month');
   const [error, setError] = useState<string | null>(null);
   const { selectedFiscalYear } = useFiscalYear();
-  const { ready: filtersReady, selectedFiscalYearId, locationIdForApi } =
+  const { ready: filtersReady, selectedFiscalYearId } =
     useDashboardFiltersReady();
   const fetchAbortRef = useRef<AbortController | null>(null);
 
@@ -177,7 +177,6 @@ export function AccountingDashboard() {
         limit: '10',
       });
       if (fyId) qs.set('fiscalYearId', fyId);
-      if (locationIdForApi) qs.set('locationId', locationIdForApi);
 
       const response = await fetch(`/api/dashboard/overview?${qs.toString()}`, {
         signal: options?.signal,
@@ -213,7 +212,7 @@ export function AccountingDashboard() {
 
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersReady, selectedFiscalYearId, locationIdForApi]);
+  }, [filtersReady, selectedFiscalYearId]);
 
   const selectPeriod = (label: string) => {
     if (loading || refreshing) return;

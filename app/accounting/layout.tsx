@@ -40,13 +40,12 @@ import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import FiscalYearSelect from '../../components/FiscalYearSelect';
-import LocationSelect from '../../components/LocationSelect';
+import CompanySwitcher from '../../components/CompanySwitcher';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
-import { LocationProvider } from '../../lib/location-context';
 import ModuleViewHost from '../../components/ModuleViewHost';
 import { accountingViewHostConfig } from '../../lib/module-view-host/registries';
 import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
@@ -357,58 +356,56 @@ export default function AccountingLayout({
 }) {
   return (
     <FiscalYearProvider>
-      <LocationProvider allowAll>
-        <AccountingSidebar />
+      <AccountingSidebar />
 
-        <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
-          {/* Top Bar */}
-          <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
-            <TopBarBrand
-              title="Accounting Management"
-              icon={<Calculator className="w-5 h-5 text-[#014582]" />}
-            />
+      <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
+        {/* Top Bar */}
+        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
+          <TopBarBrand
+            title="Accounting Management"
+            icon={<Calculator className="w-5 h-5 text-[#014582]" />}
+          />
 
-            <div className="flex items-center gap-4">
-              <LocationSelect allowAll />
-              <FiscalYearSelect />
+          <div className="flex items-center gap-4">
+            <CompanySwitcher />
+            <FiscalYearSelect />
 
-              <div className="w-px h-6 bg-gray-200" />
+            <div className="w-px h-6 bg-gray-200" />
 
-              <button
-                type="button"
-                onClick={() => { window.location.href = '/support'; }}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all"
-              >
-                <Headset className="w-4 h-4" />
-                <span>Support</span>
-              </button>
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/support'; }}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all"
+            >
+              <Headset className="w-4 h-4" />
+              <span>Support</span>
+            </button>
 
-              <div className="w-px h-6 bg-gray-200" />
+            <div className="w-px h-6 bg-gray-200" />
 
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Phone className="w-4 h-4 text-[#014582]" />
-              </div>
-
-              <div className="w-px h-6 bg-gray-200" />
-
-              <GlobalSearch />
-
-              <div className="w-px h-6 bg-gray-200" />
-
-              <ProfileDropdown accentClassName="bg-[#091746]" />
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Phone className="w-4 h-4 text-[#014582]" />
             </div>
-          </header>
 
-          <AppBreadcrumbs />
+            <div className="w-px h-6 bg-gray-200" />
 
-          {/* Page Content */}
-          <div className="flex-1 p-6">
-            <ModuleViewHost config={accountingViewHostConfig}>
-              {children}
-            </ModuleViewHost>
+            <GlobalSearch />
+
+            <div className="w-px h-6 bg-gray-200" />
+
+            <ProfileDropdown accentClassName="bg-[#091746]" />
           </div>
+        </header>
+
+        <AppBreadcrumbs />
+
+        {/* Page Content */}
+        <div className="flex-1 p-6">
+          <ModuleViewHost config={accountingViewHostConfig}>
+            {children}
+          </ModuleViewHost>
         </div>
-      </LocationProvider>
+      </div>
     </FiscalYearProvider>
   );
 }

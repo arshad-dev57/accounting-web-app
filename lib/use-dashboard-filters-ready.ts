@@ -3,7 +3,10 @@
 import { useFiscalYear } from './fiscal-year-context';
 import { useLocationOptional } from './location-context';
 
-/** Wait until fiscal year + location filters are resolved before dashboard API calls. */
+/**
+ * Wait until fiscal year (+ optional location) filters are resolved before dashboard API calls.
+ * Accounting is company-level and may not mount LocationProvider — location is optional.
+ */
 export function useDashboardFiltersReady() {
   const {
     loading: fiscalLoading,
@@ -12,13 +15,13 @@ export function useDashboardFiltersReady() {
   } = useFiscalYear();
   const location = useLocationOptional();
 
-  const ready = !fiscalLoading && !location.loading;
+  const ready = !fiscalLoading && (!location || !location.loading);
 
   return {
     ready,
     selectedFiscalYearId,
     selectedFiscalYear,
-    locationIdForApi: location.locationIdForApi,
-    selectedLocationId: location.selectedLocationId,
+    locationIdForApi: location?.locationIdForApi || '',
+    selectedLocationId: location?.selectedLocationId || '',
   };
 }

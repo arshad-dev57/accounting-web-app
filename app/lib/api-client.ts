@@ -4,6 +4,7 @@ import {
   getStoredFiscalYearId,
   shouldAttachFiscalYear,
 } from '../../lib/fiscal-year-service';
+import { getStoredCompanyId } from '../../lib/company-context';
 
 interface ApiResponse {
   statusCode: number;
@@ -42,6 +43,13 @@ class ApiClient {
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+
+        // Active company context (multi-company) — server enforces membership
+        const companyId = getStoredCompanyId();
+        if (companyId) {
+          config.headers['X-Company-Id'] = companyId;
+        }
+
         // FormData must use multipart boundary — do not force JSON content-type
         if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
           const headers: any = config.headers;

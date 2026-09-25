@@ -12,7 +12,6 @@ import {
 import { profitLossService, ReportItem, PLData } from '../../api/profit-loss/route';
 import { toast } from 'react-hot-toast';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
-import { useLocation } from '../../../lib/location-context';
 import { useCurrency } from '../../../lib/currency-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
@@ -34,7 +33,6 @@ export function ProfitLossPage() {
   const [isCustomRange, setIsCustomRange] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
-  const { locationIdForApi } = useLocation();
 
   const periodOptions: PeriodOption[] = [
     { label: 'Today', value: 'Today' },
@@ -62,9 +60,6 @@ export function ProfitLossPage() {
       if (selectedFiscalYearId) {
         params.fiscalYearId = selectedFiscalYearId;
       }
-      if (locationIdForApi) {
-        params.locationId = locationIdForApi;
-      }
 
       const data = await profitLossService.getReport(params);
       setReportData(data);
@@ -74,7 +69,7 @@ export function ProfitLossPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedPeriod, startDate, endDate, isCustomRange, selectedFiscalYearId, locationIdForApi]);
+  }, [selectedPeriod, startDate, endDate, isCustomRange, selectedFiscalYearId]);
 
   useEffect(() => {
     fetchReport();

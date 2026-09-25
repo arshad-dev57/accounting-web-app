@@ -30,7 +30,6 @@ import {
 } from 'lucide-react';
 import { expenseService, Expense, ExpenseStats, ExpenseAccount, Vendor, BankAccount } from '@/lib/expense-service';
 import TaxRateSelect from '../../../components/TaxRateSelect';
-import { useLocation } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -51,7 +50,6 @@ interface ExpenseItem {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export function ExpensesPage() {
-  const { locationIdForApi } = useLocation();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -125,13 +123,11 @@ export function ExpensesPage() {
           status: filter.status !== 'All' ? filter.status : undefined,
           expenseType: filter.expenseType !== 'All' ? filter.expenseType : undefined,
           startDate: filter.startDate || undefined,
-          endDate: filter.endDate || undefined,
-          locationId: locationIdForApi || undefined
+          endDate: filter.endDate || undefined
         }),
         expenseService.getStats({
           startDate: filter.startDate || undefined,
           endDate: filter.endDate || undefined,
-          locationId: locationIdForApi || undefined,
           status: filter.status !== 'All' ? filter.status : undefined,
           expenseType: filter.expenseType !== 'All' ? filter.expenseType : undefined
         }).catch(() => null)
@@ -150,7 +146,7 @@ export function ExpensesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, searchTerm, pagination.page, pagination.limit, locationIdForApi]);
+  }, [filter, searchTerm, pagination.page, pagination.limit]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -166,8 +162,7 @@ export function ExpensesPage() {
         status: filter.status !== 'All' ? filter.status : undefined,
         expenseType: filter.expenseType !== 'All' ? filter.expenseType : undefined,
         startDate: filter.startDate || undefined,
-        endDate: filter.endDate || undefined,
-        locationId: locationIdForApi || undefined
+        endDate: filter.endDate || undefined
       });
 
       setExpenses(prev => [...prev, ...(response.data || [])]);
@@ -177,7 +172,7 @@ export function ExpensesPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm, locationIdForApi]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm]);
 
   // ─── Initial Fetch ──────────────────────────────────────────
 
@@ -188,7 +183,7 @@ export function ExpensesPage() {
 
   useEffect(() => {
     fetchExpenses(true);
-  }, [locationIdForApi]);
+  }, []);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -239,8 +234,7 @@ export function ExpensesPage() {
     setSubmitting(true);
     try {
       await expenseService.createExpense({
-        ...data,
-        locationId: locationIdForApi || undefined,
+        ...data
       });
       setShowCreateForm(false);
       fetchExpenses(true);

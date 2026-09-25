@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import {
   fetchProfileCached,
   invalidateProfileCache,
@@ -11,6 +12,7 @@ export const APP_NAME = 'Bisonstechs';
 export const APP_LOGO_FALLBACK = '/bisontechs.png';
 
 const PROFILE_CACHE_KEY = 'bisonstechs_company_branding';
+const MODULE_SELECTION_HREF = '/dashboard';
 
 export type CompanyBranding = {
   logo: string;
@@ -42,18 +44,6 @@ function writeCachedBranding(branding: CompanyBranding) {
   } catch {
     /* ignore */
   }
-}
-
-function authToken() {
-  if (typeof window === 'undefined') return '';
-  return (
-    localStorage.getItem('auth_token') ||
-    document.cookie
-      .split('; ')
-      .find((c) => c.startsWith('auth_token='))
-      ?.split('=')[1] ||
-    ''
-  );
 }
 
 export function useCompanyBranding() {
@@ -105,6 +95,8 @@ export function useCompanyBranding() {
 type BrandHeaderProps = {
   subtitle?: string;
   compact?: boolean;
+  /** Where the brand block navigates. Defaults to module selection hub. */
+  href?: string;
 };
 
 export function notifyCompanyBrandingUpdated(branding?: Partial<CompanyBranding>) {
@@ -142,12 +134,18 @@ function CompanyLogo({
   );
 }
 
-export function BrandHeader({ subtitle, compact = false }: BrandHeaderProps) {
+export function BrandHeader({
+  subtitle,
+  compact = false,
+  href = MODULE_SELECTION_HREF,
+}: BrandHeaderProps) {
   const { logo, organizationName } = useCompanyBranding();
 
   return (
-    <div
-      className={`flex items-center gap-3 border-b border-white/10 flex-shrink-0 ${
+    <Link
+      href={href}
+      title="Go to module selection"
+      className={`flex items-center gap-3 border-b border-white/10 flex-shrink-0 transition-colors hover:bg-white/5 ${
         compact ? 'px-4 py-4' : 'px-5 py-6'
       }`}
     >
@@ -160,7 +158,7 @@ export function BrandHeader({ subtitle, compact = false }: BrandHeaderProps) {
           {subtitle || organizationName || 'Business Suite'}
         </p>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -168,13 +166,24 @@ type TopBarBrandProps = {
   title: string;
   icon?: ReactNode;
   dark?: boolean;
+  /** Where the brand block navigates. Defaults to module selection hub. */
+  href?: string;
 };
 
-export function TopBarBrand({ title, icon, dark = false }: TopBarBrandProps) {
+export function TopBarBrand({
+  title,
+  icon,
+  dark = false,
+  href = MODULE_SELECTION_HREF,
+}: TopBarBrandProps) {
   const { logo } = useCompanyBranding();
 
   return (
-    <div className="flex items-center gap-3 min-w-0">
+    <Link
+      href={href}
+      title="Go to module selection"
+      className="flex items-center gap-3 min-w-0 rounded-lg transition-colors hover:opacity-90"
+    >
       <div
         className={`w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 ${
           dark ? 'bg-white' : 'bg-white border border-gray-200'
@@ -199,6 +208,6 @@ export function TopBarBrand({ title, icon, dark = false }: TopBarBrandProps) {
           {title}
         </h1>
       </div>
-    </div>
+    </Link>
   );
 }
