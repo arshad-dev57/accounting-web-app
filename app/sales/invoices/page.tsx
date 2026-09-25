@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, RefreshCw, Plus, Eye, X, MapPin, Download, Edit3, Save, Loader2, Trash2 } from 'lucide-react';
 import { SalesInvoice, InvoiceStats } from '@/types/sales-invoice';
 import CreateInvoiceWizard from '@/components/sales-invoices/CreateInvoiceWizard';
@@ -30,6 +31,7 @@ const pill = (map: Record<string, string>, val: string) =>
 const STATUS_OPTIONS = ['all', 'Draft', 'Posted', 'Partially Paid', 'Paid', 'Cancelled'];
 
 export function SalesInvoicesPage() {
+  const router = useRouter();
   const { selectedLocationId, selectedLocation } = useLocation();
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats | null>(null);
@@ -286,8 +288,8 @@ export function SalesInvoicesPage() {
             <RefreshCw size={18} className="text-gray-600" />
           </button>
           <button
-            onClick={() => setShowCreateWizard(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#6b4dff] transition-colors"
+            onClick={() => router.push('/sales/invoices/create')}
+            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#01366a] transition-colors font-medium text-sm shadow-sm"
           >
             <Plus size={18} />
             Create Invoice
@@ -722,8 +724,6 @@ function SalesInvoiceDetailModal({
     </div>
   );
 }
-
-/** Next.js route shell — real UI mounts via SalesViewHost. */
 export default function SalesRoutePlaceholder() {
   return null;
 }

@@ -25,7 +25,8 @@ import {
 } from '../../ui';
 import PayrollStepper, { getStepNumberForStatus } from '@/components/hr/payroll-stepper';
 import { hrWorkforceService } from '@/lib/hr-workforce-service';
-import { pkr } from '@/lib/hr-payroll-slip-utils';
+import { pkr, formatPayrollDate, formatPayrollRange } from '@/lib/hr-payroll-slip-utils';
+
 
 function currentPeriodKey() {
   const d = new Date();
@@ -163,9 +164,10 @@ export default function PayrollDashboardPage() {
                   <HRStatusBadge status={currentStatus} />
                 </div>
                 <p className="text-xs text-[#7A8FA6] font-medium mt-1">
-                  {activePeriod?.startDate ? `${activePeriod.startDate} – ${activePeriod.endDate}` : 'Current Month'}{' '}
-                  • Pay Date: {activePeriod?.payDate || 'TBD'} • {headcount} Eligible Employees
+                  {formatPayrollRange(activePeriod?.startDate, activePeriod?.endDate, 'Current Month')}{' '}
+                  • Pay Date: {formatPayrollDate(activePeriod?.payDate, 'TBD')} • {headcount} Eligible Employees
                 </p>
+
               </div>
 
               <div className="flex items-center gap-3">
@@ -310,8 +312,9 @@ export default function PayrollDashboardPage() {
                       <div>
                         <p className="text-xs font-extrabold text-[#1A1A2E]">{p.name || p.periodKey}</p>
                         <p className="text-[10px] text-[#7A8FA6]">
-                          {p.startDate || 'Month'} • Pay Date: {p.payDate || 'N/A'}
+                          {formatPayrollRange(p.startDate, p.endDate, 'Month')} • Pay Date: {formatPayrollDate(p.payDate, 'N/A')}
                         </p>
+
                       </div>
                       <div className="flex items-center gap-3">
                         <HRStatusBadge status={p.status || 'OPEN'} />

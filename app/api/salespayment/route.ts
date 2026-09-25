@@ -294,7 +294,11 @@
         if (!response.success) {
           throw new Error(response.message || 'Failed to fetch customer invoices');
         }
-        return response.data?.data || [];
+        const resData = response.data;
+        if (Array.isArray(resData)) return resData;
+        if (Array.isArray(resData?.data)) return resData.data;
+        if (Array.isArray(resData?.invoices)) return resData.invoices;
+        return [];
       } catch (error: any) {
         console.error('Get customer invoices error:', error);
         throw new Error(error.message || 'Failed to fetch customer invoices');

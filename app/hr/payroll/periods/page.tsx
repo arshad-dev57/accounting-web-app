@@ -26,7 +26,8 @@ import {
   HRToolbar,
 } from '../../ui';
 import { hrWorkforceService } from '@/lib/hr-workforce-service';
-import { pkr } from '@/lib/hr-payroll-slip-utils';
+import { pkr, formatPayrollDate, formatPayrollRange } from '@/lib/hr-payroll-slip-utils';
+
 
 function defaultPeriodKey() {
   const d = new Date();
@@ -235,9 +236,10 @@ export default function PayPeriodsPage() {
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#7A8FA6] font-medium pt-1">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5 text-[#014582]" />
-                      {periodRow.startDate ? `${periodRow.startDate} – ${periodRow.endDate}` : 'Monthly Period'}
+                      {formatPayrollRange(periodRow.startDate, periodRow.endDate)}
                     </span>
-                    <span>• Pay Date: <strong className="text-[#1A1A2E]">{periodRow.payDate || 'Not set'}</strong></span>
+                    <span>• Pay Date: <strong className="text-[#1A1A2E]">{formatPayrollDate(periodRow.payDate, 'Not set')}</strong></span>
+
                     <span>• <strong className="text-[#1A1A2E]">{periodRow.headcount || 0}</strong> Employees</span>
                     {periodRow.netPay != null && (
                       <span>• Net Pay: <strong className="text-[#014582]">{pkr(periodRow.netPay)}</strong></span>

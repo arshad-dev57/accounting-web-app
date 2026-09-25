@@ -29,8 +29,9 @@ import {
   HRTableCell,
 } from '../../ui';
 import { hrWorkforceService } from '@/lib/hr-workforce-service';
-import { pkr } from '@/lib/hr-payroll-slip-utils';
+import { pkr, formatPayrollDate } from '@/lib/hr-payroll-slip-utils';
 import { downloadPayRegisterCsv, printPayRegister } from '@/lib/hr-pay-register-export';
+
 
 function currentPeriodKey() {
   const d = new Date();
@@ -188,8 +189,9 @@ function PayRegisterContent() {
                 <HRStatusBadge status={payPeriod?.status || 'FINALIZED'} />
               </div>
               <p className="text-xs text-[#7A8FA6] font-medium mt-1">
-                Authoritative register calculated by Phase 1 backend • Pay Date: {payPeriod?.payDate || 'N/A'}
+                Authoritative register calculated by Phase 1 backend • Pay Date: {formatPayrollDate(payPeriod?.payDate, 'N/A')}
               </p>
+
             </div>
 
             <div className="flex items-center gap-2">

@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Plus, Search, RefreshCw, Truck, Clock, 
   CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, MapPin, Edit3, Save
 } from 'lucide-react';
 import { Delivery, DeliveryStats } from '@/types/delivery';
-import CreateDeliveryWizard from '@/components/deliveries/CreateDeliveryWizard';
 import { useLocation } from '@/lib/location-context';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -28,10 +28,10 @@ const pill = (map: Record<string, string>, val: string) =>
 const STATUS_OPTIONS = ['all', 'Pending', 'Partially Delivered', 'Delivered'];
 
 export function DeliveriesPage() {
+  const router = useRouter();
   const { selectedLocationId, selectedLocation } = useLocation();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [deliveryStartEditing, setDeliveryStartEditing] = useState(false);
@@ -128,7 +128,6 @@ export function DeliveriesPage() {
   };
 
   const handleCreateSuccess = () => {
-    setShowCreateWizard(false);
     fetchDeliveries();
   };
 
@@ -249,7 +248,7 @@ export function DeliveriesPage() {
             <p className="text-sm text-gray-500">{totalRecords} deliveries</p>
           </div>
           <button
-            onClick={() => setShowCreateWizard(true)}
+            onClick={() => router.push('/sales/deliveries/create')}
             className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#014582]/90 transition-all font-semibold"
           >
             <Plus size={18} />
@@ -529,13 +528,7 @@ export function DeliveriesPage() {
         />
       )}
 
-      {/* Create Delivery Wizard */}
-      {showCreateWizard && (
-        <CreateDeliveryWizard
-          onSuccess={handleCreateSuccess}
-          onClose={() => setShowCreateWizard(false)}
-        />
-      )}
+
     </div>
   );
 }

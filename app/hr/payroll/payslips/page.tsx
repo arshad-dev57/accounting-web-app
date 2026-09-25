@@ -28,7 +28,8 @@ import {
   HRTableCell,
 } from '../../ui';
 import { hrWorkforceService } from '@/lib/hr-workforce-service';
-import { pkr, slipParts, printPayslip } from '@/lib/hr-payroll-slip-utils';
+import { pkr, slipParts, printPayslip, formatPayrollDate } from '@/lib/hr-payroll-slip-utils';
+
 
 function currentPeriodKey() {
   const d = new Date();
@@ -253,7 +254,8 @@ function PayslipsContent() {
               <div className="text-right">
                 <p className="text-[10px] text-[#7A8FA6] uppercase font-bold">Pay Period Details</p>
                 <p className="font-extrabold text-sm text-[#014582] mt-0.5">{payPeriod?.name || periodKey}</p>
-                <p className="text-[#7A8FA6]">Pay Date: {payPeriod?.payDate || 'TBD'} • Status: {viewingSlip.status || payPeriod?.status}</p>
+                <p className="text-[#7A8FA6]">Pay Date: {formatPayrollDate(payPeriod?.payDate, 'TBD')} • Status: {viewingSlip.status || payPeriod?.status}</p>
+
               </div>
             </div>
 

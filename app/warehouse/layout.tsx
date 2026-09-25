@@ -54,6 +54,7 @@ function WarehouseSidebar() {
     { icon: <FolderTree className="w-5 h-5" />, label: 'Categories', path: '/warehouse/categories', permission: 'categories' },
     { icon: <Users className="w-5 h-5" />, label: 'Suppliers', path: '/warehouse/suppliers', permission: 'suppliers' },
     { icon: <ArrowLeftRight className="w-5 h-5" />, label: 'Stock Movement', path: '/warehouse/stock-movement', permission: 'stock-movement' },
+    { icon: <ArrowLeftRight className="w-5 h-5" />, label: 'Internal Transfers', path: '/warehouse/transfers', permission: 'stock-movement' },
     { icon: <MapPin className="w-5 h-5" />, label: 'Locations', path: '/warehouse/locations', permission: 'products' },
     { icon: <Users className="w-5 h-5" />, label: 'Customers', path: '/warehouse/customers', permission: 'customers' },
     { icon: <Wallet className="w-5 h-5" />, label: 'Inventory Valuation', path: '/warehouse/inventory-valuation', permission: 'inventory-valuation' },

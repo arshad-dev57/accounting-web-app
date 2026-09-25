@@ -287,3 +287,47 @@ export function sumRegisterRows(rows: PayrollSlipRow[]): PayRegisterTotals {
     }
   );
 }
+
+export function formatPayrollDate(val?: string | Date | null, fallback = 'N/A'): string {
+  if (!val) return fallback;
+  if (typeof val !== 'string') {
+    try {
+      val = (val as Date).toISOString();
+    } catch {
+      return fallback;
+    }
+  }
+  const trimmed = val.trim();
+  if (!trimmed || ['tbd', 'not specified', 'not set', 'n/a', 'none'].includes(trimmed.toLowerCase())) {
+    return trimmed || fallback;
+  }
+  
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [_, y, m, d] = match;
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthIdx = parseInt(m, 10) - 1;
+    const monthName = monthNames[monthIdx];
+    if (monthName) {
+      const dayNum = parseInt(d, 10);
+      return `${monthName} ${dayNum}, ${y}`;
+    }
+  }
+
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime())) {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${monthNames[parsed.getUTCMonth()]} ${parsed.getUTCDate()}, ${parsed.getUTCFullYear()}`;
+  }
+
+  return trimmed;
+}
+
+export function formatPayrollRange(start?: string | Date | null, end?: string | Date | null, fallback = 'Monthly Period'): string {
+  if (!start || !end) return fallback;
+  const formattedStart = formatPayrollDate(start, '');
+  const formattedEnd = formatPayrollDate(end, '');
+  if (!formattedStart || !formattedEnd) return fallback;
+  return `${formattedStart} – ${formattedEnd}`;
+}
+

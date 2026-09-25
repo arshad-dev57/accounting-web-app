@@ -714,6 +714,7 @@ function AccountForm({
   onSave: ((data: Partial<ChartOfAccount>) => Promise<void>) | ((id: string, data: Partial<ChartOfAccount>) => Promise<void>);
   submitting: boolean;
 }) {
+  const { symbol: currencySymbol } = useCurrency();
   const [formData, setFormData] = useState<Partial<ChartOfAccount>>({
     name: editingAccount?.name || '',
     code: editingAccount?.code || '',

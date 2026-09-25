@@ -26,7 +26,8 @@ import {
   HRFilterChips,
 } from '../../ui';
 import { hrWorkforceService } from '@/lib/hr-workforce-service';
-import { pkr } from '@/lib/hr-payroll-slip-utils';
+import { pkr, formatPayrollDate, formatPayrollRange } from '@/lib/hr-payroll-slip-utils';
+
 
 export default function PayrollHistoryPage() {
   const [periods, setPeriods] = React.useState<any[]>([]);
@@ -135,11 +136,12 @@ export default function PayrollHistoryPage() {
                     </div>
                     <div>
                       <p className="text-xs font-extrabold text-[#1A1A2E]">{p.name || p.periodKey}</p>
-                      <p className="text-[10px] text-[#7A8FA6]">Pay Date: {p.payDate || 'N/A'}</p>
+                      <p className="text-[10px] text-[#7A8FA6]">Pay Date: {formatPayrollDate(p.payDate, 'N/A')}</p>
                     </div>
                   </div>
                 </HRTableCell>
-                <HRTableCell><span className="text-xs text-[#7A8FA6]">{p.startDate ? `${p.startDate} – ${p.endDate}` : 'Monthly'}</span></HRTableCell>
+                <HRTableCell><span className="text-xs text-[#7A8FA6]">{formatPayrollRange(p.startDate, p.endDate, 'Monthly')}</span></HRTableCell>
+
                 <HRTableCell><span className="font-bold text-[#1A1A2E]">{p.headcount || 0} Staff</span></HRTableCell>
                 <HRTableCell><span className="font-extrabold text-[#014582]">{p.netPay != null ? pkr(p.netPay) : 'N/A'}</span></HRTableCell>
                 <HRTableCell><HRStatusBadge status={p.status || 'CLOSED'} /></HRTableCell>

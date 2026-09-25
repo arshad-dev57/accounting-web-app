@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Search, Plus, Eye, CreditCard, Users,
   ChevronDown, ChevronLeft, ChevronRight, Loader2,
@@ -14,10 +15,12 @@ import {
 } from 'lucide-react';
 import { salesPaymentService, SalesPayment, InvoiceForPayment, PaymentStats, Customer, BankAccount } from '../../api/salespayment/route';
 import { useLocation } from '@/lib/location-context';
+import { SalesNumberInput } from '@/components/sales/sales-number-input';
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 export function SalesPaymentsPage() {
   const { selectedLocationId } = useLocation();
+  const router = useRouter();
   const [payments, setPayments] = useState<SalesPayment[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<SalesPayment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +44,6 @@ export function SalesPaymentsPage() {
     monthCount: 0,
     monthAmount: 0
   });
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const [viewingPayment, setViewingPayment] = useState<SalesPayment | null>(null);
   const [detailStartEditing, setDetailStartEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -190,29 +192,7 @@ export function SalesPaymentsPage() {
 
   // ─── Create Form ────────────────────────────────────────────
   const openCreateForm = () => {
-    resetCreateForm();
-    setShowCreateForm(true);
-  };
-
-  const closeCreateForm = () => {
-    setShowCreateForm(false);
-    resetCreateForm();
-  };
-
-  const resetCreateForm = () => {
-    setSelectedCustomer(null);
-    setCustomerSearchQuery('');
-    setCustomerSearchResults([]);
-    setAvailableInvoices([]);
-    setSelectedInvoices([]);
-    setPaymentMethod('Cash');
-    setSelectedBankAccount(null);
-    setPaymentAmount('');
-    setPaymentReference('');
-    setPaymentNotes('');
-    setPaymentDate(new Date().toISOString().split('T')[0]);
-    setIsSearchingCustomers(false);
-    setIsLoadingInvoices(false);
+    router.push('/sales/sales-payment/create');
   };
 
   // ─── Search Customers ──────────────────────────────────────
@@ -354,7 +334,6 @@ export function SalesPaymentsPage() {
         invoicePayments
       });
 
-      closeCreateForm();
       fetchPayments(true);
     } catch (error: any) {
       console.error('Failed to receive payment:', error);
@@ -439,45 +418,7 @@ export function SalesPaymentsPage() {
   // ─── RENDER ──────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {showCreateForm ? (
-        <CreatePaymentForm
-          selectedCustomer={selectedCustomer}
-          setSelectedCustomer={setSelectedCustomer}
-          customerSearchQuery={customerSearchQuery}
-          setCustomerSearchQuery={setCustomerSearchQuery}
-          customerSearchResults={customerSearchResults}
-          isSearchingCustomers={isSearchingCustomers}
-          availableInvoices={availableInvoices}
-          setAvailableInvoices={setAvailableInvoices}
-          selectedInvoices={selectedInvoices}
-          setSelectedInvoices={setSelectedInvoices}
-          isLoadingInvoices={isLoadingInvoices}
-          paymentMethod={paymentMethod}
-          selectedBankAccount={selectedBankAccount}
-          bankAccounts={bankAccounts}
-          paymentDate={paymentDate}
-          paymentAmount={paymentAmount}
-          paymentReference={paymentReference}
-          paymentNotes={paymentNotes}
-          paymentMethods={paymentMethods}
-          setPaymentDate={setPaymentDate}
-          setPaymentAmount={setPaymentAmount}
-          setPaymentReference={setPaymentReference}
-          setPaymentNotes={setPaymentNotes}
-          setPaymentMethod={setPaymentMethod}
-          setSelectedBankAccount={setSelectedBankAccount}
-          searchCustomers={searchCustomers}
-          selectCustomer={selectCustomer}
-          toggleInvoiceSelection={toggleInvoiceSelection}
-          updateInvoiceAmount={updateInvoiceAmount}
-          handleReceivePayment={handleReceivePayment}
-          closeCreateForm={closeCreateForm}
-          submitting={submitting}
-          formatCurrency={formatCurrency}
-          formatDate={formatDate}
-        />
-      ) : (
-        <>
+      <>
           {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -765,7 +706,6 @@ export function SalesPaymentsPage() {
             </div>
           )}
         </>
-      )}
 
       {/* Payment Detail Modal */}
       {viewingPayment && (
@@ -1051,13 +991,12 @@ function CreatePaymentForm({
                               <div className="mt-2 flex items-center gap-2">
                                 <div className="flex-1">
                                   <label className="text-xs text-gray-500">Amount to Pay</label>
-                                  <input
-                                    type="number"
+                                  <SalesNumberInput
                                     step="0.01"
-                                    min="0"
+                                    min={0}
                                     max={invoice.outstanding}
                                     value={invoice.amountToPay}
-                                    onChange={(e) => updateInvoiceAmount(invoice.id, parseFloat(e.target.value) || 0)}
+                                    onChange={(val) => updateInvoiceAmount(invoice.id, val)}
                                     className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                                   />
                                 </div>

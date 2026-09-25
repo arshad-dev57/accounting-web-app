@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Search, Calendar, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
 import { OrderForDelivery, OrderItemForDelivery, DeliveryLineDraft } from '@/types/delivery';
 import { useLocationOptional } from '@/lib/location-context';
+import { SalesNumberInput } from '@/components/sales/sales-number-input';
 
 interface CreateDeliveryWizardProps {
   onSuccess: () => void;
@@ -56,14 +57,9 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
 
       const params = new URLSearchParams({
         search: query,
-        limit: '10',
+        limit: '20',
       });
       if (selectedLocationId) params.set('locationId', selectedLocationId);
-      if (!selectedLocationId) {
-        setOrderSearchResults([]);
-        setIsSearchingOrders(false);
-        return;
-      }
       const response = await fetch(
         `/api/deliveries/available-orders?${params.toString()}`,
         {
@@ -354,16 +350,11 @@ export default function CreateDeliveryWizard({ onSuccess, onClose }: CreateDeliv
                                 >
                                   -
                                 </button>
-                                <input
-                                  type="number"
+                                <SalesNumberInput
                                   min={0}
                                   max={line.remainingQuantity}
                                   value={line.deliveryQuantity || 0}
-                                  onChange={(e) => {
-                                    const value = Math.max(0, Math.min(line.remainingQuantity, parseInt(e.target.value) || 0));
-                                    console.log('Input onChange:', { index, value, raw: e.target.value });
-                                    updateLineDraft(index, 'deliveryQuantity', value);
-                                  }}
+                                  onChange={(val) => updateLineDraft(index, 'deliveryQuantity', val)}
                                   className="w-20 px-3 py-2 border-t border-b border-gray-300 focus:outline-none focus:ring-0 text-center text-gray-900"
                                 />
                                 <button

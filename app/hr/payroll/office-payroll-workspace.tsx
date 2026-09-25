@@ -43,6 +43,8 @@ import PayrollStepper, {
   getStepNumberForStatus,
 } from '@/components/hr/payroll-stepper';
 import { hrWorkforceService } from '@/lib/hr-workforce-service';
+import { formatPayrollDate, formatPayrollRange } from '@/lib/hr-payroll-slip-utils';
+
 import { pkr } from '@/lib/hr-payroll-slip-utils';
 
 function currentPeriodKey() {
@@ -288,8 +290,8 @@ export default function OfficePayrollWorkspace({
                 <HRStatusBadge status={currentStatus} />
               </div>
               <p className="text-xs text-[#7A8FA6] font-medium mt-1">
-                {payPeriod?.startDate ? `${payPeriod.startDate} – ${payPeriod.endDate}` : 'Monthly Period'} •
-                Pay Date: <strong className="text-[#1A1A2E]">{payDate || 'Not specified'}</strong> • Headcount:{' '}
+                {formatPayrollRange(payPeriod?.startDate, payPeriod?.endDate)} •
+                Pay Date: <strong className="text-[#1A1A2E]">{formatPayrollDate(payDate, 'Not specified')}</strong> • Headcount:{' '}
                 <strong className="text-[#1A1A2E]">{rows.length || payPeriod?.headcount || 0}</strong>
               </p>
             </div>
@@ -328,9 +330,10 @@ export default function OfficePayrollWorkspace({
                     <span className="text-xs font-bold text-[#7A8FA6] uppercase">Pay Period</span>
                     <p className="text-base font-extrabold text-[#1A1A2E] mt-1">{payPeriod?.name || periodKey}</p>
                     <p className="text-[11px] text-[#7A8FA6] mt-0.5">
-                      {payPeriod?.startDate ? `${payPeriod.startDate} to ${payPeriod.endDate}` : 'Full Calendar Month'}
+                      {formatPayrollRange(payPeriod?.startDate, payPeriod?.endDate, 'Full Calendar Month')}
                     </p>
                   </div>
+
 
                   <div className="p-4 rounded-xl border border-[#DDE4EE] bg-[#F0F4F8]/50">
                     <span className="text-xs font-bold text-[#7A8FA6] uppercase">Branch & Division</span>

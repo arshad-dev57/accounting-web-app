@@ -24,6 +24,7 @@ import {
   type TaxPricingModel,
 } from '../../../lib/tax-service';
 import { ProductPicker, type PickedProduct } from '@/manufacturing/_components/ProductPicker';
+import { SalesNumberInput } from '@/components/sales/sales-number-input';
 
 type Order = SalesOrder & {
   totalAmount?: number;
@@ -361,11 +362,10 @@ function CustomerPickerModal({
                       </div>
                     </div>
                     <div className="flex-shrink-0 ml-3 text-right">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        customer.status === 'Active'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${customer.status === 'Active'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-600'
+                        }`}>
                         {customer.status || 'Active'}
                       </span>
                       {customer.customerNumber && (
@@ -437,7 +437,7 @@ export function SalesOrdersPage() {
         priority: priorityFilter !== 'all' ? priorityFilter : undefined,
         locationId: selectedLocationId || undefined,
       });
-      
+
       setOrders(
         (response.data || []).map((order) => ({
           ...order,
@@ -755,10 +755,10 @@ export function SalesOrdersPage() {
           onEdit={
             ['Draft', 'Pending', 'On Hold'].includes(selectedOrder.orderStatus)
               ? () => {
-                  setEditingOrder(selectedOrder);
-                  setShowDetailModal(false);
-                  setShowCreateForm(true);
-                }
+                setEditingOrder(selectedOrder);
+                setShowDetailModal(false);
+                setShowCreateForm(true);
+              }
               : undefined
           }
         />
@@ -1103,30 +1103,36 @@ function CreateOrderForm({
         setTaxContext(ctx);
         if (ctx?.pricingModel) setPricingModel(ctx.pricingModel);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const lineWithTax = (item: OrderItem): OrderItem => {
-    const tax = computeTaxLine(item.quantity, item.unitPrice, 0, item.taxRate || 0, pricingModel);
-    return { ...item, taxAmount: tax.taxAmount, totalPrice: item.unitPrice * item.quantity };
+    const qty = typeof item.quantity === 'number' ? item.quantity : (parseInt(item.quantity as any, 10) || 0);
+    const tax = computeTaxLine(qty, item.unitPrice, 0, item.taxRate || 0, pricingModel);
+    return { ...item, taxAmount: tax.taxAmount, totalPrice: item.unitPrice * qty };
   };
 
-  const lineTotal = (item: OrderItem) =>
-    computeTaxLine(item.quantity, item.unitPrice, 0, item.taxRate || 0, pricingModel).lineTotal;
+  const lineTotal = (item: OrderItem) => {
+    const qty = typeof item.quantity === 'number' ? item.quantity : (parseInt(item.quantity as any, 10) || 0);
+    return computeTaxLine(qty, item.unitPrice, 0, item.taxRate || 0, pricingModel).lineTotal;
+  };
 
   // ── computed ────────────────────────────────────────────────────────────
   const filteredProducts = productSearchQuery.trim()
     ? products.filter(
-        (p) =>
-          p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
-          p.sku.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
-          String((p as any).barcodeNumber || (p as any).barcode?.number || '')
-            .toLowerCase()
-            .includes(productSearchQuery.toLowerCase())
-      )
+      (p) =>
+        p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+        p.sku.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+        String((p as any).barcodeNumber || (p as any).barcode?.number || '')
+          .toLowerCase()
+          .includes(productSearchQuery.toLowerCase())
+    )
     : products;
 
-  const subtotal = orderItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+  const subtotal = orderItems.reduce((s, i) => {
+    const q = typeof i.quantity === 'number' ? i.quantity : (parseInt(i.quantity as any, 10) || 0);
+    return s + i.unitPrice * q;
+  }, 0);
   const taxTotal = orderItems.reduce((s, i) => s + (i.taxAmount || 0), 0);
   const calculatedDiscount =
     discountType === 'Percentage' ? (subtotal * discountPercentage) / 100 : discountAmount;
@@ -1171,7 +1177,7 @@ function CreateOrderForm({
   // ── Handle Customer Selection from Modal ──────────────────────────────
   const handleCustomerSelect = (customer: any) => {
     console.log('✅ Customer selected from modal:', customer);
-    
+
     if (!customer) {
       resetCustomerFields();
       return;
@@ -1196,7 +1202,7 @@ function CreateOrderForm({
 
     // ── Auto-fill addresses ──
     const address = customer.address || customer.shippingAddress || customer.primaryAddress || null;
-    
+
     if (address) {
       const shippingAddr = {
         street: address.street || '',
@@ -1205,7 +1211,7 @@ function CreateOrderForm({
         postalCode: address.postalCode || '',
         country: address.country || 'Pakistan'
       };
-      
+
       setShippingStreet(shippingAddr.street);
       setShippingCity(shippingAddr.city);
       setShippingState(shippingAddr.state);
@@ -1243,18 +1249,18 @@ function CreateOrderForm({
   const handleProductSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value;
     console.log('🔍 Product selected with ID:', id);
-    
-    if (!id || id === '') { 
-      setSelectedProduct(null); 
+
+    if (!id || id === '') {
+      setSelectedProduct(null);
       setProductSearchQuery('');
-      return; 
+      return;
     }
-    
+
     const product = products.find((p) => {
       const productId = getNormalizedId(p);
       return productId === id;
     });
-    
+
     if (product) {
       console.log('✅ Product found:', product.name, product.sku);
       setSelectedProduct(product);
@@ -1395,8 +1401,47 @@ function CreateOrderForm({
 
   const handleRemoveItem = (i: number) => setOrderItems(orderItems.filter((_, idx) => idx !== i));
 
-  const handleUpdateQty = (i: number, qty: number) => {
-    if (qty < 1) return;
+  const handleUpdateQty = (i: number, rawValue: string) => {
+    const updated = [...orderItems];
+    if (rawValue === '') {
+      updated[i] = { ...updated[i], quantity: '' as any };
+      setOrderItems(updated);
+      return;
+    }
+    const parsed = parseInt(rawValue, 10);
+    if (isNaN(parsed)) {
+      updated[i] = { ...updated[i], quantity: '' as any };
+      setOrderItems(updated);
+      return;
+    }
+    const item = updated[i];
+    const prod = products.find((p) => getNormalizedId(p) === String(item.productId));
+    const stock = prod?.currentStock !== undefined ? prod.currentStock : Infinity;
+
+    let qty = Math.max(0, parsed);
+    if (stock !== Infinity && qty > stock) {
+      qty = stock;
+      setFormError(`Quantity for ${item.productName} cannot exceed available stock (${stock}).`);
+    } else {
+      setFormError('');
+    }
+
+    updated[i] = lineWithTax({ ...updated[i], quantity: qty });
+    setOrderItems(updated);
+  };
+
+  const handleBlurQty = (i: number, rawValue: string) => {
+    const parsed = parseInt(rawValue, 10);
+    const item = orderItems[i];
+    const prod = products.find((p) => getNormalizedId(p) === String(item?.productId));
+    const stock = prod?.currentStock !== undefined ? prod.currentStock : Infinity;
+
+    let qty = isNaN(parsed) || parsed < 1 ? 1 : parsed;
+    if (stock !== Infinity && qty > stock) {
+      qty = stock;
+      setFormError(`Quantity for ${item?.productName || 'product'} cannot exceed available stock (${stock}).`);
+    }
+
     const updated = [...orderItems];
     updated[i] = lineWithTax({ ...updated[i], quantity: qty });
     setOrderItems(updated);
@@ -1416,7 +1461,10 @@ function CreateOrderForm({
       return;
     }
     if (!customerName.trim()) { setFormError('Customer name is required'); return; }
-    if (orderItems.length === 0) { setFormError('Please add at least one item'); return; }
+    if (orderItems.length === 0) {
+      setFormError('⚠️ Please select at least one product from the catalog before creating the order');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -1429,9 +1477,12 @@ function CreateOrderForm({
         shippingAddress: shippingAddr,
         billingAddress: billingAddr,
         items: orderItems.map((item) => {
-          const taxed = lineWithTax(item);
+          const parsed = parseInt(item.quantity as any, 10);
+          const cleanQty = isNaN(parsed) || parsed < 1 ? 1 : parsed;
+          const taxed = lineWithTax({ ...item, quantity: cleanQty });
           return {
             ...taxed,
+            quantity: cleanQty,
             productId: String(item.productId || ''),
             taxRate: taxed.taxRate || 0,
             taxAmount: taxed.taxAmount || 0,
@@ -1530,7 +1581,7 @@ function CreateOrderForm({
               )}
               <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
             </button>
-            
+
             {selectedCustomer && (
               <button
                 type="button"
@@ -1542,7 +1593,7 @@ function CreateOrderForm({
               </button>
             )}
           </div>
-          
+
           {selectedCustomer && (
             <div className="mt-2 px-3 py-2 bg-purple-50 border border-purple-100 rounded-lg flex items-center gap-3">
               <div className="w-6 h-6 rounded-full bg-[#014582] flex items-center justify-center flex-shrink-0">
@@ -1667,124 +1718,23 @@ function CreateOrderForm({
           <Package className="w-5 h-5 text-[#014582]" /> Order Items
         </h2>
 
-        <div className="p-4 bg-sky-50 border border-sky-100 rounded-xl space-y-3">
-          <p className="text-sm font-semibold text-sky-900">Add multiple products at once</p>
-          <p className="text-xs text-sky-700">
-            Open the catalog, select as many products as you need, then confirm — same flow as quotations.
-          </p>
+        {/* ── CATALOG PRODUCT PICKER ONLY ── */}
+        <div className="p-5 bg-sky-50/70 border border-sky-150 rounded-xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-sky-950">Select Products from Catalog</p>
+              <p className="text-xs text-sky-700">
+                Click below to open the product catalog modal, browse stock levels, and pick products for this order.
+              </p>
+            </div>
+          </div>
           <ProductPicker
             selected={[]}
             onChange={handleBulkAddProducts}
             multiple
-            placeholder="Browse & select multiple products…"
+            placeholder="📦 Browse & Select Products from Catalog Modal…"
           />
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search Product</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Filter by name, SKU, or scan barcode..."
-                value={productSearchQuery}
-                onChange={(e) => { 
-                  setProductSearchQuery(e.target.value); 
-                  if (e.target.value === '') setSelectedProduct(null);
-                }}
-                className={`${inp} pl-9 pr-8`}
-              />
-              {productSearchQuery && (
-                <button type="button" onClick={() => { setProductSearchQuery(''); setSelectedProduct(null); }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">USB scanner ready — scan a barcode to add the product.</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-            <input
-              type="number" min="1" value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-              className={inp}
-            />
-          </div>
-        </div>
-
-        {/* ── FIXED: Product Dropdown with unique keys ── */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Select Product{' '}
-            {loadingProducts && <span className="text-gray-400 font-normal text-xs">(loading...)</span>}
-          </label>
-          <select
-            value={selectedProduct ? getNormalizedId(selectedProduct) : ''}
-            onChange={handleProductSelect}
-            disabled={loadingProducts}
-            className={`${sel} disabled:bg-gray-50`}
-          >
-            <option value="">— Select a product —</option>
-            {filteredProducts.map((p, index) => {
-              const productId = getNormalizedId(p);
-              const uniqueKey = productId || `product-${index}-${Date.now()}`;
-              return (
-                <option key={uniqueKey} value={productId}>
-                  {p.name} ({p.sku}) — {formatAmount(p.sellingPrice)} | Stock: {p.currentStock}
-                </option>
-              );
-            })}
-          </select>
-          {!loadingProducts && filteredProducts.length === 0 && (
-            <p className="text-xs text-gray-400 mt-1">
-              {selectedLocationId
-                ? productSearchQuery
-                  ? 'No products match your search at this warehouse'
-                  : 'No products assigned to this warehouse (add stock or assign products first)'
-                : 'Select a warehouse to load products'}
-            </p>
-          )}
-          {selectedProduct && (
-            <p className="text-xs text-green-600 mt-1">
-              ✅ Selected: {selectedProduct.name} (Stock: {selectedProduct.currentStock})
-            </p>
-          )}
-        </div>
-
-        {/* Live preview */}
-        {selectedProduct && (
-          <div className="flex flex-wrap items-center gap-4 bg-[#014582]/5 border border-[#014582]/20 rounded-lg px-4 py-3 text-sm">
-            <span className="text-gray-500">
-              Unit price: <strong className="text-gray-800">{formatAmount(selectedProduct.sellingPrice)}</strong>
-            </span>
-            {previewTaxRate > 0 && (
-              <span className="text-gray-500">
-                GST {previewTaxRate}%{pricingModel === 'inclusive' ? ' incl.' : ''}
-                {previewTax ? (
-                  <> · <strong className="text-gray-800">{formatAmount(previewTax.taxAmount)}</strong></>
-                ) : null}
-              </span>
-            )}
-            <span className="text-gray-500">
-              × {quantity} = <strong className="text-[#014582]">{formatAmount(previewTotal)}</strong>
-            </span>
-            <span className="ml-auto text-xs">
-              Stock:{' '}
-              <strong className={quantity > selectedProduct.currentStock ? 'text-red-600' : 'text-green-600'}>
-                {selectedProduct.currentStock} available
-              </strong>
-            </span>
-          </div>
-        )}
-
-        <button
-          type="button" onClick={handleAddItem} disabled={!selectedProduct}
-          className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <Plus className="w-4 h-4" /> Add to Order
-        </button>
 
         {/* Items table */}
         {orderItems.length > 0 ? (
@@ -1798,40 +1748,56 @@ function CreateOrderForm({
                 </tr>
               </thead>
               <tbody>
-                {orderItems.map((item, i) => (
-                  <tr key={item.productId || item.sku || `order-item-${i}`} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-2 font-medium text-gray-800">{item.productName}</td>
-                    <td className="px-4 py-2 font-mono text-xs text-gray-500">{item.sku}</td>
-                    <td className="px-4 py-2 text-right text-gray-600">{formatAmount(item.unitPrice)}</td>
-                    <td className="px-4 py-2 text-right">
-                      <input
-                        type="number" min="1" value={item.quantity}
-                        onChange={(e) => handleUpdateQty(i, parseInt(e.target.value) || 1)}
-                        className="w-16 text-center px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] outline-none"
-                      />
-                    </td>
-                    <td className="px-4 py-2 text-right min-w-[140px]">
-                      <TaxRateSelect
-                        value={item.taxRate || 0}
-                        autoDefault
-                        onChange={(rate) => handleUpdateTaxRate(i, rate)}
-                        className="w-full px-2 py-1 border border-gray-200 rounded text-xs focus:ring-2 focus:ring-[#014582] outline-none"
-                      />
-                      {(item.taxAmount || 0) > 0 && (
-                        <p className="text-[11px] text-gray-400 mt-0.5">
-                          {formatAmount(Number(item.taxAmount))}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-right font-semibold text-gray-800">{formatAmount(lineTotal(item))}</td>
-                    <td className="px-4 py-2 text-right">
-                      <button type="button" onClick={() => handleRemoveItem(i)}
-                        className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {orderItems.map((item, i) => {
+                  const prod = products.find((p) => getNormalizedId(p) === String(item.productId));
+                  const stock = prod?.currentStock !== undefined ? prod.currentStock : 999999;
+
+                  return (
+                    <tr key={item.productId || item.sku || `order-item-${i}`} className="border-t border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-2 font-medium text-gray-800">
+                        {item.productName}
+                        {stock < 999999 && (
+                          <span className="block text-[11px] text-gray-400">Stock: {stock} available</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 font-mono text-xs text-gray-500">{item.sku}</td>
+                      <td className="px-4 py-2 text-right text-gray-600">{formatAmount(item.unitPrice)}</td>
+                      <td className="px-4 py-2 text-right min-w-[100px]">
+                        <SalesNumberInput
+                          min={1}
+                          max={stock}
+                          value={typeof item.quantity === 'number' ? item.quantity : 1}
+                          onChange={(val) => handleUpdateQty(i, String(val))}
+                          className="w-20 px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] outline-none text-center inline-block"
+                        />
+                      </td>
+                      <td className="px-4 py-2 text-right min-w-[140px]">
+                        <TaxRateSelect
+                          value={item.taxRate || 0}
+                          autoDefault
+                          onChange={(rate) => handleUpdateTaxRate(i, rate)}
+                          className="w-full px-2 py-1 border border-gray-200 rounded text-xs focus:ring-2 focus:ring-[#014582] outline-none"
+                        />
+                        {(item.taxAmount || 0) > 0 && (
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            {formatAmount(Number(item.taxAmount))}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-right font-semibold text-gray-800">{formatAmount(lineTotal(item))}</td>
+                      <td className="px-4 py-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(i)}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                          title="Remove product"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot className="bg-gray-50 border-t-2 border-gray-200">
                 <tr>
@@ -1843,9 +1809,12 @@ function CreateOrderForm({
             </table>
           </div>
         ) : (
-          <div className="border-2 border-dashed border-gray-200 rounded-lg py-10 text-center text-gray-400">
-            <Package className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">No items added yet. Select a product above and click "Add to Order".</p>
+          <div className="p-6 border-2 border-dashed border-sky-200 rounded-xl bg-sky-50/40 text-center space-y-2">
+            <Package className="w-8 h-8 text-[#014582] mx-auto opacity-60" />
+            <p className="text-sm font-semibold text-gray-800">No products added to order yet</p>
+            <p className="text-xs text-gray-500 max-w-md mx-auto">
+              Please click <strong>"Browse & Select Products"</strong> above to pick products from the catalog modal before submitting the order.
+            </p>
           </div>
         )}
       </section>
@@ -1885,7 +1854,6 @@ function CreateOrderForm({
         </div>
       </section>
 
-      {/* ── Shipping & Payment ────────────────────────────────────────── */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
           <CreditCard className="w-5 h-5 text-[#014582]" /> Shipping & Payment
@@ -2035,8 +2003,6 @@ function CreateOrderForm({
               : <><CheckCircle className="w-4 h-4" /> Create Order</>}
         </button>
       </div>
-
-      {/* ─── Customer Picker Modal ──────────────────────────── */}
       <CustomerPickerModal
         isOpen={showCustomerModal}
         onClose={() => setShowCustomerModal(false)}
@@ -2046,7 +2012,6 @@ function CreateOrderForm({
   );
 }
 
-/** Next.js route shell — real UI mounts via SalesViewHost. */
 export default function SalesRoutePlaceholder() {
   return null;
 }
