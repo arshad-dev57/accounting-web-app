@@ -256,7 +256,6 @@ export async function GET(request) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const fiscalYearId = searchParams.get('fiscalYearId');
-    const locationId = searchParams.get('locationId');
 
     const token =
       request.cookies.get('auth_token')?.value ||
@@ -269,20 +268,33 @@ export async function GET(request) {
       );
     }
 
+    const companyId =
+      request.headers.get('x-company-id') ||
+      request.cookies.get('active_company_id')?.value ||
+      '';
+
     const qs = new URLSearchParams({ period });
     if (startDate) qs.set('startDate', startDate);
     if (endDate) qs.set('endDate', endDate);
     if (fiscalYearId) qs.set('fiscalYearId', fiscalYearId);
-    if (locationId) qs.set('locationId', locationId);
+
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+    if (companyId) {
+      try {
+        headers['X-Company-Id'] = decodeURIComponent(companyId);
+      } catch {
+        headers['X-Company-Id'] = companyId;
+      }
+    }
 
     const response = await fetch(
       `${API_BASE_URL}/api/warehouse/sales/dashboard?${qs.toString()}`,
       {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
       }
     );
 
@@ -301,9 +313,20 @@ export async function GET(request) {
     const result = await response.json();
     const payload = result?.data ?? result;
 
+    let normalized;
+    try {
+      normalized = normalizeDashboard(payload);
+    } catch (normalizeError) {
+      console.error(
+        'GET /api/sales/dashboard normalize error:',
+        normalizeError
+      );
+      normalized = emptyDashboard();
+    }
+
     return NextResponse.json({
       success: true,
-      data: normalizeDashboard(payload),
+      data: normalized,
     });
   } catch (error) {
     console.error('GET /api/sales/dashboard error:', error);

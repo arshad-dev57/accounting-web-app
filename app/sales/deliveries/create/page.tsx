@@ -98,7 +98,6 @@ export default function CreateDeliveryPage() {
         limit: '10',
       });
       if (searchQuery.trim()) params.append('search', searchQuery.trim());
-      if (selectedLocationId) params.append('locationId', selectedLocationId);
 
       const response = await fetch(`/api/deliveries/available-orders?${params.toString()}`, {
         headers,

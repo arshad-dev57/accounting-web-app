@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Search, RefreshCw, Plus, Eye, X, MapPin, Download, Edit3, Save, Loader2, Trash2 } from 'lucide-react';
 import { SalesInvoice, InvoiceStats } from '@/types/sales-invoice';
 import CreateInvoiceWizard from '@/components/sales-invoices/CreateInvoiceWizard';
-import { useLocation } from '@/lib/location-context';
+import { useLocationOptional } from '@/lib/location-context';
 import PDFService from '@/lib/pdf-service';
 import { ProductPicker, type PickedProduct } from '@/manufacturing/_components/ProductPicker';
 import { productService } from '../../api/product/route';
@@ -32,7 +32,7 @@ const STATUS_OPTIONS = ['all', 'Draft', 'Posted', 'Partially Paid', 'Paid', 'Can
 
 export function SalesInvoicesPage() {
   const router = useRouter();
-  const { selectedLocationId, selectedLocation } = useLocation();
+  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,7 +56,6 @@ export function SalesInvoicesPage() {
       const params = new URLSearchParams();
       if (statusFilter !== 'all') params.append('status', statusFilter);
       if (searchTerm) params.append('search', searchTerm);
-      if (selectedLocationId) params.append('locationId', selectedLocationId);
 
       const response = await fetch(`/api/sales-invoices?${params.toString()}`, {
         headers,

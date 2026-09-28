@@ -1,5 +1,6 @@
 // app/api/dashboard/overview/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { backendProxyHeaders } from '../../../../lib/company-api-headers';
 
 const API_BASE_URL = process.env.API_URL || 'https://account-backend-five.vercel.app';
 
@@ -11,11 +12,8 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const fiscalYearId = searchParams.get('fiscalYearId');
-    const locationId = searchParams.get('locationId');
 
-    const token =
-      request.cookies.get('auth_token')?.value ||
-      request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+    const { token, headers } = backendProxyHeaders(request);
 
     if (!token) {
       return NextResponse.json(
@@ -28,16 +26,12 @@ export async function GET(request: NextRequest) {
     if (startDate) qs.set('startDate', startDate);
     if (endDate) qs.set('endDate', endDate);
     if (fiscalYearId) qs.set('fiscalYearId', fiscalYearId);
-    if (locationId) qs.set('locationId', locationId);
 
     const response = await fetch(
       `${API_BASE_URL}/api/dashboard/overview?${qs.toString()}`,
       {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
       }
     );
 

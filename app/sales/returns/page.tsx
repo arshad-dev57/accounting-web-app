@@ -16,7 +16,7 @@ import {
   Receipt, ShoppingCart, MapPin
 } from 'lucide-react';
 import { salesReturnService, ReturnModel, ReturnStats, OrderModel, ReturnLineDraft } from '../../api/salesretuns/route';
-import { useLocation } from '@/lib/location-context';
+import { useLocationOptional } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -37,7 +37,7 @@ interface WizardState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export function SalesReturnsPage() {
-  const { selectedLocationId, selectedLocation } = useLocation();
+  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const [returns, setReturns] = useState<ReturnModel[]>([]);
   const [filteredReturns, setFilteredReturns] = useState<ReturnModel[]>([]);
   const [loading, setLoading] = useState(true);

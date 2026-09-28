@@ -7,7 +7,7 @@ import {
   CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, MapPin, Edit3, Save
 } from 'lucide-react';
 import { Delivery, DeliveryStats } from '@/types/delivery';
-import { useLocation } from '@/lib/location-context';
+import { useLocationOptional } from '@/lib/location-context';
 
 const STATUS_COLORS: Record<string, string> = {
   'Pending': 'bg-orange-100 text-orange-700',
@@ -29,7 +29,7 @@ const STATUS_OPTIONS = ['all', 'Pending', 'Partially Delivered', 'Delivered'];
 
 export function DeliveriesPage() {
   const router = useRouter();
-  const { selectedLocationId, selectedLocation } = useLocation();
+  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
@@ -63,7 +63,6 @@ export function DeliveriesPage() {
 
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
-      if (selectedLocationId) params.append('locationId', selectedLocationId);
 
       const token = localStorage.getItem('auth_token');
       const headers: HeadersInit = {

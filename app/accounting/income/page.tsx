@@ -25,7 +25,7 @@ import {
   Banknote as BanknoteIcon, CreditCard, Handshake, Home, ShoppingBag,
   Receipt as ReceiptIcon, Briefcase, DollarSign as DollarSignIcon
 } from 'lucide-react';
-import { incomeService, Income, IncomeStats, IncomeAccount, Customer, BankAccount } from '../../api/income/route';
+import { incomeService, Income, IncomeStats, IncomeAccount, Customer, BankAccount } from '../../api/income/service';
 import TaxRateSelect from '../../../components/TaxRateSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────

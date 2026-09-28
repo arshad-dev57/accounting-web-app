@@ -74,7 +74,6 @@ export default function CreatePaymentPage() {
 
       const params = new URLSearchParams({ page: listPage.toString(), limit: '10' });
       if (listSearch.trim()) params.append('search', listSearch.trim());
-      if (selectedLocationId) params.append('locationId', selectedLocationId);
 
       const response = await fetch(`/api/sales-invoices?${params.toString()}`, { headers });
       const result = await response.json();

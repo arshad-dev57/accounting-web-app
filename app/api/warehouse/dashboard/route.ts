@@ -53,13 +53,19 @@ function emptyDashboard() {
   };
 }
 
-async function fetchBackend(path: string, token: string, qs: URLSearchParams) {
+async function fetchBackend(
+  path: string,
+  token: string,
+  qs: URLSearchParams,
+  extraHeaders: Record<string, string> = {}
+) {
   const url = qs.toString() ? `${API_BASE_URL}${path}?${qs}` : `${API_BASE_URL}${path}`;
   const response = await fetch(url, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
+      ...extraHeaders,
     },
     cache: 'no-store',
   });
@@ -91,6 +97,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const companyId =
+      request.headers.get('x-company-id') ||
+      request.cookies.get('active_company_id')?.value ||
+      '';
+    const companyHeaders: Record<string, string> = {};
+    if (companyId) {
+      try {
+        companyHeaders['X-Company-Id'] = decodeURIComponent(companyId);
+      } catch {
+        companyHeaders['X-Company-Id'] = companyId;
+      }
+    }
+
     const qs = new URLSearchParams({ period });
     if (startDate) qs.set('startDate', startDate);
     if (endDate) qs.set('endDate', endDate);
@@ -108,12 +127,12 @@ export async function GET(request: NextRequest) {
       topProductsRes,
       orderStatusRes,
     ] = await Promise.allSettled([
-      fetchBackend('/api/warehouse/dashboard/metrics', token, qs),
-      fetchBackend('/api/warehouse/dashboard/activities', token, emptyQs),
-      fetchBackend('/api/warehouse/dashboard/charts/stock-movement', token, qs),
-      fetchBackend('/api/warehouse/dashboard/charts/categories', token, emptyQs),
-      fetchBackend('/api/warehouse/dashboard/charts/top-products', token, emptyQs),
-      fetchBackend('/api/warehouse/dashboard/charts/order-status', token, emptyQs),
+      fetchBackend('/api/warehouse/dashboard/metrics', token, qs, companyHeaders),
+      fetchBackend('/api/warehouse/dashboard/activities', token, emptyQs, companyHeaders),
+      fetchBackend('/api/warehouse/dashboard/charts/stock-movement', token, qs, companyHeaders),
+      fetchBackend('/api/warehouse/dashboard/charts/categories', token, emptyQs, companyHeaders),
+      fetchBackend('/api/warehouse/dashboard/charts/top-products', token, emptyQs, companyHeaders),
+      fetchBackend('/api/warehouse/dashboard/charts/order-status', token, emptyQs, companyHeaders),
     ]);
 
     const base = emptyDashboard();

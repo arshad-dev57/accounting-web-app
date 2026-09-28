@@ -23,7 +23,7 @@ import { matchScannedProduct } from '@/lib/pos-scanner';
 import PDFService from '../../../lib/pdf-service';
 import EmailService from '../../../lib/email-service';
 import TaxRateSelect from '../../../components/TaxRateSelect';
-import { useLocation } from '@/lib/location-context';
+import { useLocationOptional } from '@/lib/location-context';
 import { SupplierDetailCard, ProductDetailCard } from '../../components/purchases/EnterpriseDetailCards';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ interface WizardState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export function PurchaseOrdersPage() {
-  const { selectedLocationId } = useLocation();
+  const { selectedLocationId } = useLocationOptional();
   const [orders, setOrders] = useState<PurchaseOrderModel[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<PurchaseOrderModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2130,7 +2130,7 @@ function CreateOrderWizard({
   totalItems,
   formatCurrency
 }: any) {
-  const { selectedLocationId } = useLocation();
+  const { selectedLocationId } = useLocationOptional();
 
   return (
     <div className="space-y-4 md:space-y-6">

@@ -158,6 +158,42 @@ export function TaxAppIcon({ className }: IconProps) {
   );
 }
 
+export function ManufacturingAppIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden>
+      <g className="mfg-plant">
+        <rect x="8" y="28" width="20" height="28" rx="2" fill="#714B67" />
+        <rect x="32" y="18" width="24" height="38" rx="2" fill="#00A09D" />
+        <path d="M12 28 L18 14 L24 28 Z" fill="#F06050" />
+        <rect className="mfg-chim" x="38" y="6" width="6" height="12" rx="1" fill="#875A7B" />
+        <rect className="mfg-win" x="12" y="34" width="6" height="6" rx="1" fill="#F7CD1F" />
+        <rect className="mfg-win" x="20" y="34" width="6" height="6" rx="1" fill="#F7CD1F" />
+        <rect className="mfg-win" x="38" y="26" width="6" height="6" rx="1" fill="#F06050" />
+        <rect className="mfg-win" x="46" y="26" width="6" height="6" rx="1" fill="#F7CD1F" />
+        <rect className="mfg-win" x="38" y="36" width="6" height="6" rx="1" fill="#F7CD1F" />
+        <rect className="mfg-win" x="46" y="36" width="6" height="6" rx="1" fill="#F06050" />
+        <circle className="mfg-smoke" cx="41" cy="4" r="3" fill="#F7CD1F" opacity="0.85" />
+      </g>
+      <style>{`
+        .mfg-plant { transform-box: fill-box; transform-origin: center bottom; animation: mfgFloat 1.6s ease-in-out infinite; }
+        .mfg-chim { animation: mfgGlow 1.2s ease-in-out infinite alternate; }
+        .mfg-win { animation: mfgBlink 1.3s ease-in-out infinite alternate; }
+        .mfg-smoke { animation: mfgSmoke 1.4s ease-in-out infinite; }
+        @keyframes mfgFloat {
+          0%,100% { transform: translateY(0); }
+          50% { transform: translateY(-2px); }
+        }
+        @keyframes mfgGlow { from { opacity: 0.75; } to { opacity: 1; } }
+        @keyframes mfgBlink { from { opacity: 0.65; } to { opacity: 1; } }
+        @keyframes mfgSmoke {
+          0%,100% { transform: translateY(0) scale(1); opacity: 0.85; }
+          50% { transform: translateY(-4px) scale(1.2); opacity: 0.4; }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
 export function SearchAppIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden>

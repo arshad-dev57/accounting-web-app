@@ -33,7 +33,8 @@ import {
 } from 'recharts';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
-import { useLocation } from '@/lib/location-context';
+import { browserCompanyAuthHeaders } from '../../../lib/company-api-headers';
+import { useCompanyOptional } from '../../../lib/company-context';
 
 type SpendPoint = {
   date: string;
@@ -131,13 +132,13 @@ function formatRelativeTime(iso: string) {
 
 export function PurchasesDashboardPage() {
   const router = useRouter();
+  const companyCtx = useCompanyOptional();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [periodLabel, setPeriodLabel] = useState('This Year');
   const [period, setPeriod] = useState('year');
   const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
-  const { selectedLocationId } = useLocation();
 
   const fetchDashboard = async (p = period, options?: { refresh?: boolean }) => {
     try {
@@ -147,9 +148,10 @@ export function PurchasesDashboardPage() {
       const fyId = selectedFiscalYearId || getStoredFiscalYearId() || '';
       const qs = new URLSearchParams({ period: p });
       if (fyId) qs.set('fiscalYearId', fyId);
-      if (selectedLocationId) qs.set('locationId', selectedLocationId);
 
-      const response = await fetch(`/api/purchases/dashboard?${qs.toString()}`);
+      const response = await fetch(`/api/purchases/dashboard?${qs.toString()}`, {
+        headers: browserCompanyAuthHeaders(),
+      });
       const result = await response.json();
       if (result.success && result.data) {
         setData(result.data);
@@ -168,7 +170,7 @@ export function PurchasesDashboardPage() {
   useEffect(() => {
     fetchDashboard(period);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFiscalYearId, selectedLocationId]);
+  }, [selectedFiscalYearId, companyCtx?.activeCompanyId]);
 
   const selectPeriod = (label: string, value: string) => {
     if (loading || refreshing) return;

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { loadCurrencyLocal } from '../../../lib/currency-service';
-import { useLocation } from '@/lib/location-context';
+import { useLocationOptional } from '@/lib/location-context';
 
 type ReportRow = {
   id: string;
@@ -104,7 +104,7 @@ function channelBadgeClass(channel: string) {
 }
 
 export function PurchaseReportsPage() {
-  const { selectedLocationId } = useLocation();
+  const { selectedLocationId } = useLocationOptional();
   const [period, setPeriod] = useState('month');
   const [channel, setChannel] = useState('all');
   const [status, setStatus] = useState('all');
@@ -133,7 +133,6 @@ export function PurchaseReportsPage() {
       if (startDate) qs.set('startDate', startDate);
       if (endDate) qs.set('endDate', endDate);
     }
-    if (selectedLocationId) qs.set('locationId', selectedLocationId);
     return qs.toString();
   }, [channel, period, status, search, page, startDate, endDate, selectedLocationId]);
 

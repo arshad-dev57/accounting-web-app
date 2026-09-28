@@ -20,7 +20,7 @@ import {
 import { goodsReceivingService, GoodsReceivingModel, GoodsReceivingStats, PurchaseOrderForReceiving, GRNLineDraft } from '../../api/goodsrecieving/route';
 import PDFService from '../../../lib/pdf-service';
 import EmailService from '../../../lib/email-service';
-import { useLocation } from '@/lib/location-context';
+import { useLocationOptional } from '@/lib/location-context';
 import { PurchaseOrderDetailCard, SupplierDetailCard } from '../../components/purchases/EnterpriseDetailCards';
 
 
@@ -37,7 +37,7 @@ interface WizardState {
 
 
 export function GoodsReceivingPage() {
-  const { selectedLocationId } = useLocation();
+  const { selectedLocationId } = useLocationOptional();
   const [grns, setGrns] = useState<GoodsReceivingModel[]>([]);
   const [filteredGrns, setFilteredGrns] = useState<GoodsReceivingModel[]>([]);
   const [loading, setLoading] = useState(true);

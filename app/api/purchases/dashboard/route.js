@@ -36,12 +36,13 @@ function emptyDashboard() {
   };
 }
 
-async function fetchBackend(path, token, qs) {
+async function fetchBackend(path, token, qs, extraHeaders = {}) {
   const response = await fetch(`${API_BASE_URL}${path}?${qs.toString()}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
+      ...extraHeaders,
     },
   });
 
@@ -60,7 +61,6 @@ export async function GET(request) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const fiscalYearId = searchParams.get('fiscalYearId');
-    const locationId = searchParams.get('locationId');
 
     const token =
       request.cookies.get('auth_token')?.value ||
@@ -73,20 +73,32 @@ export async function GET(request) {
       );
     }
 
+    const companyId =
+      request.headers.get('x-company-id') ||
+      request.cookies.get('active_company_id')?.value ||
+      '';
+    const companyHeaders = {};
+    if (companyId) {
+      try {
+        companyHeaders['X-Company-Id'] = decodeURIComponent(companyId);
+      } catch {
+        companyHeaders['X-Company-Id'] = companyId;
+      }
+    }
+
     const qs = new URLSearchParams({ period });
     if (startDate) qs.set('startDate', startDate);
     if (endDate) qs.set('endDate', endDate);
     if (fiscalYearId) qs.set('fiscalYearId', fiscalYearId);
-    if (locationId) qs.set('locationId', locationId);
 
     // Same parallel fetches as Flutter PurchaseController
     const [metricsRes, trendRes, statusRes, suppliersRes, activitiesRes] =
       await Promise.allSettled([
-        fetchBackend('/api/purchase/dashboard/metrics', token, qs),
-        fetchBackend('/api/purchase/dashboard/charts/spend-trend', token, qs),
-        fetchBackend('/api/purchase/dashboard/charts/order-status', token, qs),
-        fetchBackend('/api/purchase/dashboard/charts/top-suppliers', token, qs),
-        fetchBackend('/api/purchase/dashboard/activities', token, qs),
+        fetchBackend('/api/purchase/dashboard/metrics', token, qs, companyHeaders),
+        fetchBackend('/api/purchase/dashboard/charts/spend-trend', token, qs, companyHeaders),
+        fetchBackend('/api/purchase/dashboard/charts/order-status', token, qs, companyHeaders),
+        fetchBackend('/api/purchase/dashboard/charts/top-suppliers', token, qs, companyHeaders),
+        fetchBackend('/api/purchase/dashboard/activities', token, qs, companyHeaders),
       ]);
 
     const failures = [

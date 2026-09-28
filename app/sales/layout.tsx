@@ -31,13 +31,11 @@ import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import FiscalYearSelect from '../../components/FiscalYearSelect';
 import CompanySwitcher from '../../components/CompanySwitcher';
-import LocationSelect from '../../components/LocationSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
-import { LocationProvider } from '../../lib/location-context';
 import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
 import { salesViewHostConfig } from '../../lib/module-view-host/registries';
 import SalesViewHost from '../../components/sales/SalesViewHost';
@@ -355,7 +353,6 @@ export default function SalesLayout({
 }) {
   return (
     <FiscalYearProvider>
-      <LocationProvider>
       <SalesSidebar />
 
       <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
@@ -368,7 +365,6 @@ export default function SalesLayout({
 
           <div className="flex items-center gap-4">
             <CompanySwitcher />
-            <LocationSelect showManageLink={false} />
             <FiscalYearSelect />
 
             <div className="w-px h-6 bg-gray-200" />
@@ -405,7 +401,6 @@ export default function SalesLayout({
           <SalesViewHost>{children}</SalesViewHost>
         </div>
       </div>
-      </LocationProvider>
     </FiscalYearProvider>
   );
 }

@@ -14,12 +14,12 @@ import {
   Ban, Filter, ArrowUpDown, Edit3
 } from 'lucide-react';
 import { salesPaymentService, SalesPayment, InvoiceForPayment, PaymentStats, Customer, BankAccount } from '../../api/salespayment/route';
-import { useLocation } from '@/lib/location-context';
+import { useLocationOptional } from '@/lib/location-context';
 import { SalesNumberInput } from '@/components/sales/sales-number-input';
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 export function SalesPaymentsPage() {
-  const { selectedLocationId } = useLocation();
+  const { selectedLocationId } = useLocationOptional();
   const router = useRouter();
   const [payments, setPayments] = useState<SalesPayment[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<SalesPayment[]>([]);

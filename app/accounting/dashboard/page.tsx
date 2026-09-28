@@ -7,6 +7,8 @@ import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { useCurrency } from '../../../lib/currency-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
+import { browserCompanyAuthHeaders } from '../../../lib/company-api-headers';
+import { useCompanyOptional } from '../../../lib/company-context';
 import {
   TrendingUp,
   TrendingDown,
@@ -147,6 +149,7 @@ function formatDate(iso?: string) {
 
 export function AccountingDashboard() {
   const router = useRouter();
+  const companyCtx = useCompanyOptional();
   const { symbol: currencySymbol } = useCurrency();
   const formatCurrency = (amount: number) => {
     return `${currencySymbol} ${toNum(amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -179,6 +182,7 @@ export function AccountingDashboard() {
       if (fyId) qs.set('fiscalYearId', fyId);
 
       const response = await fetch(`/api/dashboard/overview?${qs.toString()}`, {
+        headers: browserCompanyAuthHeaders(),
         signal: options?.signal,
       });
       const result = await response.json();
@@ -212,7 +216,7 @@ export function AccountingDashboard() {
 
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersReady, selectedFiscalYearId]);
+  }, [filtersReady, selectedFiscalYearId, companyCtx?.activeCompanyId]);
 
   const selectPeriod = (label: string) => {
     if (loading || refreshing) return;

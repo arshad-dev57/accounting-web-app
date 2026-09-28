@@ -14,7 +14,7 @@ import {
   Building2, User, Phone, Mail, MapPin
 } from 'lucide-react';
 import { salesRefundService, RefundModel, RefundStats, OrderModel } from '../../api/salesrefunds/route';
-import { useLocation } from '@/lib/location-context';
+import { useLocationOptional } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -35,7 +35,7 @@ interface CreateFormState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export function SalesRefundsPage() {
-  const { selectedLocationId, selectedLocation } = useLocation();
+  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const [refunds, setRefunds] = useState<RefundModel[]>([]);
   const [filteredRefunds, setFilteredRefunds] = useState<RefundModel[]>([]);
   const [loading, setLoading] = useState(true);

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Quotation } from '@/lib/types/quotation';
 import CreateQuotationWizard from '@/components/quotations/CreateQuotationWizard';
-import { useLocation } from '@/lib/location-context';
+import { useLocationOptional } from '@/lib/location-context';
 import PDFService from '@/lib/pdf-service';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -26,7 +26,7 @@ const pill = (map: Record<string, string>, val: string) =>
 const STATUS_OPTIONS = ['all', 'Draft', 'Sent', 'Accepted', 'Rejected', 'Expired', 'Converted', 'Cancelled'];
 
 export function QuotationsPage() {
-  const { selectedLocationId, selectedLocation } = useLocation();
+  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
@@ -55,7 +55,6 @@ export function QuotationsPage() {
 
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
-      if (selectedLocationId) params.append('locationId', selectedLocationId);
 
       const token = localStorage.getItem('auth_token');
       const headers: HeadersInit = {

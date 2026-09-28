@@ -123,6 +123,8 @@ function formatAxis(value: number) {
   return String(Math.round(value));
 }
 
+import { browserCompanyAuthHeaders } from '../../../lib/company-api-headers';
+
 function formatDate(iso?: string) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -131,9 +133,7 @@ function formatDate(iso?: string) {
 }
 
 function authHeaders(): HeadersInit {
-  const token =
-    (typeof window !== 'undefined' && localStorage.getItem('auth_token')) || '';
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return browserCompanyAuthHeaders();
 }
 
 export function WarehouseDashboardPage() {

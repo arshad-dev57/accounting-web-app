@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { loadCurrencyLocal } from '../../../lib/currency-service';
-import { useLocation } from '@/lib/location-context';
+import { useLocationOptional } from '@/lib/location-context';
 
 type ReportRow = {
   id: string;
@@ -89,7 +89,7 @@ function authHeaders(): HeadersInit {
 }
 
 export function SalesReportsPage() {
-  const { selectedLocationId, selectedLocation } = useLocation();
+  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const [period, setPeriod] = useState('month');
   const [channel, setChannel] = useState('all');
   const [status, setStatus] = useState('all');
@@ -114,7 +114,6 @@ export function SalesReportsPage() {
       limit: '50',
     });
     if (search.trim()) qs.set('search', search.trim());
-    if (selectedLocationId) qs.set('locationId', selectedLocationId);
     if (period === 'custom') {
       if (startDate) qs.set('startDate', startDate);
       if (endDate) qs.set('endDate', endDate);

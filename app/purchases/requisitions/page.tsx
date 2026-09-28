@@ -12,7 +12,7 @@ import {
   PurchaseRequisitionModel,
 } from '../../api/purchaserequisition/route';
 import { purchaseOrderService, Product, Supplier } from '../../api/purchaseorder/route';
-import { useLocation } from '@/lib/location-context';
+import { useLocationOptional } from '@/lib/location-context';
 import {
   SupplierDetailCard,
   ProductDetailCard,
@@ -79,7 +79,7 @@ function getStatusColor(status: string) {
 
 
 export function PurchaseRequisitionsPage() {
-  const { selectedLocationId } = useLocation();
+  const { selectedLocationId } = useLocationOptional();
   const [rows, setRows] = useState<PurchaseRequisitionModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

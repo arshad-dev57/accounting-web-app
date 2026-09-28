@@ -35,6 +35,8 @@ import { useDashboardFiltersReady } from '../../../lib/use-dashboard-filters-rea
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
 import { useModulePageVisible } from '../../../components/ModuleViewHost';
+import { browserCompanyAuthHeaders } from '../../../lib/company-api-headers';
+import { useCompanyOptional } from '../../../lib/company-context';
 
 type TrendPoint = {
   date: string;
@@ -180,6 +182,7 @@ function toNum(v: unknown) {
 export function SalesDashboardPage() {
   const router = useRouter();
   const { isAdmin, hasSubPageAccess } = usePermissions();
+  const companyCtx = useCompanyOptional();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Loading dashboard...');
@@ -187,31 +190,55 @@ export function SalesDashboardPage() {
   const [periodLabel, setPeriodLabel] = useState('This Month');
   const [period, setPeriod] = useState('month');
   const { selectedFiscalYear } = useFiscalYear();
-  const { ready: filtersReady, selectedFiscalYearId, selectedLocationId } =
+  const { ready: filtersReady, selectedFiscalYearId } =
     useDashboardFiltersReady();
   const fetchAbortRef = useRef<AbortController | null>(null);
+  const dashboardCacheRef = useRef<
+    Map<string, { data: DashboardData; fetchedAt: number }>
+  >(new Map());
+  const CACHE_TTL_MS = 60_000;
   const isPageVisible = useModulePageVisible();
 
   const canSeeCredits = isAdmin || hasSubPageAccess('sales', 'credits');
 
   const fetchDashboard = async (
     p = period,
-    options?: { refresh?: boolean; signal?: AbortSignal }
+    options?: { refresh?: boolean; signal?: AbortSignal; force?: boolean }
   ) => {
+    const fyId = selectedFiscalYearId || getStoredFiscalYearId() || '';
+    const cacheKey = `${p}_${fyId || 'none'}_${companyCtx?.activeCompanyId || 'default'}`;
+    const cached = dashboardCacheRef.current.get(cacheKey);
+    const cacheFresh =
+      !options?.force &&
+      !options?.refresh &&
+      cached &&
+      Date.now() - cached.fetchedAt < CACHE_TTL_MS;
+
+    if (cacheFresh && cached) {
+      setData(cached.data);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    // Cancel any in-flight request before starting a new one
+    if (!options?.signal) {
+      fetchAbortRef.current?.abort();
+      const controller = new AbortController();
+      fetchAbortRef.current = controller;
+      options = { ...options, signal: controller.signal };
+    }
+
     try {
       if (options?.refresh) setRefreshing(true);
       else if (!data) setLoading(true);
       else setRefreshing(true);
 
-      const fyId = selectedFiscalYearId || getStoredFiscalYearId() || '';
       const qs = new URLSearchParams({ period: p });
       if (fyId) qs.set('fiscalYearId', fyId);
-      if (selectedLocationId) qs.set('locationId', selectedLocationId);
 
       const response = await fetch(`/api/sales/dashboard?${qs.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
-        },
+        headers: browserCompanyAuthHeaders(),
         signal: options?.signal,
       });
       const result = await response.json();
@@ -220,6 +247,10 @@ export function SalesDashboardPage() {
 
       if (result.success && result.data) {
         setData(result.data);
+        dashboardCacheRef.current.set(cacheKey, {
+          data: result.data,
+          fetchedAt: Date.now(),
+        });
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
@@ -236,7 +267,6 @@ export function SalesDashboardPage() {
     if (!filtersReady) return;
 
     setLoadingMessage('Updating dashboard for selected filters...');
-    setRefreshing(true);
 
     fetchAbortRef.current?.abort();
     const controller = new AbortController();
@@ -245,14 +275,22 @@ export function SalesDashboardPage() {
 
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersReady, selectedFiscalYearId, selectedLocationId]);
+  }, [filtersReady, selectedFiscalYearId, companyCtx?.activeCompanyId]);
 
   const selectPeriod = (label: string, value: string) => {
     if (loading || refreshing) return;
     setPeriodLabel(label);
     setPeriod(value);
     setLoadingMessage(`Loading ${label.toLowerCase()} data...`);
-    setRefreshing(true);
+    const fyId = selectedFiscalYearId || getStoredFiscalYearId() || '';
+    const cacheKey = `${value}_${fyId || 'none'}_${companyCtx?.activeCompanyId || 'default'}`;
+    const cached = dashboardCacheRef.current.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+      setData(cached.data);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     fetchDashboard(value);
   };
 
@@ -425,7 +463,7 @@ export function SalesDashboardPage() {
             onClick={() => {
               setLoadingMessage('Refreshing dashboard...');
               setRefreshing(true);
-              fetchDashboard(period, { refresh: true });
+              fetchDashboard(period, { refresh: true, force: true });
             }}
             disabled={isBusy}
             className="p-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"

@@ -118,11 +118,15 @@ export const incomeService = {
   // ─── Get customers ───────────────────────────────────────────
   getCustomers: async (): Promise<Customer[]> => {
     try {
-      const response = await apiClient.get('/api/customers');
+      // Backend mounts customers at /api/warehouse/customers (not /api/customers)
+      const response = await apiClient.get('/api/warehouse/customers?limit=100');
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch customers');
       }
-      return response.data?.data || [];
+      const payload = response.data;
+      if (Array.isArray(payload?.data)) return payload.data;
+      if (Array.isArray(payload)) return payload;
+      return [];
     } catch (error: any) {
       console.error('Get customers error:', error);
       return [];

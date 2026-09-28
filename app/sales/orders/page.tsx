@@ -11,7 +11,7 @@ import {
 import { customerService } from '../../api/customer/route';
 import { productService } from '../../api/product/route';
 import { salesOrderService, type Order as SalesOrder } from '@/lib/sales-order-service';
-import { useLocation } from '@/lib/location-context';
+import { useLocationOptional } from '@/lib/location-context';
 import { useCurrency } from '../../../lib/currency-context';
 import { findProductFromScan, useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 import { matchScannedProduct } from '@/lib/pos-scanner';
@@ -400,7 +400,7 @@ function CustomerPickerModal({
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 export function SalesOrdersPage() {
-  const { selectedLocationId, selectedLocation } = useLocation();
+  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const { symbol, formatAmount } = useCurrency();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
@@ -904,7 +904,7 @@ function CreateOrderForm({
   orderToEdit?: Order | null;
 }) {
   const isEditing = Boolean(orderToEdit?.id || orderToEdit?._id);
-  const { selectedLocationId, selectedLocation } = useLocation();
+  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const { symbol, formatAmount } = useCurrency();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
@@ -1042,7 +1042,7 @@ function CreateOrderForm({
     return String(raw);
   };
 
-  // ── fetch customers once; products by selected warehouse ───────────────
+  // ── fetch customers once; products company-wide (not warehouse-scoped) ──
   useEffect(() => {
     (async () => {
       try {
@@ -1058,18 +1058,12 @@ function CreateOrderForm({
   }, []);
 
   useEffect(() => {
-    if (!selectedLocationId) {
-      setProducts([]);
-      setLoadingProducts(false);
-      return;
-    }
     let cancelled = false;
     (async () => {
       try {
         setLoadingProducts(true);
         const pd = await productService.getProducts({
           limit: 500,
-          locationId: selectedLocationId,
         });
         if (cancelled) return;
         const list = (pd.data || []).map(normalizeId);
@@ -1093,7 +1087,7 @@ function CreateOrderForm({
     return () => {
       cancelled = true;
     };
-  }, [selectedLocationId, isEditing]);
+  }, [isEditing]);
 
   useEffect(() => {
     taxService
@@ -1336,10 +1330,6 @@ function CreateOrderForm({
 
   const handleBulkAddProducts = async (picked: PickedProduct[]) => {
     if (!picked.length) return;
-    if (!selectedLocationId) {
-      setFormError('Select a warehouse from the top bar first');
-      return;
-    }
     setFormError('');
     const existingIds = new Set(orderItems.map((i) => getNormalizedId({ _id: i.productId })));
     const additions: OrderItem[] = [];
@@ -1456,10 +1446,6 @@ function CreateOrderForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
-    if (!selectedLocationId) {
-      setFormError('Select a warehouse from the top bar before creating the order');
-      return;
-    }
     if (!customerName.trim()) { setFormError('Customer name is required'); return; }
     if (orderItems.length === 0) {
       setFormError('⚠️ Please select at least one product from the catalog before creating the order');
@@ -1500,7 +1486,7 @@ function CreateOrderForm({
         customerNotes, internalNotes,
         tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
         subtotal, discountTotal: calculatedDiscount, taxTotal, grandTotal,
-        locationId: selectedLocationId,
+        locationId: selectedLocationId || undefined,
       };
 
       if (isEditing) {
