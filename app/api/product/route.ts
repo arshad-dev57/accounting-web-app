@@ -193,6 +193,7 @@ export const productService = {
     limit?: number;
     search?: string;
     categoryId?: string;
+    categoryIds?: string;
     supplierId?: string;
     stockStatus?: 'low' | 'out' | 'in';
     minPrice?: number;

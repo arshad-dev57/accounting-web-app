@@ -12,8 +12,6 @@ import {
   Store,
   HelpCircle,
   LogOut,
-  Phone,
-  Headset,
   CreditCard,
   Scale,
   Globe,
@@ -25,8 +23,6 @@ import {
 import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import ProfileDropdown from '../../components/ProfileDropdown';
-import FiscalYearSelect from '../../components/FiscalYearSelect';
-import CompanySwitcher from '../../components/CompanySwitcher';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
@@ -148,22 +144,6 @@ export default function TaxLayout({ children }: { children: React.ReactNode }) {
             icon={<Scale className="w-5 h-5 text-[#014582]" />}
           />
           <div className="flex items-center gap-4">
-            <CompanySwitcher />
-            <FiscalYearSelect />
-            <div className="w-px h-6 bg-gray-200" />
-            <button
-              type="button"
-              onClick={() => { window.location.href = '/support'; }}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
-            >
-              <Headset className="w-4 h-4" />
-              <span>Support</span>
-            </button>
-            <div className="w-px h-6 bg-gray-200" />
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Phone className="w-4 h-4 text-[#014582]" />
-            </div>
-            <div className="w-px h-6 bg-gray-200" />
             <GlobalSearch />
             <div className="w-px h-6 bg-gray-200" />
             <ProfileDropdown accentClassName="bg-[#091746]" />

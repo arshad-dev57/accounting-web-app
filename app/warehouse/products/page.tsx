@@ -24,6 +24,11 @@ import { useCurrency } from '@/lib/currency-context';
 import { useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 import { BarcodeScannerModal } from '@/lib/barcode-scanner-modal';
 import {
+  DEFAULT_PRODUCT_PAGE_SIZE,
+  PRODUCT_BULK_PAGE_SIZE_OPTIONS,
+  resolveProductCategoryIds,
+} from '@/lib/product-pagination';
+import {
   formatProductDimensions,
   formatProductVolume,
   formatProductWeight,
@@ -379,8 +384,9 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-start justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl w-full max-w-4xl my-4 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-40 overflow-y-auto bg-black/50 backdrop-blur-sm">
+      <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
+      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[min(90vh,calc(100%-2rem))] shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-4">
@@ -444,7 +450,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
         </div>
 
         {/* Tab Content */}
-        <div className="p-6 max-h-[50vh] overflow-y-auto">
+        <div className="p-6 flex-1 overflow-y-auto min-h-0">
 
           {/* ── OVERVIEW ── */}
           {activeTab === 'overview' && (
@@ -700,6 +706,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
 
         </div>
       </div>
+      </div>
     </div>
   );
 }
@@ -710,7 +717,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
 function ProductList({
   products, loading, pagination, searchTerm, setSearchTerm,
   selectedCategory, setSelectedCategory, selectedStatus, setSelectedStatus,
-  onPageChange, onAddClick, onEditClick, onDeleteClick, onViewClick,
+  onPageChange, onPageSizeChange, onAddClick, onEditClick, onDeleteClick, onViewClick,
   onScanClick, categories, locationName,
 }: {
   products: Product[];
@@ -723,6 +730,7 @@ function ProductList({
   selectedStatus: string;
   setSelectedStatus: (val: string) => void;
   onPageChange: (page: number) => void;
+  onPageSizeChange: (limit: number) => void;
   onAddClick: () => void;
   onEditClick: (product: Product) => void;
   onDeleteClick: (id: string) => void;
@@ -917,22 +925,52 @@ function ProductList({
         </div>
       </div>
 
-      {pagination && pagination.pages > 1 && (
-        <div className="flex flex-col xs:flex-row items-center justify-between gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
-          <p className="text-[10px] md:text-sm text-gray-500 text-center xs:text-left">
+      {pagination && pagination.total > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
+          <p className="text-[10px] md:text-sm text-gray-500 text-center sm:text-left">
             Showing {(pagination.page - 1) * pagination.limit + 1} –{' '}
             {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} products
           </p>
-          <div className="flex gap-1 md:gap-2">
-            <button onClick={() => onPageChange(pagination.page - 1)} disabled={!pagination.hasPrev} className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-              <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            </button>
-            <span className="px-2 md:px-4 py-1 md:py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg text-xs md:text-sm">
-              {pagination.page} / {pagination.pages}
-            </span>
-            <button onClick={() => onPageChange(pagination.page + 1)} disabled={!pagination.hasNext} className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-              <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            </button>
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            <div className="flex gap-1 md:gap-2">
+              <button onClick={() => onPageChange(pagination.page - 1)} disabled={!pagination.hasPrev} className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              </button>
+              <span className="px-2 md:px-4 py-1 md:py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg text-xs md:text-sm">
+                {pagination.page} / {pagination.pages}
+              </span>
+              <button onClick={() => onPageChange(pagination.page + 1)} disabled={!pagination.hasNext} className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              </button>
+            </div>
+            <div className="flex items-center gap-1 border-l border-gray-200 pl-2 ml-1">
+              <span className="text-[10px] md:text-xs text-gray-400 font-medium mr-0.5">Load</span>
+              {PRODUCT_BULK_PAGE_SIZE_OPTIONS.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => onPageSizeChange(size)}
+                  title={`Fetch ${size} products from server`}
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                    pagination.limit === size
+                      ? 'bg-[#014582] text-white border-[#014582]'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+              {pagination.limit !== DEFAULT_PRODUCT_PAGE_SIZE && (
+                <button
+                  type="button"
+                  onClick={() => onPageSizeChange(DEFAULT_PRODUCT_PAGE_SIZE)}
+                  className="px-2 py-1.5 text-[10px] font-bold text-[#014582] hover:underline"
+                  title="Back to normal 20 per page"
+                >
+                  20
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -2181,10 +2219,10 @@ function ProductForm({
 // ============================================================
 export function ProductsPage() {
   const { selectedLocationId, selectedLocation } = useLocation();
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
-    page: 1, limit: 20, total: 0, pages: 0, hasNext: false, hasPrev: false,
+    page: 1, limit: DEFAULT_PRODUCT_PAGE_SIZE, total: 0, pages: 0, hasNext: false, hasPrev: false,
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -2245,90 +2283,43 @@ export function ProductsPage() {
 
   const fetchProducts = useCallback(async () => {
     if (!selectedLocationId) return;
-    console.log('🔵 [fetchProducts] Starting fetch', {
-      selectedLocationId,
-      searchTerm,
-    });
     setLoading(true);
     try {
-      // Load location stock for all products; category/status filtered client-side
+      const categoryIds = resolveProductCategoryIds(selectedCategory, categories);
       const result = await productService.getProducts({
-        page: 1,
-        limit: 500,
+        page: pagination.page,
+        limit: pagination.limit,
         search: searchTerm || undefined,
         locationId: selectedLocationId,
+        categoryIds,
+        stockStatus: selectedStatus !== 'all' ? (selectedStatus as 'low' | 'out' | 'in') : undefined,
       });
-      console.log('🔵 [fetchProducts] Received', result.data.length, 'products');
-      setAllProducts(result.data);
+      setProducts(result.data);
+      setPagination(result.pagination);
     } catch (error: any) {
-      console.error('❌ [fetchProducts] Failed to fetch products:', error);
+      console.error('Failed to fetch products:', error);
       alert(error.message || 'Failed to load products');
-      setAllProducts([]);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, selectedLocationId]);
+  }, [
+    selectedLocationId,
+    pagination.page,
+    pagination.limit,
+    searchTerm,
+    selectedCategory,
+    selectedStatus,
+    categories,
+  ]);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
-  // Client-side category + status filter (reliable; uses location-overlaid stock)
-  const filteredProducts = useMemo(() => {
-    let list = allProducts;
-
-    if (selectedCategory !== 'all') {
-      const childIds = categories
-        .filter((c) => String(c.parentId || '') === String(selectedCategory))
-        .map((c) => String(c.id || ''));
-      const allowed = new Set(
-        [String(selectedCategory), ...childIds].filter(Boolean)
-      );
-      list = list.filter((p) => allowed.has(String(p.categoryId || '')));
-    }
-
-    if (selectedStatus === 'in') {
-      list = list.filter((p) => Number(p.currentStock || 0) > 0);
-    } else if (selectedStatus === 'out') {
-      list = list.filter((p) => Number(p.currentStock || 0) === 0);
-    } else if (selectedStatus === 'low') {
-      list = list.filter((p) => {
-        const qty = Number(p.currentStock || 0);
-        const min = Number(p.minimumStock || 5);
-        return qty > 0 && qty <= min;
-      });
-    }
-
-    return list;
-  }, [allProducts, selectedCategory, selectedStatus, categories]);
-
-  const pageSize = 20;
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
-  const currentPage = Math.min(pagination.page, totalPages);
-  const pagedProducts = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredProducts.slice(start, start + pageSize);
-  }, [filteredProducts, currentPage]);
-
-  const listPagination = useMemo(
-    () => ({
-      page: currentPage,
-      limit: pageSize,
-      total: filteredProducts.length,
-      pages: totalPages,
-      hasNext: currentPage < totalPages,
-      hasPrev: currentPage > 1,
-    }),
-    [currentPage, filteredProducts.length, totalPages]
-  );
-
   useEffect(() => {
     setPagination((prev) => ({ ...prev, page: 1 }));
   }, [selectedLocationId]);
-
-  useEffect(() => {
-    setPagination((prev) => ({ ...prev, page: 1 }));
-  }, [selectedCategory, selectedStatus, searchTerm]);
 
   const handleBarcodeScan = useCallback(async (scannedValue: string) => {
     setShowScanner(false);
@@ -2358,14 +2349,19 @@ export function ProductsPage() {
 
   const handlePageChange = (page: number) =>
     setPagination((prev) => ({ ...prev, page }));
+  const handlePageSizeChange = (limit: number) =>
+    setPagination((prev) => ({ ...prev, limit, page: 1 }));
   const handleSearch = (val: string) => {
     setSearchTerm(val);
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
   const handleCategoryChange = (val: string) => {
     setSelectedCategory(val);
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
   const handleStatusChange = (val: string) => {
     setSelectedStatus(val);
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   const handleAddClick = () => { setEditingProduct(null); setShowCreateForm(true); };
@@ -2493,9 +2489,9 @@ export function ProductsPage() {
         />
       ) : (
         <ProductList
-          products={pagedProducts}
+          products={products}
           loading={loading}
-          pagination={listPagination}
+          pagination={pagination}
           searchTerm={searchTerm}
           setSearchTerm={handleSearch}
           selectedCategory={selectedCategory}
@@ -2503,6 +2499,7 @@ export function ProductsPage() {
           selectedStatus={selectedStatus}
           setSelectedStatus={handleStatusChange}
           onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
           onAddClick={handleAddClick}
           onEditClick={handleEditClick}
           onDeleteClick={handleDeleteClick}

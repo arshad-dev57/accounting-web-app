@@ -3,9 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
-  Headset,
-  ChevronDown,
-  Phone,
   Search,
   Loader2,
   Mail,
@@ -112,22 +109,6 @@ export default function RegisteredUsersPage() {
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
           <TopBarBrand title="Registered Users" />
           <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => {
-                window.location.href = '/support';
-              }}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all"
-            >
-              <Headset className="w-4 h-4" />
-              <span>Support Ticket</span>
-              <ChevronDown className="w-3 h-3" />
-            </button>
-            <div className="w-px h-6 bg-gray-200" />
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Phone className="w-4 h-4 text-[#014582]" />
-            </div>
-            <div className="w-px h-6 bg-gray-200" />
             <GlobalSearch />
             <div className="w-px h-6 bg-gray-200" />
             <ProfileDropdown accentClassName="bg-[#014582]" />

@@ -69,6 +69,12 @@ type ModuleItem = {
 
 const modules: ModuleItem[] = [
   {
+    title: 'Accounting',
+    href: '/accounting/dashboard',
+    Icon: AccountingAppIcon,
+    detail: 'Let\'s automate your bills, bank transactions and accounting processes.',
+  },
+  {
     title: 'Sales',
     href: '/sales/dashboard',
     Icon: SalesAppIcon,
@@ -93,18 +99,6 @@ const modules: ModuleItem[] = [
     detail: 'BOMs, production orders, work centers, MRP and shop-floor control in one place.',
   },
   {
-    title: 'Accounting',
-    href: '/accounting/dashboard',
-    Icon: AccountingAppIcon,
-    detail: 'Let\'s automate your bills, bank transactions and accounting processes.',
-  },
-  {
-    title: 'Point of Sale',
-    href: '/pos',
-    Icon: PosAppIcon,
-    detail: 'Run fast checkout counters with receipts, payments, and live sales updates.',
-  },
-  {
     title: 'HR Management',
     href: '/hr/dashboard',
     Icon: HrAppIcon,
@@ -115,6 +109,12 @@ const modules: ModuleItem[] = [
     href: '/tax',
     Icon: TaxAppIcon,
     detail: 'Stay compliant with tax filings, reports, and registration details.',
+  },
+  {
+    title: 'Point of Sale',
+    href: '/pos',
+    Icon: PosAppIcon,
+    detail: 'Run fast checkout counters with receipts, payments, and live sales updates.',
   },
   {
     title: 'Search',

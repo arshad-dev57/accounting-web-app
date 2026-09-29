@@ -31,8 +31,6 @@ import {
   Award,
   CalendarRange,
   UsersRound,
-  Headset,
-  Phone,
   FileText,
   Layers,
   Play,
@@ -45,7 +43,6 @@ import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
-import CompanySwitcher from '../../components/CompanySwitcher';
 import { performLogout } from '../../lib/auth-logout';
 
 const SECTIONS: {
@@ -225,24 +222,6 @@ export default function HRLayout({
           />
 
           <div className="flex items-center gap-4">
-            <CompanySwitcher />
-            <button
-              type="button"
-              onClick={() => { window.location.href = '/support'; }}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all"
-            >
-              <Headset className="w-4 h-4" />
-              <span>Support</span>
-            </button>
-
-            <div className="w-px h-6 bg-gray-200" />
-
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Phone className="w-4 h-4 text-[#014582]" />
-            </div>
-
-            <div className="w-px h-6 bg-gray-200" />
-
             <GlobalSearch />
 
             <div className="w-px h-6 bg-gray-200" />

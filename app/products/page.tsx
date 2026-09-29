@@ -11,7 +11,7 @@ import {
   Settings, Loader2, ChevronLeft, ChevronRight, Barcode,
   Camera, Download, Printer, CheckCircle, XCircle, ZoomIn,
   Thermometer, Package2, ShoppingCart, RotateCcw, Star,
-  Globe, AlertTriangle, Archive, Boxes, Home, Headset, Phone, ChevronDown as ChevronDownIcon, CreditCard
+  Globe, AlertTriangle, Archive, Boxes, Home, ChevronDown as ChevronDownIcon, CreditCard
 } from 'lucide-react';
 import { productService, Product, getProductId } from '../api/product/route';
 import { categoryService, Category } from '../api/category/route';
@@ -24,6 +24,11 @@ import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import { useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 import { BarcodeScannerModal } from '@/lib/barcode-scanner-modal';
+import {
+  DEFAULT_PRODUCT_PAGE_SIZE,
+  PRODUCT_BULK_PAGE_SIZE_OPTIONS,
+  resolveProductCategoryIds,
+} from '@/lib/product-pagination';
 
 function resolveCategorySelection(categories: Category[], categoryId?: string) {
   if (!categoryId) return { category: '', subCategory: '', subCategories: [] as Category[] };
@@ -244,8 +249,9 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-start justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl w-full max-w-4xl my-4 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-40 overflow-y-auto bg-black/50 backdrop-blur-sm">
+      <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
+      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[min(90vh,calc(100%-2rem))] shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-4">
@@ -307,7 +313,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
           })}
         </div>
 
-        <div className="p-6 max-h-[50vh] overflow-y-auto">
+        <div className="p-6 flex-1 overflow-y-auto min-h-0">
 
             {activeTab === 'overview' && (
             <div className="space-y-6">
@@ -549,6 +555,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
 
         </div>
       </div>
+      </div>
     </div>
   );
 }
@@ -559,7 +566,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
 function ProductList({
   products, loading, pagination, searchTerm, setSearchTerm,
   selectedCategory, setSelectedCategory, selectedStatus, setSelectedStatus,
-  onPageChange, onAddClick, onEditClick, onDeleteClick, onViewClick,
+  onPageChange, onPageSizeChange, onAddClick, onEditClick, onDeleteClick, onViewClick,
   onScanClick, categories,
 }: {
   products: Product[];
@@ -572,6 +579,7 @@ function ProductList({
   selectedStatus: string;
   setSelectedStatus: (val: string) => void;
   onPageChange: (page: number) => void;
+  onPageSizeChange: (limit: number) => void;
   onAddClick: () => void;
   onEditClick: (product: Product) => void;
   onDeleteClick: (id: string) => void;
@@ -717,22 +725,52 @@ function ProductList({
         </div>
       </div>
 
-      {pagination && pagination.pages > 1 && (
-        <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+      {pagination && pagination.total > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <p className="text-sm text-gray-500">
             Showing {(pagination.page - 1) * pagination.limit + 1} –{' '}
             {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} products
           </p>
-          <div className="flex gap-2">
-            <button onClick={() => onPageChange(pagination.page - 1)} disabled={!pagination.hasPrev} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg">
-              {pagination.page} / {pagination.pages}
-            </span>
-            <button onClick={() => onPageChange(pagination.page + 1)} disabled={!pagination.hasNext} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-              <ChevronRight className="w-4 h-4" />
-            </button>
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            <div className="flex gap-2">
+              <button onClick={() => onPageChange(pagination.page - 1)} disabled={!pagination.hasPrev} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg">
+                {pagination.page} / {pagination.pages}
+              </span>
+              <button onClick={() => onPageChange(pagination.page + 1)} disabled={!pagination.hasNext} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex items-center gap-1 border-l border-gray-200 pl-2 ml-1">
+              <span className="text-xs text-gray-400 font-medium mr-0.5">Load</span>
+              {PRODUCT_BULK_PAGE_SIZE_OPTIONS.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => onPageSizeChange(size)}
+                  title={`Fetch ${size} products from server`}
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                    pagination.limit === size
+                      ? 'bg-[#014582] text-white border-[#014582]'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+              {pagination.limit !== DEFAULT_PRODUCT_PAGE_SIZE && (
+                <button
+                  type="button"
+                  onClick={() => onPageSizeChange(DEFAULT_PRODUCT_PAGE_SIZE)}
+                  className="px-2 py-1.5 text-xs font-bold text-[#014582] hover:underline"
+                  title="Back to normal 20 per page"
+                >
+                  20
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1637,7 +1675,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
-    page: 1, limit: 20, total: 0, pages: 0, hasNext: false, hasPrev: false,
+    page: 1, limit: DEFAULT_PRODUCT_PAGE_SIZE, total: 0, pages: 0, hasNext: false, hasPrev: false,
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -1694,11 +1732,12 @@ const fetchDropdowns = async () => {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
+      const categoryIds = resolveProductCategoryIds(selectedCategory, categories);
       const result = await productService.getProducts({
         page: pagination.page,
         limit: pagination.limit,
-        search: searchTerm,
-        categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
+        search: searchTerm || undefined,
+        categoryIds,
         stockStatus: selectedStatus !== 'all' ? selectedStatus as any : undefined,
       });
       setProducts(result.data);
@@ -1709,7 +1748,7 @@ const fetchDropdowns = async () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, searchTerm, selectedCategory, selectedStatus]);
+  }, [pagination.page, pagination.limit, searchTerm, selectedCategory, selectedStatus, categories]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -1736,6 +1775,7 @@ const fetchDropdowns = async () => {
   }, !showCreateForm);
 
   const handlePageChange = (page: number) => setPagination(prev => ({ ...prev, page }));
+  const handlePageSizeChange = (limit: number) => setPagination(prev => ({ ...prev, limit, page: 1 }));
   const handleSearch = (val: string) => { setSearchTerm(val); setPagination(prev => ({ ...prev, page: 1 })); };
   const handleCategoryChange = (val: string) => { setSelectedCategory(val); setPagination(prev => ({ ...prev, page: 1 })); };
   const handleStatusChange = (val: string) => { setSelectedStatus(val); setPagination(prev => ({ ...prev, page: 1 })); };
@@ -1858,23 +1898,6 @@ const fetchDropdowns = async () => {
           />
 
           <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => { window.location.href = '/support'; }}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all"
-            >
-              <Headset className="w-4 h-4" />
-              <span>Support</span>
-            </button>
-
-            <div className="w-px h-6 bg-gray-200" />
-
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Phone className="w-4 h-4 text-[#014582]" />
-            </div>
-
-            <div className="w-px h-6 bg-gray-200" />
-
             <GlobalSearch />
 
             <div className="w-px h-6 bg-gray-200" />
@@ -1896,14 +1919,6 @@ const fetchDropdowns = async () => {
                 title="Scan barcode / QR"
                 onScan={handleBarcodeScan}
                 onClose={() => setShowScanner(false)}
-              />
-            )}
-
-            {viewingProduct && (
-              <ProductDetail
-                product={viewingProduct}
-                onClose={() => setViewingProduct(null)}
-                onEdit={() => handleEditClick(viewingProduct)}
               />
             )}
 
@@ -1929,6 +1944,7 @@ const fetchDropdowns = async () => {
                 selectedStatus={selectedStatus}
                 setSelectedStatus={handleStatusChange}
                 onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
                 onAddClick={handleAddClick}
                 onEditClick={handleEditClick}
                 onDeleteClick={handleDeleteClick}
@@ -1939,6 +1955,14 @@ const fetchDropdowns = async () => {
             )}
           </div>
         </div>
+
+        {viewingProduct && (
+          <ProductDetail
+            product={viewingProduct}
+            onClose={() => setViewingProduct(null)}
+            onEdit={() => handleEditClick(viewingProduct)}
+          />
+        )}
       </div>
     </div>
   );
