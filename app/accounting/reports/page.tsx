@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { loadCurrencyLocal } from '../../../lib/currency-service';
+import { browserCompanyAuthHeaders } from '../../../lib/company-api-headers';
+import { useCompanyOptional } from '../../../lib/company-context';
 
 type ReportRow = {
   id: string;
@@ -84,11 +86,6 @@ function formatDate(iso?: string) {
   });
 }
 
-function authHeaders(): HeadersInit {
-  const token = localStorage.getItem('auth_token') || '';
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 function channelBadgeClass(channel: string) {
   switch (channel) {
     case 'invoices':
@@ -111,6 +108,7 @@ function channelBadgeClass(channel: string) {
 }
 
 export function AccountingReportsPage() {
+  const companyCtx = useCompanyOptional();
   const [period, setPeriod] = useState('month');
   const [channel, setChannel] = useState('all');
   const [status, setStatus] = useState('all');
@@ -147,7 +145,7 @@ export function AccountingReportsPage() {
       setLoading(true);
       setError('');
       const res = await fetch(`/api/accounting/reports?${queryString}`, {
-        headers: authHeaders(),
+        headers: browserCompanyAuthHeaders(),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -169,14 +167,14 @@ export function AccountingReportsPage() {
   useEffect(() => {
     fetchReport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryString]);
+  }, [queryString, companyCtx?.activeCompanyId]);
 
   const fetchAllForExport = async (): Promise<ReportRow[]> => {
     const qs = new URLSearchParams(queryString);
     qs.set('page', '1');
     qs.set('limit', '2000');
     const res = await fetch(`/api/accounting/reports?${qs.toString()}`, {
-      headers: authHeaders(),
+      headers: browserCompanyAuthHeaders(),
     });
     const data = await res.json();
     if (!res.ok || !data.success) {

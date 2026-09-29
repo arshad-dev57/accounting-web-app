@@ -14,6 +14,26 @@ export interface PurchaseOrderModel {
   totalDiscount: number;
   totalTax: number;
   grandTotal: number;
+  currencyId?: string | null;
+  currency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol: string;
+    decimalPlaces?: number;
+  } | null;
+  baseCurrencyId?: string | null;
+  baseCurrency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol: string;
+    decimalPlaces?: number;
+  } | null;
+  exchangeRate?: number | string;
+  exchangeRateDate?: string | null;
+  foreignAmount?: number | string | null;
+  baseAmount?: number | string | null;
   totalItems: number;
   notes?: string;
   termsConditions?: string;
@@ -69,6 +89,14 @@ export interface Supplier {
   taxId?: string;
   status?: string;
   isActive: boolean;
+  currencyId?: string | null;
+  currency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol: string;
+    decimalPlaces?: number;
+  } | null;
 }
 
 import { normalizeProduct } from '../product/route';
@@ -139,6 +167,9 @@ export interface CreatePurchaseOrderRequest {
   termsConditions?: string;
   status: string;
   locationId?: string;
+  currencyId?: string;
+  exchangeRate?: number;
+  exchangeRateDate?: string;
 }
 
 // ─── SERVICE ──────────────────────────────────────────────────

@@ -25,6 +25,14 @@ import EmailService from '../../../lib/email-service';
 import TaxRateSelect from '../../../components/TaxRateSelect';
 import { useLocationOptional } from '@/lib/location-context';
 import { SupplierDetailCard, ProductDetailCard } from '../../components/purchases/EnterpriseDetailCards';
+import {
+  computeBaseAmount,
+  fetchBaseCurrency,
+  fetchCurrencies,
+  formatMoney,
+  lookupRate,
+  type CurrencyMaster,
+} from '../../../lib/multi-currency';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -88,6 +96,9 @@ interface WizardState {
   expectedDeliveryDate: string;
   notes: string;
   termsConditions: string;
+  currencyId: string;
+  exchangeRate: string;
+  exchangeRateDate: string;
 }
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
@@ -145,8 +156,14 @@ export function PurchaseOrdersPage() {
     orderDate: new Date().toISOString().split('T')[0],
     expectedDeliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     notes: '',
-    termsConditions: ''
+    termsConditions: '',
+    currencyId: '',
+    exchangeRate: '1',
+    exchangeRateDate: new Date().toISOString().split('T')[0],
   });
+  const [currencies, setCurrencies] = useState<CurrencyMaster[]>([]);
+  const [baseCurrency, setBaseCurrency] = useState<CurrencyMaster | null>(null);
+  const [rateLookupLoading, setRateLookupLoading] = useState(false);
 
   const statusOptions = ['all', 'Draft', 'Sent', 'Approved', 'Cancelled'];
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -157,6 +174,10 @@ export function PurchaseOrdersPage() {
   const selectedTotalDiscount = wizardState.lineDrafts.reduce((sum, line) => sum + line.discountAmount, 0);
   const selectedTotalTax = wizardState.lineDrafts.reduce((sum, line) => sum + line.taxAmount, 0);
   const selectedGrandTotal = selectedSubtotal - selectedTotalDiscount + selectedTotalTax;
+  const selectedBaseTotal = computeBaseAmount(selectedGrandTotal, wizardState.exchangeRate);
+  const selectedCurrency =
+    currencies.find((c) => c.id === wizardState.currencyId) ||
+    (wizardState.currencyId === baseCurrency?.id ? baseCurrency : null);
   const totalItems = wizardState.lineDrafts.reduce((sum, line) => sum + line.quantity, 0);
 
   const canGoToStep2 = wizardState.selectedSupplier !== null;
@@ -256,6 +277,23 @@ export function PurchaseOrdersPage() {
   useEffect(() => {
     fetchOrders(true);
     fetchUserProfile();
+    (async () => {
+      try {
+        const [list, base] = await Promise.all([
+          fetchCurrencies(true),
+          fetchBaseCurrency(),
+        ]);
+        setCurrencies(list);
+        setBaseCurrency(base);
+        setWizardState((prev) => ({
+          ...prev,
+          currencyId: prev.currencyId || base?.id || '',
+          exchangeRate: prev.exchangeRate || '1',
+        }));
+      } catch (e) {
+        console.error('Failed to load currencies:', e);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -321,6 +359,8 @@ export function PurchaseOrdersPage() {
         phone: order.supplierPhone,
         address: order.supplierAddress,
         isActive: true,
+        currencyId: order.currencyId || undefined,
+        currency: order.currency || undefined,
       },
       supplierSearchResults: [],
       isSearchingSuppliers: false,
@@ -350,6 +390,12 @@ export function PurchaseOrdersPage() {
       expectedDeliveryDate: order.expectedDeliveryDate?.slice(0, 10) || '',
       notes: order.notes || '',
       termsConditions: order.termsConditions || '',
+      currencyId: order.currencyId || baseCurrency?.id || '',
+      exchangeRate: String(order.exchangeRate ?? 1),
+      exchangeRateDate:
+        (order.exchangeRateDate && String(order.exchangeRateDate).slice(0, 10)) ||
+        order.orderDate?.slice(0, 10) ||
+        new Date().toISOString().split('T')[0],
     });
     setShowCreateWizard(true);
   };
@@ -373,7 +419,10 @@ export function PurchaseOrdersPage() {
       orderDate: new Date().toISOString().split('T')[0],
       expectedDeliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       notes: '',
-      termsConditions: ''
+      termsConditions: '',
+      currencyId: baseCurrency?.id || '',
+      exchangeRate: '1',
+      exchangeRateDate: new Date().toISOString().split('T')[0],
     });
   };
 
@@ -394,13 +443,63 @@ export function PurchaseOrdersPage() {
     }
   };
 
+  const applyCurrencyRate = async (
+    currencyId: string,
+    asOfDate?: string,
+    preserveManualRate = false
+  ) => {
+    if (!currencyId) return;
+    const date = asOfDate || wizardState.orderDate || new Date().toISOString().split('T')[0];
+    setWizardState((prev) => ({
+      ...prev,
+      currencyId,
+      exchangeRateDate: date,
+    }));
+
+    if (!baseCurrency?.id || currencyId === baseCurrency.id) {
+      setWizardState((prev) => ({
+        ...prev,
+        currencyId,
+        exchangeRate: '1',
+        exchangeRateDate: date,
+      }));
+      return;
+    }
+
+    if (preserveManualRate) return;
+
+    setRateLookupLoading(true);
+    try {
+      const found = await lookupRate({
+        fromCurrencyId: currencyId,
+        toCurrencyId: baseCurrency.id,
+        date,
+      });
+      setWizardState((prev) => ({
+        ...prev,
+        currencyId,
+        exchangeRate: found?.rate ? String(found.rate) : prev.exchangeRate || '1',
+        exchangeRateDate: date,
+      }));
+    } finally {
+      setRateLookupLoading(false);
+    }
+  };
+
   const selectSupplier = (supplier: Supplier) => {
     const id = String(supplier.id || (supplier as any)._id || '');
-    setWizardState(prev => ({
+    const supplierCurrencyId =
+      supplier.currencyId ||
+      supplier.currency?.id ||
+      baseCurrency?.id ||
+      '';
+    setWizardState((prev) => ({
       ...prev,
       selectedSupplier: { ...supplier, id },
-      supplierSearchResults: []
+      supplierSearchResults: [],
+      currencyId: supplierCurrencyId,
     }));
+    void applyCurrencyRate(supplierCurrencyId, wizardState.orderDate);
   };
 
   const searchProducts = async (query: string) => {
@@ -550,7 +649,12 @@ export function PurchaseOrdersPage() {
       return;
     }
     if (wizardState.step < 2) {
-      setWizardState(prev => ({ ...prev, step: prev.step + 1 }));
+      const next = wizardState.step + 1;
+      setWizardState(prev => ({ ...prev, step: next }));
+      // When entering details step, refresh rate from supplier currency
+      if (next === 2 && wizardState.currencyId) {
+        void applyCurrencyRate(wizardState.currencyId, wizardState.orderDate);
+      }
     }
   };
 
@@ -606,6 +710,9 @@ export function PurchaseOrdersPage() {
         termsConditions: wizardState.termsConditions || undefined,
         status: 'Draft' as const,
         locationId: selectedLocationId || undefined,
+        currencyId: wizardState.currencyId || undefined,
+        exchangeRate: Number(wizardState.exchangeRate) || 1,
+        exchangeRateDate: wizardState.exchangeRateDate || wizardState.orderDate,
       };
 
       if (editingOrderId) {
@@ -775,8 +882,16 @@ export function PurchaseOrdersPage() {
 
 
   const formatCurrency = (amount: number | undefined | null) => {
-    if (amount === undefined || amount === null) return 'Rs. 0.00';
-    return `Rs. ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    // List / detail amounts: company base display
+    if (amount === undefined || amount === null) {
+      return formatMoney(0, baseCurrency);
+    }
+    return formatMoney(amount, baseCurrency);
+  };
+
+  const formatTxnCurrency = (amount: number | undefined | null) => {
+    // Wizard line amounts: supplier / document currency
+    return formatMoney(amount ?? 0, selectedCurrency || baseCurrency);
   };
 
   const formatDate = (date: string) => {
@@ -809,8 +924,15 @@ export function PurchaseOrdersPage() {
           selectedTotalDiscount={selectedTotalDiscount}
           selectedTotalTax={selectedTotalTax}
           selectedGrandTotal={selectedGrandTotal}
+          selectedBaseTotal={selectedBaseTotal}
+          selectedCurrency={selectedCurrency}
+          baseCurrency={baseCurrency}
+          currencies={currencies}
+          rateLookupLoading={rateLookupLoading}
+          applyCurrencyRate={applyCurrencyRate}
           totalItems={totalItems}
-          formatCurrency={formatCurrency}
+          formatCurrency={formatTxnCurrency}
+          formatBaseCurrency={(n: number) => formatMoney(n, baseCurrency)}
         />
       ) : (
         <>
@@ -996,6 +1118,12 @@ export function PurchaseOrdersPage() {
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
                           <p className="font-semibold text-gray-800 text-xs md:text-sm">{formatCurrency(order.grandTotal)}</p>
+                          {(order.currency?.code || order.currencyId) && (
+                            <p className="text-[10px] text-gray-400">
+                              {order.currency?.code || 'FX'}
+                              {order.exchangeRate != null ? ` @ ${order.exchangeRate}` : ''}
+                            </p>
+                          )}
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3 text-center hidden md:table-cell">
                           <span className="text-xs md:text-sm font-semibold text-gray-700">
@@ -1387,6 +1515,12 @@ function SupplierSelectorStep({
                       </h4>
                       {supplier.companyName && supplier.companyName !== supplier.name && (
                         <p className="text-xs text-gray-500">{supplier.companyName}</p>
+                      )}
+                      {(supplier.currency?.code || supplier.currencyId) && (
+                        <p className="text-[11px] font-semibold text-[#014582] mt-0.5">
+                          Currency: {supplier.currency?.code || 'Set'}
+                          {supplier.currency?.symbol ? ` (${supplier.currency.symbol})` : ''}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -2127,10 +2261,24 @@ function CreateOrderWizard({
   selectedTotalDiscount,
   selectedTotalTax,
   selectedGrandTotal,
+  selectedBaseTotal,
+  selectedCurrency,
+  baseCurrency,
+  currencies,
+  rateLookupLoading,
+  applyCurrencyRate,
   totalItems,
-  formatCurrency
+  formatCurrency,
+  formatBaseCurrency,
 }: any) {
   const { selectedLocationId } = useLocationOptional();
+  const isForeign =
+    !!selectedCurrency?.id &&
+    !!baseCurrency?.id &&
+    selectedCurrency.id !== baseCurrency.id;
+  const rateLabel = isForeign
+    ? `1 ${selectedCurrency?.code} = ${wizardState.exchangeRate || '—'} ${baseCurrency?.code}`
+    : `1 ${baseCurrency?.code || 'base'} = 1 (same currency)`;
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -2205,7 +2353,13 @@ function CreateOrderWizard({
                 <input
                   type="date"
                   value={wizardState.orderDate}
-                  onChange={(e) => setWizardState((prev: WizardState) => ({ ...prev, orderDate: e.target.value }))}
+                  onChange={(e) => {
+                    const orderDate = e.target.value;
+                    setWizardState((prev: WizardState) => ({ ...prev, orderDate }));
+                    if (wizardState.currencyId) {
+                      void applyCurrencyRate(wizardState.currencyId, orderDate);
+                    }
+                  }}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
@@ -2218,6 +2372,73 @@ function CreateOrderWizard({
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
                 />
               </div>
+            </div>
+
+            {/* Supplier currency — auto from supplier (not manual entry) */}
+            <div className="mt-4 p-4 rounded-xl border border-blue-100 bg-blue-50/60 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-bold text-[#014582]">Currency from supplier</p>
+                {rateLookupLoading && (
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Looking up rate…
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Supplier currency</p>
+                  <p className="font-semibold text-gray-900 mt-0.5">
+                    {selectedCurrency
+                      ? `${selectedCurrency.code} (${selectedCurrency.symbol})`
+                      : '—'}
+                  </p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    Set on supplier master — not edited here
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Exchange rate</p>
+                  <p className="font-semibold text-gray-900 mt-0.5">{rateLabel}</p>
+                  {isForeign ? (
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        value={wizardState.exchangeRate}
+                        onChange={(e) =>
+                          setWizardState((prev: WizardState) => ({
+                            ...prev,
+                            exchangeRate: e.target.value,
+                            exchangeRateDate: prev.orderDate,
+                          }))
+                        }
+                        className="w-28 px-2 py-1 border border-gray-200 rounded text-xs bg-white"
+                        title="Override only if needed"
+                      />
+                      <span className="text-[10px] text-gray-400">override if needed</span>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-gray-400 mt-0.5">No conversion required</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Converted total</p>
+                  <p className="font-semibold text-gray-900 mt-0.5">
+                    {formatCurrency(selectedGrandTotal)}
+                  </p>
+                  {isForeign && (
+                    <p className="text-xs text-[#014582] font-medium mt-0.5">
+                      = {formatBaseCurrency?.(selectedBaseTotal) || formatMoney(selectedBaseTotal, baseCurrency)}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {isForeign && Number(wizardState.exchangeRate) <= 0 && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                  No exchange rate found for this date. Add a rate under Settings → Exchange Rates, or enter one above.
+                </p>
+              )}
             </div>
 
             <div className="mt-4">
@@ -2269,11 +2490,37 @@ function CreateOrderWizard({
                   <span className="text-gray-500">Items</span>
                   <span className="font-medium">{totalItems} items</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Currency</span>
+                  <span className="font-medium">
+                    {selectedCurrency?.code || '—'}
+                    <span className="text-gray-400 font-normal text-xs ml-1">(from supplier)</span>
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Exchange Rate</span>
+                  <span className="font-medium">
+                    {isForeign
+                      ? `1 ${selectedCurrency?.code} = ${wizardState.exchangeRate} ${baseCurrency?.code}`
+                      : '1'}
+                  </span>
+                </div>
                 <hr className="border-gray-200" />
                 <div className="flex justify-between font-bold">
-                  <span>Grand Total</span>
-                  <span className="text-[#014582]">{formatCurrency(selectedGrandTotal)}</span>
+                  <span>Order Total ({selectedCurrency?.code || 'FC'})</span>
+                  <span className="text-[#014582]">
+                    {formatCurrency(selectedGrandTotal)}
+                  </span>
                 </div>
+                {isForeign && (
+                  <div className="flex justify-between font-semibold">
+                    <span>Base Total ({baseCurrency?.code || 'Base'})</span>
+                    <span className="text-gray-800">
+                      {formatBaseCurrency?.(selectedBaseTotal) ||
+                        formatMoney(selectedBaseTotal, baseCurrency)}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2418,6 +2665,12 @@ function OrderDetailModal({
                 <Package className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
                 {order.totalItems || 0} items
               </p>
+              {(order.currency || order.currencyId) && (
+                <p className="text-xs md:text-sm text-gray-600 mt-0.5">
+                  Currency: {order.currency?.code || '—'}
+                  {order.exchangeRate != null ? ` · Rate ${order.exchangeRate}` : ''}
+                </p>
+              )}
               {(order.totalReceivedQty ?? 0) > 0 || (order.receivingStatus && order.receivingStatus !== 'Not Received') ? (
                 <p className="text-xs md:text-sm text-[#014582] flex items-center gap-2 mt-0.5">
                   <Truck className="w-3.5 h-3.5 md:w-4 md:h-4" />

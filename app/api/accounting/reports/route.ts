@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { backendProxyHeaders } from '@/lib/company-api-headers';
 
 const API_BASE_URL = process.env.API_URL || 'https://account-backend-five.vercel.app';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const token =
-      request.cookies.get('auth_token')?.value ||
-      request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
-      '';
+    const { token, headers } = backendProxyHeaders(request);
 
     if (!token) {
       return NextResponse.json(
@@ -38,10 +36,7 @@ export async function GET(request: NextRequest) {
       `${API_BASE_URL}/api/accounting/reports?${qs.toString()}`,
       {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
         cache: 'no-store',
       }
     );

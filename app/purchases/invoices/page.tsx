@@ -23,6 +23,14 @@ import { purchaseInvoiceService, PurchaseInvoiceModel, PurchaseInvoiceStats, GRN
 import CreateInvoiceWizard from '../../components/purchases-invoices/CreateInvoiceWizard';
 import PDFService from '../../../lib/pdf-service';
 import EmailService from '../../../lib/email-service';
+import {
+  computeBaseAmount,
+  fetchBaseCurrency,
+  fetchCurrencies,
+  formatMoney,
+  lookupRate,
+  type CurrencyMaster,
+} from '../../../lib/multi-currency';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -38,6 +46,9 @@ interface WizardState {
   dueDate: string;
   paymentTerms: string;
   notes: string;
+  currencyId: string;
+  exchangeRate: string;
+  exchangeRateDate: string;
 }
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
@@ -94,8 +105,13 @@ export function PurchaseInvoicesPage() {
     invoiceDate: new Date().toISOString().split('T')[0],
     dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     paymentTerms: 'Net 30',
-    notes: ''
+    notes: '',
+    currencyId: '',
+    exchangeRate: '1',
+    exchangeRateDate: new Date().toISOString().split('T')[0],
   });
+  const [currencies, setCurrencies] = useState<CurrencyMaster[]>([]);
+  const [baseCurrency, setBaseCurrency] = useState<CurrencyMaster | null>(null);
 
   const statusOptions = ['all', 'Draft', 'Posted', 'Partially Paid', 'Paid', 'Cancelled'];
   const paymentOptions = ['all', 'Unpaid', 'Partial', 'Paid'];
@@ -107,6 +123,10 @@ export function PurchaseInvoicesPage() {
   const selectedTotalDiscount = wizardState.lineDrafts.reduce((sum, line) => sum + line.discountAmount, 0);
   const selectedTotalTax = wizardState.lineDrafts.reduce((sum, line) => sum + line.taxAmount, 0);
   const selectedGrandTotal = selectedSubtotal - selectedTotalDiscount + selectedTotalTax;
+  const selectedBaseTotal = computeBaseAmount(selectedGrandTotal, wizardState.exchangeRate);
+  const selectedCurrency =
+    currencies.find((c) => c.id === wizardState.currencyId) ||
+    (wizardState.currencyId === baseCurrency?.id ? baseCurrency : null);
   const totalItems = wizardState.lineDrafts.reduce(
     (sum, line) => sum + (line.quantity === '' ? 0 : Number(line.quantity) || 0),
     0
@@ -196,6 +216,22 @@ export function PurchaseInvoicesPage() {
 
   useEffect(() => {
     fetchInvoices(true);
+    (async () => {
+      try {
+        const [list, base] = await Promise.all([
+          fetchCurrencies(true),
+          fetchBaseCurrency(),
+        ]);
+        setCurrencies(list);
+        setBaseCurrency(base);
+        setWizardState((prev) => ({
+          ...prev,
+          currencyId: prev.currencyId || base?.id || '',
+        }));
+      } catch (e) {
+        console.error('Failed to load currencies:', e);
+      }
+    })();
   }, []);
 
   // ─── Search ──────────────────────────────────────────────────
@@ -264,8 +300,46 @@ export function PurchaseInvoicesPage() {
       invoiceDate: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       paymentTerms: 'Net 30',
-      notes: ''
+      notes: '',
+      currencyId: baseCurrency?.id || '',
+      exchangeRate: '1',
+      exchangeRateDate: new Date().toISOString().split('T')[0],
     });
+  };
+
+  const applyInvoiceCurrencyFromSources = async (
+    sources: (GRNSource | POSource)[],
+    invoiceDate: string
+  ) => {
+    const primary = sources[0];
+    if (!primary) return;
+    const currencyId =
+      primary.currencyId ||
+      primary.currency?.id ||
+      baseCurrency?.id ||
+      '';
+    let rate = primary.exchangeRate != null ? String(primary.exchangeRate) : '1';
+    if (
+      currencyId &&
+      baseCurrency?.id &&
+      currencyId !== baseCurrency.id &&
+      primary.exchangeRate == null
+    ) {
+      const found = await lookupRate({
+        fromCurrencyId: currencyId,
+        toCurrencyId: baseCurrency.id,
+        date: invoiceDate,
+      });
+      if (found?.rate) rate = String(found.rate);
+    } else if (currencyId && baseCurrency?.id && currencyId === baseCurrency.id) {
+      rate = '1';
+    }
+    setWizardState((prev) => ({
+      ...prev,
+      currencyId,
+      exchangeRate: rate,
+      exchangeRateDate: invoiceDate,
+    }));
   };
 
   const setSourceType = (type: 'grn' | 'po') => {
@@ -337,7 +411,7 @@ export function PurchaseInvoicesPage() {
   };
 
   const selectSource = (source: GRNSource | POSource) => {
-    setWizardState(prev => {
+    setWizardState((prev) => {
       const exists = prev.selectedSources.find((s) => {
         if (s.id === source.id) return true;
         if (
@@ -369,11 +443,33 @@ export function PurchaseInvoicesPage() {
         }
         selectedSources = [...prev.selectedSources, source];
       }
+
+      const primary = selectedSources[0];
+      const currencyId =
+        primary?.currencyId ||
+        primary?.currency?.id ||
+        baseCurrency?.id ||
+        prev.currencyId ||
+        '';
+      const exchangeRate =
+        primary?.exchangeRate != null
+          ? String(primary.exchangeRate)
+          : currencyId && baseCurrency?.id && currencyId === baseCurrency.id
+            ? '1'
+            : prev.exchangeRate || '1';
+
+      if (selectedSources.length > 0) {
+        void applyInvoiceCurrencyFromSources(selectedSources, prev.invoiceDate);
+      }
+
       return {
         ...prev,
         selectedSources,
         sourceSearchResults: [],
         lineDrafts: buildLineDraftsFromSources(selectedSources),
+        currencyId,
+        exchangeRate,
+        exchangeRateDate: prev.invoiceDate,
       };
     });
   };
@@ -419,6 +515,9 @@ export function PurchaseInvoicesPage() {
         paymentTerms: wizardState.paymentTerms || 'Net 30',
         notes: wizardState.notes || undefined,
         supplierInvoiceNo: wizardState.supplierInvoiceNo || undefined,
+        currencyId: wizardState.currencyId || undefined,
+        exchangeRate: Number(wizardState.exchangeRate) || 1,
+        exchangeRateDate: wizardState.exchangeRateDate || wizardState.invoiceDate,
         items: wizardState.lineDrafts.map((line) => ({
           ...line,
           quantity: line.quantity === '' ? 0 : Number(line.quantity) || 0,
@@ -587,6 +686,10 @@ export function PurchaseInvoicesPage() {
           selectedTotalDiscount={selectedTotalDiscount}
           selectedTotalTax={selectedTotalTax}
           selectedGrandTotal={selectedGrandTotal}
+          selectedBaseTotal={selectedBaseTotal}
+          selectedCurrency={selectedCurrency}
+          baseCurrency={baseCurrency}
+          currencies={currencies}
           totalItems={totalItems}
           formatCurrency={formatCurrency}
           formatDate={formatDate}
@@ -791,6 +894,15 @@ export function PurchaseInvoicesPage() {
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
                           <p className="font-semibold text-gray-800 text-xs md:text-sm">{formatCurrency(invoice.grandTotal)}</p>
+                          {invoice.currency?.code && (
+                            <p className="text-[10px] text-gray-400">
+                              {invoice.currency.code}
+                              {invoice.exchangeRate != null ? ` @ ${invoice.exchangeRate}` : ''}
+                              {invoice.baseAmount != null
+                                ? ` · Local ${Number(invoice.baseAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                : ''}
+                            </p>
+                          )}
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3 hidden md:table-cell">
                           <p className={`text-xs md:text-sm font-semibold ${invoice.isOverdue ? 'text-red-600' : 'text-orange-600'}`}>
@@ -1192,6 +1304,34 @@ function InvoiceDetailModal({
                 <span className="font-semibold text-gray-700">Grand Total</span>
                 <span className="font-bold text-lg text-[#014582]">{formatCurrency(invoice.grandTotal)}</span>
               </div>
+              {(invoice.currency || invoice.currencyId) && (
+                <>
+                  <div className="flex justify-between items-center text-xs md:text-sm">
+                    <span className="text-gray-500">Currency</span>
+                    <span className="font-semibold text-gray-800">{invoice.currency?.code || '—'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs md:text-sm">
+                    <span className="text-gray-500">Exchange Rate</span>
+                    <span className="font-semibold text-gray-800">{invoice.exchangeRate ?? 1}</span>
+                  </div>
+                  {invoice.foreignAmount != null && (
+                    <div className="flex justify-between items-center text-xs md:text-sm">
+                      <span className="text-gray-500">Foreign Amount</span>
+                      <span className="font-semibold text-gray-800">
+                        {formatMoney(invoice.foreignAmount, invoice.currency)}
+                      </span>
+                    </div>
+                  )}
+                  {invoice.baseAmount != null && (
+                    <div className="flex justify-between items-center text-xs md:text-sm">
+                      <span className="text-gray-500">Local / Base Amount</span>
+                      <span className="font-semibold text-gray-800">
+                        {formatMoney(invoice.baseAmount, invoice.baseCurrency)}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
               <div className="flex justify-between items-center text-xs md:text-sm">
                 <span className="text-gray-500">Paid</span>
                 <span className="font-semibold text-green-600">{formatCurrency(invoice.paidAmount)}</span>

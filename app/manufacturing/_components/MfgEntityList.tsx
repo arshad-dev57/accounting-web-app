@@ -173,6 +173,7 @@ export function MfgEntityList({
       setError(e.message || 'Failed to load data');
     } finally {
       setLoading(false);
+      
     }
   }, [page, search, locationIdForApi, service, requireLocation]);
 
@@ -410,7 +411,7 @@ export function MfgEntityList({
         ) : error ? (
           <MfgError message={error} />
         ) : rows.length === 0 ? (
-          <MfgEmpty title="No records" message="Records created here appear once the backend returns data." />
+          <MfgEmpty title="No records" message="" />
         ) : (
           <>
             <MfgTable columns={[...columns.map((c) => c.label), ...(service.remove || service.update ? [''] : [])]}>

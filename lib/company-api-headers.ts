@@ -1,11 +1,6 @@
-/**
- * Multi-company request headers for browser fetches and Next.js API proxies.
- * Keep this file free of 'use client' imports so API routes can use it.
- */
+
 
 export const COMPANY_STORAGE_KEY = 'bisonstechs_active_company_id';
-
-/** Browser-side: Authorization + X-Company-Id for raw fetch() calls. */
 export function browserCompanyAuthHeaders(
   extra: Record<string, string> = {}
 ): Record<string, string> {
@@ -21,11 +16,6 @@ export function browserCompanyAuthHeaders(
   }
   return headers;
 }
-
-/**
- * Next.js route handler: forward auth + active company to the Express backend.
- * Reads X-Company-Id from the incoming request, or falls back to cookie.
- */
 export function backendProxyHeaders(request: {
   cookies: { get: (name: string) => { value: string } | undefined };
   headers: { get: (name: string) => string | null };

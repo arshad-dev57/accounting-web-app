@@ -60,7 +60,6 @@ function buildProductFormState(editingProduct?: Product | null, categories: Cate
     costPrice: editingProduct?.costPrice ?? '',
     sellingPrice: editingProduct?.sellingPrice ?? '',
     landingCost: editingProduct?.landingCost ?? '',
-    currency: editingProduct?.currency || editingProduct?.currencyCode || 'PKR',
     taxRate: editingProduct?.taxRate ?? '',
     taxType: editingProduct?.taxType || editingProduct?.taxTypeName || '',
     stockUnit: editingProduct?.stockUnit || editingProduct?.stockUnitName || '',
@@ -370,7 +369,6 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
                 <DetailRow label="Cost Price" value={`Rs. ${Number(product.costPrice || 0).toLocaleString()}`} />
                 <DetailRow label="Selling Price" value={`Rs. ${Number(product.sellingPrice || 0).toLocaleString()}`} />
                 <DetailRow label="Landing Cost" value={product.landingCost ? `Rs. ${Number(product.landingCost).toLocaleString()}` : undefined} />
-                <DetailRow label="Currency" value={product.currency || 'PKR'} />
                 <DetailRow label="Tax Rate" value={product.taxRate ? `${product.taxRate}%` : undefined} />
                 <DetailRow label="Tax Type" value={product.taxType} />
                 {product.costPrice && product.sellingPrice && (
@@ -916,7 +914,6 @@ const handleSubmit = async (e: React.FormEvent) => {
         storageCondition: 'storageCondition',
         brand: 'brand',
         modelNumber: 'modelNumber',
-        currency: 'currency',
         landingCost: 'landingCost',
         leadTime: 'leadTime',
         reorderPoint: 'reorderPoint',
@@ -1067,17 +1064,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input type="number" step="0.01" placeholder="0.00" value={formData.landingCost} onChange={(e) => handleInputChange('landingCost', e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Currency *</label>
-                <div className="flex gap-2">
-                  <select value={formData.currency} onChange={(e) => handleInputChange('currency', e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50">
-                    <option>PKR</option><option>USD</option><option>EUR</option><option>GBP</option><option>AUD</option>
-                  </select>
-                  <Link href="/warehouse/product-settings" className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all group flex-shrink-0">
-                    <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#014582]" />
-                  </Link>
                 </div>
               </div>
               <div className="md:col-span-2">

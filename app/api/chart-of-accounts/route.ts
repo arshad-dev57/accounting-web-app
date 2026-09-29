@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { backendProxyHeaders } from '@/lib/company-api-headers';
 
 const API_BASE_URL = process.env.API_URL || 'https://account-backend-five.vercel.app';
 
-function getToken(request: NextRequest) {
-  return (
-    request.cookies.get('auth_token')?.value ||
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
-    ''
-  );
-}
 
 function buildQuery(searchParams: URLSearchParams) {
   const qs = new URLSearchParams();
@@ -25,7 +19,7 @@ function buildQuery(searchParams: URLSearchParams) {
 
 export async function GET(request: NextRequest) {
   try {
-    const token = getToken(request);
+    const { token, headers } = backendProxyHeaders(request);
     if (!token) {
       return NextResponse.json(
         { success: false, message: 'Authentication required' },
@@ -38,10 +32,7 @@ export async function GET(request: NextRequest) {
       `${API_BASE_URL}/api/chart-of-accounts?${qs.toString()}`,
       {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
         cache: 'no-store',
       }
     );
@@ -58,7 +49,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = getToken(request);
+    const { token, headers } = backendProxyHeaders(request);
     if (!token) {
       return NextResponse.json(
         { success: false, message: 'Authentication required' },
@@ -69,10 +60,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const response = await fetch(`${API_BASE_URL}/api/chart-of-accounts`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(body),
     });
 

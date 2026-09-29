@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { backendProxyHeaders } from '@/lib/company-api-headers';
 
 const API_BASE_URL = process.env.API_URL || 'https://account-backend-five.vercel.app';
 
 async function proxyGeneralLedger(request: NextRequest, pathSegments: string[]) {
   try {
-    const token =
-      request.cookies.get('auth_token')?.value ||
-      request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
-      '';
+    const { token, headers } = backendProxyHeaders(request);
 
     if (!token) {
       return NextResponse.json(
@@ -45,10 +43,7 @@ async function proxyGeneralLedger(request: NextRequest, pathSegments: string[]) 
 
     const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
       cache: 'no-store',
     });
 

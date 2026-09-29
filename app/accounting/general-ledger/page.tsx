@@ -23,6 +23,7 @@ import {
 import { generalLedgerService, AccountSummary, LedgerEntry, LedgerStats } from '../../../lib/general-ledger-service';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { useCurrency } from '../../../lib/currency-context';
+import { useCompanyOptional } from '../../../lib/company-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -73,6 +74,7 @@ export function GeneralLedgerPage() {
 
   const { symbol: currencySymbol } = useCurrency();
   const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
+  const companyCtx = useCompanyOptional();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestRequestRef = useRef(0);
@@ -93,7 +95,7 @@ export function GeneralLedgerPage() {
       console.error('Failed to fetch account summaries:', error);
       setAccountSummaries([]);
     }
-  }, [filter.startDate, filter.endDate, selectedFiscalYearId]);
+  }, [filter.startDate, filter.endDate, selectedFiscalYearId, companyCtx?.activeCompanyId]);
 
   const fetchEntries = useCallback(async (page: number) => {
     const requestId = ++latestRequestRef.current;
@@ -142,7 +144,7 @@ export function GeneralLedgerPage() {
         setLoading(false);
       }
     }
-  }, [filter, debouncedSearch, selectedFiscalYearId]);
+  }, [filter, debouncedSearch, selectedFiscalYearId, companyCtx?.activeCompanyId]);
 
   useEffect(() => {
     fetchAccountSummaries();
@@ -150,7 +152,7 @@ export function GeneralLedgerPage() {
 
   useEffect(() => {
     fetchEntries(1);
-  }, [filter, debouncedSearch, fetchEntries]);
+  }, [filter, debouncedSearch, fetchEntries, companyCtx?.activeCompanyId]);
 
   useEffect(() => {
     return () => {

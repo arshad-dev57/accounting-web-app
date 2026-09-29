@@ -8,7 +8,6 @@ export type BarcodeScannerModalProps = {
   onClose: () => void;
   title?: string;
 };
-
 function pickCameraDeviceId(devices: Array<{ deviceId: string; label: string }>): string | undefined {
   if (!devices.length) return undefined;
   if (devices.length === 1) return devices[0].deviceId;

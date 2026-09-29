@@ -27,6 +27,16 @@ export interface Bill {
   status: 'Unpaid' | 'Paid' | 'Overdue' | 'Partial';
   reference: string;
   description: string;
+  currencyId?: string | null;
+  currency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol: string;
+  } | null;
+  exchangeRate?: number | string;
+  foreignAmount?: number | string | null;
+  baseAmount?: number | string | null;
   createdAt: string;
   updatedAt: string;
 }

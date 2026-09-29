@@ -45,6 +45,8 @@ const PAGE_LABELS: Record<string, string> = {
   'payments-received': 'Payments Received',
   'credit-notes': 'Credit Notes',
   'fiscal-years': 'Fiscal Years',
+  currencies: 'Currency Master',
+  'exchange-rates': 'Exchange Rates',
   journal: 'Journal',
   expenses: 'Expenses',
   income: 'Income',

@@ -15,6 +15,17 @@ export interface PurchasePaymentModel {
   bankAccountName: string;
   notes: string;
   status: 'Completed' | 'Pending' | 'Failed' | 'Cancelled';
+  currencyId?: string | null;
+  currency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol: string;
+  } | null;
+  exchangeRate?: number | string;
+  exchangeRateDate?: string | null;
+  foreignAmount?: number | string | null;
+  baseAmount?: number | string | null;
   createdBy: string;
   updatedBy?: string;
   isActive: boolean;
@@ -83,6 +94,13 @@ export interface Supplier {
   taxId?: string;
   address?: string;
   isActive: boolean;
+  currencyId?: string | null;
+  currency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol: string;
+  } | null;
 }
 
 export interface BankAccount {
@@ -109,6 +127,16 @@ export interface PurchaseInvoiceForPayment {
   supplierInvoiceNo?: string;
   isSelected: boolean;
   amountToPay: number;
+  currencyId?: string | null;
+  currency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol: string;
+  } | null;
+  exchangeRate?: number | string;
+  foreignAmount?: number | string | null;
+  baseAmount?: number | string | null;
 }
 
 export interface PurchasePaymentStats {
@@ -141,6 +169,9 @@ export interface MakePaymentRequest {
   bankAccountName?: string;
   reference?: string;
   notes?: string;
+  currencyId?: string;
+  exchangeRate?: number;
+  exchangeRateDate?: string;
   invoicePayments: Array<{
     invoiceId: string;
     invoiceNumber: string;

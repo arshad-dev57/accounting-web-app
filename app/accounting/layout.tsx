@@ -101,7 +101,9 @@ function AccountingSidebar() {
   const settingsPages = [
     { path: '/accounting/fiscal-years', label: 'Fiscal Years', permission: 'settings' },
     { path: '/tax', label: 'Tax Compliance', permission: 'settings' },
-    { path: '/accounting/currency', label: 'Currency', permission: 'currency' },
+    { path: '/accounting/currency', label: 'Display Currency', permission: 'currency' },
+    { path: '/accounting/settings/currencies', label: 'Currency Master', permission: 'settings' },
+    { path: '/accounting/settings/exchange-rates', label: 'Exchange Rates', permission: 'settings' },
     { path: '/accounting/pdf-reports', label: 'PDF Reports', permission: 'settings' },
   ];
 

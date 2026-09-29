@@ -89,7 +89,9 @@ function PurchasesSidebar() {
       ? [{ path: '/plans', label: 'Subscription Plans', permission: '*' as const }]
       : []),
     { path: '/tax', label: 'Tax Compliance', permission: 'settings' },
-    { path: '/purchases/currency', label: 'Currency', permission: 'currency' },
+    { path: '/purchases/currency', label: 'Display Currency', permission: 'currency' },
+    { path: '/accounting/settings/currencies', label: 'Currency Master', permission: 'settings' },
+    { path: '/accounting/settings/exchange-rates', label: 'Exchange Rates', permission: 'settings' },
     { path: '/accounting/pdf-reports', label: 'PDF Reports', permission: 'settings' },
     { path: '/purchases/settings', label: 'Purchases Settings', permission: 'settings' },
   ];

@@ -1,9 +1,14 @@
 'use client';
 
+import { LocationProvider } from '@/lib/location-context';
 import { ProductsPage } from '../../warehouse/products/page';
 
 export function PurchasesProductsPage() {
-  return <ProductsPage />;
+  return (
+    <LocationProvider>
+      <ProductsPage />
+    </LocationProvider>
+  );
 }
 
 /** Next.js route shell — real UI mounts via ModuleViewHost. */

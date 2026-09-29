@@ -11,6 +11,12 @@ import {
 } from 'lucide-react';
 import { getNames } from 'country-list';
 import { supplierService, Supplier } from '../../api/supplier/route'; // adjust path if needed
+import { apiClient } from '../../lib/api-client';
+import {
+  fetchBaseCurrency,
+  fetchCurrencies,
+  type CurrencyMaster,
+} from '../../../lib/multi-currency';
 
 // Get all countries
 const countries = getNames().sort();
@@ -250,6 +256,33 @@ function SupplierDetailsModal({
   supplier: Supplier; 
   onClose: () => void;
 }) {
+  const [ledger, setLedger] = useState<any[]>([]);
+  const [ledgerTotals, setLedgerTotals] = useState<{ foreignBalance: number; localBalance: number } | null>(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+
+  useEffect(() => {
+    const id = supplier?.id || supplier?._id;
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      setLedgerLoading(true);
+      try {
+        const response = await apiClient.get(`/api/warehouse/supplier/${id}/ledger`);
+        if (cancelled) return;
+        const payload = response.data?.data || response.data || {};
+        setLedger(Array.isArray(payload.ledger) ? payload.ledger : []);
+        setLedgerTotals(payload.totals || null);
+      } catch (e) {
+        console.error('Failed to load supplier ledger', e);
+      } finally {
+        if (!cancelled) setLedgerLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supplier?.id, supplier?._id]);
+
   if (!supplier) return null;
 
   const detailRows = [
@@ -267,13 +300,19 @@ function SupplierDetailsModal({
     { label: 'Industry', value: supplier.industry || '-' },
     { label: 'Business Type', value: supplier.businessType || '-' },
     { label: 'Payment Terms', value: supplier.paymentTerms || '-' },
+    {
+      label: 'Currency',
+      value: supplier.currency
+        ? `${supplier.currency.code} (${supplier.currency.symbol})`
+        : supplier.currencyId || '-',
+    },
     { label: 'Created At', value: supplier.createdAt ? new Date(supplier.createdAt).toLocaleDateString() : '-' },
     { label: 'Updated At', value: supplier.updatedAt ? new Date(supplier.updatedAt).toLocaleDateString() : '-' },
   ];
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50 rounded-t-2xl">
           <div className="flex items-center gap-3">
@@ -289,7 +328,7 @@ function SupplierDetailsModal({
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {detailRows.map((row, index) => (
               <div key={index} className={`${index % 2 === 0 ? 'md:col-span-1' : 'md:col-span-1'}`}>
@@ -297,6 +336,71 @@ function SupplierDetailsModal({
                 <p className="text-sm font-medium text-gray-800 mt-1 break-words">{row.value}</p>
               </div>
             ))}
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold text-gray-800 mb-3">Supplier Ledger</h3>
+            {ledgerLoading ? (
+              <p className="text-sm text-gray-500">Loading ledger…</p>
+            ) : ledger.length === 0 ? (
+              <p className="text-sm text-gray-400">No purchase documents yet.</p>
+            ) : (
+              <div className="overflow-x-auto border border-gray-100 rounded-lg">
+                <table className="min-w-full text-xs">
+                  <thead className="bg-gray-50 text-gray-500 uppercase">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Date</th>
+                      <th className="px-3 py-2 text-left">Document</th>
+                      <th className="px-3 py-2 text-left">Currency</th>
+                      <th className="px-3 py-2 text-right">Foreign</th>
+                      <th className="px-3 py-2 text-right">Rate</th>
+                      <th className="px-3 py-2 text-right">Local</th>
+                      <th className="px-3 py-2 text-right">Balance (FC)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ledger.map((row) => (
+                      <tr key={`${row.documentType}-${row.documentId}`} className="border-t border-gray-50">
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {row.date ? new Date(row.date).toLocaleDateString() : '-'}
+                        </td>
+                        <td className="px-3 py-2">
+                          {row.documentType} {row.documentNumber}
+                        </td>
+                        <td className="px-3 py-2">{row.currencyCode || '-'}</td>
+                        <td className="px-3 py-2 text-right">
+                          {row.direction === 'credit' ? '-' : ''}
+                          {Number(row.foreignAmount).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </td>
+                        <td className="px-3 py-2 text-right">{row.exchangeRate}</td>
+                        <td className="px-3 py-2 text-right">
+                          {Number(row.localAmount).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </td>
+                        <td className="px-3 py-2 text-right font-medium">
+                          {Number(row.foreignBalance).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}{' '}
+                          {row.currencyCode || ''}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {ledgerTotals && (
+                  <div className="px-3 py-2 bg-gray-50 text-xs text-gray-600 flex justify-between">
+                    <span>Outstanding (foreign): {Number(ledgerTotals.foreignBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span>Outstanding (local): {Number(ledgerTotals.localBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -340,11 +444,38 @@ function SupplierForm({
     industry: supplier?.industry || '',
     businessType: supplier?.businessType || '',
     paymentTerms: supplier?.paymentTerms || 'Net 30',
+    currencyId: supplier?.currencyId || supplier?.currency?.id || '',
     status: supplier?.status || 'active',
   });
 
+  const [currencies, setCurrencies] = useState<CurrencyMaster[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [list, base] = await Promise.all([
+          fetchCurrencies(true),
+          fetchBaseCurrency(),
+        ]);
+        if (cancelled) return;
+        setCurrencies(list);
+        if (!supplier?.currencyId && !supplier?.currency?.id && base?.id) {
+          setFormData((prev) => ({
+            ...prev,
+            currencyId: prev.currencyId || base.id,
+          }));
+        }
+      } catch {
+        /* non-fatal — dropdown stays empty */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supplier?.currencyId, supplier?.currency?.id]);
 
   const handleInputChange = (field: keyof Supplier, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -363,10 +494,14 @@ function SupplierForm({
     setError('');
 
     try {
+      const payload = {
+        ...formData,
+        currencyId: formData.currencyId || null,
+      };
       if (supplier?.id || supplier?._id) {
-        await supplierService.updateSupplier((supplier.id || supplier._id)!, formData);
+        await supplierService.updateSupplier((supplier.id || supplier._id)!, payload);
       } else {
-        await supplierService.createSupplier(formData);
+        await supplierService.createSupplier(payload);
       }
       onSuccess();
     } catch (err: any) {
@@ -639,6 +774,25 @@ function SupplierForm({
                   className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 />
               </div>
+            </div>
+
+            {/* Currency */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Currency
+              </label>
+              <select
+                value={formData.currencyId || ''}
+                onChange={(e) => handleInputChange('currencyId', e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+              >
+                <option value="">Select currency...</option>
+                {currencies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code} — {c.name} ({c.symbol})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

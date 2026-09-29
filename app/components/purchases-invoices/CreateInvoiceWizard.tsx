@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { GRNSource, POSource, PurchaseInvoiceLineDraft } from '../../api/purchaseinvoice/route';
 import TaxRateSelect from '../../../components/TaxRateSelect';
+import { formatMoney, type CurrencyMaster } from '../../../lib/multi-currency';
 
 type InvoiceSource = GRNSource | POSource;
 
@@ -34,6 +35,9 @@ interface CreateInvoiceWizardProps {
     dueDate: string;
     paymentTerms: string;
     notes: string;
+    currencyId?: string;
+    exchangeRate?: string;
+    exchangeRateDate?: string;
   };
   setWizardState: (state: any) => void;
   setSourceType: (type: 'grn' | 'po') => void;
@@ -50,6 +54,10 @@ interface CreateInvoiceWizardProps {
   selectedTotalDiscount: number;
   selectedTotalTax: number;
   selectedGrandTotal: number;
+  selectedBaseTotal?: number;
+  selectedCurrency?: CurrencyMaster | null;
+  baseCurrency?: CurrencyMaster | null;
+  currencies?: CurrencyMaster[];
   totalItems: number;
   formatCurrency: (amount: number) => string;
   formatDate: (date: string) => string;
@@ -276,6 +284,10 @@ export default function CreateInvoiceWizard({
   selectedTotalDiscount,
   selectedTotalTax,
   selectedGrandTotal,
+  selectedBaseTotal,
+  selectedCurrency,
+  baseCurrency,
+  currencies = [],
   totalItems,
   formatCurrency,
   formatDate
@@ -666,6 +678,51 @@ export default function CreateInvoiceWizard({
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                  <select
+                    value={wizardState.currencyId || ''}
+                    onChange={(e) =>
+                      setWizardState((prev: any) => ({
+                        ...prev,
+                        currencyId: e.target.value,
+                        exchangeRate:
+                          baseCurrency?.id && e.target.value === baseCurrency.id
+                            ? '1'
+                            : prev.exchangeRate,
+                        exchangeRateDate: prev.invoiceDate,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582] bg-gray-50"
+                  >
+                    <option value="">Select...</option>
+                    {currencies.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.code} — {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Exchange Rate</label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    value={wizardState.exchangeRate || '1'}
+                    onChange={(e) =>
+                      setWizardState((prev: any) => ({
+                        ...prev,
+                        exchangeRate: e.target.value,
+                        exchangeRateDate: prev.invoiceDate,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#014582]"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
                 <textarea
@@ -714,9 +771,21 @@ export default function CreateInvoiceWizard({
                   <span className="text-gray-600">Items</span>
                   <span className="font-semibold">{totalItems}</span>
                 </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Currency / Rate</span>
+                  <span className="font-semibold">
+                    {selectedCurrency?.code || '—'} @ {wizardState.exchangeRate || '1'}
+                  </span>
+                </div>
                 <div className="flex justify-between font-bold">
-                  <span>Grand Total</span>
-                  <span className="text-[#014582]">{formatCurrency(selectedGrandTotal)}</span>
+                  <span>Foreign Total</span>
+                  <span className="text-[#014582]">
+                    {formatMoney(selectedGrandTotal, selectedCurrency)}
+                  </span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span>Base Total ({baseCurrency?.code || 'Base'})</span>
+                  <span>{formatMoney(selectedBaseTotal ?? selectedGrandTotal, baseCurrency)}</span>
                 </div>
               </div>
             </div>

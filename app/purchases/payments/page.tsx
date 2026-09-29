@@ -18,6 +18,14 @@ import {
 import { purchasePaymentService, PurchasePaymentModel, PurchasePaymentStats, Supplier, BankAccount, PurchaseInvoiceForPayment } from '../../api/purchasepayments/route';
 import { bankAccountService } from '@/lib/bank-accounts-service';
 import CreateBankAccountForm from '@/components/accounting/CreateBankAccountForm';
+import {
+  computeBaseAmount,
+  fetchBaseCurrency,
+  fetchCurrencies,
+  formatMoney,
+  lookupRate,
+  type CurrencyMaster,
+} from '../../../lib/multi-currency';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -35,6 +43,9 @@ interface CreateFormState {
   paymentAmount: string;
   paymentReference: string;
   paymentNotes: string;
+  currencyId: string;
+  exchangeRate: string;
+  exchangeRateDate: string;
 }
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
@@ -85,8 +96,13 @@ export function PurchasePaymentsPage() {
     paymentDate: new Date().toISOString().split('T')[0],
     paymentAmount: '',
     paymentReference: '',
-    paymentNotes: ''
+    paymentNotes: '',
+    currencyId: '',
+    exchangeRate: '1',
+    exchangeRateDate: new Date().toISOString().split('T')[0],
   });
+  const [currencies, setCurrencies] = useState<CurrencyMaster[]>([]);
+  const [baseCurrency, setBaseCurrency] = useState<CurrencyMaster | null>(null);
 
   const paymentMethods = ['Cash', 'Bank Transfer', 'Cheque', 'Credit Card', 'Online Payment', 'Other'];
   const filters = ['all', 'Completed', 'Pending', 'Failed', 'Cancelled'];
@@ -96,6 +112,17 @@ export function PurchasePaymentsPage() {
 
   const selectedTotalAmount = formState.selectedInvoices.reduce((sum, inv) => sum + inv.amountToPay, 0);
   const totalOutstanding = formState.availableInvoices.reduce((sum, inv) => sum + inv.outstanding, 0);
+  const basePaymentAmount = computeBaseAmount(
+    parseFloat(formState.paymentAmount) || selectedTotalAmount,
+    formState.exchangeRate
+  );
+  const selectedCurrency =
+    currencies.find((c) => c.id === formState.currencyId) ||
+    (formState.currencyId === baseCurrency?.id ? baseCurrency : null);
+  const isForeignPayment =
+    !!formState.currencyId &&
+    !!baseCurrency?.id &&
+    formState.currencyId !== baseCurrency.id;
   
   const canMakePayment = formState.selectedSupplier !== null && 
     formState.selectedInvoices.length > 0 && 
@@ -179,6 +206,22 @@ export function PurchasePaymentsPage() {
 
   useEffect(() => {
     fetchPayments(true);
+    (async () => {
+      try {
+        const [list, base] = await Promise.all([
+          fetchCurrencies(true),
+          fetchBaseCurrency(),
+        ]);
+        setCurrencies(list);
+        setBaseCurrency(base);
+        setFormState((prev) => ({
+          ...prev,
+          currencyId: prev.currencyId || base?.id || '',
+        }));
+      } catch (e) {
+        console.error('Failed to load currencies:', e);
+      }
+    })();
   }, []);
 
   // ─── Search ──────────────────────────────────────────────────
@@ -240,7 +283,10 @@ export function PurchasePaymentsPage() {
       paymentDate: new Date().toISOString().split('T')[0],
       paymentAmount: '',
       paymentReference: '',
-      paymentNotes: ''
+      paymentNotes: '',
+      currencyId: baseCurrency?.id || '',
+      exchangeRate: '1',
+      exchangeRateDate: new Date().toISOString().split('T')[0],
     }));
   };
 
@@ -268,8 +314,32 @@ export function PurchasePaymentsPage() {
     setFormState((prev: CreateFormState) => ({ ...prev, isLoadingInvoices: true }));
     try {
       const invoices = await purchasePaymentService.getSupplierInvoices(supplier.id);
+      const primaryInvoice = invoices[0];
+      const currencyId =
+        primaryInvoice?.currencyId ||
+        primaryInvoice?.currency?.id ||
+        supplier.currencyId ||
+        supplier.currency?.id ||
+        baseCurrency?.id ||
+        '';
+      let rate = primaryInvoice?.exchangeRate != null ? String(primaryInvoice.exchangeRate) : '1';
+      if (
+        currencyId &&
+        baseCurrency?.id &&
+        currencyId !== baseCurrency.id &&
+        primaryInvoice?.exchangeRate == null
+      ) {
+        const found = await lookupRate({
+          fromCurrencyId: currencyId,
+          toCurrencyId: baseCurrency.id,
+          date: new Date().toISOString().split('T')[0],
+        });
+        if (found?.rate) rate = String(found.rate);
+      } else if (currencyId && baseCurrency?.id && currencyId === baseCurrency.id) {
+        rate = '1';
+      }
+
       setFormState((prev: CreateFormState) => {
-        // Auto-select all invoices
         const selected = invoices.map(inv => ({
           ...inv,
           isSelected: true,
@@ -281,7 +351,10 @@ export function PurchasePaymentsPage() {
           availableInvoices: invoices,
           selectedInvoices: selected,
           paymentAmount: total.toFixed(2),
-          isLoadingInvoices: false
+          isLoadingInvoices: false,
+          currencyId,
+          exchangeRate: rate,
+          exchangeRateDate: prev.paymentDate,
         };
       });
     } catch (error) {
@@ -389,6 +462,9 @@ export function PurchasePaymentsPage() {
         bankAccountName: formState.selectedBankAccount?.accountName || '',
         reference: formState.paymentReference,
         notes: formState.paymentNotes,
+        currencyId: formState.currencyId || undefined,
+        exchangeRate: Number(formState.exchangeRate) || 1,
+        exchangeRateDate: formState.exchangeRateDate || formState.paymentDate,
         invoicePayments
       });
 
@@ -483,6 +559,11 @@ export function PurchasePaymentsPage() {
           canMakePayment={canMakePayment}
           selectedTotalAmount={selectedTotalAmount}
           totalOutstanding={totalOutstanding}
+          basePaymentAmount={basePaymentAmount}
+          selectedCurrency={selectedCurrency}
+          baseCurrency={baseCurrency}
+          currencies={currencies}
+          isForeignPayment={isForeignPayment}
           formatCurrency={formatCurrency}
           formatDate={formatDate}
           paymentMethods={paymentMethods}
@@ -892,6 +973,11 @@ function CreatePaymentForm({
   canMakePayment,
   selectedTotalAmount,
   totalOutstanding,
+  basePaymentAmount,
+  selectedCurrency,
+  baseCurrency,
+  currencies = [],
+  isForeignPayment,
   formatCurrency,
   formatDate,
   paymentMethods
@@ -1211,11 +1297,63 @@ function CreatePaymentForm({
                 </div>
               )}
 
+              {/* Currency */}
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Currency</label>
+                <select
+                  value={formState.currencyId || ''}
+                  onChange={(e) => {
+                    const currencyId = e.target.value;
+                    setFormState((prev: CreateFormState) => ({
+                      ...prev,
+                      currencyId,
+                      exchangeRate:
+                        baseCurrency?.id && currencyId === baseCurrency.id ? '1' : prev.exchangeRate,
+                      exchangeRateDate: prev.paymentDate,
+                    }));
+                  }}
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+                >
+                  <option value="">Select...</option>
+                  {currencies.map((c: CurrencyMaster) => (
+                    <option key={c.id} value={c.id}>
+                      {c.code} — {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Exchange Rate */}
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Exchange Rate</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={formState.exchangeRate}
+                  onChange={(e) =>
+                    setFormState((prev: CreateFormState) => ({
+                      ...prev,
+                      exchangeRate: e.target.value,
+                      exchangeRateDate: prev.paymentDate,
+                    }))
+                  }
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  1 {selectedCurrency?.code || 'foreign'} = rate × {baseCurrency?.code || 'base'}
+                </p>
+              </div>
+
               {/* Amount */}
               <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Total Amount *</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+                  Payment Amount ({selectedCurrency?.code || 'Foreign'}) *
+                </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-xs md:text-sm">Rs.</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-xs md:text-sm">
+                    {selectedCurrency?.symbol || 'Rs.'}
+                  </span>
                   <input
                     type="number"
                     step="0.01"
@@ -1226,6 +1364,14 @@ function CreatePaymentForm({
                     placeholder="0.00"
                   />
                 </div>
+                <p className="text-[10px] md:text-xs text-gray-500 mt-1.5">
+                  Base amount: {formatMoney(basePaymentAmount, baseCurrency)}
+                </p>
+                {isForeignPayment && (
+                  <p className="text-[10px] md:text-xs text-amber-700 mt-1 bg-amber-50 border border-amber-100 rounded-md px-2 py-1.5">
+                    FX gain/loss may be posted if this rate differs from the invoice rate when the payment is applied.
+                  </p>
+                )}
               </div>
 
               {/* Reference */}

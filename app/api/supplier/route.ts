@@ -17,6 +17,14 @@ export interface Supplier {
   industry?: string;
   businessType?: string;
   paymentTerms?: string;
+  currencyId?: string | null;
+  currency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol: string;
+    decimalPlaces?: number;
+  } | null;
   status?: 'active' | 'inactive';
   createdAt?: string;
   updatedAt?: string;

@@ -44,7 +44,6 @@ interface IncomeItem {
   amount: number;
 }
 
-// ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export function IncomePage() {
   const [incomes, setIncomes] = useState<Income[]>([]);
@@ -76,6 +75,7 @@ export function IncomePage() {
   });
   const [viewingIncome, setViewingIncome] = useState<Income | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [incomeAccounts, setIncomeAccounts] = useState<IncomeAccount[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -106,7 +106,6 @@ export function IncomePage() {
     }
   }, []);
 
-  // ─── Fetch Incomes ──────────────────────────────────────────
 
   const fetchIncomes = useCallback(async (resetPage = true) => {
     setLoading(true);
@@ -234,6 +233,7 @@ export function IncomePage() {
         ...data
       });
       setShowCreateForm(false);
+      setEditingIncome(null);
       fetchIncomes(true);
     } catch (error: any) {
       console.error('Failed to create income:', error);
@@ -243,7 +243,32 @@ export function IncomePage() {
     }
   };
 
-  // ─── Post Income ────────────────────────────────────────────
+  const handleUpdateIncome = async (data: any) => {
+    if (!editingIncome?.id) return;
+    setSubmitting(true);
+    try {
+      await incomeService.updateIncome(editingIncome.id, data);
+      setEditingIncome(null);
+      setShowCreateForm(false);
+      setViewingIncome(null);
+      fetchIncomes(true);
+    } catch (error: any) {
+      console.error('Failed to update income:', error);
+      alert(error.message || 'Failed to update income');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const startEditIncome = (income: Income) => {
+    if (income.status === 'Cancelled') {
+      alert('Cancelled income cannot be edited');
+      return;
+    }
+    setViewingIncome(null);
+    setShowCreateForm(false);
+    setEditingIncome(income);
+  };
 
   const handlePostIncome = async (id: string) => {
     setSubmitting(true);
@@ -258,8 +283,6 @@ export function IncomePage() {
       setSubmitting(false);
     }
   };
-
-  // ─── Delete Income ──────────────────────────────────────────
 
   const handleDeleteIncome = async (id: string) => {
     if (!confirm('Delete this income entry?')) return;
@@ -336,15 +359,19 @@ export function IncomePage() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {showCreateForm ? (
+      {(showCreateForm || editingIncome) ? (
         <CreateIncomeForm
           incomeAccounts={incomeAccounts}
           customers={customers}
           bankAccounts={bankAccounts}
           paymentMethods={paymentMethods}
           incomeTypeOptions={incomeTypeOptions.filter(t => t !== 'All')}
-          onCancel={() => setShowCreateForm(false)}
-          onSave={handleCreateIncome}
+          initialData={editingIncome}
+          onCancel={() => {
+            setShowCreateForm(false);
+            setEditingIncome(null);
+          }}
+          onSave={editingIncome ? handleUpdateIncome : handleCreateIncome}
           submitting={submitting}
           formatCurrency={formatCurrency}
           currencySymbol={currencySymbol}
@@ -375,7 +402,10 @@ export function IncomePage() {
                 <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
               </button>
               <button
-                onClick={() => setShowCreateForm(true)}
+                onClick={() => {
+                  setEditingIncome(null);
+                  setShowCreateForm(true);
+                }}
                 className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
               >
                 <Plus className="w-4 h-4" />
@@ -535,9 +565,24 @@ export function IncomePage() {
                             <span className="text-[10px] md:text-xs text-gray-400">{formatDate(income.date)}</span>
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-sm md:text-base font-bold text-green-600">{formatCurrency(income.totalAmount)}</p>
-                          <p className="text-[10px] md:text-xs text-gray-400">{income.items.length} items</p>
+                        <div className="text-right flex-shrink-0 flex items-center gap-2">
+                          <div>
+                            <p className="text-sm md:text-base font-bold text-green-600">{formatCurrency(income.totalAmount)}</p>
+                            <p className="text-[10px] md:text-xs text-gray-400">{income.items?.length || 0} items</p>
+                          </div>
+                          {income.status !== 'Cancelled' && (
+                            <button
+                              type="button"
+                              title="Edit income"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditIncome(income);
+                              }}
+                              className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:text-[#014582] hover:border-[#014582]/40 hover:bg-[#014582]/5 transition-all"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -602,6 +647,7 @@ export function IncomePage() {
           onClose={() => setViewingIncome(null)}
           onPost={handlePostIncome}
           onDelete={handleDeleteIncome}
+          onEdit={startEditIncome}
           formatCurrency={formatCurrency}
           formatDate={formatDate}
           getStatusColor={getStatusColor}
@@ -619,35 +665,57 @@ export function IncomePage() {
 // CREATE INCOME FORM
 // ═══════════════════════════════════════════════════════════════
 
+function toInputDate(value?: string) {
+  if (!value) return new Date().toISOString().split('T')[0];
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return new Date().toISOString().split('T')[0];
+  return d.toISOString().split('T')[0];
+}
+
 function CreateIncomeForm({
   incomeAccounts,
   customers,
   bankAccounts,
   paymentMethods,
   incomeTypeOptions,
+  initialData = null,
   onCancel,
   onSave,
   submitting,
   formatCurrency,
   currencySymbol
 }: any) {
+  const isEdit = Boolean(initialData?.id);
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    incomeType: 'Sales',
-    incomeAccountId: '',
-    customerId: '',
-    description: '',
-    reference: '',
-    paymentMethod: 'Cash',
-    bankAccountId: '',
-    taxRate: 0
+    date: toInputDate(initialData?.date),
+    incomeType: initialData?.incomeType || 'Sales',
+    incomeAccountId: initialData?.incomeAccountId || initialData?.incomeAccount?.id || '',
+    customerId: initialData?.customerId || '',
+    description: initialData?.description || '',
+    reference: initialData?.reference || '',
+    paymentMethod: initialData?.paymentMethod || 'Cash',
+    bankAccountId: initialData?.bankAccountId || '',
+    taxRate: Number(initialData?.taxRate) || 0
   });
 
-  const [items, setItems] = useState<IncomeItem[]>([
-    { description: '', quantity: 1, unitPrice: 0, amount: 0 }
-  ]);
+  const [items, setItems] = useState<IncomeItem[]>(() => {
+    if (Array.isArray(initialData?.items) && initialData.items.length > 0) {
+      return initialData.items.map((item: any) => ({
+        description: item.description || '',
+        quantity: Number(item.quantity) || 1,
+        unitPrice: Number(item.unitPrice) || 0,
+        amount: Number(item.amount) || (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0),
+      }));
+    }
+    return [{ description: '', quantity: 1, unitPrice: 0, amount: 0 }];
+  });
 
-  const [simpleAmount, setSimpleAmount] = useState(0);
+  const [simpleAmount, setSimpleAmount] = useState(
+    Number(initialData?.amount) ||
+      (Array.isArray(initialData?.items) && initialData.items.length === 0
+        ? Number(initialData?.totalAmount) || 0
+        : 0)
+  );
   const [error, setError] = useState('');
 
   const requiresItems = formData.incomeType === 'Sales' || formData.incomeType === 'Services';
@@ -724,7 +792,9 @@ function CreateIncomeForm({
       <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2 md:gap-3">
           <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-[#014582]" />
-          <h2 className="text-base md:text-lg font-bold text-gray-800">Add Income</h2>
+          <h2 className="text-base md:text-lg font-bold text-gray-800">
+            {isEdit ? `Edit Income${initialData?.incomeNumber ? ` · ${initialData.incomeNumber}` : ''}` : 'Add Income'}
+          </h2>
         </div>
         <button onClick={onCancel} className="p-1.5 md:p-2 hover:bg-gray-200 rounded-lg transition-all">
           <X className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
@@ -976,7 +1046,7 @@ function CreateIncomeForm({
               className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : <Save className="w-3.5 h-3.5 md:w-4 md:h-4" />}
-              Save Income
+              {isEdit ? 'Update Income' : 'Save Income'}
             </button>
           </div>
         </form>
@@ -994,6 +1064,7 @@ function IncomeDetailModal({
   onClose,
   onPost,
   onDelete,
+  onEdit,
   formatCurrency,
   formatDate,
   getStatusColor,
@@ -1004,6 +1075,7 @@ function IncomeDetailModal({
 }: any) {
   const Icon = getTypeIcon(income.incomeType);
   const typeColor = getTypeColor(income.incomeType);
+  const canEdit = income.status !== 'Cancelled';
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
@@ -1078,7 +1150,7 @@ function IncomeDetailModal({
           </div>
 
           {/* Items */}
-          {income.items.length > 0 && (
+          {income.items?.length > 0 && (
             <div className="border-t border-gray-100 pt-4 mt-4">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-bold text-gray-700">Items</h4>
@@ -1099,22 +1171,36 @@ function IncomeDetailModal({
           )}
 
           {/* Actions */}
-          {income.status === 'Draft' && (
-            <div className="border-t border-gray-100 pt-4 mt-4 flex gap-3">
-              <button
-                onClick={() => onPost(income.id)}
-                disabled={submitting}
-                className="flex-1 px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-all disabled:opacity-50"
-              >
-                Post Income
-              </button>
-              <button
-                onClick={() => onDelete(income.id)}
-                disabled={submitting}
-                className="flex-1 px-4 py-2.5 border border-red-500 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
-              >
-                Delete
-              </button>
+          {(canEdit || income.status === 'Draft') && (
+            <div className="border-t border-gray-100 pt-4 mt-4 flex flex-wrap gap-3">
+              {canEdit && (
+                <button
+                  onClick={() => onEdit?.(income)}
+                  disabled={submitting}
+                  className="flex-1 min-w-[120px] px-4 py-2.5 border border-[#014582] text-[#014582] rounded-lg text-sm font-semibold hover:bg-[#014582]/5 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit
+                </button>
+              )}
+              {income.status === 'Draft' && (
+                <>
+                  <button
+                    onClick={() => onPost(income.id)}
+                    disabled={submitting}
+                    className="flex-1 min-w-[120px] px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-all disabled:opacity-50"
+                  >
+                    Post Income
+                  </button>
+                  <button
+                    onClick={() => onDelete(income.id)}
+                    disabled={submitting}
+                    className="flex-1 min-w-[120px] px-4 py-2.5 border border-red-500 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

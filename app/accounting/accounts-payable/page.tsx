@@ -474,12 +474,31 @@ export function AccountsPayablePage() {
                             <span className="text-[10px] md:text-xs text-gray-400">Due: {formatDate(bill.dueDate)}</span>
                             <span className="text-[10px] md:text-xs text-gray-300">•</span>
                             <span className="text-[10px] md:text-xs text-gray-400">{bill.items?.length || 0} items</span>
+                            {bill.currency?.code && (
+                              <>
+                                <span className="text-[10px] md:text-xs text-gray-300">•</span>
+                                <span className="text-[10px] md:text-xs text-gray-500">
+                                  {bill.currency.code}
+                                  {bill.exchangeRate != null ? ` @ ${bill.exchangeRate}` : ''}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
                           <div>
                             <p className="text-sm md:text-base font-bold text-red-600">{formatCurrency(bill.outstanding)}</p>
                             <p className="text-[10px] md:text-xs text-gray-400">Outstanding</p>
+                            {bill.foreignAmount != null && bill.currency?.code && (
+                              <p className="text-[10px] text-gray-400 mt-0.5">
+                                Foreign: {bill.currency.symbol || bill.currency.code} {Number(bill.foreignAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </p>
+                            )}
+                            {bill.baseAmount != null && (
+                              <p className="text-[10px] text-gray-400">
+                                Local: {Number(bill.baseAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </p>
+                            )}
                           </div>
                           {bill.status !== 'Paid' && bill.outstanding > 0 && (
                             <button
@@ -1006,7 +1025,7 @@ function PaymentForm({
                 className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
                 <option value="">Select bank account...</option>
-                {bankAccounts.map((acc) => (
+                {bankAccounts.map((acc: { id: string; name: string; bankName?: string; accountNumber?: string }) => (
                   <option key={acc.id} value={acc.id}>
                     {acc.name} — {acc.bankName} ({acc.accountNumber})
                   </option>
@@ -1140,6 +1159,34 @@ function BillDetailModal({
                 {overdue && ' (Overdue)'}
               </span>
             </div>
+            {bill.currency?.code && (
+              <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                <span className="text-xs text-gray-400 font-medium">Currency</span>
+                <span className="text-sm font-medium text-gray-800">{bill.currency.code}</span>
+              </div>
+            )}
+            {bill.exchangeRate != null && (
+              <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                <span className="text-xs text-gray-400 font-medium">Rate</span>
+                <span className="text-sm font-medium text-gray-800">{bill.exchangeRate}</span>
+              </div>
+            )}
+            {bill.foreignAmount != null && (
+              <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                <span className="text-xs text-gray-400 font-medium">Foreign Amount</span>
+                <span className="text-sm font-medium text-gray-800">
+                  {bill.currency?.symbol || ''} {Number(bill.foreignAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
+            {bill.baseAmount != null && (
+              <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                <span className="text-xs text-gray-400 font-medium">Local Amount</span>
+                <span className="text-sm font-medium text-gray-800">
+                  {Number(bill.baseAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
             {bill.reference && (
               <div className="flex items-center justify-between py-2 border-b border-gray-50">
                 <span className="text-xs text-gray-400 font-medium">Reference</span>

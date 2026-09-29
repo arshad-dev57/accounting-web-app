@@ -31,6 +31,26 @@ export interface PurchaseInvoiceModel {
   grandTotal: number;
   paidAmount: number;
   outstanding: number;
+  currencyId?: string | null;
+  currency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol: string;
+    decimalPlaces?: number;
+  } | null;
+  baseCurrencyId?: string | null;
+  baseCurrency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol: string;
+    decimalPlaces?: number;
+  } | null;
+  exchangeRate?: number | string;
+  exchangeRateDate?: string | null;
+  foreignAmount?: number | string | null;
+  baseAmount?: number | string | null;
   invoiceStatus: 'Draft' | 'Posted' | 'Partially Paid' | 'Paid' | 'Cancelled';
   paymentStatus: 'Unpaid' | 'Partial' | 'Paid';
   notes?: string;
@@ -179,6 +199,17 @@ export interface GRNSource {
   totalDiscount?: number;
   totalTax?: number;
   grandTotal?: number;
+  currencyId?: string | null;
+  currency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol: string;
+  } | null;
+  exchangeRate?: number | string;
+  exchangeRateDate?: string | null;
+  foreignAmount?: number | string | null;
+  baseAmount?: number | string | null;
   itemCount?: number;
   itemPreview?: string;
 }
@@ -202,6 +233,17 @@ export interface POSource {
   totalTax?: number;
   grandTotal?: number;
   notes?: string;
+  currencyId?: string | null;
+  currency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol: string;
+  } | null;
+  exchangeRate?: number | string;
+  exchangeRateDate?: string | null;
+  foreignAmount?: number | string | null;
+  baseAmount?: number | string | null;
   items: Array<{
     productId: string;
     productName: string;
@@ -259,6 +301,9 @@ export interface CreateInvoiceRequest {
   dueDate: string;
   paymentTerms?: string;
   notes?: string;
+  currencyId?: string;
+  exchangeRate?: number;
+  exchangeRateDate?: string;
 }
 
 

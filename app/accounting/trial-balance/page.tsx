@@ -24,6 +24,7 @@ import {
 import { trialBalanceService, TrialBalanceAccount, TrialBalanceStats } from '../../api/trail-balance/route';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { useCurrency } from '../../../lib/currency-context';
+import { useCompanyOptional } from '../../../lib/company-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -71,6 +72,7 @@ export function TrialBalancePage() {
   const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
 
   const { symbol: currencySymbol } = useCurrency();
+  const companyCtx = useCompanyOptional();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const accountTypes = ['All', 'Assets', 'Liabilities', 'Equity', 'Income', 'Expenses'];
@@ -105,7 +107,7 @@ export function TrialBalancePage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, searchTerm, pagination.page, pagination.limit, selectedFiscalYearId]);
+  }, [filter, searchTerm, pagination.page, pagination.limit, selectedFiscalYearId, companyCtx?.activeCompanyId]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -132,13 +134,13 @@ export function TrialBalancePage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm, selectedFiscalYearId]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm, selectedFiscalYearId, companyCtx?.activeCompanyId]);
 
   // ─── Initial Fetch ──────────────────────────────────────────
 
   useEffect(() => {
     fetchTrialBalance(true);
-  }, [selectedFiscalYearId]);
+  }, [selectedFiscalYearId, companyCtx?.activeCompanyId]);
 
   // ─── Search ──────────────────────────────────────────────────
 

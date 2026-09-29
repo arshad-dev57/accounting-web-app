@@ -13,6 +13,7 @@ import { profitLossService, ReportItem, PLData } from '../../api/profit-loss/rou
 import { toast } from 'react-hot-toast';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { useCurrency } from '../../../lib/currency-context';
+import { useCompanyOptional } from '../../../lib/company-context';
 import FiscalYearSelect from '../../../components/FiscalYearSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -33,6 +34,7 @@ export function ProfitLossPage() {
   const [isCustomRange, setIsCustomRange] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
+  const companyCtx = useCompanyOptional();
 
   const periodOptions: PeriodOption[] = [
     { label: 'Today', value: 'Today' },
@@ -69,7 +71,7 @@ export function ProfitLossPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedPeriod, startDate, endDate, isCustomRange, selectedFiscalYearId]);
+  }, [selectedPeriod, startDate, endDate, isCustomRange, selectedFiscalYearId, companyCtx?.activeCompanyId]);
 
   useEffect(() => {
     fetchReport();

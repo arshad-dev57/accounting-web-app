@@ -79,6 +79,7 @@ export function ExpensesPage() {
   });
   const [viewingExpense, setViewingExpense] = useState<Expense | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [expenseAccounts, setExpenseAccounts] = useState<ExpenseAccount[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -237,6 +238,7 @@ export function ExpensesPage() {
         ...data
       });
       setShowCreateForm(false);
+      setEditingExpense(null);
       fetchExpenses(true);
     } catch (error: any) {
       console.error('Failed to create expense:', error);
@@ -244,6 +246,33 @@ export function ExpensesPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleUpdateExpense = async (data: any) => {
+    if (!editingExpense?.id) return;
+    setSubmitting(true);
+    try {
+      await expenseService.updateExpense(editingExpense.id, data);
+      setEditingExpense(null);
+      setShowCreateForm(false);
+      setViewingExpense(null);
+      fetchExpenses(true);
+    } catch (error: any) {
+      console.error('Failed to update expense:', error);
+      alert(error.message || 'Failed to update expense');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const startEditExpense = (expense: Expense) => {
+    if (expense.status !== 'Draft') {
+      alert('Only draft expenses can be edited. Posted or cancelled expenses cannot be changed.');
+      return;
+    }
+    setViewingExpense(null);
+    setShowCreateForm(false);
+    setEditingExpense(expense);
   };
 
   // ─── Post Expense ────────────────────────────────────────────
@@ -351,15 +380,19 @@ export function ExpensesPage() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {showCreateForm ? (
+      {(showCreateForm || editingExpense) ? (
         <CreateExpenseForm
           expenseAccounts={expenseAccounts}
           vendors={vendors}
           bankAccounts={bankAccounts}
           paymentMethods={paymentMethods}
           expenseTypeOptions={expenseTypeOptions.filter(t => t !== 'All')}
-          onCancel={() => setShowCreateForm(false)}
-          onSave={handleCreateExpense}
+          initialData={editingExpense}
+          onCancel={() => {
+            setShowCreateForm(false);
+            setEditingExpense(null);
+          }}
+          onSave={editingExpense ? handleUpdateExpense : handleCreateExpense}
           submitting={submitting}
           formatCurrency={formatCurrency}
           currencySymbol={currencySymbol}
@@ -390,7 +423,10 @@ export function ExpensesPage() {
                 <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
               </button>
               <button
-                onClick={() => setShowCreateForm(true)}
+                onClick={() => {
+                  setEditingExpense(null);
+                  setShowCreateForm(true);
+                }}
                 className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
               >
                 <Plus className="w-4 h-4" />
@@ -550,9 +586,24 @@ export function ExpensesPage() {
                             <span className="text-[10px] md:text-xs text-gray-400">{formatDate(expense.date)}</span>
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-sm md:text-base font-bold text-red-600">{formatCurrency(expense.totalAmount)}</p>
-                          <p className="text-[10px] md:text-xs text-gray-400">{expense.items.length} items</p>
+                        <div className="text-right flex-shrink-0 flex items-center gap-2">
+                          <div>
+                            <p className="text-sm md:text-base font-bold text-red-600">{formatCurrency(expense.totalAmount)}</p>
+                            <p className="text-[10px] md:text-xs text-gray-400">{expense.items?.length || 0} items</p>
+                          </div>
+                          {expense.status === 'Draft' && (
+                            <button
+                              type="button"
+                              title="Edit expense"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditExpense(expense);
+                              }}
+                              className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:text-[#014582] hover:border-[#014582]/40 hover:bg-[#014582]/5 transition-all"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -617,6 +668,7 @@ export function ExpensesPage() {
           onClose={() => setViewingExpense(null)}
           onPost={handlePostExpense}
           onDelete={handleDeleteExpense}
+          onEdit={startEditExpense}
           formatCurrency={formatCurrency}
           formatDate={formatDate}
           getStatusColor={getStatusColor}
@@ -634,35 +686,57 @@ export function ExpensesPage() {
 // CREATE EXPENSE FORM
 // ═══════════════════════════════════════════════════════════════
 
+function toInputDate(value?: string) {
+  if (!value) return new Date().toISOString().split('T')[0];
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return new Date().toISOString().split('T')[0];
+  return d.toISOString().split('T')[0];
+}
+
 function CreateExpenseForm({
   expenseAccounts,
   vendors,
   bankAccounts,
   paymentMethods,
   expenseTypeOptions,
+  initialData = null,
   onCancel,
   onSave,
   submitting,
   formatCurrency,
   currencySymbol
 }: any) {
+  const isEdit = Boolean(initialData?.id);
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    expenseType: 'Rent',
-    expenseAccountId: '',
-    vendorId: '',
-    description: '',
-    reference: '',
-    paymentMethod: 'Cash',
-    bankAccountId: '',
-    taxRate: 0
+    date: toInputDate(initialData?.date),
+    expenseType: initialData?.expenseType || 'Rent',
+    expenseAccountId: initialData?.expenseAccountId || initialData?.expenseAccount?.id || '',
+    vendorId: initialData?.vendorId || '',
+    description: initialData?.description || '',
+    reference: initialData?.reference || '',
+    paymentMethod: initialData?.paymentMethod || 'Cash',
+    bankAccountId: initialData?.bankAccountId || '',
+    taxRate: Number(initialData?.taxRate) || 0
   });
 
-  const [items, setItems] = useState<ExpenseItem[]>([
-    { description: '', quantity: 1, unitPrice: 0, amount: 0 }
-  ]);
+  const [items, setItems] = useState<ExpenseItem[]>(() => {
+    if (Array.isArray(initialData?.items) && initialData.items.length > 0) {
+      return initialData.items.map((item: any) => ({
+        description: item.description || '',
+        quantity: Number(item.quantity) || 1,
+        unitPrice: Number(item.unitPrice) || 0,
+        amount: Number(item.amount) || (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0),
+      }));
+    }
+    return [{ description: '', quantity: 1, unitPrice: 0, amount: 0 }];
+  });
 
-  const [simpleAmount, setSimpleAmount] = useState(0);
+  const [simpleAmount, setSimpleAmount] = useState(
+    Number(initialData?.amount) ||
+      (Array.isArray(initialData?.items) && initialData.items.length === 0
+        ? Number(initialData?.totalAmount) || 0
+        : 0)
+  );
   const [error, setError] = useState('');
 
   const requiresItems = formData.expenseType === 'Rent' || formData.expenseType === 'Office Supplies' || formData.expenseType === 'Software';
@@ -739,7 +813,9 @@ function CreateExpenseForm({
       <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
         <div className="flex items-center gap-2 md:gap-3">
           <TrendingDown className="w-4 h-4 md:w-5 md:h-5 text-[#014582]" />
-          <h2 className="text-base md:text-lg font-bold text-gray-800">Add Expense</h2>
+          <h2 className="text-base md:text-lg font-bold text-gray-800">
+            {isEdit ? `Edit Expense${initialData?.expenseNumber ? ` · ${initialData.expenseNumber}` : ''}` : 'Add Expense'}
+          </h2>
         </div>
         <button onClick={onCancel} className="p-1.5 md:p-2 hover:bg-gray-200 rounded-lg transition-all">
           <X className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
@@ -991,7 +1067,7 @@ function CreateExpenseForm({
               className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 bg-[#014582] text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-[#01366a] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : <Save className="w-3.5 h-3.5 md:w-4 md:h-4" />}
-              Save Expense
+              {isEdit ? 'Update Expense' : 'Save Expense'}
             </button>
           </div>
         </form>
@@ -1009,6 +1085,7 @@ function ExpenseDetailModal({
   onClose,
   onPost,
   onDelete,
+  onEdit,
   formatCurrency,
   formatDate,
   getStatusColor,
@@ -1019,6 +1096,7 @@ function ExpenseDetailModal({
 }: any) {
   const Icon = getTypeIcon(expense.expenseType);
   const typeColor = getTypeColor(expense.expenseType);
+  const canEdit = expense.status === 'Draft';
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
@@ -1093,7 +1171,7 @@ function ExpenseDetailModal({
           </div>
 
           {/* Items */}
-          {expense.items.length > 0 && (
+          {expense.items?.length > 0 && (
             <div className="border-t border-gray-100 pt-4 mt-4">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-bold text-gray-700">Items</h4>
@@ -1113,20 +1191,30 @@ function ExpenseDetailModal({
             </div>
           )}
 
-          {/* Actions */}
+          {/* Actions — edit only for Draft (created, not yet posted) */}
           {expense.status === 'Draft' && (
-            <div className="border-t border-gray-100 pt-4 mt-4 flex gap-3">
+            <div className="border-t border-gray-100 pt-4 mt-4 flex flex-wrap gap-3">
+              {canEdit && (
+                <button
+                  onClick={() => onEdit?.(expense)}
+                  disabled={submitting}
+                  className="flex-1 min-w-[120px] px-4 py-2.5 border border-[#014582] text-[#014582] rounded-lg text-sm font-semibold hover:bg-[#014582]/5 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit
+                </button>
+              )}
               <button
                 onClick={() => onPost(expense.id)}
                 disabled={submitting}
-                className="flex-1 px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-all disabled:opacity-50"
+                className="flex-1 min-w-[120px] px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-all disabled:opacity-50"
               >
                 Post Expense
               </button>
               <button
                 onClick={() => onDelete(expense.id)}
                 disabled={submitting}
-                className="flex-1 px-4 py-2.5 border border-red-500 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
+                className="flex-1 min-w-[120px] px-4 py-2.5 border border-red-500 text-red-500 rounded-lg text-sm font-semibold hover:bg-red-50 transition-all disabled:opacity-50"
               >
                 Delete
               </button>

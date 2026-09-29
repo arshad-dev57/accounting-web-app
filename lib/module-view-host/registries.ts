@@ -76,6 +76,8 @@ export const ACCOUNTING_KEEP_ALIVE_ROUTES = [
   '/accounting/aged-recievables',
   '/accounting/fiscal-years',
   '/accounting/currency',
+  '/accounting/settings/currencies',
+  '/accounting/settings/exchange-rates',
   '/accounting/pdf-reports',
 ] as const;
 
@@ -103,6 +105,14 @@ export const accountingViewHostConfig: ModuleViewHostConfig = {
     '/accounting/aged-recievables': loader(() => import('@/accounting/aged-recievables/page'), 'AgedReceivablesPage'),
     '/accounting/fiscal-years': loader(() => import('@/accounting/fiscal-years/page'), 'FiscalYearsPage'),
     '/accounting/currency': loader(() => import('@/accounting/currency/page'), 'AccountingCurrencyPage'),
+    '/accounting/settings/currencies': loader(
+      () => import('@/accounting/settings/currencies/page'),
+      'CurrencyMasterPage'
+    ),
+    '/accounting/settings/exchange-rates': loader(
+      () => import('@/accounting/settings/exchange-rates/page'),
+      'ExchangeRatesPage'
+    ),
     '/accounting/pdf-reports': loader(() => import('@/accounting/pdf-reports/page'), 'PdfReportSettingsPage'),
   },
 };

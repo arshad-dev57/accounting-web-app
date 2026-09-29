@@ -497,7 +497,6 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
                 <DetailRow label="Cost Price" value={formatAmount(Number(product.costPrice || 0))} />
                 <DetailRow label="Selling Price" value={formatAmount(Number(product.sellingPrice || 0))} />
                 <DetailRow label="Landing Cost" value={product.landingCost ? formatAmount(Number(product.landingCost)) : undefined} />
-                <DetailRow label="Currency" value={product.currency || 'PKR'} />
                 <DetailRow label="Tax Rate" value={product.taxRate ? `${product.taxRate}%` : undefined} />
                 <DetailRow label="Tax Type" value={product.taxType} />
                 {product.costPrice && product.sellingPrice && (
@@ -989,7 +988,6 @@ function ProductForm({
     costPrice: editingProduct?.costPrice || '',
     sellingPrice: editingProduct?.sellingPrice || '',
     landingCost: editingProduct?.landingCost || '',
-    currency: editingProduct?.currency || editingProduct?.currencyCode || 'PKR',
     taxRate: editingProduct?.taxRate || '',
     taxType: editingProduct?.taxType || editingProduct?.taxTypeName || '',
     stockUnit: editingProduct?.stockUnit || editingProduct?.stockUnitName || '',
@@ -1228,7 +1226,6 @@ function ProductForm({
         storageCondition: 'storageConditionName',
         brand: 'brandName',
         modelNumber: 'modelNumber',
-        currency: 'currencyCode',
         hsCode: 'hsCode',
         countryOfOrigin: 'countryOfOrigin',
         shippingClass: 'shippingClass',
@@ -1533,28 +1530,6 @@ function ProductForm({
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
                   <input type="number" step="0.01" placeholder="0.00" value={formData.landingCost} onChange={(e) => handleInputChange('landingCost', e.target.value)} className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Currency *</label>
-                <QuickAddSelect
-                  kind="local"
-                  title="Add currency"
-                  value={formData.currency}
-                  onChange={(v) => handleInputChange('currency', v)}
-                  placeholder="Select currency..."
-                  required
-                  options={[
-                    ...['PKR', 'USD', 'EUR', 'GBP', 'AUD']
-                      .concat(
-                        formData.currency &&
-                          !['PKR', 'USD', 'EUR', 'GBP', 'AUD'].includes(formData.currency)
-                          ? [formData.currency]
-                          : []
-                      )
-                      .filter((v, i, arr) => arr.indexOf(v) === i)
-                      .map((c) => ({ value: c, label: c })),
-                  ]}
-                />
               </div>
               <div className="md:col-span-2">
                 <ProductTaxFields

@@ -17,6 +17,7 @@ import {
 import { journalEntryService, JournalEntry, JournalLine, JournalEntryStats } from '../../../lib/journal-entries-service';
 import { chartOfAccountService } from '../../../lib/chart-of-accounts-service';
 import { useCurrency } from '../../../lib/currency-context';
+import { useCompanyOptional } from '../../../lib/company-context';
 
 const PAGE_LIMIT = 10;
 
@@ -59,6 +60,7 @@ export function JournalEntriesPage() {
   const [entryToActOn, setEntryToActOn] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<any[]>([]);
   const { symbol: currencySymbol } = useCurrency();
+  const companyCtx = useCompanyOptional();
 
   const filters = ['All', 'Posted', 'Draft'];
 
@@ -66,7 +68,7 @@ export function JournalEntriesPage() {
     chartOfAccountService.getAccounts({ limit: 100 }).then(r => {
       if (r.success) setAccounts(r.data || []);
     }).catch(console.error);
-  }, []);
+  }, [companyCtx?.activeCompanyId]);
 
   useEffect(() => {
     const requestId = ++latestRequestRef.current;
@@ -100,7 +102,7 @@ export function JournalEntriesPage() {
     }).finally(() => {
       if (requestId === latestRequestRef.current) setLoading(false);
     });
-  }, [debouncedSearch, selectedFilter, dateRange, currentPage, refreshTick]);
+  }, [debouncedSearch, selectedFilter, dateRange, currentPage, refreshTick, companyCtx?.activeCompanyId]);
 
   useEffect(() => {
     setCurrentPage(1);
