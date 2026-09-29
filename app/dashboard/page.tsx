@@ -2,18 +2,12 @@
 
 import { useEffect, useState, type ComponentType } from 'react';
 import Image from 'next/image';
-import {
-  Phone,
-  Headset,
-  ChevronDown,
-  ChevronRight,
-} from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import SubscriptionStatusBanner from '../../components/SubscriptionStatusBanner';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
-import CompanySwitcher from '../../components/CompanySwitcher';
 import {
   SalesAppIcon,
   PurchasesAppIcon,
@@ -27,6 +21,7 @@ import {
   SupportAppIcon,
   ProfileAppIcon,
   CompanyAppIcon,
+  UsersAppIcon,
 } from '../../components/dashboard/ModuleAppIcons';
 
 const banners = [
@@ -64,7 +59,7 @@ type ModuleItem = {
   detail: string;
   Icon: ComponentType<{ className?: string }>;
   href?: string;
-  action?: 'search' | 'profile' | 'company';
+  action?: 'search' | 'profile';
 };
 
 const modules: ModuleItem[] = [
@@ -111,6 +106,12 @@ const modules: ModuleItem[] = [
     detail: 'Stay compliant with tax filings, reports, and registration details.',
   },
   {
+    title: 'Users',
+    href: '/users',
+    Icon: UsersAppIcon,
+    detail: 'Invite team members, manage roles, and control access across your company.',
+  },
+  {
     title: 'Point of Sale',
     href: '/pos',
     Icon: PosAppIcon,
@@ -136,21 +137,30 @@ const modules: ModuleItem[] = [
   },
   {
     title: 'Company',
-    action: 'company',
+    href: '/companies/new',
     Icon: CompanyAppIcon,
-    detail: 'Switch between companies or create a new company for your workspace.',
+    detail: 'Create a new company or manage your workspace companies from one place.',
   },
 ];
 
 function openHeaderAction(action: ModuleItem['action']) {
   if (!action || typeof window === 'undefined') return;
-  const eventName =
-    action === 'search'
-      ? 'open-global-search'
-      : action === 'profile'
-        ? 'open-profile-dropdown'
-        : 'open-company-switcher';
-  window.dispatchEvent(new Event(eventName));
+
+  if (action === 'search') {
+    const scrollRoot = document.querySelector<HTMLElement>('[data-dashboard-scroll]');
+    if (scrollRoot) {
+      scrollRoot.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    // Let the header come into view before opening the search panel.
+    window.setTimeout(() => {
+      window.dispatchEvent(new Event('open-global-search'));
+    }, 220);
+    return;
+  }
+
+  window.dispatchEvent(new Event('open-profile-dropdown'));
 }
 
 export default function DashboardPage() {
@@ -175,27 +185,6 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 min-w-0 shrink-0">
-            <CompanySwitcher compact />
-
-            <button
-              type="button"
-              onClick={() => { window.location.href = '/support'; }}
-              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-[#f3f4f6] rounded-lg transition-all"
-              title="Support Ticket"
-            >
-              <Headset className="w-4 h-4 shrink-0" />
-              <span className="hidden md:inline">Support Ticket</span>
-              <ChevronDown className="w-3 h-3 hidden md:inline" />
-            </button>
-
-            <div className="hidden lg:block w-px h-6 bg-[#e5e7eb]" />
-
-            <div className="hidden lg:flex items-center text-sm text-gray-600">
-              <Phone className="w-4 h-4 text-[#014582]" />
-            </div>
-
-            <div className="hidden sm:block w-px h-6 bg-[#e5e7eb]" />
-
             <GlobalSearch />
 
             <div className="w-px h-6 bg-[#e5e7eb]" />
@@ -208,7 +197,7 @@ export default function DashboardPage() {
 
         <SubscriptionStatusBanner />
 
-        <div className="flex-1 px-4 py-6 sm:px-6 sm:py-8 md:px-10 md:py-12 overflow-auto">
+        <div data-dashboard-scroll className="flex-1 px-4 py-6 sm:px-6 sm:py-8 md:px-10 md:py-12 overflow-auto">
           <div className="w-full max-w-6xl mx-auto space-y-8 sm:space-y-10">
 
             {/* Banner */}

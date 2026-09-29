@@ -32,6 +32,7 @@ import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
+import { LocationProvider } from '../../lib/location-context';
 import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
 import { salesViewHostConfig } from '../../lib/module-view-host/registries';
 import SalesViewHost from '../../components/sales/SalesViewHost';
@@ -349,32 +350,34 @@ export default function SalesLayout({
 }) {
   return (
     <FiscalYearProvider>
-      <SalesSidebar />
+      <LocationProvider>
+        <SalesSidebar />
 
-      <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
-        {/* Top Bar */}
-        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
-          <TopBarBrand
-            title="Sales Management"
-            icon={<ShoppingCart className="w-5 h-5 text-[#014582]" />}
-          />
+        <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
+          {/* Top Bar */}
+          <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
+            <TopBarBrand
+              title="Sales Management"
+              icon={<ShoppingCart className="w-5 h-5 text-[#014582]" />}
+            />
 
-          <div className="flex items-center gap-4">
-            <GlobalSearch />
+            <div className="flex items-center gap-4">
+              <GlobalSearch />
 
-            <div className="w-px h-6 bg-gray-200" />
+              <div className="w-px h-6 bg-gray-200" />
 
-            <ProfileDropdown accentClassName="bg-[#014582]" />
+              <ProfileDropdown accentClassName="bg-[#014582]" />
+            </div>
+          </header>
+
+          <AppBreadcrumbs />
+
+          {/* Page Content — keep-alive for sales sidebar routes */}
+          <div className="flex-1 p-6">
+            <SalesViewHost>{children}</SalesViewHost>
           </div>
-        </header>
-
-        <AppBreadcrumbs />
-
-        {/* Page Content — keep-alive for sales sidebar routes */}
-        <div className="flex-1 p-6">
-          <SalesViewHost>{children}</SalesViewHost>
         </div>
-      </div>
+      </LocationProvider>
     </FiscalYearProvider>
   );
 }

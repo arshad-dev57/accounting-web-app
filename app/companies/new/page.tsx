@@ -7,6 +7,7 @@ import { MainHubSidebar } from '../../../components/MainHubSidebar';
 import { TopBarBrand } from '../../../components/BrandHeader';
 import AppBreadcrumbs from '../../../components/AppBreadcrumbs';
 import ProfileDropdown from '../../../components/ProfileDropdown';
+import CompanySwitcher from '../../../components/CompanySwitcher';
 import { useCompanyOptional } from '../../../lib/company-context';
 
 const BRAND = '#014582';
@@ -55,6 +56,7 @@ export default function CreateCompanyPage() {
         <header className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-3">
           <TopBarBrand title="Create Company" icon={<Building2 className="h-5 w-5 text-[#014582]" />} />
           <div className="flex items-center gap-3">
+            <CompanySwitcher />
             <ProfileDropdown />
           </div>
         </header>

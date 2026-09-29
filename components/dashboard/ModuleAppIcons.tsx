@@ -302,3 +302,37 @@ export function CompanyAppIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function UsersAppIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden>
+      <circle className="usr-h1" cx="24" cy="20" r="9" fill="#00A09D" />
+      <path
+        className="usr-b1"
+        d="M8 52 C8 40 14 34 24 34 C34 34 40 40 40 52 Z"
+        fill="#714B67"
+      />
+      <circle className="usr-h2" cx="44" cy="22" r="8" fill="#F06050" />
+      <path
+        className="usr-b2"
+        d="M32 52 C32 42 36 36 44 36 C52 36 56 42 56 52 Z"
+        fill="#875A7B"
+      />
+      <circle className="usr-dot" cx="48" cy="14" r="3.5" fill="#F7CD1F" />
+      <style>{`
+        .usr-h1, .usr-b1, .usr-h2, .usr-b2 { transform-box: fill-box; transform-origin: center; }
+        .usr-h1, .usr-b1 { animation: usrBob 1.2s ease-in-out infinite; }
+        .usr-h2, .usr-b2 { animation: usrBob 1.2s ease-in-out 0.2s infinite reverse; }
+        .usr-dot { animation: usrPulse 1s ease-in-out infinite; }
+        @keyframes usrBob {
+          0%,100% { transform: translateY(0); }
+          50% { transform: translateY(-2px); }
+        }
+        @keyframes usrPulse {
+          0%,100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.2); opacity: 0.75; }
+        }
+      `}</style>
+    </svg>
+  );
+}
