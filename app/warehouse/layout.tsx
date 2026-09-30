@@ -22,6 +22,7 @@ import {
   CalendarClock,
   FileBarChart,
   MapPin,
+  Upload,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
@@ -49,6 +50,7 @@ function WarehouseSidebar() {
   const menuItems = [
     { icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard', path: '/warehouse/dashboard', permission: 'dashboard' },
     { icon: <Package className="w-5 h-5" />, label: 'Products', path: '/warehouse/products', permission: 'products' },
+    { icon: <Upload className="w-5 h-5" />, label: 'Import Inventory', path: '/warehouse/import', permission: 'products' },
     { icon: <FolderTree className="w-5 h-5" />, label: 'Categories', path: '/warehouse/categories', permission: 'categories' },
     { icon: <Users className="w-5 h-5" />, label: 'Suppliers', path: '/warehouse/suppliers', permission: 'suppliers' },
     { icon: <ArrowLeftRight className="w-5 h-5" />, label: 'Stock Movement', path: '/warehouse/stock-movement', permission: 'stock-movement' },

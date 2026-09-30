@@ -1,9 +1,13 @@
 import { apiClient } from '@/lib/api-client';
 
+/** Keep in sync with company-context COMPANY_STORAGE_KEY (avoid circular import). */
+const COMPANY_STORAGE_KEY = 'bisonstechs_active_company_id';
+
 export type FiscalYearStatus = 'Open' | 'Closed';
 
 export interface FiscalYear {
   id: string;
+  companyId?: string | null;
   name: string;
   startDate: string;
   endDate: string;
@@ -57,20 +61,52 @@ export function shouldAttachFiscalYear(url?: string): boolean {
   return FISCAL_YEAR_QUERY_PATHS.some((p) => path.includes(p));
 }
 
-export function getStoredFiscalYearId(): string | null {
+function resolveCompanyId(companyId?: string | null): string | null {
+  const explicit = String(companyId || '').trim();
+  if (explicit) return explicit;
   if (typeof window === 'undefined') return null;
   try {
-    return localStorage.getItem(FISCAL_YEAR_STORAGE_KEY);
+    return localStorage.getItem(COMPANY_STORAGE_KEY);
   } catch {
     return null;
   }
 }
 
-export function setStoredFiscalYearId(id: string | null) {
+/** Per-company selection key: selected_fiscal_year_id:<companyId> */
+export function fiscalYearSelectionKey(companyId?: string | null): string {
+  const cid = resolveCompanyId(companyId);
+  return cid ? `${FISCAL_YEAR_STORAGE_KEY}:${cid}` : FISCAL_YEAR_STORAGE_KEY;
+}
+
+/** Per-company cache key: cached_fiscal_years:<companyId> */
+export function fiscalYearsCacheKey(companyId?: string | null): string {
+  const cid = resolveCompanyId(companyId);
+  return cid ? `${FISCAL_YEARS_CACHE_KEY}:${cid}` : FISCAL_YEARS_CACHE_KEY;
+}
+
+export function getStoredFiscalYearId(companyId?: string | null): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const scoped = localStorage.getItem(fiscalYearSelectionKey(companyId));
+    if (scoped) return scoped;
+    // Legacy global key — only when no company context yet
+    if (!resolveCompanyId(companyId)) {
+      return localStorage.getItem(FISCAL_YEAR_STORAGE_KEY);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredFiscalYearId(id: string | null, companyId?: string | null) {
   if (typeof window === 'undefined') return;
   try {
-    if (id) localStorage.setItem(FISCAL_YEAR_STORAGE_KEY, id);
-    else localStorage.removeItem(FISCAL_YEAR_STORAGE_KEY);
+    const key = fiscalYearSelectionKey(companyId);
+    if (id) localStorage.setItem(key, id);
+    else localStorage.removeItem(key);
+    // Drop legacy global key so it cannot leak across companies
+    localStorage.removeItem(FISCAL_YEAR_STORAGE_KEY);
   } catch {
     /* ignore */
   }
@@ -82,6 +118,7 @@ function parseFiscalYear(raw: any): FiscalYear | null {
   if (!id) return null;
   return {
     id,
+    companyId: raw.companyId ? String(raw.companyId) : null,
     name: String(raw.name || 'Fiscal year'),
     startDate: String(raw.startDate || ''),
     endDate: String(raw.endDate || ''),
@@ -94,25 +131,58 @@ function parseFiscalYear(raw: any): FiscalYear | null {
   };
 }
 
-export function getCachedFiscalYears(): FiscalYear[] {
+export function getCachedFiscalYears(companyId?: string | null): FiscalYear[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(FISCAL_YEARS_CACHE_KEY);
+    const cid = resolveCompanyId(companyId);
+    const raw = localStorage.getItem(fiscalYearsCacheKey(cid));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.map(parseFiscalYear).filter((y): y is FiscalYear => !!y);
+    const list = parsed.map(parseFiscalYear).filter((y): y is FiscalYear => !!y);
+    // Reject cache that belongs to another company
+    if (cid) {
+      const mismatched = list.some((y) => y.companyId && y.companyId !== cid);
+      if (mismatched) return [];
+    }
+    return list;
   } catch {
     return [];
   }
 }
 
-export function setCachedFiscalYears(list: FiscalYear[]) {
+export function setCachedFiscalYears(list: FiscalYear[], companyId?: string | null) {
   if (typeof window === 'undefined') return;
   try {
-    const clean = list.map(parseFiscalYear).filter((y): y is FiscalYear => !!y);
-    localStorage.setItem(FISCAL_YEARS_CACHE_KEY, JSON.stringify(clean));
-    window.dispatchEvent(new CustomEvent(FISCAL_YEARS_CACHE_EVENT));
+    const cid = resolveCompanyId(companyId);
+    const clean = list
+      .map(parseFiscalYear)
+      .filter((y): y is FiscalYear => !!y)
+      .map((y) => (cid && !y.companyId ? { ...y, companyId: cid } : y));
+    localStorage.setItem(fiscalYearsCacheKey(cid), JSON.stringify(clean));
+    // Drop legacy global cache
+    localStorage.removeItem(FISCAL_YEARS_CACHE_KEY);
+    window.dispatchEvent(
+      new CustomEvent(FISCAL_YEARS_CACHE_EVENT, { detail: { companyId: cid } })
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearFiscalYearLocalState(companyId?: string | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    const cid = resolveCompanyId(companyId);
+    if (cid) {
+      localStorage.removeItem(fiscalYearSelectionKey(cid));
+      localStorage.removeItem(fiscalYearsCacheKey(cid));
+    }
+    localStorage.removeItem(FISCAL_YEAR_STORAGE_KEY);
+    localStorage.removeItem(FISCAL_YEARS_CACHE_KEY);
+    window.dispatchEvent(
+      new CustomEvent(FISCAL_YEARS_CACHE_EVENT, { detail: { companyId: cid } })
+    );
   } catch {
     /* ignore */
   }
@@ -121,17 +191,18 @@ export function setCachedFiscalYears(list: FiscalYear[]) {
 export function upsertCachedFiscalYear(year: FiscalYear | null | undefined): FiscalYear[] {
   const next = parseFiscalYear(year);
   if (!next) return getCachedFiscalYears();
-  const list = getCachedFiscalYears();
+  const cid = next.companyId || resolveCompanyId();
+  const list = getCachedFiscalYears(cid);
   const idx = list.findIndex((y) => y.id === next.id);
   if (idx >= 0) list[idx] = { ...list[idx], ...next };
   else list.push(next);
-  setCachedFiscalYears(list);
+  setCachedFiscalYears(list, cid);
   return list;
 }
 
 function unwrapList(data: any): FiscalYear[] {
   const raw = data?.data ?? data ?? [];
-  const list = Array.isArray(raw) ? raw : [];
+  const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
   return list.map(parseFiscalYear).filter((y): y is FiscalYear => !!y);
 }
 

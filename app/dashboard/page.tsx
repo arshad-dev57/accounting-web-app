@@ -137,7 +137,7 @@ const modules: ModuleItem[] = [
   },
   {
     title: 'Company',
-    href: '/companies/new',
+    href: '/companies',
     Icon: CompanyAppIcon,
     detail: 'Create a new company or manage your workspace companies from one place.',
   },

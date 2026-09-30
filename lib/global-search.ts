@@ -180,6 +180,7 @@ export const GLOBAL_SEARCH_PAGES: GlobalSearchPage[] = [
   // ============================ Inventory ============================
   { path: '/warehouse/dashboard', label: 'Inventory Dashboard', group: 'warehouse', module: 'warehouse', permission: 'dashboard', keywords: ['overview', 'stock', 'warehouse'] },
   { path: '/warehouse/products', label: 'Inventory Products', group: 'warehouse', module: 'warehouse', permission: 'products', keywords: ['items', 'stock items'] },
+  { path: '/warehouse/import', label: 'Import Inventory', group: 'warehouse', module: 'warehouse', permission: 'products', keywords: ['excel', 'csv', 'bulk import', 'opening stock'] },
   { path: '/warehouse/categories', label: 'Categories', group: 'warehouse', module: 'warehouse', permission: 'categories', keywords: ['product groups'] },
   { path: '/warehouse/suppliers', label: 'Inventory Suppliers', group: 'warehouse', module: 'warehouse', permission: 'suppliers', keywords: ['vendors'] },
   { path: '/warehouse/customers', label: 'Inventory Customers', group: 'warehouse', module: 'warehouse', permission: 'customers', keywords: ['clients'] },

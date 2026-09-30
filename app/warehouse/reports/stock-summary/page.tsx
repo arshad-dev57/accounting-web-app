@@ -60,8 +60,10 @@ export function StockSummaryReportPage() {
     let outOfStock = 0;
     for (const p of products) {
       const stock = p.currentStock ?? 0;
-      const price = p.sellingPrice ?? 0;
-      totalValue += stock * price;
+      // Inventory value = qty × cost (never selling price)
+      const cost =
+        (p as any).averageCost ?? (p as any).costPrice ?? 0;
+      totalValue += stock * cost;
       if (stock === 0) outOfStock += 1;
       else if (stock <= (p.minimumStock ?? 0)) lowStock += 1;
     }

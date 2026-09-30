@@ -121,6 +121,7 @@ export const accountingViewHostConfig: ModuleViewHostConfig = {
 export const WAREHOUSE_KEEP_ALIVE_ROUTES = [
   '/warehouse/dashboard',
   '/warehouse/products',
+  '/warehouse/import',
   '/warehouse/categories',
   '/warehouse/suppliers',
   '/warehouse/stock-movement',
@@ -140,6 +141,7 @@ export const warehouseViewHostConfig: ModuleViewHostConfig = {
   viewLoaders: {
     '/warehouse/dashboard': loader(() => import('@/warehouse/dashboard/page'), 'WarehouseDashboardPage'),
     '/warehouse/products': loader(() => import('@/warehouse/products/page'), 'ProductsPage'),
+    '/warehouse/import': loader(() => import('@/warehouse/import/page'), 'InventoryImportPage'),
     '/warehouse/categories': loader(() => import('@/warehouse/categories/page'), 'CategoriesPage'),
     '/warehouse/suppliers': loader(() => import('@/warehouse/suppliers/page'), 'SuppliersPage'),
     '/warehouse/stock-movement': loader(() => import('@/warehouse/stock-movement/page'), 'StockMovementPage'),

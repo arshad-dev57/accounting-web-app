@@ -18,6 +18,10 @@ export type CompanySummary = {
   id: string;
   name: string;
   email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  website?: string | null;
+  taxRegistrationNumber?: string | null;
   logo?: string | null;
   businessType?: string | null;
   isActive?: boolean;
@@ -26,6 +30,10 @@ export type CompanySummary = {
   isPrimary?: boolean;
   subscriptionPlan?: string;
   subscriptionStatus?: string;
+  productTier?: string | null;
+  trialEndDate?: string | null;
+  subscriptionEndDate?: string | null;
+  createdAt?: string | null;
 };
 
 type CompaniesCachePayload = {
@@ -221,10 +229,13 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       setActiveId(id);
       setStoredCompanyId(id);
       writeCompaniesCache(companies, id);
-      // Clear warehouse selection when company changes — warehouses are company-scoped
+      // Clear warehouse + legacy FY globals — both are company-scoped
       try {
         localStorage.removeItem('selected_location_id');
         localStorage.removeItem('cached_locations');
+        // Legacy (non-company) FY keys — per-company keys stay so revisit restores selection
+        localStorage.removeItem('selected_fiscal_year_id');
+        localStorage.removeItem('cached_fiscal_years');
         window.dispatchEvent(new Event('locations-cache-changed'));
         window.dispatchEvent(new Event('active-company-changed'));
       } catch {

@@ -35,7 +35,9 @@ const nextConfig: NextConfig = {
     ).trim();
     return [
       {
-        source: '/api/:path((?!pos/|download/|hr/holidays|hr/shifts).*)',
+        // Multipart inventory import uses App Router routes (rewrite drops file uploads)
+        source:
+          '/api/:path((?!pos/|download/|hr/holidays|hr/shifts|warehouse/inventory/import).*)',
         destination: `${backendUrl}/api/:path*`,
       },
     ];
