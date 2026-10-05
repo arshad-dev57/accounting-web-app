@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -21,6 +21,20 @@ import {
 import { transferService } from '@/lib/transfer-service';
 
 export default function BankTransferPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-[#014582]" />
+        </div>
+      }
+    >
+      <BankTransferPageContent />
+    </Suspense>
+  );
+}
+
+function BankTransferPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedFrom = searchParams.get('from') ?? '';
