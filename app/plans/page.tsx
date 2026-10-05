@@ -430,6 +430,7 @@ export default function PlansPage() {
   // Payment gateway not ready — keep trial/subscription backend intact; hide purchase UI.
   if (!SUBSCRIPTION_PURCHASE_UI_ENABLED) {
     const trialDaysLeft = snapshot?.subscription.trialDaysRemaining ?? 0;
+    const trialEligible = snapshot?.trialEligible === true;
     return (
       <div className="min-h-screen bg-white text-neutral-900">
         <header className="border-b border-neutral-200">
@@ -481,33 +482,63 @@ export default function PlansPage() {
               ? isTrial
                 ? 'Your free trial is active'
                 : 'Your subscription is active'
-              : 'Subscription required'}
+              : trialEligible
+                ? `Start your ${TRIAL_DAYS}-day free trial`
+                : 'Subscription required'}
           </h1>
           <p className="mt-4 text-sm text-neutral-500">
             {hasAccess && isTrial
               ? `${trialDaysLeft} day(s) remaining on your trial. Online purchase is temporarily unavailable.`
               : hasAccess
                 ? 'Online purchase and plan changes are temporarily unavailable. Contact support if you need changes.'
-                : isAdmin
-                  ? 'Online purchase is temporarily unavailable. Contact Bisonstechs support to activate or renew your subscription.'
-                  : "Your company's subscription has expired. Please ask your administrator to contact Bisonstechs support."}
+                : trialEligible
+                  ? `Full ERP + POS access for ${TRIAL_DAYS} days. No credit card required.`
+                  : isAdmin
+                    ? 'Online purchase is temporarily unavailable. Contact Bisonstechs support to activate or renew your subscription.'
+                    : "Your company's subscription has expired. Please ask your administrator to contact Bisonstechs support."}
           </p>
+          {error && (
+            <p className="mt-4 text-sm text-red-600" role="alert">
+              {error}
+            </p>
+          )}
+          {success && (
+            <p className="mt-4 text-sm text-emerald-600" role="status">
+              {success}
+            </p>
+          )}
           <div className="mt-8 space-y-3 text-sm">
-            <a
-              href={`mailto:${CUSTOM_CONTACT_EMAIL}`}
-              className="block font-semibold hover:underline"
-              style={{ color: BRAND }}
-            >
-              {CUSTOM_CONTACT_EMAIL}
-            </a>
-            <a
-              href={`tel:${CUSTOM_CONTACT_PHONE_TEL}`}
-              className="block font-semibold hover:underline"
-              style={{ color: BRAND }}
-            >
-              {CUSTOM_CONTACT_PHONE}
-            </a>
+            {!trialEligible && (
+              <>
+                <a
+                  href={`mailto:${CUSTOM_CONTACT_EMAIL}`}
+                  className="block font-semibold hover:underline"
+                  style={{ color: BRAND }}
+                >
+                  {CUSTOM_CONTACT_EMAIL}
+                </a>
+                <a
+                  href={`tel:${CUSTOM_CONTACT_PHONE_TEL}`}
+                  className="block font-semibold hover:underline"
+                  style={{ color: BRAND }}
+                >
+                  {CUSTOM_CONTACT_PHONE}
+                </a>
+              </>
+            )}
           </div>
+          {!hasAccess && trialEligible && (
+            <button
+              type="button"
+              disabled={processing}
+              onClick={() => handlePlanAction('trial')}
+              className="mt-10 inline-flex items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+              style={{ backgroundColor: BRAND }}
+            >
+              {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Start {TRIAL_DAYS}-day free trial
+            </button>
+          )}
           {hasAccess && (
             <button
               type="button"
