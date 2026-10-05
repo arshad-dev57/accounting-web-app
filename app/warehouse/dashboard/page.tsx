@@ -1,23 +1,32 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  Activity,
   AlertTriangle,
   ArrowDownRight,
   ArrowLeftRight,
   ArrowUpRight,
   Ban,
+  BarChart3,
   CalendarClock,
+  Gauge,
   Loader2,
   MapPin,
   Package,
+  Percent,
   RefreshCw,
+  Warehouse,
   Wallet,
 } from 'lucide-react';
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   Cell,
   Pie,
@@ -29,6 +38,18 @@ import {
 } from 'recharts';
 import { useLocation } from '@/lib/location-context';
 import { loadCurrencyLocal } from '@/lib/currency-service';
+import { browserCompanyAuthHeaders } from '../../../lib/company-api-headers';
+
+type WarehouseRow = {
+  locationId: string;
+  name: string;
+  code: string;
+  productCount: number;
+  stockValue: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  quantityOnHand: number;
+};
 
 type Metrics = {
   totalProducts: number;
@@ -37,12 +58,16 @@ type Metrics = {
   outOfStockCount: number;
   overstockCount: number;
   expiringCount: number;
+  inStockCount: number;
   todayStockIn: number;
   todayStockOut: number;
   periodStockIn: number;
   periodStockOut: number;
   pendingOrders: number;
   todayRevenue: number;
+  inventoryHealthScore: number;
+  stockAvailabilityRate: number;
+  warehouseBreakdown: WarehouseRow[];
 };
 
 type MovementPoint = {
@@ -59,7 +84,7 @@ type CategoryItem = {
   color: string;
 };
 
-type Activity = {
+type ActivityItem = {
   id: string;
   user: string;
   action: string;
@@ -73,7 +98,7 @@ type DashboardData = {
   categories: CategoryItem[];
   topProducts: Array<{ label: string; value: number; color: string }>;
   orderStatus: Record<string, number>;
-  activities: Activity[];
+  activities: ActivityItem[];
 };
 
 const TIME_PERIODS = [
@@ -94,12 +119,16 @@ function emptyMetrics(): Metrics {
     outOfStockCount: 0,
     overstockCount: 0,
     expiringCount: 0,
+    inStockCount: 0,
     todayStockIn: 0,
     todayStockOut: 0,
     periodStockIn: 0,
     periodStockOut: 0,
     pendingOrders: 0,
     todayRevenue: 0,
+    inventoryHealthScore: 100,
+    stockAvailabilityRate: 100,
+    warehouseBreakdown: [],
   };
 }
 
@@ -123,8 +152,6 @@ function formatAxis(value: number) {
   return String(Math.round(value));
 }
 
-import { browserCompanyAuthHeaders } from '../../../lib/company-api-headers';
-
 function formatDate(iso?: string) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -136,9 +163,22 @@ function authHeaders(): HeadersInit {
   return browserCompanyAuthHeaders();
 }
 
-export function WarehouseDashboardPage() {
+function healthTone(score: number) {
+  if (score >= 85) return { label: 'Excellent', className: 'bg-emerald-100 text-emerald-700' };
+  if (score >= 70) return { label: 'Good', className: 'bg-sky-100 text-sky-700' };
+  if (score >= 50) return { label: 'Fair', className: 'bg-amber-100 text-amber-700' };
+  return { label: 'At risk', className: 'bg-red-100 text-red-700' };
+}
+
+export default function WarehouseDashboardPage() {
   const router = useRouter();
-  const { selectedLocationId, selectedLocation } = useLocation();
+  const {
+    selectedLocationId,
+    selectedLocation,
+    locationIdForApi,
+    isAllLocations,
+    loading: locationLoading,
+  } = useLocation();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
@@ -151,7 +191,7 @@ export function WarehouseDashboardPage() {
     label = period,
     options?: { refresh?: boolean }
   ) => {
-    if (!selectedLocationId) {
+    if (locationLoading || !selectedLocationId) {
       setLoading(false);
       setRefreshing(false);
       return;
@@ -162,7 +202,7 @@ export function WarehouseDashboardPage() {
       setError(null);
 
       const qs = new URLSearchParams({ period: value });
-      qs.set('locationId', selectedLocationId);
+      if (locationIdForApi) qs.set('locationId', locationIdForApi);
       const response = await fetch(`/api/warehouse/dashboard?${qs.toString()}`, {
         headers: authHeaders(),
       });
@@ -186,7 +226,7 @@ export function WarehouseDashboardPage() {
   useEffect(() => {
     fetchDashboard(periodValue, period);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLocationId]);
+  }, [selectedLocationId, locationIdForApi, locationLoading]);
 
   const selectPeriod = (label: string, value: string) => {
     if (loading || refreshing) return;
@@ -196,10 +236,15 @@ export function WarehouseDashboardPage() {
   };
 
   const m = data?.metrics || emptyMetrics();
-  const inStock = Math.max(0, m.totalProducts - m.outOfStockCount);
+  const inStock = m.inStockCount || Math.max(0, m.totalProducts - m.outOfStockCount);
   const todayMoves = m.todayStockIn + m.todayStockOut;
+  const periodMoves = m.periodStockIn + m.periodStockOut;
   const healthAlerts =
     m.lowStockCount + m.outOfStockCount + m.expiringCount + m.overstockCount;
+  const health = healthTone(m.inventoryHealthScore || 100);
+  const scopeLabel = isAllLocations
+    ? 'All warehouses'
+    : selectedLocation?.name || 'Selected warehouse';
 
   const movementChart = useMemo(() => {
     const rows = data?.stockMovement ?? [];
@@ -229,13 +274,16 @@ export function WarehouseDashboardPage() {
   }, [data?.categories]);
 
   const categoryTotal = categories.reduce((s, c) => s + c.amount, 0);
+  const topProducts = (data?.topProducts ?? []).slice(0, 8);
+  const warehouseRows = m.warehouseBreakdown || [];
+  const warehouseMax = Math.max(1, ...warehouseRows.map((w) => w.stockValue));
 
   const overviewRows = [
     {
-      label: 'Total Products',
+      label: 'SKU Count',
       value: m.totalProducts,
       color: ACCENT,
-      source: 'All active inventory items',
+      source: 'Active inventory items (SKUs)',
       display: String(m.totalProducts),
     },
     {
@@ -249,21 +297,21 @@ export function WarehouseDashboardPage() {
       label: 'Low Stock',
       value: m.lowStockCount,
       color: '#f59e0b',
-      source: 'Below minimum threshold',
+      source: 'At or below reorder point',
       display: String(m.lowStockCount),
     },
     {
       label: 'Out of Stock',
       value: m.outOfStockCount,
       color: '#ef4444',
-      source: 'Zero quantity items',
+      source: 'Zero on-hand quantity',
       display: String(m.outOfStockCount),
     },
     {
       label: 'Overstock',
       value: m.overstockCount,
       color: '#7c3aed',
-      source: 'Above maximum threshold',
+      source: 'Above max stock threshold',
       display: String(m.overstockCount),
     },
     {
@@ -274,53 +322,69 @@ export function WarehouseDashboardPage() {
       display: String(m.expiringCount),
     },
     {
-      label: 'Stock Value',
+      label: 'Inventory Value',
       value: m.totalStockValue,
       color: '#22c55e',
-      source: 'Current stock × cost price',
+      source: 'On-hand qty × unit cost',
       display: formatCurrency(m.totalStockValue),
     },
     {
-      label: "Today's Movements",
-      value: todayMoves,
+      label: 'Period Movements',
+      value: periodMoves,
       color: '#0891b2',
-      source: `In ${m.todayStockIn} · Out ${m.todayStockOut}`,
-      display: String(todayMoves),
+      source: `In ${m.periodStockIn} · Out ${m.periodStockOut}`,
+      display: String(periodMoves),
     },
   ];
   const overviewMax = Math.max(1, ...overviewRows.map((r) => r.value));
 
   const kpis = [
     {
-      label: 'Total Products',
-      value: String(m.totalProducts),
-      icon: Package,
-      color: 'bg-blue-50 text-blue-600',
-      trend: `${inStock} in stock`,
-      trendUp: true,
-    },
-    {
-      label: 'Stock Value',
+      label: 'Inventory Value',
       value: formatCurrency(m.totalStockValue),
       icon: Wallet,
       color: 'bg-emerald-50 text-emerald-600',
-      trend: period,
+      trend: scopeLabel,
       trendUp: true,
     },
     {
-      label: 'Low Stock',
+      label: 'SKU Count',
+      value: String(m.totalProducts),
+      icon: Package,
+      color: 'bg-blue-50 text-blue-600',
+      trend: `${inStock} available`,
+      trendUp: true,
+    },
+    {
+      label: 'Availability Rate',
+      value: `${m.stockAvailabilityRate ?? 0}%`,
+      icon: Percent,
+      color: 'bg-sky-50 text-sky-600',
+      trend: m.outOfStockCount > 0 ? `${m.outOfStockCount} OOS` : 'Fully available',
+      trendUp: (m.stockAvailabilityRate ?? 0) >= 90,
+    },
+    {
+      label: 'Inventory Health',
+      value: String(m.inventoryHealthScore ?? 100),
+      icon: Gauge,
+      color: 'bg-violet-50 text-violet-600',
+      trend: health.label,
+      trendUp: (m.inventoryHealthScore ?? 100) >= 70,
+    },
+    {
+      label: 'Low Stock Alerts',
       value: String(m.lowStockCount),
       icon: AlertTriangle,
       color: 'bg-amber-50 text-amber-600',
-      trend: m.lowStockCount > 0 ? 'Alert' : 'Clear',
+      trend: m.lowStockCount > 0 ? 'Action needed' : 'Clear',
       trendUp: m.lowStockCount === 0,
     },
     {
-      label: "Today's Movements",
-      value: String(todayMoves),
+      label: `Movements · ${period}`,
+      value: String(periodMoves),
       icon: ArrowLeftRight,
       color: 'bg-cyan-50 text-cyan-600',
-      trend: `In ${m.todayStockIn} · Out ${m.todayStockOut}`,
+      trend: `In ${m.periodStockIn} · Out ${m.periodStockOut}`,
       trendUp: true,
     },
   ];
@@ -329,23 +393,27 @@ export function WarehouseDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {selectedLocation && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-50 border border-sky-100 text-sm text-sky-800">
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-50 border border-sky-100 text-sm text-sky-800">
+        {isAllLocations ? (
+          <Warehouse className="w-4 h-4 flex-shrink-0" />
+        ) : (
           <MapPin className="w-4 h-4 flex-shrink-0" />
-          <span>
-            Dashboard for <strong>{selectedLocation.name}</strong>
+        )}
+        <span>
+          Dashboard for <strong>{scopeLabel}</strong>
+          {selectedLocation ? (
             <span className="text-sky-600 font-mono text-xs ml-1">({selectedLocation.code})</span>
-          </span>
-        </div>
-      )}
+          ) : isAllLocations ? (
+            <span className="text-sky-600 text-xs ml-1">· company-wide totals</span>
+          ) : null}
+        </span>
+      </div>
 
-      {/* Header — same pattern as accounting dashboard */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Inventory Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Stock value, movements and inventory health for {period.toLowerCase()}
-            {selectedLocation ? ` · ${selectedLocation.name}` : ''}
+            On-hand value, availability, movements and warehouse health · {period.toLowerCase()}
           </p>
         </div>
 
@@ -355,10 +423,11 @@ export function WarehouseDashboardPage() {
               key={p.label}
               onClick={() => selectPeriod(p.label, p.value)}
               disabled={isBusy}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed ${period === p.label
-                ? 'bg-[#1088dd] text-white shadow-sm'
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                }`}
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                period === p.label
+                  ? 'bg-[#1088dd] text-white shadow-sm'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              }`}
             >
               {p.label}
             </button>
@@ -377,48 +446,49 @@ export function WarehouseDashboardPage() {
       {loading ? (
         <div className="flex flex-col items-center justify-center min-h-[420px] bg-white rounded-xl border border-gray-100 shadow-sm">
           <Loader2 className="w-8 h-8 animate-spin text-[#1088dd] mb-3" />
-          <p className="text-sm font-medium text-gray-700">
-            Loading {period.toLowerCase()} data...
-          </p>
+          <p className="text-sm font-medium text-gray-700">Loading {period.toLowerCase()} data...</p>
           <p className="text-xs text-gray-400 mt-1">Please wait while we update the dashboard</p>
         </div>
       ) : error ? (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600">{error}</div>
       ) : (
         <>
-          {/* Summary card */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  Stock Value · {period}
+                  Inventory Value · {scopeLabel}
                 </p>
                 <p className="text-3xl font-bold mt-1 text-gray-900">
                   {formatCurrency(m.totalStockValue)}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  {m.totalProducts} products · {m.lowStockCount} low stock · {healthAlerts} alerts
+                  {m.totalProducts} SKUs · {m.stockAvailabilityRate}% availability · {healthAlerts}{' '}
+                  alerts
                 </p>
               </div>
-              <div className="grid grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
                 <div>
-                  <p className="text-xs text-gray-400">Stock In</p>
-                  <p className="text-lg font-bold text-emerald-600">{m.todayStockIn}</p>
+                  <p className="text-xs text-gray-400">Health Score</p>
+                  <p className="text-lg font-bold text-violet-600">{m.inventoryHealthScore}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400">Stock Out</p>
-                  <p className="text-lg font-bold text-red-600">{m.todayStockOut}</p>
+                  <p className="text-xs text-gray-400">Stock In ({period})</p>
+                  <p className="text-lg font-bold text-emerald-600">{m.periodStockIn}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400">Low Stock</p>
-                  <p className="text-lg font-bold text-amber-600">{m.lowStockCount}</p>
+                  <p className="text-xs text-gray-400">Stock Out ({period})</p>
+                  <p className="text-lg font-bold text-red-600">{m.periodStockOut}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Today&apos;s Moves</p>
+                  <p className="text-lg font-bold text-cyan-600">{todayMoves}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* KPI cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {kpis.map((item) => {
               const Icon = item.icon;
               return (
@@ -431,16 +501,10 @@ export function WarehouseDashboardPage() {
                       <Icon className="w-5 h-5" />
                     </div>
                     <span
-                      className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${item.trendUp ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                        }`}
+                      className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                        item.trendUp ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                      }`}
                     >
-                      {item.trend === 'Alert' || item.trend === 'Clear' ? (
-                        item.trendUp ? (
-                          <ArrowUpRight className="w-3 h-3" />
-                        ) : (
-                          <ArrowDownRight className="w-3 h-3" />
-                        )
-                      ) : null}
                       {item.trend}
                     </span>
                   </div>
@@ -451,13 +515,55 @@ export function WarehouseDashboardPage() {
             })}
           </div>
 
-          {/* Charts */}
+          {isAllLocations && warehouseRows.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="font-bold text-gray-800">Warehouse Breakdown</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Inventory value and SKU coverage by warehouse
+                  </p>
+                </div>
+                <BarChart3 className="w-4 h-4 text-gray-400" />
+              </div>
+              <div className="space-y-3">
+                {warehouseRows.map((wh) => (
+                  <div key={wh.locationId} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-800 truncate">
+                          {wh.name}{' '}
+                          <span className="font-mono text-xs text-gray-400">({wh.code})</span>
+                        </p>
+                        <p className="text-[11px] text-gray-400">
+                          {wh.productCount} SKUs · Qty {Math.round(wh.quantityOnHand).toLocaleString()}{' '}
+                          · Low {wh.lowStockCount} · OOS {wh.outOfStockCount}
+                        </p>
+                      </div>
+                      <span className="font-semibold text-gray-800 shrink-0">
+                        {formatCurrency(wh.stockValue)}
+                      </span>
+                    </div>
+                    <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[#1088dd]"
+                        style={{
+                          width: `${Math.min(100, (wh.stockValue / warehouseMax) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <div className="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="font-bold text-gray-800">Stock Movement Trend</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Stock in vs stock out over time</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Receipts vs issues over {period.toLowerCase()}</p>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-gray-500">
                   <span className="inline-flex items-center gap-1.5">
@@ -604,50 +710,89 @@ export function WarehouseDashboardPage() {
             </div>
           </div>
 
-          {/* Stock overview */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-800">Stock Overview</h2>
-              <span className="text-xs text-gray-400">{period}</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-              {overviewRows.map((row) => (
-                <div key={row.label}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div>
-                      <p className="text-sm text-gray-700 font-medium">{row.label}</p>
-                      <p className="text-[11px] text-gray-400">{row.source}</p>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-800">{row.display}</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(100, (row.value / overviewMax) * 100)}%`,
-                        backgroundColor: row.color,
-                      }}
-                    />
-                  </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="font-bold text-gray-800">Top SKUs by Stock</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">Highest on-hand quantity / value movers</p>
                 </div>
-              ))}
+                <Activity className="w-4 h-4 text-gray-400" />
+              </div>
+              {topProducts.length === 0 ? (
+                <div className="py-10 text-center text-sm text-gray-400">No top product data</div>
+              ) : (
+                <div className="h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={topProducts}
+                      layout="vertical"
+                      margin={{ top: 4, right: 12, left: 8, bottom: 4 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                      <XAxis type="number" tickFormatter={formatAxis} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                      <YAxis
+                        type="category"
+                        dataKey="label"
+                        width={110}
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                      />
+                      <Tooltip
+                        formatter={(value: number | string) => [Number(value).toLocaleString(), 'Qty']}
+                        contentStyle={{
+                          borderRadius: 12,
+                          border: '1px solid #e5e7eb',
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
+                        }}
+                      />
+                      <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                        {topProducts.map((p, i) => (
+                          <Cell key={p.label} fill={p.color || PIE_COLORS[i % PIE_COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-gray-800">Stock Overview</h2>
+                <span className="text-xs text-gray-400">{period}</span>
+              </div>
+              <div className="space-y-3">
+                {overviewRows.map((row) => (
+                  <div key={row.label}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div>
+                        <p className="text-sm text-gray-700 font-medium">{row.label}</p>
+                        <p className="text-[11px] text-gray-400">{row.source}</p>
+                      </div>
+                      <span className="text-sm font-semibold text-gray-800">{row.display}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(100, (row.value / overviewMax) * 100)}%`,
+                          backgroundColor: row.color,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Stock health + Recent activity */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold text-gray-800">Stock Health</h2>
-                {healthAlerts > 0 ? (
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-600">
-                    {healthAlerts} alerts
-                  </span>
-                ) : (
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-600">
-                    Healthy
-                  </span>
-                )}
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${health.className}`}>
+                  {health.label} · {m.inventoryHealthScore}
+                </span>
               </div>
               <div className="space-y-3">
                 {[
@@ -656,31 +801,37 @@ export function WarehouseDashboardPage() {
                     count: m.lowStockCount,
                     icon: AlertTriangle,
                     color: 'bg-amber-50 text-amber-600',
+                    href: '/warehouse/reports/low-stock',
                   },
                   {
                     label: 'Out of Stock',
                     count: m.outOfStockCount,
                     icon: Ban,
                     color: 'bg-red-50 text-red-600',
+                    href: '/warehouse/reports/low-stock',
                   },
                   {
                     label: 'Expiring Soon',
                     count: m.expiringCount,
                     icon: CalendarClock,
                     color: 'bg-red-50 text-red-600',
+                    href: '/warehouse/reports/expiry',
                   },
                   {
                     label: 'Overstock',
                     count: m.overstockCount,
                     icon: Package,
                     color: 'bg-violet-50 text-violet-600',
+                    href: '/warehouse/reports/stock-summary',
                   },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div
+                    <button
                       key={item.label}
-                      className="flex items-center justify-between p-3 rounded-lg border border-gray-100"
+                      type="button"
+                      onClick={() => router.push(item.href)}
+                      className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 text-left"
                     >
                       <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-lg ${item.color}`}>
@@ -689,7 +840,7 @@ export function WarehouseDashboardPage() {
                         <span className="text-sm font-medium text-gray-700">{item.label}</span>
                       </div>
                       <span className="text-sm font-bold text-gray-800">{item.count}</span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -709,7 +860,7 @@ export function WarehouseDashboardPage() {
                 <div className="py-10 text-center text-sm text-gray-400">No recent activity</div>
               ) : (
                 <div className="space-y-3">
-                  {(data?.activities ?? []).slice(0, 6).map((activity, idx) => {
+                  {(data?.activities ?? []).slice(0, 8).map((activity, idx) => {
                     const isIn = (activity.action || '').toLowerCase().includes('in');
                     return (
                       <div
@@ -717,8 +868,9 @@ export function WarehouseDashboardPage() {
                         className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
                       >
                         <div
-                          className={`p-2.5 rounded-xl ${isIn ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-                            }`}
+                          className={`p-2.5 rounded-xl ${
+                            isIn ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                          }`}
                         >
                           {isIn ? (
                             <ArrowUpRight className="w-4 h-4" />
@@ -732,10 +884,11 @@ export function WarehouseDashboardPage() {
                               {activity.action || 'Movement'}
                             </p>
                             <span
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isIn
-                                ? 'bg-emerald-50 text-emerald-600'
-                                : 'bg-red-50 text-red-600'
-                                }`}
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                isIn
+                                  ? 'bg-emerald-50 text-emerald-600'
+                                  : 'bg-red-50 text-red-600'
+                              }`}
                             >
                               {isIn ? 'In' : 'Out'}
                             </span>
@@ -759,7 +912,4 @@ export function WarehouseDashboardPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { WarehouseDashboardPage };

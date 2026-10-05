@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -111,7 +113,7 @@ function buildAccountHierarchy(accounts: ChartOfAccount[]): TypeGroup[] {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export function ChartOfAccountsPage() {
+export default function ChartOfAccountsPage() {
   const { symbol: currencySymbol } = useCurrency();
   const PAGE_SIZE = 100;
   const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
@@ -1167,7 +1169,4 @@ function ConfirmationModal({
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { ChartOfAccountsPage };

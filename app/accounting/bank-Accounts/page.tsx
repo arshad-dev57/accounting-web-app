@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCurrency } from '../../../lib/currency-context';
@@ -38,7 +40,7 @@ interface FilterState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export function BankAccountsPage() {
+export default function BankAccountsPage() {
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -817,7 +819,4 @@ function AddMoneyModal({
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { BankAccountsPage };

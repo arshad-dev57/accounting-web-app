@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import Link from 'next/link';
 import { Settings, Loader2, ExternalLink, Clock, DollarSign, Percent, Award, BookOpen, Save, FileText } from 'lucide-react';

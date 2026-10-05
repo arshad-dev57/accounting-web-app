@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import Link from 'next/link';
 import { Download, Loader2, Wallet, Banknote, AlertTriangle, ExternalLink } from 'lucide-react';

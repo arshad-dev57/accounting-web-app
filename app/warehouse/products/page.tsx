@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import {
@@ -20,6 +22,7 @@ import { settingService } from '../../api/settings/route';
 import { ProductTaxFields } from '../../../components/TaxRateSelect';
 import QuickAddSelect from '../../../components/QuickAddSelect';
 import { useLocation } from '@/lib/location-context';
+import { locationService } from '@/lib/location-service';
 import { useCurrency } from '@/lib/currency-context';
 import { useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 import { BarcodeScannerModal } from '@/lib/barcode-scanner-modal';
@@ -820,19 +823,20 @@ function ProductList({
         <div className="overflow-x-auto">
           <table className="w-full text-xs md:text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Image</th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">SKU</th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Product Name</th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Category</th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Supplier</th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Dimensions</th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">
-                  Stock{locationName ? ` (${locationName})` : ''}
+              <tr className="bg-gradient-to-r from-[#014582]/5 to-gray-50 border-b-2 border-[#014582]/10">
+                <th className="text-left px-3 md:px-4 py-3 text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest w-12"></th>
+                <th className="text-left px-3 md:px-4 py-3 text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest">SKU / Barcode</th>
+                <th className="text-left px-3 md:px-4 py-3 text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest">Product</th>
+                <th className="text-left px-3 md:px-4 py-3 text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest hidden sm:table-cell">Category</th>
+                <th className="text-left px-3 md:px-4 py-3 text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest hidden md:table-cell">Supplier</th>
+                <th className="text-right px-3 md:px-4 py-3 text-[9px] md:text-[10px] font-bold text-blue-500 uppercase tracking-widest">Cost Price</th>
+                <th className="text-right px-3 md:px-4 py-3 text-[9px] md:text-[10px] font-bold text-[#014582] uppercase tracking-widest">Sale Price</th>
+                <th className="text-right px-3 md:px-4 py-3 text-[9px] md:text-[10px] font-bold text-green-600 uppercase tracking-widest hidden sm:table-cell">Margin</th>
+                <th className="text-right px-3 md:px-4 py-3 text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                  Stock{locationName ? <span className="block text-[8px] normal-case font-normal text-gray-400">{locationName}</span> : ''}
                 </th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="text-left px-3 md:px-4 py-3 text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest">Status</th>
+                <th className="text-center px-3 md:px-4 py-3 text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -848,77 +852,128 @@ function ProductList({
                   <p className="text-xs md:text-sm text-gray-400">Try adjusting your search or filters</p>
                 </td></tr>
               ) : (
-                products.map((product) => (
-                  <tr key={product.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="px-3 md:px-6 py-2 md:py-3">
-                      <button
-                        type="button"
-                        onClick={() => onViewClick(product)}
-                        className="block"
-                        title="View product"
-                      >
-                        <ProductThumb product={product} size={44} />
+                products.map((product) => {
+                  const costP = Number(product.costPrice || 0);
+                  const saleP = Number(product.sellingPrice || 0);
+                  const margin = costP > 0 ? ((saleP - costP) / costP) * 100 : 0;
+                  const profit = saleP - costP;
+                  const stockQty = Number(product.currentStock || 0);
+                  const minStock = Number(product.minimumStock || 0);
+                  const isOutOfStock = stockQty === 0;
+                  const isLowStock = !isOutOfStock && stockQty <= (minStock || 5);
+                  return (
+                  <tr key={product.id} className="border-b border-gray-100 hover:bg-[#014582]/[0.025] transition-colors group">
+                    <td className="px-3 md:px-4 py-2.5">
+                      <button type="button" onClick={() => onViewClick(product)} className="block" title="View product">
+                        <ProductThumb product={product} size={40} />
                       </button>
                     </td>
-                    <td className="px-3 md:px-6 py-2 md:py-3 font-mono text-[10px] md:text-xs font-semibold text-gray-700">{product.sku}</td>
-                    <td className="px-3 md:px-6 py-2 md:py-3 font-medium text-gray-800 text-xs md:text-sm">{product.name}</td>
-                    <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden sm:table-cell">{product.categoryName || '-'}</td>
-                    <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden md:table-cell">{product.supplierName || '-'}</td>
-                    <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden lg:table-cell">
-                      {hasProductDimensions(product) ? (
-                        <div className="space-y-0.5">
-                          <p className="font-medium text-gray-700">{formatProductDimensions(product)}</p>
-                          {formatProductVolume(product) && (
-                            <p className="text-[10px] text-gray-400">Vol: {formatProductVolume(product)?.volumeText}</p>
-                          )}
-                          {formatProductWeight(product) && (
-                            <p className="text-[10px] text-gray-400">Wt: {formatProductWeight(product)}</p>
-                          )}
+                    <td className="px-3 md:px-4 py-2.5 min-w-[90px]">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-mono text-[10px] md:text-xs font-bold text-[#014582] bg-[#014582]/10 px-1.5 py-0.5 rounded tracking-wider w-fit">{product.sku}</span>
+                        {(product.barcodeNumber || product.barcode?.number) && (
+                          <span className="font-mono text-[9px] text-gray-400 flex items-center gap-0.5 mt-0.5">
+                            <Barcode className="w-2.5 h-2.5 flex-shrink-0" />
+                            {product.barcodeNumber || product.barcode?.number}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 md:px-4 py-2.5 min-w-[140px]">
+                      <div className="flex flex-col gap-0.5">
+                        <button type="button" onClick={() => onViewClick(product)} className="text-left font-semibold text-gray-900 text-xs md:text-sm hover:text-[#014582] transition-colors leading-tight">
+                          {product.name}
+                        </button>
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {product.isBatchManaged && <span className="text-[9px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded font-medium">Batch</span>}
+                          {product.hasExpiry && <span className="text-[9px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium">Expiry</span>}
                         </div>
-                      ) : formatProductWeight(product) ? (
-                        <span>{formatProductWeight(product)}</span>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
+                      </div>
                     </td>
-                    <td className="px-3 md:px-6 py-2 md:py-3 font-semibold text-gray-700 text-xs md:text-sm">{formatAmount(Number(product.sellingPrice))}</td>
-                    <td className="px-3 md:px-6 py-2 md:py-3 text-gray-600 text-xs md:text-sm hidden lg:table-cell">
-                      {Number(product.currentStock || 0).toLocaleString()}
-                    </td>
-                    <td className="px-3 md:px-6 py-2 md:py-3">
-                      <span className={`text-[8px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full ${
-                        product.currentStock === 0 ? 'bg-red-100 text-red-700' :
-                        product.currentStock <= (product.minimumStock || 5) ? 'bg-orange-100 text-orange-700' :
-                        'bg-green-100 text-green-700'
-                      }`}>
-                        {product.currentStock === 0 ? 'Out of Stock' :
-                         product.currentStock <= (product.minimumStock || 5) ? 'Low Stock' : 'In Stock'}
+                    <td className="px-3 md:px-4 py-2.5 hidden sm:table-cell">
+                      <span className="text-[10px] md:text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+                        {product.categoryName || '—'}
                       </span>
                     </td>
-                    <td className="px-3 md:px-6 py-2 md:py-3">
-                      <div className="flex items-center gap-1 md:gap-2">
-                        <button onClick={() => onViewClick(product)} className="p-1 md:p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="View Detail">
+                    <td className="px-3 md:px-4 py-2.5 hidden md:table-cell">
+                      <span className="text-[10px] md:text-xs text-gray-600 whitespace-nowrap">{product.supplierName || '—'}</span>
+                    </td>
+                    <td className="px-3 md:px-4 py-2.5 text-right">
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs md:text-sm font-semibold text-gray-700">{formatAmount(costP)}</span>
+                        <span className="text-[8px] text-gray-400 uppercase tracking-wide">Cost</span>
+                      </div>
+                    </td>
+                    <td className="px-3 md:px-4 py-2.5 text-right">
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs md:text-sm font-bold text-[#014582]">{formatAmount(saleP)}</span>
+                        {(product as any).wholesalePrice ? (
+                          <span className="text-[8px] text-indigo-500 font-medium">WS: {formatAmount(Number((product as any).wholesalePrice))}</span>
+                        ) : (
+                          <span className="text-[8px] text-gray-400 uppercase tracking-wide">Sale</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 md:px-4 py-2.5 text-right hidden sm:table-cell">
+                      {costP > 0 ? (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className={`text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded ${
+                            margin >= 30 ? 'bg-green-100 text-green-700' :
+                            margin >= 15 ? 'bg-blue-100 text-blue-700' :
+                            margin >= 0  ? 'bg-orange-100 text-orange-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {margin >= 0 ? '+' : ''}{margin.toFixed(1)}%
+                          </span>
+                          <span className="text-[9px] text-gray-400">{formatAmount(profit)}/unit</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 md:px-4 py-2.5 text-right">
+                      <div className="flex flex-col items-end">
+                        <span className={`text-xs md:text-sm font-bold ${
+                          isOutOfStock ? 'text-red-600' : isLowStock ? 'text-orange-500' : 'text-gray-800'
+                        }`}>
+                          {stockQty.toLocaleString()}
+                        </span>
+                        <span className="text-[8px] text-gray-400 uppercase tracking-wide">{product.stockUnit || 'Pcs'}</span>
+                        {(product as any).companyStock != null && Number((product as any).companyStock) !== stockQty && (
+                          <span className="text-[8px] text-blue-400">All: {Number((product as any).companyStock).toLocaleString()}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 md:px-4 py-2.5">
+                      <span className={`inline-flex items-center gap-1 text-[9px] md:text-[10px] font-bold px-2 py-1 rounded-full ${
+                        isOutOfStock ? 'bg-red-50 text-red-700 ring-1 ring-red-200' :
+                        isLowStock   ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-200' :
+                        'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                          isOutOfStock ? 'bg-red-500' : isLowStock ? 'bg-orange-500' : 'bg-emerald-500'
+                        }`} />
+                        {isOutOfStock ? 'Out of Stock' : isLowStock ? 'Low Stock' : 'In Stock'}
+                      </span>
+                    </td>
+                    <td className="px-3 md:px-4 py-2.5">
+                      <div className="flex items-center justify-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => onViewClick(product)} className="p-1.5 text-gray-400 hover:text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all" title="View Detail">
                           <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         </button>
-                        <button onClick={() => onEditClick(product)} className="p-1 md:p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-all" title="Edit">
+                        <button onClick={() => onEditClick(product)} className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Edit">
                           <Edit className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         </button>
                         <button onClick={() => {
-                          console.log('🔵 [Delete button clicked] Product object:', product);
-                          console.log('🔵 [Delete button clicked] Product ID:', product.id);
-                          if (!product.id) {
-                            console.error('❌ [Delete button clicked] Product ID is missing!');
-                            alert('Product ID is missing, cannot delete');
-                            return;
-                          }
+                          if (!product.id) { alert('Product ID is missing'); return; }
                           onDeleteClick(product.id);
-                        }} className="p-1 md:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
+                        }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete">
                           <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))
+                )})
               )}
             </tbody>
           </table>
@@ -1000,6 +1055,7 @@ function ProductForm({
   onSupplierCreated?: (sup: Supplier) => void;
   onSettingCreated?: (settingCategory: string, item: any) => void;
 }) {
+  const { locations } = useLocation();
   const categoryList = Array.isArray(categories)
     ? categories.filter((c) => {
         const parent = c.parentId;
@@ -1015,6 +1071,7 @@ function ProductForm({
   const [showQrScanner, setShowQrScanner] = useState(false);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const scanTargetRef = useRef<'barcode' | 'qr'>('qr');
+  const [warehouseId, setWarehouseId] = useState(locationId || '');
   const [formData, setFormData] = useState({
     name: editingProduct?.name || '',
     sku: editingProduct?.sku || '',
@@ -1093,6 +1150,30 @@ function ProductForm({
   );
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [subCategories, setSubCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setWarehouseId(locationId || '');
+      return;
+    }
+    const productId = getProductId(editingProduct);
+    if (!productId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const stocks = await locationService.getProductStocks(productId);
+        if (cancelled) return;
+        const preferred =
+          (locationId && stocks.find((s) => s.locationId === locationId)?.locationId) ||
+          stocks[0]?.locationId ||
+          '';
+        setWarehouseId(preferred);
+      } catch {
+        if (!cancelled) setWarehouseId(locationId || '');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isEditing, editingProduct, locationId]);
 
   useEffect(() => {
     setExistingImages(editingProduct?.images || (editingProduct?.mainImage ? [editingProduct.mainImage] : []));
@@ -1321,8 +1402,8 @@ function ProductForm({
 
       const categoryId = formData.subCategory || formData.category;
       if (categoryId) payload.append('categoryId', String(categoryId));
-      if (locationId && !isEditing) {
-        payload.append('locationId', locationId);
+      if (warehouseId) {
+        payload.append('locationId', warehouseId);
       }
 
       if (formData.tags) {
@@ -1779,6 +1860,26 @@ function ProductForm({
           {/* WAREHOUSE */}
           {activeTab === 'warehouse' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+                  Warehouse <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <select
+                  value={warehouseId}
+                  onChange={(e) => setWarehouseId(e.target.value)}
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+                >
+                  <option value="">No warehouse assigned</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name}{loc.code ? ` (${loc.code})` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[10px] md:text-xs text-gray-500">
+                  Assigns this product to the selected warehouse catalog (0 opening stock). Leave empty to assign later via Stock Movement / transfer.
+                </p>
+              </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Rack Location</label>
                 <QuickAddSelect
@@ -2217,8 +2318,8 @@ function ProductForm({
 // ============================================================
 // MAIN PAGE
 // ============================================================
-export function ProductsPage() {
-  const { selectedLocationId, selectedLocation } = useLocation();
+export default function ProductsPage() {
+  const { selectedLocationId, selectedLocation, locationIdForApi, isAllLocations } = useLocation();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -2290,9 +2391,11 @@ export function ProductsPage() {
         page: pagination.page,
         limit: pagination.limit,
         search: searchTerm || undefined,
-        locationId: selectedLocationId,
+        locationId: locationIdForApi || undefined,
         categoryIds,
         stockStatus: selectedStatus !== 'all' ? (selectedStatus as 'low' | 'out' | 'in') : undefined,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
       });
       setProducts(result.data);
       setPagination(result.pagination);
@@ -2305,6 +2408,7 @@ export function ProductsPage() {
     }
   }, [
     selectedLocationId,
+    locationIdForApi,
     pagination.page,
     pagination.limit,
     searchTerm,
@@ -2319,7 +2423,7 @@ export function ProductsPage() {
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, page: 1 }));
-  }, [selectedLocationId]);
+  }, [selectedLocationId, locationIdForApi]);
 
   const handleBarcodeScan = useCallback(async (scannedValue: string) => {
     setShowScanner(false);
@@ -2328,7 +2432,7 @@ export function ProductsPage() {
       const result = await productService.getProducts({
         search: scannedValue,
         limit: 1,
-        locationId: selectedLocationId || undefined,
+        locationId: locationIdForApi || undefined,
       });
       if (result.data.length > 0) {
         setViewingProduct(result.data[0]);
@@ -2340,7 +2444,7 @@ export function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedLocationId]);
+  }, [locationIdForApi]);
 
   useHardwareBarcodeScanner((code) => {
     if (showCreateForm) return;
@@ -2364,7 +2468,13 @@ export function ProductsPage() {
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
-  const handleAddClick = () => { setEditingProduct(null); setShowCreateForm(true); };
+  const handleAddClick = async () => {
+    setEditingProduct(null);
+    // Refresh latest settings before opening create form so newly added
+    // dropdown values are always visible on the next product.
+    await fetchSettings();
+    setShowCreateForm(true);
+  };
 
   const handleViewClick = async (product: Product) => {
     const id = getProductId(product);
@@ -2421,15 +2531,25 @@ export function ProductsPage() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {selectedLocation && (
+      {(selectedLocation || isAllLocations) && (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2 rounded-lg bg-sky-50 border border-sky-100 text-sm text-sky-800">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 flex-shrink-0" />
             <span>
-              Products for <strong>{selectedLocation.name}</strong>
-              <span className="text-sky-600 font-mono text-xs ml-1">({selectedLocation.code})</span>
-              {' · '}
-              only products assigned to this location
+              {isAllLocations ? (
+                <>
+                  Products for <strong>All warehouses</strong>
+                  {' · '}
+                  company-wide catalog with stock totals
+                </>
+              ) : (
+                <>
+                  Products for <strong>{selectedLocation?.name}</strong>
+                  <span className="text-sky-600 font-mono text-xs ml-1">({selectedLocation?.code})</span>
+                  {' · '}
+                  only products assigned to this warehouse
+                </>
+              )}
               {selectedStatus === 'in' ? ' · In Stock' : ''}
               {selectedStatus === 'out' ? ' · Out of Stock' : ''}
               {selectedStatus === 'low' ? ' · Low Stock' : ''}
@@ -2462,7 +2582,7 @@ export function ProductsPage() {
           suppliers={suppliers}
           settingsData={settingsData}
           loadingSettings={loadingSettings}
-          locationId={selectedLocationId}
+          locationId={locationIdForApi || undefined}
           onCategoryCreated={(cat) => {
             setCategories((prev) => {
               if (prev.some((c) => String(c.id) === String(cat.id))) return prev;
@@ -2481,10 +2601,14 @@ export function ProductsPage() {
           onSettingCreated={(cat, item) => {
             setSettingsData((prev) => {
               const list = prev[cat] || [];
-              const name = item?.name;
-              if (name && list.some((x) => x.name === name)) return prev;
+              const name = String(item?.name || '').trim().toLowerCase();
+              if (name && list.some((x) => String(x?.name || '').trim().toLowerCase() === name)) {
+                return prev;
+              }
               return { ...prev, [cat]: [...list, item] };
             });
+            // Also refetch from server to keep list in sync across re-opens.
+            void fetchSettings();
           }}
         />
       ) : (
@@ -2512,7 +2636,4 @@ export function ProductsPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { ProductsPage };

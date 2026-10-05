@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, MapPin, RefreshCw, Search, Wallet } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
@@ -51,8 +53,8 @@ function statusBadge(status: string) {
   return 'bg-emerald-100 text-emerald-700';
 }
 
-export function InventoryValuationPage() {
-  const { selectedLocationId, selectedLocation } = useLocation();
+export default function InventoryValuationPage() {
+  const { selectedLocationId, selectedLocation, locationIdForApi, isAllLocations } = useLocation();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
@@ -71,7 +73,7 @@ export function InventoryValuationPage() {
       const params = new URLSearchParams();
       if (category !== 'all') params.set('category', category);
       if (search.trim()) params.set('search', search.trim());
-      params.set('locationId', selectedLocationId);
+      if (locationIdForApi) params.set('locationId', locationIdForApi);
       const qs = params.toString();
       const response = await apiClient.get(
         `/api/warehouse/inventory/valuation?${qs}`
@@ -90,7 +92,7 @@ export function InventoryValuationPage() {
     } finally {
       setLoading(false);
     }
-  }, [category, search, selectedLocationId]);
+  }, [category, search, selectedLocationId, locationIdForApi]);
 
   useEffect(() => {
     const t = setTimeout(() => loadData(), search ? 300 : 0);
@@ -123,7 +125,11 @@ export function InventoryValuationPage() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             Stock cost, selling value, and profit by product
-            {selectedLocation ? ` · ${selectedLocation.name}` : ''}
+            {isAllLocations
+              ? ' · All warehouses'
+              : selectedLocation
+                ? ` · ${selectedLocation.name}`
+                : ''}
           </p>
         </div>
         <button
@@ -137,11 +143,17 @@ export function InventoryValuationPage() {
         </button>
       </div>
 
-      {selectedLocation && (
+      {(selectedLocation || isAllLocations) && (
         <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
           <MapPin className="w-4 h-4 flex-shrink-0" />
-          Showing valuation for <strong>{selectedLocation.name}</strong>
-          <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
+          {isAllLocations ? (
+            <>Showing valuation for <strong>All warehouses</strong></>
+          ) : (
+            <>
+              Showing valuation for <strong>{selectedLocation?.name}</strong>
+              <span className="text-sky-600 font-mono text-xs">({selectedLocation?.code})</span>
+            </>
+          )}
         </div>
       )}
 
@@ -230,7 +242,4 @@ export function InventoryValuationPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { InventoryValuationPage };

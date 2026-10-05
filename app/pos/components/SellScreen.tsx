@@ -1,4 +1,5 @@
 'use client';
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { posProductService, posSaleService } from '../../../lib/pos-service';
 import { customerService } from '../../../app/api/customer/route';

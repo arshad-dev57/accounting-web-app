@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, BarChart3, Loader2, RefreshCw } from 'lucide-react';
@@ -32,7 +34,7 @@ function formatMoney(amount: number) {
   }
 }
 
-export function StockSummaryReportPage() {
+export default function StockSummaryReportPage() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<ProductRow[]>([]);
 
@@ -151,7 +153,4 @@ export function StockSummaryReportPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { StockSummaryReportPage };

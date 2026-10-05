@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
@@ -27,7 +29,7 @@ interface FilterState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export function AgedReceivablesPage() {
+export default function AgedReceivablesPage() {
   const [customers, setCustomers] = useState<AgedCustomer[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<AgedCustomer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -528,7 +530,4 @@ function CustomerDetailModal({
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { AgedReceivablesPage };

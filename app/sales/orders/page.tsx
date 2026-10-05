@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus, Search, RefreshCw, ShoppingCart, Package, User,
@@ -129,6 +131,7 @@ const STATUS_COLORS: Record<string, string> = {
   'In Transit': 'bg-cyan-100 text-cyan-700',
   'Partially Delivered': 'bg-sky-100 text-sky-700',
   Delivered: 'bg-green-100 text-green-700',
+  'Partially Returned': 'bg-rose-100 text-rose-700',
   Cancelled: 'bg-red-100 text-red-700',
   Returned: 'bg-pink-100 text-pink-700',
   'On Hold': 'bg-yellow-100 text-yellow-700',
@@ -138,6 +141,7 @@ const PAYMENT_COLORS: Record<string, string> = {
   Pending: 'bg-orange-100 text-orange-700',
   Paid: 'bg-green-100 text-green-700',
   Partial: 'bg-blue-100 text-blue-700',
+  'Partial Refund': 'bg-amber-100 text-amber-700',
   Refunded: 'bg-red-100 text-red-700',
   Cancelled: 'bg-gray-100 text-gray-700',
 };
@@ -152,7 +156,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 const pill = (map: Record<string, string>, val: string) =>
   `text-xs font-semibold px-2.5 py-1 rounded-full ${map[val] ?? 'bg-gray-100 text-gray-700'}`;
 
-const STATUS_OPTIONS = ['all', 'Draft', 'Pending', 'Processing', 'Packed', 'Shipped', 'In Transit', 'Partially Delivered', 'Delivered', 'Cancelled', 'Returned', 'On Hold'];
+const STATUS_OPTIONS = ['all', 'Draft', 'Pending', 'Processing', 'Packed', 'Shipped', 'In Transit', 'Partially Delivered', 'Delivered', 'Partially Returned', 'Cancelled', 'Returned', 'On Hold'];
 const PAYMENT_OPTIONS = ['all', 'Pending', 'Paid', 'Partial', 'Refunded', 'Cancelled'];
 const PRIORITY_OPTIONS = ['all', 'Low', 'Medium', 'High', 'Urgent'];
 const CUSTOMER_TYPES = ['Individual', 'Business', 'Wholesale', 'Retail'];
@@ -481,12 +485,14 @@ export function SalesOrdersPage() {
   const getValidTransitions = (currentStatus: string) => {
     const validTransitions: Record<string, string[]> = {
       Draft: ['Pending', 'Cancelled'],
-      Pending: ['Processing', 'Cancelled'],
-      Processing: ['Packed', 'Cancelled'],
-      Packed: ['Shipped', 'Cancelled'],
-      Shipped: ['In Transit', 'Delivered', 'Cancelled'],
-      'In Transit': ['Delivered', 'Cancelled'],
-      Delivered: ['Returned'],
+      Pending: ['Processing', 'Partially Delivered', 'Delivered', 'Cancelled', 'On Hold'],
+      Processing: ['Packed', 'Partially Delivered', 'Delivered', 'Cancelled', 'On Hold'],
+      Packed: ['Shipped', 'Partially Delivered', 'Delivered', 'Cancelled'],
+      Shipped: ['In Transit', 'Partially Delivered', 'Delivered', 'Cancelled'],
+      'In Transit': ['Partially Delivered', 'Delivered', 'Cancelled'],
+      'Partially Delivered': ['Delivered', 'Partially Returned', 'Returned', 'Cancelled'],
+      Delivered: ['Partially Returned', 'Returned'],
+      'Partially Returned': ['Returned', 'Partially Delivered', 'Delivered'],
       Cancelled: [],
       Returned: [],
       'On Hold': ['Pending', 'Processing', 'Cancelled'],

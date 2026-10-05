@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import { findProductFromScan, useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 import { matchScannedProduct } from '@/lib/pos-scanner';
@@ -952,7 +954,7 @@ function StockHistory({ movements, loading, onRefresh }: {
 // ============================================================
 // MAIN PAGE
 // ============================================================
-export function StockMovementPage() {
+export default function StockMovementPage() {
   const { selectedLocationId, selectedLocation } = useLocation();
   const [activeTab, setActiveTab] = useState<'in' | 'out'>('in');
   const [movements, setMovements] = useState<StockMovement[]>([]);
@@ -1060,7 +1062,4 @@ export function StockMovementPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { StockMovementPage };

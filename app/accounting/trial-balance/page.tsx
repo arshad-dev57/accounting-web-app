@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -39,7 +41,7 @@ interface FilterState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export function TrialBalancePage() {
+export default function TrialBalancePage() {
   const [accounts, setAccounts] = useState<TrialBalanceAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -538,7 +540,4 @@ function AccountDetailModal({
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { TrialBalancePage };

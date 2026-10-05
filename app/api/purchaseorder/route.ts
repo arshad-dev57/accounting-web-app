@@ -111,6 +111,10 @@ export interface Product {
   taxRate?: number;
   category?: string | { name?: string };
   stockUnitName?: string;
+  boxUnitName?: string;
+  isBoxBased?: boolean;
+  boxQuantity?: number;
+  conversionFactor?: number;
   barcode?: string;
   currentStock?: number;
   isActive: boolean;
@@ -365,7 +369,11 @@ export const purchaseOrderService = {
           landingCost: Number((p as any).landingCost ?? 0),
           taxRate: Number(p.taxRate ?? 0),
           category: p.categoryName || p.category,
-          stockUnitName: p.stockUnitName,
+          stockUnitName: p.stockUnitName || p.stockUnit || 'Pcs',
+          boxUnitName: (p as any).boxUnitName || 'Box',
+          isBoxBased: Boolean((p as any).isBoxBased),
+          boxQuantity: Number((p as any).boxQuantity ?? 0),
+          conversionFactor: Number((p as any).conversionFactor ?? 1),
           barcode: p.barcodeNumber,
           currentStock: Number(p.currentStock ?? 0),
           isActive: p.isActive !== false,
@@ -432,7 +440,11 @@ export const purchaseOrderService = {
           landingCost: Number((p as any).landingCost ?? 0),
           taxRate: Number(p.taxRate ?? 0),
           category: p.categoryName || p.category,
-          stockUnitName: p.stockUnitName,
+          stockUnitName: p.stockUnitName || p.stockUnit || 'Pcs',
+          boxUnitName: (p as any).boxUnitName || 'Box',
+          isBoxBased: Boolean((p as any).isBoxBased),
+          boxQuantity: Number((p as any).boxQuantity ?? 0),
+          conversionFactor: Number((p as any).conversionFactor ?? 1),
           barcode: p.barcodeNumber,
           currentStock: Number(p.currentStock ?? 0),
           isActive: p.isActive !== false,

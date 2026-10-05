@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
 import { AlertTriangle, BarChart3, CalendarClock, ChevronRight } from 'lucide-react';
 
@@ -27,7 +29,7 @@ const REPORTS = [
   },
 ] as const;
 
-export function WarehouseReportsPage() {
+export default function WarehouseReportsPage() {
   return (
     <div className="space-y-6">
       <div>
@@ -61,7 +63,4 @@ export function WarehouseReportsPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { WarehouseReportsPage };

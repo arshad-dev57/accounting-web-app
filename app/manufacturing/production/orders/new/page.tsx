@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
@@ -139,6 +141,7 @@ export default function NewProductionOrderPage() {
           <MfgField label="Product">
             <ProductPicker
               multiple={false}
+              allLocations
               selected={picked}
               placeholder="Select product…"
               onChange={(products) => {

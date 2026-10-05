@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
@@ -18,7 +20,7 @@ type LowStockProduct = {
   supplier?: { name?: string };
 };
 
-export function LowStockReportPage() {
+export default function LowStockReportPage() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<LowStockProduct[]>([]);
   const [summary, setSummary] = useState({ lowStockCount: 0, criticalCount: 0, totalProducts: 0 });
@@ -131,7 +133,4 @@ export function LowStockReportPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { LowStockReportPage };

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useCallback, useEffect, useState } from 'react';
 import {
   Check,
@@ -17,7 +19,7 @@ import {
   type CurrencyMaster,
 } from '../../../../lib/multi-currency';
 
-export function CurrencyMasterPage() {
+export default function CurrencyMasterPage() {
   const [currencies, setCurrencies] = useState<CurrencyMaster[]>([]);
   const [base, setBase] = useState<CurrencyMaster | null>(null);
   const [loading, setLoading] = useState(true);
@@ -266,6 +268,6 @@ export function CurrencyMasterPage() {
   );
 }
 
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+
+
+export { CurrencyMasterPage };

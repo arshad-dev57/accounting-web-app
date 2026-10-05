@@ -1,11 +1,14 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import { Factory } from 'lucide-react';
 import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
+import LocationSelect from '../../components/LocationSelect';
 import { LocationProvider } from '@/lib/location-context';
 import { FiscalYearProvider } from '@/lib/fiscal-year-context';
 import { usePermissions } from '@/lib/usePermissions';
@@ -40,12 +43,14 @@ export default function ManufacturingLayout({ children }: { children: React.Reac
 
   return (
     <FiscalYearProvider>
-      <LocationProvider>
+      <LocationProvider allowAll allowAllUsers>
         <MfgSidebar />
         <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
           <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
             <TopBarBrand title="Manufacturing" icon={<Factory className="w-5 h-5 text-[#014582]" />} />
             <div className="flex items-center gap-4">
+              <LocationSelect entityLabel="Warehouse" />
+              <div className="w-px h-6 bg-gray-200" />
               <GlobalSearch />
               <div className="w-px h-6 bg-gray-200" />
               <ProfileDropdown accentClassName="bg-[#014582]" />

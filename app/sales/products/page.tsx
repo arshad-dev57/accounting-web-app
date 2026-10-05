@@ -1,9 +1,11 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { LocationProvider } from '@/lib/location-context';
 import { ProductsPage } from '../../warehouse/products/page';
 
-export function SalesProductsPage() {
+export default function SalesProductsPage() {
   return (
     <LocationProvider>
       <ProductsPage />
@@ -11,7 +13,6 @@ export function SalesProductsPage() {
   );
 }
 
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+
+
+export { SalesProductsPage };

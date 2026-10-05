@@ -22,9 +22,10 @@ import {
 } from './location-service';
 import { isAdminRole, loadUserFromLocal } from './permission-service';
 
-function canUseAllLocations(allowAll: boolean): boolean {
+function canUseAllLocations(allowAll: boolean, allowAllUsers: boolean): boolean {
   if (!allowAll) return false;
   if (typeof window === 'undefined') return false;
+  if (allowAllUsers) return true;
   return isAdminRole(loadUserFromLocal()?.role);
 }
 
@@ -84,10 +85,13 @@ function applySelection(
 export function LocationProvider({
   children,
   allowAll = false,
+  allowAllUsers = false,
 }: {
   children: React.ReactNode;
-  /** When true, "All locations" is a valid selection (accounting). */
+  /** When true, "All locations" is a valid selection (accounting / inventory). */
   allowAll?: boolean;
+  /** When true with allowAll, any user can pick All (not admin-only). */
+  allowAllUsers?: boolean;
 }) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedLocationId, setSelectedId] = useState('');
@@ -95,7 +99,7 @@ export function LocationProvider({
   const [error, setError] = useState('');
   const [ready, setReady] = useState(false);
 
-  const allowAllEnabled = canUseAllLocations(allowAll);
+  const allowAllEnabled = canUseAllLocations(allowAll, allowAllUsers);
 
   const refresh = useCallback(async () => {
     setError('');

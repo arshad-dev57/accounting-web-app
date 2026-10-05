@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useMemo, useState } from 'react';
 import {
   Download,
@@ -103,7 +105,7 @@ function channelBadgeClass(channel: string) {
   }
 }
 
-export function PurchaseReportsPage() {
+export default function PurchaseReportsPage() {
   const { selectedLocationId } = useLocationOptional();
   const [period, setPeriod] = useState('month');
   const [channel, setChannel] = useState('all');
@@ -552,7 +554,4 @@ export function PurchaseReportsPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { PurchaseReportsPage };

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -30,7 +32,7 @@ interface JournalLineInput {
   credit: number;
 }
 
-export function JournalEntriesPage() {
+export default function JournalEntriesPage() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -821,7 +823,4 @@ function ConfirmationModal({ title, message, confirmLabel, confirmColor, onConfi
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { JournalEntriesPage };

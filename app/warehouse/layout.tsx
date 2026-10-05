@@ -1,8 +1,11 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  Truck,
   LayoutDashboard,
   Package,
   Users,
@@ -21,8 +24,8 @@ import {
   AlertTriangle,
   CalendarClock,
   FileBarChart,
-  MapPin,
   Upload,
+  Trash2,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
@@ -54,8 +57,9 @@ function WarehouseSidebar() {
     { icon: <FolderTree className="w-5 h-5" />, label: 'Categories', path: '/warehouse/categories', permission: 'categories' },
     { icon: <Users className="w-5 h-5" />, label: 'Suppliers', path: '/warehouse/suppliers', permission: 'suppliers' },
     { icon: <ArrowLeftRight className="w-5 h-5" />, label: 'Stock Movement', path: '/warehouse/stock-movement', permission: 'stock-movement' },
-    { icon: <ArrowLeftRight className="w-5 h-5" />, label: 'Internal Transfers', path: '/warehouse/transfers', permission: 'stock-movement' },
-    { icon: <MapPin className="w-5 h-5" />, label: 'Locations', path: '/warehouse/locations', permission: 'products' },
+    { icon: <ArrowLeftRight className="w-5 h-5" />, label: 'Product Transfer', path: '/warehouse/transfers', permission: 'stock-movement' },
+    { icon: <Trash2 className="w-5 h-5" />, label: 'Stock Write-Offs', path: '/warehouse/write-offs', permission: 'stock-movement' },
+    { icon: <Warehouse className="w-5 h-5" />, label: 'Warehouses', path: '/warehouse/locations', permission: 'products' },
     { icon: <Users className="w-5 h-5" />, label: 'Customers', path: '/warehouse/customers', permission: 'customers' },
     { icon: <Wallet className="w-5 h-5" />, label: 'Inventory Valuation', path: '/warehouse/inventory-valuation', permission: 'inventory-valuation' },
     { icon: <BarChart3 className="w-5 h-5" />, label: 'Stock Summary', path: '/warehouse/reports/stock-summary', permission: 'stock-summary' },
@@ -126,6 +130,14 @@ function WarehouseSidebar() {
 
         <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3">
           MAIN MENU
+        <Link
+          href="/distributor/dashboard"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/70 hover:text-white hover:bg-white/5 font-semibold text-amber-400"
+        >
+          <Truck className="w-5 h-5 text-amber-400" />
+          <span className="text-sm font-medium">Distributor Hub</span>
+        </Link>
+
         </p>
 
         {filteredMainMenuItems.map((item) => (
@@ -181,7 +193,7 @@ export default function WarehouseLayout({
 }) {
   return (
     <FiscalYearProvider>
-      <LocationProvider>
+      <LocationProvider allowAll allowAllUsers>
       <WarehouseSidebar />
 
       <div className="ml-56 min-h-screen bg-gray-50 flex flex-col">
@@ -193,7 +205,7 @@ export default function WarehouseLayout({
           />
 
           <div className="flex items-center gap-4">
-            <LocationSelect />
+            <LocationSelect entityLabel="Warehouse" />
 
             <div className="w-px h-6 bg-gray-200" />
 

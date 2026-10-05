@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CalendarClock, Loader2, RefreshCw } from 'lucide-react';
@@ -22,7 +24,7 @@ function formatDate(iso: string) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export function ExpiryReportPage() {
+export default function ExpiryReportPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'expiring' | 'expired'>('expiring');
   const [expired, setExpired] = useState<ExpiryProduct[]>([]);
@@ -160,7 +162,4 @@ export function ExpiryReportPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { ExpiryReportPage };

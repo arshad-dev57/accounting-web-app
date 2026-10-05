@@ -1,4 +1,5 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import { posTerminalService, posShiftService } from '../../../lib/pos-service';
 import { useLocation } from '../../../lib/location-context';

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import { ChevronLeft, ChevronRight, CalendarCheck2 } from 'lucide-react';
 import { HRPage, HRPageHeader, HRCard, HRWorkflowNotice } from '../ui';

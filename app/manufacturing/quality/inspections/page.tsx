@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+export const dynamic = 'force-dynamic';
+
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { SearchCheck, Plus, Save } from 'lucide-react';
 import { useLocation } from '@/lib/location-context';
@@ -28,8 +30,28 @@ import {
 
 const emptyParam = () => ({ parameterName: '', expectedValue: '', actualValue: '', tolerance: '', unitOfMeasure: '' });
 
+function readCurrentUser(): { id: string; name: string; email: string } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('user') || localStorage.getItem('userProfile') || '{}';
+    const u = JSON.parse(raw);
+    const id = String(u.id || u._id || '').trim();
+    if (!id) return null;
+    const name =
+      [u.firstName, u.lastName].filter(Boolean).join(' ').trim() ||
+      u.name ||
+      localStorage.getItem('user_name') ||
+      u.email ||
+      'Current user';
+    return { id, name, email: u.email || localStorage.getItem('user_email') || '' };
+  } catch {
+    return null;
+  }
+}
+
 export default function QualityInspectionsPage() {
   const { locationIdForApi } = useLocation();
+  const currentUser = useMemo(() => readCurrentUser(), []);
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -61,11 +83,13 @@ export default function QualityInspectionsPage() {
 
   const save = async () => {
     if (!order[0]?.id || !product[0]?.id) return toast.error('Select manufacturing order and product');
+    if (!currentUser?.id) return toast.error('You must be signed in as an application user to create an inspection');
     setSaving(true);
     try {
       await inspectionService.create({
         productionOrderId: order[0].id,
         productId: product[0].id,
+        inspectorUserId: currentUser.id,
         inspectionType: type,
         result,
         notes,
@@ -83,11 +107,17 @@ export default function QualityInspectionsPage() {
 
   return (
     <MfgPage>
-      <MfgPageHeader title="Quality Inspections" subtitle="One inspection can capture multiple parameters, tolerances and pass/fail results" icon={<SearchCheck className="w-5 h-5 text-white" />} />
+      <MfgPageHeader title="Quality Inspections" subtitle="Inspector is the signed-in application user (HR employee optional if linked)" icon={<SearchCheck className="w-5 h-5 text-white" />} />
       <MfgCard title="New inspection">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <MfgField label="Manufacturing order"><MfgRelationPicker kind="productionOrder" multiple={false} selected={order} onChange={setOrder} /></MfgField>
           <MfgField label="Product"><ProductPicker multiple={false} selected={product} onChange={setProduct} /></MfgField>
+          <MfgField label="Inspector (Application User)">
+            <div className="w-full bg-[#F4F7FB] rounded-xl px-3.5 py-2.5 text-sm border border-[#DDE4EE] text-[#1A1A2E]">
+              <span className="font-semibold">{currentUser?.name || 'Not signed in'}</span>
+              {currentUser?.email ? <span className="text-[#7A8FA6] ml-2">({currentUser.email})</span> : null}
+            </div>
+          </MfgField>
           <MfgField label="Type"><MfgSelect value={type} onChange={(e) => setType(e.target.value)}>{['Incoming', 'InProcess', 'Final'].map((v) => <option key={v}>{v}</option>)}</MfgSelect></MfgField>
           <MfgField label="Result"><MfgSelect value={result} onChange={(e) => setResult(e.target.value)}>{['Pending', 'Passed', 'Failed', 'Rework', 'Scrap'].map((v) => <option key={v}>{v}</option>)}</MfgSelect></MfgField>
         </div>
@@ -117,12 +147,13 @@ export default function QualityInspectionsPage() {
         <div className="mb-4"><MfgSearchInput value={search} onChange={(v) => { setPage(1); setSearch(v); }} /></div>
         {loading ? <MfgLoading /> : error ? <MfgError message={error} /> : rows.length === 0 ? <MfgEmpty title="No inspections" /> : (
           <>
-            <MfgTable columns={['Inspection #', 'MO #', 'Product', 'Result']}>
+            <MfgTable columns={['Inspection #', 'MO #', 'Product', 'Inspector', 'Result']}>
               {rows.map((r) => (
                 <MfgTableRow key={r.id}>
                   <MfgTableCell className="font-semibold text-[#014582]">{r.inspectionNumber}</MfgTableCell>
                   <MfgTableCell>{r.productionOrderNumber || r.productionOrder?.orderNumber || '—'}</MfgTableCell>
                   <MfgTableCell>{r.productName || '—'}</MfgTableCell>
+                  <MfgTableCell>{r.inspectorName || r.inspectorUserName || r.inspector || '—'}</MfgTableCell>
                   <MfgTableCell><MfgStatusBadge status={r.result || r.status} /></MfgTableCell>
                 </MfgTableRow>
               ))}

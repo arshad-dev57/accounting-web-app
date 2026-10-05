@@ -114,11 +114,12 @@ export function MfgBomEditor({ initial }: { initial?: any }) {
           sequence: i + 1,
         })),
       };
-      const saved = initial?.id
-        ? await bomService.update(initial.id, payload)
-        : await bomService.create(payload);
+      await (initial?.id
+        ? bomService.update(initial.id, payload)
+        : bomService.create(payload));
       toast.success(initial?.id ? 'BOM updated' : 'BOM created');
-      router.push(`/manufacturing/master/bom/${saved.id || initial?.id}`);
+      router.push('/manufacturing/master/bom');
+      router.refresh();
     } catch (e: any) {
       toast.error(e.message || 'Failed to save BOM');
     } finally {
@@ -146,6 +147,7 @@ export function MfgBomEditor({ initial }: { initial?: any }) {
             <MfgField label="Finished Product">
               <ProductPicker
                 multiple={false}
+                allLocations
                 selected={product}
                 onChange={setProduct}
                 placeholder="Select finished product…"
@@ -205,12 +207,14 @@ export function MfgBomEditor({ initial }: { initial?: any }) {
                   <td className="px-2 py-2 min-w-[240px]">
                     <ProductPicker
                       multiple={false}
+                      allLocations
                       selected={line.componentId ? [{ id: line.componentId, name: line.componentName, sku: line.sku }] : []}
                       placeholder="Component…"
                       onChange={(items) => setLine(idx, {
                         componentId: items[0]?.id || '',
                         componentName: items[0]?.name || '',
                         sku: items[0]?.sku,
+                        unitOfMeasure: items[0]?.stockUnit || 'pcs',
                       })}
                     />
                   </td>

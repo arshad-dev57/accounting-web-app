@@ -13,6 +13,7 @@ export type PickedProduct = {
   sku?: string;
   currentStock?: number;
   quantity?: number;
+  stockUnit?: string;
 };
 
 function toPicked(p: Product): PickedProduct {
@@ -21,6 +22,7 @@ function toPicked(p: Product): PickedProduct {
     name: p.name,
     sku: p.sku,
     currentStock: Number(p.currentStock || p.locationStock || 0),
+    stockUnit: p.stockUnitName || p.stockUnit || undefined,
   };
 }
 
@@ -34,12 +36,15 @@ export function ProductPicker({
   multiple = true,
   placeholder = 'Select product…',
   withQuantity = false,
+  allLocations = false,
 }: {
   selected?: PickedProduct[];
   onChange: (products: PickedProduct[]) => void;
   multiple?: boolean;
   placeholder?: string;
   withQuantity?: boolean;
+  /** When true, fetch full company catalog (not filtered to current warehouse). */
+  allLocations?: boolean;
 }) {
   const { locationIdForApi } = useLocation();
   const [open, setOpen] = useState(false);
@@ -66,7 +71,7 @@ export function ProductPicker({
         page,
         limit: 15,
         search: search || undefined,
-        locationId: locationIdForApi || undefined,
+        locationId: allLocations ? undefined : locationIdForApi || undefined,
       });
       setRows(res.data || []);
       setTotal(res.pagination?.total || res.count || 0);
@@ -76,7 +81,7 @@ export function ProductPicker({
     } finally {
       setLoading(false);
     }
-  }, [page, search, locationIdForApi]);
+  }, [page, search, locationIdForApi, allLocations]);
 
   useEffect(() => {
     if (open) load();

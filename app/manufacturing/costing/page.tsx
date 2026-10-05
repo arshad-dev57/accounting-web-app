@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useEffect, useState } from 'react';
 import { Calculator } from 'lucide-react';
 import { costingService } from '@/lib/manufacturing-service';
@@ -26,7 +28,9 @@ const TABS = [
 function rowsFrom(res: any): any[] {
   const d = res?.data ?? res ?? {};
   if (Array.isArray(d)) return d;
+  if (Array.isArray(d.data)) return d.data;
   if (Array.isArray(d.items)) return d.items;
+  if (Array.isArray(d.results)) return d.results;
   return [];
 }
 

@@ -1,4 +1,7 @@
 'use client';
+
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import { Palmtree, Plus, Loader2, Pencil, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';

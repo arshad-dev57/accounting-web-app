@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCurrency } from '../../../lib/currency-context';
 import Link from 'next/link';
@@ -57,7 +59,7 @@ interface TransactionFormData {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export function CapitalEquityPage() {
+export default function CapitalEquityPage() {
   const [equityAccounts, setEquityAccounts] = useState<EquityAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -409,23 +411,27 @@ export function CapitalEquityPage() {
             </div>
           </div>
 
-          {/* Stats */}
+          {/* Stats — IAS 1 equity components */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Total Equity</p>
               <p className="text-lg md:text-xl font-bold text-purple-600 mt-0.5 md:mt-1">{formatCurrency(summary.totalEquity)}</p>
+              <p className="text-[10px] text-gray-400 mt-1">Capital + RE + CYE − Drawings</p>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
-              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Capital</p>
+              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Owner&apos;s Capital</p>
               <p className="text-lg md:text-xl font-bold text-purple-600 mt-0.5 md:mt-1">{formatCurrency(summary.totalCapital)}</p>
+              <p className="text-[10px] text-gray-400 mt-1">Contributions (credit)</p>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Retained Earnings</p>
               <p className="text-lg md:text-xl font-bold text-green-600 mt-0.5 md:mt-1">{formatCurrency(summary.totalRetainedEarnings)}</p>
+              <p className="text-[10px] text-gray-400 mt-1">Accumulated profits</p>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
-              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Drawings</p>
+              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Owner&apos;s Drawings</p>
               <p className="text-lg md:text-xl font-bold text-red-600 mt-0.5 md:mt-1">{formatCurrency(summary.totalDrawings)}</p>
+              <p className="text-[10px] text-gray-400 mt-1">Withdrawals (reduce equity)</p>
             </div>
           </div>
 
@@ -1114,6 +1120,28 @@ function AccountDetailModal({
   const isCapital = account.accountType === 'Capital';
   const isDrawings = account.accountType === 'Drawings';
 
+  const accountTxs = (transactions || []).filter(
+    (t: any) =>
+      t.accountId === account.id ||
+      t.account?.id === account.id ||
+      (t.accountName && t.accountName === account.accountName) ||
+      (t.accountCode && t.accountCode === account.accountCode)
+  );
+  const additionsFromTx = accountTxs
+    .filter((t: any) => {
+      const ty = String(t.transactionType || t.type || '').toLowerCase();
+      return ty.includes('capital') || ty.includes('additional') || ty.includes('retained');
+    })
+    .reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
+  const withdrawalsFromTx = accountTxs
+    .filter((t: any) => {
+      const ty = String(t.transactionType || t.type || '').toLowerCase();
+      return ty.includes('drawing') || ty.includes('withdraw');
+    })
+    .reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
+  const additions = Number(account.additions) || additionsFromTx;
+  const withdrawals = Number(account.withdrawals) || withdrawalsFromTx;
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
@@ -1146,11 +1174,11 @@ function AccountDetailModal({
             </div>
             <div className="bg-green-50 rounded-xl p-3 md:p-4">
               <p className="text-[10px] md:text-xs text-gray-500">Additions</p>
-              <p className="text-lg md:text-xl font-bold text-green-600">{formatCurrency(account.additions)}</p>
+              <p className="text-lg md:text-xl font-bold text-green-600">{formatCurrency(additions)}</p>
             </div>
             <div className="bg-red-50 rounded-xl p-3 md:p-4">
               <p className="text-[10px] md:text-xs text-gray-500">Withdrawals</p>
-              <p className="text-lg md:text-xl font-bold text-red-600">{formatCurrency(account.withdrawals)}</p>
+              <p className="text-lg md:text-xl font-bold text-red-600">{formatCurrency(withdrawals)}</p>
             </div>
             <div className="bg-purple-50 rounded-xl p-3 md:p-4">
               <p className="text-[10px] md:text-xs text-gray-500">Balance</p>
@@ -1173,11 +1201,11 @@ function AccountDetailModal({
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-50">
               <span className="text-xs text-gray-400 font-medium">Total Additions</span>
-              <span className="text-sm font-medium text-green-600">{formatCurrency(account.additions)}</span>
+              <span className="text-sm font-medium text-green-600">{formatCurrency(additions)}</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-50">
               <span className="text-xs text-gray-400 font-medium">Total Withdrawals</span>
-              <span className="text-sm font-medium text-red-600">{formatCurrency(account.withdrawals)}</span>
+              <span className="text-sm font-medium text-red-600">{formatCurrency(withdrawals)}</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-50">
               <span className="text-xs text-gray-400 font-medium">Current Balance</span>
@@ -1256,7 +1284,4 @@ function AccountDetailModal({
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { CapitalEquityPage };

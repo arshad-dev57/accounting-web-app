@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -36,7 +38,7 @@ interface WizardState {
 }
 
 
-export function GoodsReceivingPage() {
+export default function GoodsReceivingPage() {
   const { selectedLocationId } = useLocationOptional();
   const [grns, setGrns] = useState<GoodsReceivingModel[]>([]);
   const [filteredGrns, setFilteredGrns] = useState<GoodsReceivingModel[]>([]);
@@ -1662,6 +1664,5 @@ function ConfirmationModal({
     </div>
   );
 }
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+
+export { GoodsReceivingPage };

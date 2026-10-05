@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useEffect, useState } from 'react';
 import { FileBarChart } from 'lucide-react';
 import { manufacturingReportService } from '@/lib/manufacturing-service';

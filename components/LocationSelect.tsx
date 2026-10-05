@@ -12,6 +12,7 @@ export default function LocationSelect({
   className = '',
   allowAll,
   variant = 'light',
+  entityLabel = 'Location',
 }: {
   compact?: boolean;
   showManageLink?: boolean;
@@ -19,6 +20,8 @@ export default function LocationSelect({
   /** Override provider allowAll for the All option in the dropdown. */
   allowAll?: boolean;
   variant?: 'light' | 'dark';
+  /** UI noun: Location (accounting) or Warehouse (inventory). */
+  entityLabel?: 'Location' | 'Warehouse';
 }) {
   const {
     locations,
@@ -31,6 +34,11 @@ export default function LocationSelect({
   const { isAdmin } = usePermissions();
 
   const showAll = allowAll ?? providerAllowAll;
+  const allLabel = entityLabel === 'Warehouse' ? 'All warehouses' : 'All locations';
+  const loadingLabel = entityLabel === 'Warehouse' ? 'Loading warehouse…' : 'Loading location…';
+  const emptyLabel = entityLabel === 'Warehouse' ? 'No warehouse assigned' : 'No store assigned';
+  const setupLabel = entityLabel === 'Warehouse' ? 'Set up warehouse' : 'Set up location';
+  const manageTitle = entityLabel === 'Warehouse' ? 'Manage warehouses' : 'Manage locations';
 
   const dark = variant === 'dark';
 
@@ -39,7 +47,7 @@ export default function LocationSelect({
       <div className={`flex items-center gap-2 ${className}`}>
         <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border overflow-hidden isolate ${dark ? 'border-white/25 bg-white/10 text-white/80' : 'border-gray-200 bg-white text-gray-500'}`}>
           <MapPin className={`w-4 h-4 flex-shrink-0 ${dark ? 'text-white' : 'text-[#014582]'}`} />
-          <span className="text-sm">Loading location…</span>
+          <span className="text-sm">{loadingLabel}</span>
         </div>
       </div>
     );
@@ -50,7 +58,7 @@ export default function LocationSelect({
       return (
         <div className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-gray-200 bg-gray-50 text-gray-600 ${className}`}>
           <MapPin className="w-4 h-4" />
-          No store assigned
+          {emptyLabel}
         </div>
       );
     }
@@ -60,7 +68,7 @@ export default function LocationSelect({
         className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 ${className}`}
       >
         <MapPin className="w-4 h-4" />
-        Set up location
+        {setupLabel}
       </Link>
     );
   }
@@ -78,7 +86,7 @@ export default function LocationSelect({
         <div className="min-w-0 flex-1">
           {!compact && (
             <p className={`text-[10px] uppercase tracking-wide leading-none mb-0.5 ${dark ? 'text-white/70' : 'text-gray-400'}`}>
-              Location
+              {entityLabel}
             </p>
           )}
           <select
@@ -91,14 +99,14 @@ export default function LocationSelect({
             style={dark ? { colorScheme: 'dark' } : undefined}
             title={
               selectValue === ALL_LOCATIONS_VALUE
-                ? 'All locations'
+                ? allLabel
                 : selectedLocation
                   ? `${selectedLocation.name} (${selectedLocation.code})`
-                  : 'Select location'
+                  : `Select ${entityLabel.toLowerCase()}`
             }
           >
             {showAll && (
-              <option value={ALL_LOCATIONS_VALUE}>All locations</option>
+              <option value={ALL_LOCATIONS_VALUE}>{allLabel}</option>
             )}
             {locations.map((l) => (
               <option key={l.id} value={l.id}>
@@ -113,7 +121,7 @@ export default function LocationSelect({
           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${dark ? 'bg-white/20 text-white' : 'bg-sky-50 text-sky-700'}`}>
             {selectValue === ALL_LOCATIONS_VALUE
               ? 'ALL'
-              : selectedLocation?.code || 'LOC'}
+              : selectedLocation?.code || (entityLabel === 'Warehouse' ? 'WH' : 'LOC')}
           </span>
         )}
       </div>
@@ -121,7 +129,7 @@ export default function LocationSelect({
         <Link
           href="/warehouse/locations"
           className="p-1.5 rounded-lg text-gray-400 hover:text-[#014582] hover:bg-gray-100"
-          title="Manage locations"
+          title={manageTitle}
         >
           <Settings2 className="w-4 h-4" />
         </Link>

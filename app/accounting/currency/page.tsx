@@ -1,11 +1,10 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import CurrencySettingsScreen from '../../../components/CurrencySettingsScreen';
 
-export function AccountingCurrencyPage() {
+export default function AccountingCurrencyPage() {
   return <CurrencySettingsScreen />;
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { AccountingCurrencyPage };

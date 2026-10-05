@@ -1,7 +1,10 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   Plus, Search, Edit, Trash2, Eye, Users, ChevronDown,
   X, Save, Building2, Phone, Mail, MapPin, 
@@ -827,7 +830,8 @@ function SupplierForm({
 // ============================================================
 // MAIN SUPPLIERS PAGE
 // ============================================================
-export function SuppliersPage() {
+export default function SuppliersPage() {
+  const router = useRouter();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -894,7 +898,10 @@ export function SuppliersPage() {
   };
 
   const handleViewClick = (supplier: Supplier) => {
-    setSelectedSupplier(supplier);
+    const supId = supplier.id || supplier._id;
+    if (supId) {
+      router.push('/warehouse/suppliers/' + supId);
+    }
   };
 
   const handleDeleteClick = async (id: string) => {
@@ -973,7 +980,4 @@ export function SuppliersPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { SuppliersPage };

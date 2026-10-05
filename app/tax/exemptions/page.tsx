@@ -1,9 +1,11 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import { taxService } from '../../../lib/tax-service';
 
-export function TaxExemptionsPage() {
+export default function TaxExemptionsPage() {
   const [types, setTypes] = useState<any[]>([]);
   const [exemptions, setExemptions] = useState<any[]>([]);
   const [typeForm, setTypeForm] = useState({ code: '', name: '', percentage: 100, requiresCertificate: true });
@@ -88,7 +90,4 @@ export function TaxExemptionsPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { TaxExemptionsPage };

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCurrency } from '../../../lib/currency-context';
 import Link from 'next/link';
@@ -46,7 +48,7 @@ interface FilterState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export function LoansBorrowingsPage() {
+export default function LoansBorrowingsPage() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -1281,7 +1283,4 @@ function PaymentScheduleModal({
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { LoansBorrowingsPage };

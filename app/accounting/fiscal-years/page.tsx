@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -84,7 +86,7 @@ function suggestNextRange(
   return { ...calc, periodType: periodKey };
 }
 
-export function FiscalYearsPage() {
+export default function FiscalYearsPage() {
   const { fiscalYears, selectedFiscalYearId, setSelectedFiscalYearId, refresh, loading } =
     useFiscalYear();
   const [saving, setSaving] = useState(false);
@@ -388,7 +390,4 @@ export function FiscalYearsPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { FiscalYearsPage };

@@ -1,11 +1,13 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import { taxService } from '../../../lib/tax-service';
 
 type Tab = 'types' | 'jurisdictions' | 'rates' | 'rules';
 
-export function TaxRatesPage() {
+export default function TaxRatesPage() {
   const [tab, setTab] = useState<Tab>('rates');
   const [types, setTypes] = useState<any[]>([]);
   const [jurisdictions, setJurisdictions] = useState<any[]>([]);
@@ -181,7 +183,4 @@ function Table({ headers, children }: { headers: string[]; children: React.React
     </table>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { TaxRatesPage };

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import { HcmCrudPage } from '../hcm-ui';
 import { HRTableCell } from '../ui';

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // Marketing CTAs land here: session → dashboard, else login
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { routingService } from '@/lib/manufacturing-service';

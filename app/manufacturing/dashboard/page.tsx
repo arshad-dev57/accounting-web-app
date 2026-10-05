@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -74,7 +76,7 @@ export default function ManufacturingDashboardPage() {
     { label: 'Production This Month', value: n(k.productionMonth), icon: CalendarDays, color: MFG_COLORS.primary, href: '/manufacturing/production/orders' },
     { label: 'Planned Production', value: n(k.plannedProduction), icon: Target, color: MFG_COLORS.purple, href: '/manufacturing/production/orders' },
     { label: 'Actual Production', value: n(k.actualProduction), icon: CheckCircle2, color: MFG_COLORS.success, href: '/manufacturing/production/orders' },
-    { label: 'Pending Orders', value: n(k.pendingOrders), icon: ClipboardList, color: MFG_COLORS.warning, href: '/manufacturing/production/orders?status=Draft' },
+    { label: 'Pending Orders', value: n(k.pendingOrders), icon: ClipboardList, color: MFG_COLORS.warning, href: '/manufacturing/production/orders?status=Pending' },
     { label: 'In Progress', value: n(k.inProgress), icon: PlayCircle, color: MFG_COLORS.accent, href: '/manufacturing/production/orders?status=In%20Progress' },
     { label: 'Completed', value: n(k.completed), icon: CheckCircle2, color: MFG_COLORS.success, href: '/manufacturing/production/orders?status=Completed' },
     { label: 'Delayed', value: n(k.delayed), icon: Clock, color: MFG_COLORS.warning, href: '/manufacturing/production/orders' },

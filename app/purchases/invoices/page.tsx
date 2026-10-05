@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -53,7 +55,7 @@ interface WizardState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export function PurchaseInvoicesPage() {
+export default function PurchaseInvoicesPage() {
   const [invoices, setInvoices] = useState<PurchaseInvoiceModel[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<PurchaseInvoiceModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1601,7 +1603,4 @@ function ConfirmationModal({
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { PurchaseInvoicesPage };

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -274,6 +276,14 @@ export default function ProductionOrderWorkspacePage() {
       await inspectionService.create({
         productionOrderId: id,
         productId: order.productId,
+        inspectorUserId: (() => {
+          try {
+            const u = JSON.parse(localStorage.getItem('user') || '{}');
+            return u.id || u._id || undefined;
+          } catch {
+            return undefined;
+          }
+        })(),
         inspectionType: qc.inspectionType,
         result: qc.result,
         notes: qc.notes,
@@ -662,6 +672,7 @@ export default function ProductionOrderWorkspacePage() {
                 <div className="col-span-2">
                   <ProductPicker
                     multiple={false}
+                    allLocations
                     selected={line.productId ? [{ id: line.productId, name: line.productName }] : []}
                     onChange={(items: PickedProduct[]) => setScrapLines((p) => p.map((x, i) => i === idx ? { ...x, productId: items[0]?.id || '', productName: items[0]?.name || '' } : x))}
                   />
@@ -685,6 +696,7 @@ export default function ProductionOrderWorkspacePage() {
               <div key={idx} className="space-y-2 mb-3">
                 <ProductPicker
                   multiple={false}
+                  allLocations
                   selected={line.productId ? [{ id: line.productId, name: line.productName }] : []}
                   onChange={(items: PickedProduct[]) => setBpLines((p) => p.map((x, i) => i === idx ? { ...x, productId: items[0]?.id || '', productName: items[0]?.name || '' } : x))}
                 />

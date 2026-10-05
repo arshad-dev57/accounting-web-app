@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import { Building2, MapPin, Users, Plus, Loader2, Pencil, X } from 'lucide-react';
 import toast from 'react-hot-toast';

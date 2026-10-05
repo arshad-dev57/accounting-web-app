@@ -1,8 +1,8 @@
 'use client';
-
+export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Search, Plus, Edit, Trash2, Eye, Users,
   User, Mail, Phone, Building2, MapPin, Tag,
@@ -52,7 +52,7 @@ function CustomerListView({
     : '/warehouse/dashboard';
 
   const getStatusColor = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'Active': return 'bg-green-100 text-green-700';
       case 'Inactive': return 'bg-gray-100 text-gray-700';
       case 'Blocked': return 'bg-red-100 text-red-700';
@@ -62,7 +62,7 @@ function CustomerListView({
   };
 
   const getTypeColor = (type: string) => {
-    switch(type) {
+    switch (type) {
       case 'Individual': return 'bg-blue-100 text-blue-700';
       case 'Business': return 'bg-purple-100 text-purple-700';
       case 'Wholesale': return 'bg-orange-100 text-orange-700';
@@ -620,7 +620,7 @@ function CustomerDetailView({
   }, [customer]);
 
   const getStatusColor = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'Active': return 'bg-green-100 text-green-700';
       case 'Inactive': return 'bg-gray-100 text-gray-700';
       case 'Blocked': return 'bg-red-100 text-red-700';
@@ -795,7 +795,9 @@ function CustomerDetailView({
 // ============================================================
 // MAIN PAGE
 // ============================================================
-export function CustomersPage() {
+export default function CustomersPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -845,7 +847,11 @@ export function CustomersPage() {
   };
 
   const handleViewClick = (customer: Customer) => {
-    setViewingCustomer(customer);
+    const custId = customer._id || customer.id;
+    if (custId) {
+      const base = pathname?.startsWith('/sales') ? '/sales/customers/' : '/warehouse/customers/';
+      router.push(base + custId);
+    }
   };
 
   const handleDeleteClick = async (id: string) => {
@@ -928,7 +934,4 @@ export function CustomersPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { CustomersPage };

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { ListTodo, PlayCircle, PauseCircle, CheckCircle2 } from 'lucide-react';

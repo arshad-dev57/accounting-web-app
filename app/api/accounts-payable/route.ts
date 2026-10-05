@@ -16,6 +16,8 @@ export interface Bill {
   dueDate: string;
   supplierId: string;
   supplierName: string;
+  vendorId?: string;
+  vendorName?: string;
   items: BillItem[];
   subtotal: number;
   taxRate: number;
@@ -27,6 +29,7 @@ export interface Bill {
   status: 'Unpaid' | 'Paid' | 'Overdue' | 'Partial';
   reference: string;
   description: string;
+  source?: 'bill' | 'purchaseInvoice';
   currencyId?: string | null;
   currency?: {
     id: string;
@@ -263,11 +266,20 @@ export const accountsPayableService = {
   // ─── Get bank accounts ─────────────────────────────────────────
   getBankAccounts: async (): Promise<BankAccount[]> => {
     try {
-      const response = await apiClient.get('/api/bank-accounts');
+      // Match working screens (stock/expenses): load Active banks with a high limit
+      const response = await apiClient.get('/api/bank-accounts?limit=100&status=Active');
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch bank accounts');
       }
-      return (response.data?.data || []).map(normalizeBankAccount);
+
+      const payload = response.data;
+      const list = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload)
+          ? payload
+          : [];
+
+      return list.map(normalizeBankAccount).filter((acc) => acc.id);
     } catch (error: any) {
       console.error('Get bank accounts error:', error);
       return [];

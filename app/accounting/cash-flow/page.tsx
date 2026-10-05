@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
@@ -28,7 +30,7 @@ interface PeriodOption {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export function CashFlowPage() {
+export default function CashFlowPage() {
   const [reportData, setReportData] = useState<CashFlowData | null>(null);
   const [loading, setLoading] = useState(true);
   const { symbol: currencySymbol } = useCurrency();
@@ -435,7 +437,4 @@ export function CashFlowPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { CashFlowPage };

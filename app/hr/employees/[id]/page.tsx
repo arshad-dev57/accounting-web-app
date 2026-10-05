@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -24,6 +26,10 @@ export default function EmployeeDossierPage() {
   const [payBasis, setPayBasis] = React.useState<'monthly' | 'hourly' | 'daily'>('monthly');
   const [savingSalary, setSavingSalary] = React.useState(false);
   const [deactivating, setDeactivating] = React.useState(false);
+  const [grantingAccess, setGrantingAccess] = React.useState(false);
+  const [revokingAccess, setRevokingAccess] = React.useState(false);
+  const [grantEmail, setGrantEmail] = React.useState('');
+  const [grantPassword, setGrantPassword] = React.useState('');
 
   const [showDocUpload, setShowDocUpload] = React.useState(false);
   const [docReplaceTarget, setDocReplaceTarget] = React.useState<HRDocumentItem | null>(null);
@@ -77,6 +83,7 @@ export default function EmployeeDossierPage() {
         setPayBasis(
           basis === 'hourly' || basis === 'daily' ? basis : 'monthly'
         );
+        setGrantEmail(d?.email || '');
       })
       .catch((e) => toast.error(e.message || 'Failed to load'))
       .finally(() => setLoading(false));
@@ -177,6 +184,92 @@ export default function EmployeeDossierPage() {
       </div>
       {tab === 'profile' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <HRCard title="Application access">
+            {data.userId || data.hasApplicationAccess ? (
+              <div className="space-y-3 text-sm">
+                <p className="text-[#2ECC71] font-bold text-xs uppercase tracking-wide">Access enabled</p>
+                <p><span className="text-[#7A8FA6]">Login email</span><br /><b>{data.email || '—'}</b></p>
+                <p><span className="text-[#7A8FA6]">User ID</span><br /><b className="text-xs break-all">{data.userId}</b></p>
+                <p className="text-[11px] text-[#7A8FA6]">Roles & module permissions are managed under Settings → Users for this login.</p>
+                <button
+                  type="button"
+                  disabled={revokingAccess}
+                  onClick={async () => {
+                    const ok = window.confirm(
+                      'Unlink application access? The HR employee record will be kept. Optionally deactivate the user login.'
+                    );
+                    if (!ok) return;
+                    const deactivateUser = window.confirm('Also deactivate the user login account?');
+                    setRevokingAccess(true);
+                    try {
+                      const updated = await hrEmployeesService.revokeApplicationAccess(id, deactivateUser);
+                      setData((prev: any) => ({ ...prev, ...updated }));
+                      toast.success('Application access revoked');
+                      reload();
+                    } catch (e: any) {
+                      toast.error(e.message || 'Could not revoke access');
+                    } finally {
+                      setRevokingAccess(false);
+                    }
+                  }}
+                  className="px-3 py-2 rounded-xl text-xs font-bold bg-[#E74C3C]/10 text-[#E74C3C] hover:bg-[#E74C3C]/20 disabled:opacity-50"
+                >
+                  {revokingAccess ? '…' : 'Revoke application access'}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3 text-sm">
+                <p className="text-[#F39C12] font-bold text-xs uppercase tracking-wide">No application access</p>
+                <p className="text-[11px] text-[#7A8FA6]">This employee exists for HR only (attendance, payroll, etc.) and cannot log into the ERP.</p>
+                <label className="block text-xs font-bold text-[#1A1A2E]">Login email</label>
+                <input
+                  className="w-full rounded-xl border border-[#DDE4EE] px-3 py-2 text-sm"
+                  value={grantEmail}
+                  onChange={(e) => setGrantEmail(e.target.value)}
+                  placeholder="name@company.com"
+                />
+                <label className="block text-xs font-bold text-[#1A1A2E]">Temporary password (optional)</label>
+                <input
+                  type="password"
+                  className="w-full rounded-xl border border-[#DDE4EE] px-3 py-2 text-sm"
+                  value={grantPassword}
+                  onChange={(e) => setGrantPassword(e.target.value)}
+                  placeholder="Leave blank to auto-generate"
+                />
+                <button
+                  type="button"
+                  disabled={grantingAccess}
+                  onClick={async () => {
+                    if (!grantEmail.trim()) {
+                      toast.error('Email is required');
+                      return;
+                    }
+                    setGrantingAccess(true);
+                    try {
+                      const res = await hrEmployeesService.grantApplicationAccess(id, {
+                        email: grantEmail.trim(),
+                        password: grantPassword || undefined,
+                        firstName: data.firstName,
+                        lastName: data.lastName,
+                      });
+                      toast.success(res.message || 'Application access granted');
+                      if (res.temporaryPassword) {
+                        toast.success(`Temporary password: ${res.temporaryPassword}`, { duration: 12000 });
+                      }
+                      reload();
+                    } catch (e: any) {
+                      toast.error(e.message || 'Could not grant access');
+                    } finally {
+                      setGrantingAccess(false);
+                    }
+                  }}
+                  className="px-3 py-2 rounded-xl text-xs font-bold bg-[#014582] text-white hover:bg-[#01366a] disabled:opacity-50"
+                >
+                  {grantingAccess ? '…' : 'Grant application access'}
+                </button>
+              </div>
+            )}
+          </HRCard>
           <HRCard title="Employment">
             <div className="space-y-2 text-sm">
               <p><span className="text-[#7A8FA6]">Manager</span><br /><b>{data.manager || '—'}</b></p>

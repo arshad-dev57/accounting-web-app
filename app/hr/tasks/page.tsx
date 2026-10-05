@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import { ListChecks, Plus, CalendarClock, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';

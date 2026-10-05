@@ -211,6 +211,39 @@ export const salesReturnService = {
     }
   },
 
+  // ─── Get remaining returnable quantities for an order ──────
+  getReturnableForOrder: async (orderId: string): Promise<{
+    order: OrderModel;
+    items: Array<{
+      productId: string;
+      productName: string;
+      sku: string;
+      quantity: number;
+      orderedQuantity: number;
+      deliveredQuantity: number;
+      returnedQuantity: number;
+      remainingQuantity: number;
+      unitPrice: number;
+    }>;
+    hasReturnable: boolean;
+  }> => {
+    try {
+      const response = await apiClient.get(`/api/warehouse/returns/order/${orderId}/returnable`);
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to fetch returnable quantities');
+      }
+      const payload = response.data?.data || response.data;
+      return {
+        order: payload.order,
+        items: payload.items || [],
+        hasReturnable: Boolean(payload.hasReturnable),
+      };
+    } catch (error: any) {
+      console.error('Get returnable error:', error);
+      throw new Error(error.message || 'Failed to fetch returnable quantities');
+    }
+  },
+
   // ─── Get order details for return ──────────────────────────
   getOrderById: async (orderId: string): Promise<OrderModel> => {
     try {

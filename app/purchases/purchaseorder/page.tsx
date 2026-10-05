@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -103,7 +105,7 @@ interface WizardState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export function PurchaseOrdersPage() {
+export default function PurchaseOrdersPage() {
   const { selectedLocationId } = useLocationOptional();
   const [orders, setOrders] = useState<PurchaseOrderModel[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<PurchaseOrderModel[]>([]);
@@ -2871,6 +2873,5 @@ function ConfirmationModal({
     </div>
   );
 }
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+
+export { PurchaseOrdersPage };

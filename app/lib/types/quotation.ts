@@ -33,7 +33,7 @@ export interface Quotation {
   quotationDate: string;
   validUntil: string;
   salesPerson?: string;
-  status: 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired' | 'Converted' | 'Cancelled';
+  status: 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired' | 'Partially Converted' | 'Converted' | 'Cancelled' | 'Pending Approval' | 'Approved';
   subtotal: number;
   totalDiscount: number;
   totalTax: number;
@@ -88,10 +88,17 @@ export interface Customer {
 
 export interface Product {
   id: string;
+  _id?: string;
   name: string;
   sku: string;
   sellingPrice: number;
   taxRate?: number;
+  currentStock?: number;
+  availableStock?: number;
+  stockUnitName?: string;
+  categoryName?: string;
+  barcodeNumber?: string;
+  costPrice?: number;
 }
 
 export interface Pagination {

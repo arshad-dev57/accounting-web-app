@@ -1,4 +1,5 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import { posShiftService, posSaleService, posReceiptService } from '../../../lib/pos-service';
 import { usePermissions } from '../../../lib/usePermissions';

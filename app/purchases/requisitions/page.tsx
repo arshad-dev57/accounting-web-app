@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Plus, Search, Loader2, ClipboardList, Eye, Send, Check, X,
@@ -23,10 +25,62 @@ type LineDraft = {
   productName: string;
   sku: string;
   quantity: number;
+  unit: string;
+  /** Cost price per base stock unit (Pcs) — used when switching UOM */
+  baseUnitCost: number;
   estimatedUnitPrice: number;
   notes: string;
   purpose: string;
+  isBoxBased?: boolean;
+  boxUnitName?: string;
+  stockUnitName?: string;
+  boxQuantity?: number;
+  conversionFactor?: number;
 };
+
+/** Unit price for selected UOM: box/bulk multiplies base cost by conversion. */
+function priceForUnit(
+  baseUnitCost: number,
+  unit: string,
+  opts: {
+    stockUnitName?: string;
+    boxUnitName?: string;
+    boxQuantity?: number;
+    conversionFactor?: number;
+    isBoxBased?: boolean;
+  }
+) {
+  const stock = opts.stockUnitName || 'Pcs';
+  const box = opts.boxUnitName || 'Box';
+  if (opts.isBoxBased && unit === box) {
+    const factor =
+      Number(opts.boxQuantity) > 0
+        ? Number(opts.boxQuantity)
+        : Number(opts.conversionFactor) > 0
+          ? Number(opts.conversionFactor)
+          : 1;
+    return baseUnitCost * factor;
+  }
+  if (unit !== stock && Number(opts.conversionFactor) > 1) {
+    // Non-base UOM with conversion factor (1 unit = factor base units)
+    return baseUnitCost * Number(opts.conversionFactor);
+  }
+  return baseUnitCost;
+}
+
+function uomOptionsForProduct(product: {
+  stockUnitName?: string;
+  boxUnitName?: string;
+  isBoxBased?: boolean;
+}) {
+  const stock = product.stockUnitName || 'Pcs';
+  const options = [stock];
+  if (product.isBoxBased) {
+    const box = product.boxUnitName || 'Box';
+    if (box !== stock) options.push(box);
+  }
+  return options;
+}
 
 interface WizardState {
   step: number;
@@ -78,7 +132,7 @@ function getStatusColor(status: string) {
 }
 
 
-export function PurchaseRequisitionsPage() {
+export default function PurchaseRequisitionsPage() {
   const { selectedLocationId } = useLocationOptional();
   const [rows, setRows] = useState<PurchaseRequisitionModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,15 +246,34 @@ export function PurchaseRequisitionsPage() {
         : null,
       supplierSearchResults: [],
       isSearchingSuppliers: false,
-      lines: row.items.map((item) => ({
-        productId: item.productId,
-        productName: item.productName,
-        sku: item.sku,
-        quantity: item.quantity,
-        estimatedUnitPrice: item.estimatedUnitPrice,
-        notes: item.notes || '',
-        purpose: item.purpose || '',
-      })),
+      lines: row.items.map((item) => {
+        const stockUnit = item.product?.stockUnitName || item.unit || 'Pcs';
+        const isBoxBased = Boolean(item.product?.isBoxBased);
+        const boxQty = Number(item.product?.boxQuantity || 0);
+        const conversionFactor = Number((item.product as any)?.conversionFactor || 1);
+        const unit = item.unit || stockUnit;
+        const baseUnitCost =
+          unit !== stockUnit && (boxQty > 0 || conversionFactor > 1)
+            ? item.estimatedUnitPrice /
+              (boxQty > 0 ? boxQty : conversionFactor > 0 ? conversionFactor : 1)
+            : item.estimatedUnitPrice || item.product?.costPrice || 0;
+        return {
+          productId: item.productId,
+          productName: item.productName,
+          sku: item.sku,
+          quantity: item.quantity,
+          unit,
+          baseUnitCost,
+          estimatedUnitPrice: item.estimatedUnitPrice,
+          notes: item.notes || '',
+          purpose: item.purpose || '',
+          isBoxBased,
+          boxUnitName: item.product?.boxUnitName || 'Box',
+          stockUnitName: stockUnit,
+          boxQuantity: boxQty,
+          conversionFactor,
+        };
+      }),
       productSearchResults: [],
       isSearchingProducts: false,
     });
@@ -232,6 +305,8 @@ export function PurchaseRequisitionsPage() {
       if (p.lines.some((l) => l.productId === product.id)) {
         return { ...p, productSearchResults: [] };
       }
+      const stockUnit = product.stockUnitName || 'Pcs';
+      const baseUnitCost = Number(product.costPrice || 0);
       return {
         ...p,
         productSearchResults: [],
@@ -242,13 +317,34 @@ export function PurchaseRequisitionsPage() {
             productName: product.name,
             sku: product.sku,
             quantity: 1,
-            estimatedUnitPrice: product.costPrice || 0,
+            unit: stockUnit,
+            baseUnitCost,
+            estimatedUnitPrice: baseUnitCost,
             notes: '',
             purpose: '',
+            isBoxBased: Boolean(product.isBoxBased),
+            boxUnitName: product.boxUnitName || 'Box',
+            stockUnitName: stockUnit,
+            boxQuantity: Number(product.boxQuantity || 0),
+            conversionFactor: Number(product.conversionFactor || 1),
           },
         ],
       };
     });
+  };
+
+  const updateLine = (idx: number, patch: Partial<LineDraft>) => {
+    setWizardState((p) => ({
+      ...p,
+      lines: p.lines.map((l, i) => {
+        if (i !== idx) return l;
+        const next = { ...l, ...patch };
+        if (patch.unit != null && patch.unit !== l.unit) {
+          next.estimatedUnitPrice = priceForUnit(next.baseUnitCost, next.unit, next);
+        }
+        return next;
+      }),
+    }));
   };
 
   const saveRequisition = async () => {
@@ -270,6 +366,7 @@ export function PurchaseRequisitionsPage() {
         items: wizardState.lines.map((l) => ({
           productId: l.productId,
           quantity: l.quantity,
+          unit: l.unit,
           estimatedUnitPrice: l.estimatedUnitPrice,
           notes: l.notes,
           purpose: l.purpose,
@@ -549,7 +646,10 @@ export function PurchaseRequisitionsPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="font-medium text-gray-800 text-sm">{line.productName}</p>
-                        <p className="text-xs text-gray-400">SKU: {line.sku}</p>
+                        <p className="text-xs text-gray-400">
+                          SKU: {line.sku}
+                          {line.stockUnitName ? ` · Base UOM: ${line.stockUnitName}` : ''}
+                        </p>
                       </div>
                       <button
                         onClick={() =>
@@ -563,7 +663,7 @@ export function PurchaseRequisitionsPage() {
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-3">
                       <div>
                         <label className="text-[10px] text-gray-500">Quantity</label>
                         <input
@@ -573,17 +673,32 @@ export function PurchaseRequisitionsPage() {
                           className="w-full rounded border px-2 py-1.5 text-sm"
                           value={line.quantity}
                           onChange={(e) =>
-                            setWizardState((p) => ({
-                              ...p,
-                              lines: p.lines.map((l, i) =>
-                                i === idx ? { ...l, quantity: Number(e.target.value) } : l
-                              ),
-                            }))
+                            updateLine(idx, { quantity: Number(e.target.value) || 0 })
                           }
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-gray-500">Est. unit price</label>
+                        <label className="text-[10px] text-gray-500">UOM</label>
+                        <select
+                          className="w-full rounded border px-2 py-1.5 text-sm bg-white"
+                          value={line.unit}
+                          onChange={(e) => updateLine(idx, { unit: e.target.value })}
+                        >
+                          {uomOptionsForProduct({
+                            stockUnitName: line.stockUnitName,
+                            boxUnitName: line.boxUnitName,
+                            isBoxBased: line.isBoxBased,
+                          }).map((u) => (
+                            <option key={u} value={u}>
+                              {u}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-500">
+                          Est. unit price / {line.unit || 'unit'}
+                        </label>
                         <input
                           type="number"
                           min={0}
@@ -591,12 +706,13 @@ export function PurchaseRequisitionsPage() {
                           className="w-full rounded border px-2 py-1.5 text-sm"
                           value={line.estimatedUnitPrice}
                           onChange={(e) =>
-                            setWizardState((p) => ({
-                              ...p,
-                              lines: p.lines.map((l, i) =>
-                                i === idx ? { ...l, estimatedUnitPrice: Number(e.target.value) } : l
-                              ),
-                            }))
+                            updateLine(idx, {
+                              estimatedUnitPrice: Number(e.target.value) || 0,
+                              // Keep base cost in sync when editing price on stock UOM
+                              ...(line.unit === (line.stockUnitName || 'Pcs')
+                                ? { baseUnitCost: Number(e.target.value) || 0 }
+                                : {}),
+                            })
                           }
                         />
                       </div>
@@ -606,14 +722,10 @@ export function PurchaseRequisitionsPage() {
                           className="w-full rounded border px-2 py-1.5 text-sm"
                           value={line.purpose || line.notes}
                           onChange={(e) =>
-                            setWizardState((p) => ({
-                              ...p,
-                              lines: p.lines.map((l, i) =>
-                                i === idx
-                                  ? { ...l, purpose: e.target.value, notes: e.target.value }
-                                  : l
-                              ),
-                            }))
+                            updateLine(idx, {
+                              purpose: e.target.value,
+                              notes: e.target.value,
+                            })
                           }
                           placeholder="Why needed / usage"
                         />
@@ -621,6 +733,10 @@ export function PurchaseRequisitionsPage() {
                     </div>
                     <p className="text-xs text-right text-[#014582] font-semibold mt-2">
                       Line est. {formatMoney(line.quantity * line.estimatedUnitPrice)}
+                      <span className="text-gray-400 font-normal">
+                        {' '}
+                        ({line.quantity || 0} {line.unit} × {formatMoney(line.estimatedUnitPrice)})
+                      </span>
                     </p>
                   </div>
                 ))}
@@ -665,7 +781,7 @@ export function PurchaseRequisitionsPage() {
                     <div>
                       <p className="font-medium">{l.productName}</p>
                       <p className="text-xs text-gray-400">
-                        {l.sku} · Qty {l.quantity} · {formatMoney(l.estimatedUnitPrice)}
+                        {l.sku} · Qty {l.quantity} {l.unit || 'Pcs'} · {formatMoney(l.estimatedUnitPrice)}/{l.unit || 'unit'}
                       </p>
                     </div>
                     <p className="font-semibold">{formatMoney(l.quantity * l.estimatedUnitPrice)}</p>
@@ -940,7 +1056,7 @@ export function PurchaseRequisitionsPage() {
                         <div>
                           <p className="font-medium text-gray-800">{item.productName}</p>
                           <p className="text-xs text-gray-400">
-                            SKU {item.sku} · Qty {item.quantity} · {formatMoney(item.estimatedUnitPrice)} ea
+                            SKU {item.sku} · Qty {item.quantity} {item.unit || item.product?.stockUnitName || 'Pcs'} · {formatMoney(item.estimatedUnitPrice)} / {item.unit || 'unit'}
                           </p>
                           {(item.purpose || item.notes) && (
                             <p className="text-xs text-gray-500 mt-0.5">{item.purpose || item.notes}</p>
@@ -1072,6 +1188,6 @@ export function PurchaseRequisitionsPage() {
   );
 }
 
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+
+
+export { PurchaseRequisitionsPage };

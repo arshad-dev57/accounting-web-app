@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useCallback, useEffect, useState } from 'react';
 import { Route } from 'lucide-react';
 import { useLocation } from '@/lib/location-context';

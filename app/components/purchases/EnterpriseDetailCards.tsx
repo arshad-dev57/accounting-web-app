@@ -155,7 +155,7 @@ export function ProductDetailCard({
             {typeof product.taxRate === 'number' && (
               <MetaChip icon={Calendar} label={`Tax ${product.taxRate}%`} />
             )}
-            {product.stockUnitName && <MetaChip icon={Truck} label={product.stockUnitName} />}
+            <MetaChip icon={Truck} label={product.stockUnitName || 'Pcs'} />
             {typeof product.currentStock === 'number' && (
               <MetaChip icon={Package} label={`Stock ${product.currentStock}`} />
             )}

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Settings } from 'lucide-react';

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCurrency } from '../../../lib/currency-context';
 import Link from 'next/link';
@@ -45,7 +47,7 @@ interface IncomeItem {
 }
 
 
-export function IncomePage() {
+export default function IncomePage() {
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -1208,7 +1210,4 @@ function IncomeDetailModal({
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { IncomePage };

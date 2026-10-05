@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -41,7 +43,7 @@ interface FilterState {
 
 const PAGE_SIZE = 10;
 
-export function GeneralLedgerPage() {
+export default function GeneralLedgerPage() {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [accountSummaries, setAccountSummaries] = useState<AccountSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -796,7 +798,4 @@ function EntryDetailModal({
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { GeneralLedgerPage };

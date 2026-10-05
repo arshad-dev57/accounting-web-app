@@ -9,6 +9,8 @@ export interface EquityAccount {
   accountType: 'Capital' | 'Retained Earnings' | 'Drawings' | 'Reserves';
   currentBalance: number;
   openingBalance: number;
+  additions?: number;
+  withdrawals?: number;
   lastUpdated: string;
   description?: string;
 }
@@ -61,19 +63,31 @@ function deriveAccountType(
 
   const n = (name || '').toLowerCase();
   if (n.includes('drawing')) return 'Drawings';
-  if (n.includes('retained') || n.includes('retention')) return 'Retained Earnings';
+  if (
+    n.includes('retained') ||
+    n.includes('retention') ||
+    n.includes('current year')
+  ) {
+    return 'Retained Earnings';
+  }
   if (n.includes('reserve')) return 'Reserves';
   return 'Capital';
 }
 
 export function mapChartAccountToEquity(account: any): EquityAccount {
+  const balance = Number(account.currentBalance ?? account.balance ?? account.openingBalance ?? 0);
+  const accountType = deriveAccountType(account.name || '', account.subType || account.accountType);
   return {
     id: account.id,
     accountName: account.name || account.accountName || '',
     accountCode: account.code || account.accountCode || '',
-    accountType: deriveAccountType(account.name || '', account.subType || account.accountType),
-    currentBalance: Number(account.currentBalance ?? account.balance ?? account.openingBalance ?? 0),
+    accountType,
+    // Drawings: show absolute withdrawal amount for list readability
+    currentBalance:
+      accountType === 'Drawings' ? Math.abs(balance) : balance,
     openingBalance: Number(account.openingBalance ?? 0),
+    additions: Number(account.additions ?? 0),
+    withdrawals: Number(account.withdrawals ?? 0),
     lastUpdated: account.updatedAt || new Date().toISOString(),
     description: account.description || account.notes || '',
   };
@@ -89,16 +103,21 @@ export function buildEquitySummary(accounts: EquityAccount[]): EquitySummary {
   const totalReserves = accounts
     .filter((a) => a.accountType === 'Reserves')
     .reduce((sum, a) => sum + a.currentBalance, 0);
+  // Drawings may be stored as negative (credit-normal after debit) — display as absolute
   const totalDrawings = accounts
     .filter((a) => a.accountType === 'Drawings')
-    .reduce((sum, a) => sum + a.currentBalance, 0);
+    .reduce((sum, a) => sum + Math.abs(a.currentBalance), 0);
 
   return {
     totalCapital,
     totalRetainedEarnings,
     totalReserves,
     totalDrawings,
-    totalEquity: totalCapital + totalRetainedEarnings + totalReserves - totalDrawings,
+    // Signed sum: drawings already reduce equity when negative; otherwise subtract abs
+    totalEquity: accounts.reduce((sum, a) => {
+      if (a.accountType === 'Drawings') return sum - Math.abs(a.currentBalance);
+      return sum + a.currentBalance;
+    }, 0),
   };
 }
 
@@ -115,7 +134,7 @@ export const equityService = {
     }
   },
 
-  // Same source as Flutter: Chart of Accounts filtered to Equity
+  // Equity COA via /api/equity (includes additions/withdrawals + live CYE)
   getEquityAccounts: async (params: {
     page?: number;
     limit?: number;
@@ -123,13 +142,13 @@ export const equityService = {
     accountType?: string;
   } = {}): Promise<EquityListResponse> => {
     const query = new URLSearchParams();
-    query.set('type', 'Equity');
-
-    if (params.page) query.set('page', String(params.page));
-    if (params.limit) query.set('limit', String(params.limit));
     if (params.search) query.set('search', params.search);
+    if (params.accountType && params.accountType !== 'All') {
+      query.set('accountType', params.accountType);
+    }
 
-    const url = `/api/chart-of-accounts?${query.toString()}`;
+    const qs = query.toString();
+    const url = qs ? `/api/equity?${qs}` : '/api/equity';
 
     try {
       const response = await apiClient.get(url);
@@ -139,26 +158,44 @@ export const equityService = {
       }
 
       const payload = response.data || {};
-      let accounts = (payload.data || []).map(mapChartAccountToEquity);
+      let accounts = (payload.data || []).map((row: any) =>
+        mapChartAccountToEquity({
+          id: row.id,
+          name: row.accountName || row.name,
+          code: row.accountCode || row.code,
+          currentBalance: row.currentBalance,
+          openingBalance: row.openingBalance,
+          updatedAt: row.lastUpdated,
+          description: row.notes || row.description,
+          additions: row.additions,
+          withdrawals: row.withdrawals,
+          accountType: row.accountType,
+        })
+      );
 
       if (params.accountType && params.accountType !== 'All') {
         accounts = accounts.filter((a: EquityAccount) => a.accountType === params.accountType);
       }
 
-      const pagination = payload.pagination || {};
+      const page = params.page || 1;
+      const limit = params.limit || 20;
+      const total = accounts.length;
+      const pages = Math.max(1, Math.ceil(total / limit));
+      const start = (page - 1) * limit;
+      const paged = accounts.slice(start, start + limit);
       const summary = buildEquitySummary(accounts);
 
       return {
         success: true,
-        data: accounts,
+        data: paged,
         summary,
         pagination: {
-          page: pagination.page || params.page || 1,
-          limit: pagination.limit || params.limit || 20,
-          total: pagination.total ?? accounts.length,
-          pages: pagination.pages ?? 1,
-          hasNext: pagination.hasNext ?? false,
-          hasPrev: pagination.hasPrev ?? false,
+          page,
+          limit,
+          total,
+          pages,
+          hasNext: page < pages,
+          hasPrev: page > 1,
         },
       };
     } catch (error: any) {

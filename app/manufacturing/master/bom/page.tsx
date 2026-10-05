@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useCallback, useEffect, useState } from 'react';
 import { Boxes } from 'lucide-react';
 import { bomService } from '@/lib/manufacturing-service';

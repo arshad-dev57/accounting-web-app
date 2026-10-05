@@ -1,12 +1,14 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Globe, Percent, ShieldCheck, FileSpreadsheet, AlertTriangle } from 'lucide-react';
 import { taxService } from '../../lib/tax-service';
 import TaxUseToggle from '../../components/TaxUseToggle';
 
-export function TaxOverviewPage() {
+export default function TaxOverviewPage() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -134,7 +136,4 @@ function NavCard({ href, icon, title, hint }: { href: string; icon: React.ReactN
     </Link>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { TaxOverviewPage };

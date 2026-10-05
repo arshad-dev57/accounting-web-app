@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDashboardFiltersReady } from '../../../lib/use-dashboard-filters-ready';
@@ -25,7 +27,8 @@ import {
   ArrowDownRight,
   Plus,
   Minus,
-  Store,
+  Scale,
+  CreditCard,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -147,7 +150,7 @@ function formatDate(iso?: string) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export function AccountingDashboard() {
+export default function AccountingDashboard() {
   const router = useRouter();
   const companyCtx = useCompanyOptional();
   const { symbol: currencySymbol } = useCurrency();
@@ -236,6 +239,7 @@ export function AccountingDashboard() {
   const receivables = toNum(kpi.accountsReceivable?.amount ?? kpi.outstanding?.amount);
   const payables = toNum(kpi.accountsPayable?.amount);
   const netProfit = toNum(kpi.netProfit?.amount);
+  const grossProfit = toNum(kpi.grossProfit?.amount);
   const profitMargin = toNum(kpi.netProfit?.margin);
   const bankAccountsCount = toNum(
     kpi.bankBalance?.accountsCount ?? kpi.cashBalance?.accountsCount
@@ -243,6 +247,7 @@ export function AccountingDashboard() {
   const receivableCount = toNum(
     kpi.accountsReceivable?.count ?? kpi.outstanding?.count
   );
+  const payableCount = toNum(kpi.accountsPayable?.count);
 
   const chartData = useMemo(() => {
     const rows = data?.chartData ?? [];
@@ -275,20 +280,146 @@ export function AccountingDashboard() {
 
   const expenseTotal = expenseCats.reduce((s, c) => s + c.amount, 0);
 
-  const overviewRows = [
-    { label: 'Revenue', value: revenue, color: '#22c55e', source: 'Posted ledger (accrual · same as P&L)' },
-    { label: 'Invoiced Sales', value: sales, color: ACCENT, source: `${toNum(kpi.totalSales?.count)} invoice(s) · Invoiced amount` },
-    { label: 'Collections', value: salesCollected, color: '#0ea5e9', source: 'Cash collected on invoices (period)' },
-    { label: 'POS Sales', value: posSales, color: '#7c3aed', source: `${toNum(kpi.posSales?.count)} sale(s) · Posted at sale` },
-    { label: 'Purchases', value: purchases, color: '#f59e0b', source: 'Purchase invoices invoiced (period)' },
-    { label: 'Expenses', value: expenses, color: '#ef4444', source: 'Posted ledger incl. COGS (accrual · same as P&L)' },
-    { label: 'Bank Balance', value: bankBalance, color: '#3b82f6', source: 'Bank accounts (current balance)' },
-    { label: 'Cash', value: cashInHand, color: '#22c55e', source: 'Cash in Hand (Chart of Accounts)' },
-    { label: 'Receivables', value: receivables, color: '#f59e0b', source: 'Outstanding sales invoices (current)' },
-    { label: 'Payables', value: payables, color: '#f97316', source: 'Outstanding bills + purchase invoices (current)' },
-    { label: 'Net Profit', value: Math.abs(netProfit), color: netProfit >= 0 ? '#22c55e' : '#ef4444', source: 'Ledger P&L: Revenue − COGS − Expenses', display: formatCurrency(netProfit) },
+  const cogs = toNum(kpi.totalExpenses?.sources?.cogs);
+  const operatingExpenses = Math.max(0, expenses - cogs);
+  const workingCapital = bankBalance + cashInHand + receivables - payables;
+  const grossMargin =
+    revenue > 0 ? Math.round((grossProfit / revenue) * 1000) / 10 : 0;
+
+  type OverviewRow = {
+    label: string;
+    value: number;
+    color: string;
+    source: string;
+    display?: string;
+  };
+
+  const pnlRows: OverviewRow[] = [
+    {
+      label: 'Revenue',
+      value: revenue,
+      color: '#22c55e',
+      source: 'Accrual · posted revenue accounts (same as P&L)',
+    },
+    {
+      label: 'Cost of Goods Sold',
+      value: cogs,
+      color: '#f97316',
+      source: 'Accrual · COGS ledger accounts',
+    },
+    {
+      label: 'Gross Profit',
+      value: Math.abs(grossProfit),
+      color: grossProfit >= 0 ? '#16a34a' : '#ef4444',
+      source: `Revenue − COGS · margin ${grossMargin}%`,
+      display: formatCurrency(grossProfit),
+    },
+    {
+      label: 'Operating & Other Expenses',
+      value: operatingExpenses,
+      color: '#ef4444',
+      source: 'Accrual · expense accounts excluding COGS',
+    },
+    {
+      label: 'Net Profit / (Loss)',
+      value: Math.abs(netProfit),
+      color: netProfit >= 0 ? '#22c55e' : '#ef4444',
+      source: 'Gross profit − operating & other expenses',
+      display: formatCurrency(netProfit),
+    },
   ];
-  const overviewMax = Math.max(1, ...overviewRows.map((r) => r.value));
+
+  const positionRows: OverviewRow[] = [
+    {
+      label: 'Cash & Bank',
+      value: bankBalance + cashInHand,
+      color: '#3b82f6',
+      source: `As of now · bank ${formatCurrency(bankBalance)} + cash ${formatCurrency(cashInHand)}`,
+      display: formatCurrency(bankBalance + cashInHand),
+    },
+    {
+      label: 'Trade Receivables (AR)',
+      value: receivables,
+      color: '#f59e0b',
+      source: 'As of now · unpaid customer invoices',
+    },
+    {
+      label: 'Trade Payables (AP)',
+      value: payables,
+      color: '#f97316',
+      source: 'As of now · unpaid supplier bills & purchases',
+    },
+    {
+      label: 'Net Working Capital',
+      value: Math.abs(workingCapital),
+      color: workingCapital >= 0 ? '#0ea5e9' : '#ef4444',
+      source: 'Cash & bank + AR − AP',
+      display: formatCurrency(workingCapital),
+    },
+  ];
+
+  const opsRows: OverviewRow[] = [
+    {
+      label: 'Sales Invoices Issued',
+      value: sales,
+      color: ACCENT,
+      source: `${toNum(kpi.totalSales?.count)} invoice(s) · amount billed this period`,
+    },
+    {
+      label: 'Customer Collections',
+      value: salesCollected,
+      color: '#0ea5e9',
+      source: 'Cash received against invoices this period',
+    },
+    {
+      label: 'POS Sales',
+      value: posSales,
+      color: '#7c3aed',
+      source: `${toNum(kpi.posSales?.count)} completed sale(s) this period`,
+    },
+    {
+      label: 'Purchase Invoices',
+      value: purchases,
+      color: '#f59e0b',
+      source: 'Supplier invoices recorded this period',
+    },
+  ];
+
+  const renderOverviewGroup = (title: string, hint: string, rows: OverviewRow[]) => {
+    const max = Math.max(1, ...rows.map((r) => r.value));
+    return (
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
+          <p className="text-[11px] text-gray-400 mt-0.5">{hint}</p>
+        </div>
+        <div className="space-y-3">
+          {rows.map((row) => (
+            <div key={row.label}>
+              <div className="flex items-center justify-between mb-1.5 gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-700 font-medium">{row.label}</p>
+                  <p className="text-[11px] text-gray-400">{row.source}</p>
+                </div>
+                <span className="text-sm font-semibold text-gray-800 shrink-0">
+                  {row.display || formatCurrency(row.value)}
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, (row.value / max) * 100)}%`,
+                    backgroundColor: row.color,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   const kpis = [
     {
@@ -298,17 +429,25 @@ export function AccountingDashboard() {
       color: 'bg-emerald-50 text-emerald-600',
       trend: formatTrend(toNum(kpi.totalRevenue?.change)),
       trendUp: !!kpi.totalRevenue?.isPositive,
+      basis: 'Accrual',
     },
     {
-      label: 'POS Sales',
-      value: formatCurrency(posSales),
-      icon: Store,
-      color: 'bg-violet-50 text-violet-600',
-      trend:
-        toNum(kpi.posSales?.count) > 0
-          ? `${toNum(kpi.posSales?.count)} sale(s)`
-          : 'No POS sales',
-      trendUp: posSales >= 0,
+      label: 'Gross Profit',
+      value: formatCurrency(grossProfit),
+      icon: Scale,
+      color: 'bg-lime-50 text-lime-700',
+      trend: formatTrend(toNum(kpi.grossProfit?.change)),
+      trendUp: !!kpi.grossProfit?.isPositive,
+      basis: 'Accrual',
+    },
+    {
+      label: 'Net Profit',
+      value: formatCurrency(netProfit),
+      icon: DollarSign,
+      color: netProfit >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600',
+      trend: formatTrend(toNum(kpi.netProfit?.change)),
+      trendUp: !!kpi.netProfit?.isPositive,
+      basis: 'Accrual',
     },
     {
       label: 'Expenses',
@@ -317,6 +456,7 @@ export function AccountingDashboard() {
       color: 'bg-red-50 text-red-600',
       trend: formatTrend(toNum(kpi.totalExpenses?.change)),
       trendUp: !!kpi.totalExpenses?.isPositive,
+      basis: 'Accrual',
     },
     {
       label: 'Bank Balance',
@@ -324,15 +464,17 @@ export function AccountingDashboard() {
       icon: Landmark,
       color: 'bg-blue-50 text-blue-600',
       trend: bankAccountsCount > 0 ? `${bankAccountsCount} accounts` : 'No accounts',
-      trendUp: kpi.bankBalance?.isPositive ?? kpi.cashBalance?.isPositive ?? bankBalance >= 0,
+      trendUp: bankBalance >= 0,
+      basis: 'Snapshot',
     },
     {
       label: 'Cash',
       value: formatCurrency(cashInHand),
       icon: Wallet,
-      color: 'bg-emerald-50 text-emerald-600',
+      color: 'bg-teal-50 text-teal-600',
       trend: 'Cash in Hand',
       trendUp: cashInHand >= 0,
+      basis: 'Snapshot',
     },
     {
       label: 'Receivables',
@@ -341,6 +483,16 @@ export function AccountingDashboard() {
       color: 'bg-amber-50 text-amber-600',
       trend: receivableCount > 0 ? `${receivableCount} open` : 'Clear',
       trendUp: receivables <= 0,
+      basis: 'Subledger',
+    },
+    {
+      label: 'Payables',
+      value: formatCurrency(payables),
+      icon: CreditCard,
+      color: 'bg-orange-50 text-orange-600',
+      trend: payableCount > 0 ? `${payableCount} open` : 'Clear',
+      trendUp: payables <= 0,
+      basis: 'Subledger',
     },
   ];
 
@@ -353,7 +505,7 @@ export function AccountingDashboard() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Accounting Dashboard</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Accrual P&L (posted ledger) for {period.toLowerCase()}
+            Accrual P&amp;L (posted ledger) · AR/AP subledger · cash/bank snapshots · {period.toLowerCase()}
             {selectedFiscalYear ? ` · ${selectedFiscalYear.name}` : ''}
           </p>
         </div>
@@ -395,7 +547,7 @@ export function AccountingDashboard() {
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600">{error}</div>
       ) : (
         <>
-          {/* Net profit summary */}
+          {/* Net profit summary — IFRS-style P&L headline */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
@@ -410,29 +562,40 @@ export function AccountingDashboard() {
                   {formatCurrency(netProfit)}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  Margin {profitMargin.toFixed(1)}% · Ledger revenue {formatCurrency(revenue)} −
-                  ledger expenses {formatCurrency(expenses)}
+                  Margin {profitMargin.toFixed(1)}% · Revenue {formatCurrency(revenue)} − COGS &amp;
+                  expenses {formatCurrency(expenses)}
+                  {toNum(kpi.netProfit?.change) !== 0
+                    ? ` · vs prior period ${formatTrend(toNum(kpi.netProfit?.change))}`
+                    : ''}
                 </p>
               </div>
-              <div className="grid grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
                 <div>
                   <p className="text-xs text-gray-400">Revenue</p>
                   <p className="text-lg font-bold text-emerald-600">{formatCurrency(revenue)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Gross Profit</p>
+                  <p className={`text-lg font-bold ${grossProfit >= 0 ? 'text-lime-700' : 'text-red-600'}`}>
+                    {formatCurrency(grossProfit)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">Expenses</p>
                   <p className="text-lg font-bold text-red-600">{formatCurrency(expenses)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400">Bank</p>
-                  <p className="text-lg font-bold text-[#1088dd]">{formatCurrency(bankBalance)}</p>
+                  <p className="text-xs text-gray-400">Bank + Cash</p>
+                  <p className="text-lg font-bold text-[#1088dd]">
+                    {formatCurrency(bankBalance + cashInHand)}
+                  </p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* KPI cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {kpis.map((item) => {
               const Icon = item.icon;
               return (
@@ -460,7 +623,12 @@ export function AccountingDashboard() {
                     </span>
                   </div>
                   <p className="text-2xl font-bold text-gray-800 mt-3">{item.value}</p>
-                  <p className="text-sm font-medium text-gray-700">{item.label}</p>
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <p className="text-sm font-medium text-gray-700">{item.label}</p>
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                      {item.basis}
+                    </span>
+                  </div>
                 </div>
               );
             })}
@@ -488,27 +656,27 @@ export function AccountingDashboard() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h2 className="font-bold text-gray-800">Capital &amp; earnings</h2>
+                    <h2 className="font-bold text-gray-800">Equity position</h2>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      Opening capital vs earnings in {period.toLowerCase()}
+                      Owner capital + retained earnings (balance sheet) · period P&amp;L separate
                     </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                   <div className="rounded-xl bg-blue-50 p-3">
-                    <p className="text-xs font-semibold text-blue-700">Your capital</p>
+                    <p className="text-xs font-semibold text-blue-700">Owner capital</p>
                     <p className="text-lg font-bold text-blue-800 mt-1">{formatCurrency(opening)}</p>
                   </div>
                   <div className={`rounded-xl p-3 ${up ? 'bg-emerald-50' : 'bg-red-50'}`}>
                     <p className={`text-xs font-semibold ${up ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {up ? 'Earned this period' : 'Decreased this period'}
+                      {up ? 'Period net profit' : 'Period net loss'}
                     </p>
                     <p className={`text-lg font-bold mt-1 ${up ? 'text-emerald-800' : 'text-red-800'}`}>
                       {formatCurrency(earned)}
                     </p>
                   </div>
                   <div className="rounded-xl bg-violet-50 p-3">
-                    <p className="text-xs font-semibold text-violet-700">Equity now</p>
+                    <p className="text-xs font-semibold text-violet-700">Total equity</p>
                     <p className="text-lg font-bold text-violet-800 mt-1">{formatCurrency(equityNow)}</p>
                   </div>
                 </div>
@@ -714,35 +882,33 @@ export function AccountingDashboard() {
             </div>
           </div>
 
-          {/* Financial overview */}
+          {/* Financial overview — IAS 1 style: P&L · Position · Operations */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-800">Financial Overview</h2>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="font-bold text-gray-800">Financial Overview</h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Grouped by accounting basis · bars compare within each group only
+                </p>
+              </div>
               <span className="text-xs text-gray-400">{period}</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-              {overviewRows.map((row) => (
-                <div key={row.label}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div>
-                      <p className="text-sm text-gray-700 font-medium">{row.label}</p>
-                      <p className="text-[11px] text-gray-400">{row.source}</p>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-800">
-                      {row.display || formatCurrency(row.value)}
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(100, (row.value / overviewMax) * 100)}%`,
-                        backgroundColor: row.color,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+              {renderOverviewGroup(
+                'Profit & Loss',
+                'Period performance (accrual · posted ledger)',
+                pnlRows
+              )}
+              {renderOverviewGroup(
+                'Financial Position',
+                'Point-in-time balances (not period totals)',
+                positionRows
+              )}
+              {renderOverviewGroup(
+                'Operations',
+                'Sales / purchase documents this period',
+                opsRows
+              )}
             </div>
           </div>
 
@@ -894,7 +1060,4 @@ function QuickAction({
     </button>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { AccountingDashboard };

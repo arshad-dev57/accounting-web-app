@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FileText,
@@ -46,7 +48,7 @@ const ACCENT_PRESETS = [
   '#1088dd',
 ];
 
-export function PdfReportSettingsPage() {
+export default function PdfReportSettingsPage() {
   const [settings, setSettings] = useState<PdfReportSettings>({
     ...DEFAULT_PDF_REPORT_SETTINGS,
   });
@@ -699,7 +701,4 @@ function UploadBox({
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { PdfReportSettingsPage };

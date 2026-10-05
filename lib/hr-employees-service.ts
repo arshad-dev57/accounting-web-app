@@ -39,7 +39,7 @@ export interface HREmployee {
   salary: number;
   payBasis?: 'monthly' | 'hourly' | 'daily';
   userId: string | null;
-  // Enterprise fields
+  hasApplicationAccess?: boolean;
   probationEndDate?: string | null;
   confirmationDate?: string | null;
   contractEndDate?: string | null;
@@ -80,6 +80,9 @@ export interface CreateEmployeeInput {
   emergencyContact?: string | null;
   emergencyPhone?: string | null;
   payGrade?: string | null;
+  /** When true, also create/link an application User login for this employee. Default false. */
+  createLogin?: boolean;
+  grantApplicationAccess?: boolean;
 }
 
 function mapEmployee(e: any): HREmployee {
@@ -110,6 +113,7 @@ function mapEmployee(e: any): HREmployee {
     salary: Number(e.salary || 0),
     payBasis: e.payBasis || 'monthly',
     userId: e.userId || null,
+    hasApplicationAccess: Boolean(e.hasApplicationAccess ?? e.userId),
     probationEndDate: e.probationEndDate || null,
     confirmationDate: e.confirmationDate || null,
     contractEndDate: e.contractEndDate || null,
@@ -146,6 +150,7 @@ export const hrEmployeesService = {
         salary: input.salary || 0,
         payBasis: input.payBasis || 'monthly',
         password: input.password || undefined,
+        createLogin: input.createLogin === true || input.grantApplicationAccess === true,
       })
     );
     return {
@@ -153,6 +158,7 @@ export const hrEmployeesService = {
       emailSent: body.emailSent === true,
       temporaryPassword: body.temporaryPassword as string | undefined,
       message: body.message as string | undefined,
+      hasApplicationAccess: body.hasApplicationAccess === true,
     };
   },
 
@@ -163,6 +169,26 @@ export const hrEmployeesService = {
 
   remove: async (id: string): Promise<void> => {
     unwrap(await apiClient.delete(`/api/hr/employees/${id}`));
+  },
+
+  grantApplicationAccess: async (
+    id: string,
+    input: { email?: string; password?: string; role?: string; firstName?: string; lastName?: string } = {}
+  ) => {
+    const body = unwrap(await apiClient.post(`/api/hr/employees/${id}/grant-access`, input));
+    return {
+      employee: mapEmployee(body.data),
+      message: body.message as string | undefined,
+      temporaryPassword: body.temporaryPassword as string | undefined,
+      emailSent: body.emailSent === true,
+    };
+  },
+
+  revokeApplicationAccess: async (id: string, deactivateUser = false) => {
+    const body = unwrap(
+      await apiClient.post(`/api/hr/employees/${id}/revoke-access`, { deactivateUser })
+    );
+    return mapEmployee(body.data);
   },
 };
 

@@ -1,12 +1,13 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { SuppliersPage } from '../../warehouse/suppliers/page';
 
-export function PurchasesSuppliersPage() {
+export default function PurchasesSuppliersPage() {
   return <SuppliersPage />;
 }
 
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+
+
+export { PurchasesSuppliersPage };

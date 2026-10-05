@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import {
   Users,
@@ -661,6 +663,16 @@ export default function UsersDashboard() {
                                   <Mail className="w-3 h-3" />
                                   <span>{user.email}</span>
                                 </div>
+                                {(user as any).hrEmployee ? (
+                                  <div className="text-xs text-[#014582] mt-0.5 font-medium">
+                                    HR: {(user as any).hrEmployee.employeeCode}
+                                    {(user as any).hrEmployee.designation
+                                      ? ` · ${(user as any).hrEmployee.designation}`
+                                      : ''}
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-gray-400 mt-0.5">No HR Employee</div>
+                                )}
                                 {user.phone && (
                                   <div className="flex items-center gap-2 text-sm text-gray-500">
                                     <Phone className="w-3 h-3" />

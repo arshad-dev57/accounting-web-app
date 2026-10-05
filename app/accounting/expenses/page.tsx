@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCurrency } from '../../../lib/currency-context';
 import Link from 'next/link';
@@ -49,7 +51,7 @@ interface ExpenseItem {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export function ExpensesPage() {
+export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -1225,7 +1227,4 @@ function ExpenseDetailModal({
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { ExpensesPage };

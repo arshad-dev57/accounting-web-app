@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { HRPage, HRPageHeader, HRWorkflowNotice } from '../../ui';
 import { PayrollSettingsPanel } from '../../components/payroll-settings-panel';
 

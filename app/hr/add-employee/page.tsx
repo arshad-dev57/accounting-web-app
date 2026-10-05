@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -51,6 +53,7 @@ type FormState = {
   emergencyPhone: string;
   password: string;
   confirmPassword: string;
+  createLogin: boolean;
 };
 
 const EMPTY_FORM: FormState = {
@@ -81,6 +84,7 @@ const EMPTY_FORM: FormState = {
   emergencyPhone: '',
   password: '',
   confirmPassword: '',
+  createLogin: false,
 };
 
 function Field({
@@ -206,8 +210,7 @@ export default function AddEmployeePage() {
     const next: Record<string, string> = {};
     if (!form.firstName.trim()) next.firstName = 'First name is required';
     if (!form.lastName.trim()) next.lastName = 'Last name is required';
-    if (!form.email.trim()) next.email = 'Email is required — this becomes their app login';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       next.email = 'Invalid email address';
     }
     if (!form.department) {
@@ -228,10 +231,13 @@ export default function AddEmployeePage() {
             ? 'Enter daily rate greater than 0'
             : 'Enter monthly package salary (greater than 0)';
     }
-    if (!form.password.trim()) next.password = 'Set a password — HR will share this with the employee';
-    else if (form.password.length < 6) next.password = 'Password must be at least 6 characters';
-    if (form.password !== form.confirmPassword) {
-      next.confirmPassword = 'Passwords do not match';
+    if (form.createLogin) {
+      if (!form.email.trim()) next.email = 'Email is required for application access';
+      if (!form.password.trim()) next.password = 'Set a password for the login account';
+      else if (form.password.length < 6) next.password = 'Password must be at least 6 characters';
+      if (form.password !== form.confirmPassword) {
+        next.confirmPassword = 'Passwords do not match';
+      }
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -271,10 +277,14 @@ export default function AddEmployeePage() {
         bankBranch: form.bankBranch || null,
         emergencyContact: form.emergencyContact || null,
         emergencyPhone: form.emergencyPhone || null,
-        password: form.password,
+        password: form.createLogin ? form.password : undefined,
+        createLogin: form.createLogin,
       });
       toast.success(
-        `${result.employee.employeeCode} created. Share the email and password you set — they will open the Employee Dashboard.`
+        result.message ||
+          (form.createLogin
+            ? `${result.employee.employeeCode} created with application access.`
+            : `${result.employee.employeeCode} created as HR-only employee (no ERP login).`)
       );
       router.push('/hr/employees');
     } catch (error: any) {
@@ -288,60 +298,79 @@ export default function AddEmployeePage() {
     <HRPage>
       <HRPageHeader
         title="Add Employee"
-        subtitle="Creates a real app user. They log in and only see the Employee Dashboard."
+        subtitle="Create an HR employee record. Optionally grant ERP application access."
         backHref="/hr/employees"
       />
 
       <HRWorkflowNotice
         tone="green"
-        title="HR sets the login password"
-        detail="Create the employee account, set a password here, and give them the email + password. They log in on the mobile app and only see the Employee Dashboard."
+        title="Employee ≠ User by default"
+        detail="HR-only employees work for attendance and payroll without ERP login. Check “Grant application access” only when this person needs to sign into the app."
         action={
           <span className="inline-flex items-center gap-1 text-[11px] font-extrabold">
-            <CircleCheck className="w-3.5 h-3.5" /> User + employee
+            <CircleCheck className="w-3.5 h-3.5" /> Optional login
           </span>
         }
       />
 
       <form onSubmit={handleSubmit}>
-        <HRCard title="App login password" className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="Password" required error={errors.password}>
-              <div className="relative">
-                <input
-                  className={`${errors.password ? inputErrorCls : inputCls} pr-11`}
-                  type={showPassword ? 'text' : 'password'}
-                  value={form.password}
-                  onChange={(e) => set('password')(e.target.value)}
-                  placeholder="HR will share this with the employee"
-                  autoComplete="new-password"
-                  disabled={saving}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7A8FA6] hover:text-[#014582]"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+        <HRCard title="Application access" className="mb-6">
+          <label className="flex items-start gap-3 cursor-pointer mb-4">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={form.createLogin}
+              onChange={(e) => setForm((p) => ({ ...p, createLogin: e.target.checked }))}
+              disabled={saving}
+            />
+            <span>
+              <span className="text-sm font-bold text-[#1A1A2E] block">Grant application access</span>
+              <span className="text-xs text-[#7A8FA6]">
+                Creates a User login linked 1:1 to this employee. Leave unchecked for HR-only staff.
+              </span>
+            </span>
+          </label>
+          {form.createLogin && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Password" required error={errors.password}>
+                  <div className="relative">
+                    <input
+                      className={`${errors.password ? inputErrorCls : inputCls} pr-11`}
+                      type={showPassword ? 'text' : 'password'}
+                      value={form.password}
+                      onChange={(e) => set('password')(e.target.value)}
+                      placeholder="HR will share this with the employee"
+                      autoComplete="new-password"
+                      disabled={saving}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7A8FA6] hover:text-[#014582]"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </Field>
+                <Field label="Confirm password" required error={errors.confirmPassword}>
+                  <input
+                    className={errors.confirmPassword ? inputErrorCls : inputCls}
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.confirmPassword}
+                    onChange={(e) => set('confirmPassword')(e.target.value)}
+                    placeholder="Re-enter password"
+                    autoComplete="new-password"
+                    disabled={saving}
+                  />
+                </Field>
               </div>
-            </Field>
-            <Field label="Confirm password" required error={errors.confirmPassword}>
-              <input
-                className={errors.confirmPassword ? inputErrorCls : inputCls}
-                type={showPassword ? 'text' : 'password'}
-                value={form.confirmPassword}
-                onChange={(e) => set('confirmPassword')(e.target.value)}
-                placeholder="Re-enter password"
-                autoComplete="new-password"
-                disabled={saving}
-              />
-            </Field>
-          </div>
-          <p className="mt-3 text-[11px] font-medium text-[#7A8FA6]">
-            Minimum 6 characters. Give this password to the employee with their email.
-          </p>
+              <p className="mt-3 text-[11px] font-medium text-[#7A8FA6]">
+                Minimum 6 characters. Give this password to the employee with their email.
+              </p>
+            </>
+          )}
         </HRCard>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

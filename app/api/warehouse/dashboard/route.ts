@@ -16,12 +16,25 @@ function emptyDashboard() {
       outOfStockCount: 0,
       overstockCount: 0,
       expiringCount: 0,
+      inStockCount: 0,
       todayStockIn: 0,
       todayStockOut: 0,
       periodStockIn: 0,
       periodStockOut: 0,
       pendingOrders: 0,
       todayRevenue: 0,
+      inventoryHealthScore: 100,
+      stockAvailabilityRate: 100,
+      warehouseBreakdown: [] as Array<{
+        locationId: string;
+        name: string;
+        code: string;
+        productCount: number;
+        stockValue: number;
+        lowStockCount: number;
+        outOfStockCount: number;
+        quantityOnHand: number;
+      }>,
     },
     stockMovement: [] as Array<{
       label: string;
@@ -139,6 +152,7 @@ export async function GET(request: NextRequest) {
 
     if (metricsRes.status === 'fulfilled') {
       const m = metricsRes.value?.data || {};
+      const breakdown = Array.isArray(m.warehouseBreakdown) ? m.warehouseBreakdown : [];
       base.metrics = {
         totalProducts: toNum(m.totalProducts),
         totalStockValue: toNum(m.totalStockValue),
@@ -146,12 +160,25 @@ export async function GET(request: NextRequest) {
         outOfStockCount: toNum(m.outOfStockCount),
         overstockCount: toNum(m.overstockCount),
         expiringCount: toNum(m.expiringCount),
+        inStockCount: toNum(m.inStockCount ?? Math.max(0, toNum(m.totalProducts) - toNum(m.outOfStockCount))),
         todayStockIn: toNum(m.todayStockIn),
         todayStockOut: toNum(m.todayStockOut),
         periodStockIn: toNum(m.periodStockIn),
         periodStockOut: toNum(m.periodStockOut),
         pendingOrders: toNum(m.pendingOrders),
         todayRevenue: toNum(m.todayRevenue),
+        inventoryHealthScore: toNum(m.inventoryHealthScore ?? 100),
+        stockAvailabilityRate: toNum(m.stockAvailabilityRate ?? 100),
+        warehouseBreakdown: breakdown.map((row: Record<string, unknown>) => ({
+          locationId: String(row.locationId ?? ''),
+          name: String(row.name ?? ''),
+          code: String(row.code ?? ''),
+          productCount: toNum(row.productCount),
+          stockValue: toNum(row.stockValue),
+          lowStockCount: toNum(row.lowStockCount),
+          outOfStockCount: toNum(row.outOfStockCount),
+          quantityOnHand: toNum(row.quantityOnHand),
+        })),
       };
     }
 

@@ -15,6 +15,7 @@ export interface PurchaseRequisitionItem {
   productName: string;
   sku: string;
   quantity: number;
+  unit?: string;
   estimatedUnitPrice: number;
   notes?: string;
   purpose?: string;
@@ -24,6 +25,10 @@ export interface PurchaseRequisitionItem {
     sku: string;
     costPrice?: number;
     taxRate?: number;
+    stockUnitName?: string;
+    isBoxBased?: boolean;
+    boxQuantity?: number;
+    boxUnitName?: string;
   };
 }
 
@@ -79,6 +84,7 @@ export interface CreateRequisitionRequest {
   items: Array<{
     productId: string;
     quantity: number;
+    unit?: string;
     estimatedUnitPrice?: number;
     notes?: string;
     purpose?: string;

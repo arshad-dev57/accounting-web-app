@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -284,24 +286,53 @@ export function SalesReturnsPage() {
     }
   };
 
-  const selectOrderForReturn = (order: OrderModel) => {
-    const lineDrafts = order.items.map(item => ({
-      productId: item.productId,
-      productName: item.productName,
-      sku: item.sku || '',
-      orderQuantity: item.quantity,
-      unitPrice: item.unitPrice,
-      selected: false,
-      returnQuantity: 0,
-      condition: 'New',
-      refundAmount: 0
-    }));
-    setWizardState(prev => ({
-      ...prev,
-      selectedOrder: order,
-      orderSearchResults: [],
-      lineDrafts
-    }));
+  const selectOrderForReturn = async (order: OrderModel) => {
+    try {
+      const returnable = await salesReturnService.getReturnableForOrder(order.id);
+      if (!returnable.hasReturnable || returnable.items.length === 0) {
+        alert('No remaining returnable quantities on this order (already fully returned or nothing delivered).');
+        return;
+      }
+      const lineDrafts = returnable.items.map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        sku: item.sku || '',
+        orderQuantity: item.remainingQuantity,
+        orderedQuantity: item.orderedQuantity,
+        returnedQuantity: item.returnedQuantity,
+        unitPrice: item.unitPrice,
+        selected: false,
+        returnQuantity: 0,
+        condition: 'New',
+        refundAmount: 0,
+      }));
+      setWizardState((prev) => ({
+        ...prev,
+        selectedOrder: returnable.order || order,
+        orderSearchResults: [],
+        lineDrafts,
+      }));
+    } catch (error: any) {
+      console.error('Failed to load returnable lines:', error);
+      // Fallback to order quantities if returnable API fails
+      const lineDrafts = (order.items || []).map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        sku: item.sku || '',
+        orderQuantity: item.quantity,
+        unitPrice: item.unitPrice,
+        selected: false,
+        returnQuantity: 0,
+        condition: 'New',
+        refundAmount: 0,
+      }));
+      setWizardState((prev) => ({
+        ...prev,
+        selectedOrder: order,
+        orderSearchResults: [],
+        lineDrafts,
+      }));
+    }
   };
 
   // FIXED: toggleLineSelection with proper state update

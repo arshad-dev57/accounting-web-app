@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
@@ -22,7 +24,7 @@ import {
   type ExchangeRateRow,
 } from '../../../../lib/multi-currency';
 
-export function ExchangeRatesPage() {
+export default function ExchangeRatesPage() {
   const [rates, setRates] = useState<ExchangeRateRow[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyMaster[]>([]);
   const [base, setBase] = useState<CurrencyMaster | null>(null);
@@ -372,6 +374,6 @@ export function ExchangeRatesPage() {
   );
 }
 
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+
+
+export { ExchangeRatesPage };

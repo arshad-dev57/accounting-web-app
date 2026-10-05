@@ -49,9 +49,9 @@ function defaultIsKeepAliveRoute(
   routes: readonly string[],
   pathname: string,
 ): boolean {
-  return routes.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
+  // Exact match only — prefix matching incorrectly treats dynamic routes
+  // like /warehouse/customers/[id] as keep-alive (no loader → blank page).
+  return routes.includes(pathname);
 }
 
 function PageSkeleton() {
@@ -130,6 +130,8 @@ export default function ModuleViewHost({
 
   const useHost =
     isKeepAlive || visited.some((path) => isKeepAliveRouteFn(path));
+  const hasActiveKeepAliveView =
+    isKeepAlive && Boolean(config.viewLoaders[pathname]);
 
   if (!useHost) {
     return <>{children}</>;
@@ -157,6 +159,10 @@ export default function ModuleViewHost({
           </div>
         );
       })}
+      {/* Dynamic / unregistered routes (e.g. /customers/[id]) render via App Router children */}
+      {!hasActiveKeepAliveView && (
+        <div className="relative z-[1] w-full">{children}</div>
+      )}
     </div>
   );
 }

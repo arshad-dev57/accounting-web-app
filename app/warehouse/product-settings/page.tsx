@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
@@ -317,7 +319,7 @@ function SettingsFormModal({
 // ============================================================
 // MAIN SETTINGS PAGE
 // ============================================================
-export function ProductSettingsPage() {
+export default function ProductSettingsPage() {
   const [activeCategory, setActiveCategory] = useState('productType');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -525,7 +527,4 @@ export function ProductSettingsPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { ProductSettingsPage };

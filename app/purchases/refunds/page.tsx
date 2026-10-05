@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -33,7 +35,7 @@ interface CreateFormState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export function PurchaseRefundsPage() {
+export default function PurchaseRefundsPage() {
   const [refunds, setRefunds] = useState<RefundModel[]>([]);
   const [filteredRefunds, setFilteredRefunds] = useState<RefundModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1287,7 +1289,5 @@ function ConfirmationModal({
   );
 }
 
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+
+export { PurchaseRefundsPage };

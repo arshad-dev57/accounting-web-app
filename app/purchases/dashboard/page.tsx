@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -130,7 +132,7 @@ function formatRelativeTime(iso: string) {
   return 'Just now';
 }
 
-export function PurchasesDashboardPage() {
+export default function PurchasesDashboardPage() {
   const router = useRouter();
   const companyCtx = useCompanyOptional();
   const [loading, setLoading] = useState(true);
@@ -769,7 +771,4 @@ function QuickAction({
     </button>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { PurchasesDashboardPage };

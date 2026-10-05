@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -46,7 +48,7 @@ const emptyForm: FormState = {
   isDefault: false,
 };
 
-export function LocationsPage() {
+export default function LocationsPage() {
   const router = useRouter();
   const { isAdmin, loading: permLoading } = usePermissions();
   const { refresh: refreshContext } = useLocation();
@@ -281,7 +283,7 @@ export function LocationsPage() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
           <MapPin className="w-5 h-5 text-[#014582]" />
-          Locations / Shops ({locations.length})
+          Warehouses ({locations.length})
         </h3>
         <div className="flex items-center gap-2 flex-wrap">
           <button
@@ -692,7 +694,4 @@ export function LocationsPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { LocationsPage };

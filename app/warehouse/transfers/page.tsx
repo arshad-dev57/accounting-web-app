@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import {
   ArrowLeftRight, Search, Plus, RefreshCw, Calendar, MapPin,
@@ -461,7 +463,7 @@ export function WarehouseTransfersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
           <ArrowLeftRight className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
-          Internal Warehouse Transfers
+          Product Transfers
           <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">({totalCount} transfers)</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2 md:gap-3">
@@ -569,7 +571,7 @@ export function WarehouseTransfersPage() {
               onChange={(e) => setFromLocFilter(e.target.value)}
               className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 text-gray-700 font-medium"
             >
-              <option value="">From: All Locations</option>
+              <option value="">From: All Warehouses</option>
               {locations.map(loc => (
                 <option key={loc.id} value={loc.id}>{loc.name}</option>
               ))}
@@ -584,7 +586,7 @@ export function WarehouseTransfersPage() {
               onChange={(e) => setToLocFilter(e.target.value)}
               className="appearance-none w-full px-3 md:px-4 py-1.5 md:py-2 pr-8 md:pr-10 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 text-gray-700 font-medium"
             >
-              <option value="">To: All Locations</option>
+              <option value="">To: All Warehouses</option>
               {locations.map(loc => (
                 <option key={loc.id} value={loc.id}>{loc.name}</option>
               ))}
@@ -602,8 +604,8 @@ export function WarehouseTransfersPage() {
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Transfer No</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">From Location</th>
-                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">To Location</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">From Warehouse</th>
+                <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">To Warehouse</th>
                 <th className="text-center px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Items</th>
                 <th className="text-center px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Qty</th>
                 <th className="text-left px-3 md:px-6 py-2 md:py-3 text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">Priority</th>
@@ -779,7 +781,7 @@ export function WarehouseTransfersPage() {
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
               <div className="flex items-center gap-2">
                 <ArrowLeftRight className="w-5 h-5 text-[#014582]" />
-                <h2 className="text-xl font-bold text-gray-900">Create Internal Warehouse Transfer</h2>
+                <h2 className="text-xl font-bold text-gray-900">Create Product Transfer</h2>
               </div>
               <button
                 onClick={() => setIsCreateOpen(false)}

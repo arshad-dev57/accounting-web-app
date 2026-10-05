@@ -157,7 +157,7 @@ export function MfgRoutingEditor({ initial }: { initial?: any }) {
         <MfgCard title="Routing header" className="lg:col-span-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <MfgField label="Product">
-              <ProductPicker multiple={false} selected={product} onChange={setProduct} />
+              <ProductPicker multiple={false} allLocations selected={product} onChange={setProduct} />
             </MfgField>
             <MfgField label="Description">
               <MfgInput value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} placeholder="Cutting → Welding → Paint" />

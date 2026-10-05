@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, RefreshCw, Plus, Eye, X, MapPin, Download, Edit3, Save, Loader2, Trash2 } from 'lucide-react';

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import { CalendarRange } from 'lucide-react';
 import { MfgEntityList } from '../../_components/MfgEntityList';

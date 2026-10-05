@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import { ClipboardList, RefreshCw } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
@@ -22,7 +24,7 @@ import {
   MfgAddButton,
 } from '../../ui';
 
-const STATUS_FILTERS = ['All', 'Draft', 'Planned', 'Released', 'In Progress', 'Paused', 'Partially Completed', 'Completed', 'Closed Short', 'Closed', 'Cancelled'];
+const STATUS_FILTERS = ['All', 'Pending', 'Draft', 'Planned', 'Released', 'In Progress', 'Paused', 'Partially Completed', 'Completed', 'Closed Short', 'Closed', 'Cancelled'];
 
 export default function ProductionOrdersPage() {
   return (
@@ -42,6 +44,11 @@ function ProductionOrdersInner() {
   const [status, setStatus] = useState(searchParams.get('status') || 'All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fromUrl = searchParams.get('status');
+    if (fromUrl) setStatus(fromUrl);
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);

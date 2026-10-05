@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -128,10 +130,20 @@ export default function CreateInvoicePage() {
             productId: item.productId,
             productName: item.productName || item.product?.name || 'Product',
             sku: item.sku || item.product?.sku || '',
-            quantity: item.quantity || item.deliveredQuantity || item.orderedQuantity || 1,
+            quantity:
+              item.remainingQuantity ??
+              item.maxQuantity ??
+              item.quantity ??
+              item.deliveredQuantity ??
+              item.orderedQuantity ??
+              1,
             unitPrice: item.unitPrice !== undefined && item.unitPrice !== null ? Number(item.unitPrice) : (item.price || item.product?.sellingPrice || 0),
             discount: Number(item.discount || 0),
             taxRate: Number(item.taxRate || 0),
+            orderedQuantity: item.orderedQuantity,
+            deliveredQuantity: item.deliveredQuantity,
+            invoicedQuantity: item.invoicedQuantity,
+            remainingQuantity: item.remainingQuantity,
           })),
         }));
 
@@ -200,7 +212,12 @@ export default function CreateInvoicePage() {
     setFormError('');
 
     const newDrafts: LineDraft[] = doc.items.map((item) => {
-      const qty = item.quantity || 1;
+      const qty = Number(
+        (item as any).remainingQuantity ??
+          (item as any).maxQuantity ??
+          item.quantity ??
+          1
+      );
       return {
         sourceId: doc.id,
         sourceType: doc.type,
@@ -215,9 +232,9 @@ export default function CreateInvoicePage() {
         unitPrice: item.unitPrice || 0,
         discount: item.discount || 0,
         taxRate: item.taxRate || 0,
-        selected: true,
+        selected: qty > 0,
       };
-    });
+    }).filter((d) => d.maxQuantity > 0);
 
     setLineDrafts((prev) => [...prev, ...newDrafts]);
   };

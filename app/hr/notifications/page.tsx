@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import Link from 'next/link';
 import { Bell, PlaneTakeoff, Fingerprint, Wallet, UserPlus, Timer, Loader2 } from 'lucide-react';

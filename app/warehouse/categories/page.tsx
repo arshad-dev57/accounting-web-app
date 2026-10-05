@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
@@ -9,9 +11,6 @@ import {
 } from 'lucide-react';
 import { categoryService, Category } from '../../api/category/route';
 
-// ============================================================
-// TYPES
-// ============================================================
 interface Subcategory {
   _id?: string;
   id?: string;
@@ -20,15 +19,11 @@ interface Subcategory {
   code?: string;
 }
 
-// Extend Category to include subCategories for UI
 interface CategoryWithSubs extends Category {
   subCategories: Subcategory[];
   children?: Subcategory[]; // For backward compatibility
 }
 
-// ============================================================
-// CATEGORY LIST VIEW (Tab 1)
-// ============================================================
 function CategoryListView({
   categories,
   loading,
@@ -170,10 +165,10 @@ function SubcategoryListView({
     // Check both subCategories and children arrays
     const subs = cat.subCategories || cat.children || [];
     subs.forEach(sub => {
-      allSubs.push({ 
-        sub, 
-        parentId: cat._id || cat.id!, 
-        parentName: cat.name 
+      allSubs.push({
+        sub,
+        parentId: cat._id || cat.id!,
+        parentName: cat.name
       });
     });
   });
@@ -303,10 +298,10 @@ function CategoryFormModal({
       return;
     }
     setError('');
-    onSave({ 
-      name: name.trim(), 
-      code: code.trim() || undefined, 
-      description: description.trim() || undefined 
+    onSave({
+      name: name.trim(),
+      code: code.trim() || undefined,
+      description: description.trim() || undefined
     });
   };
 
@@ -537,11 +532,10 @@ function Tabs({ tabs, activeTab, onChange }: { tabs: string[]; activeTab: string
         <button
           key={tab}
           onClick={() => onChange(tab)}
-          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 ${
-            activeTab === tab
-              ? 'border-[#014582] text-[#014582] bg-[#014582]/5'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-          }`}
+          className={`px-6 py-3 text-sm font-medium transition-all border-b-2 ${activeTab === tab
+            ? 'border-[#014582] text-[#014582] bg-[#014582]/5'
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
         >
           {tab}
         </button>
@@ -549,11 +543,7 @@ function Tabs({ tabs, activeTab, onChange }: { tabs: string[]; activeTab: string
     </div>
   );
 }
-
-// ============================================================
-// MAIN CATEGORIES PAGE
-// ============================================================
-export function CategoriesPage() {
+export default function CategoriesPage() {
   const [categories, setCategories] = useState<CategoryWithSubs[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -574,7 +564,7 @@ export function CategoriesPage() {
     try {
       // Fetch categories with subcategories (tree structure)
       const data = await categoryService.getCategories({ tree: true });
-      
+
       // Transform: each category's children become subCategories
       const transformed = data.map((cat: any) => ({
         ...cat,
@@ -597,7 +587,7 @@ export function CategoriesPage() {
   // ── Category CRUD ──
   const handleAddCategory = () => setCategoryModal({ isOpen: true });
   const handleEditCategory = (cat: CategoryWithSubs) => setCategoryModal({ isOpen: true, editData: cat });
-  
+
   const handleDeleteCategory = async (id: string) => {
     if (!id) {
       alert('Invalid category ID');
@@ -632,11 +622,11 @@ export function CategoriesPage() {
 
   // ── Subcategory CRUD ──
   const handleAddSubcategory = () => setSubcategoryModal({ isOpen: true });
-  
+
   const handleEditSubcategory = (sub: Subcategory, parentId: string) => {
     setSubcategoryModal({ isOpen: true, editData: sub, parentId });
   };
-  
+
   const handleDeleteSubcategory = async (subId: string, parentId: string) => {
     if (!subId) {
       alert('Invalid subcategory ID');
@@ -650,7 +640,7 @@ export function CategoriesPage() {
       alert(error.message || 'Failed to delete subcategory');
     }
   };
-  
+
   const handleSaveSubcategory = async (data: Partial<Subcategory> & { parentId: string }) => {
     setSaving(true);
     try {
@@ -661,7 +651,7 @@ export function CategoriesPage() {
         code: data.code,
         parentId: data.parentId,
       };
-      
+
       const id = data._id || data.id;
       if (id) {
         await categoryService.updateCategory(id, payload);
@@ -752,7 +742,4 @@ export function CategoriesPage() {
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { CategoriesPage };

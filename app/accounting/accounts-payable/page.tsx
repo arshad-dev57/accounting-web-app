@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -42,7 +44,7 @@ interface FilterState {
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
-export function AccountsPayablePage() {
+export default function AccountsPayablePage() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -210,6 +212,8 @@ export function AccountsPayablePage() {
     e?.stopPropagation();
     setSelectedBill({ ...bill, items: bill.items || [] });
     setShowPaymentForm(true);
+    // Refresh banks when opening pay form (keep-alive/first load can miss them)
+    void fetchBankAccounts();
   };
 
   const handlePageChange = (page: number) => {
@@ -899,7 +903,7 @@ function AddBillForm({
 
 function PaymentForm({
   bill,
-  bankAccounts,
+  bankAccounts: bankAccountsProp,
   onCancel,
   onSave,
   submitting,
@@ -915,6 +919,33 @@ function PaymentForm({
     notes: ''
   });
   const [error, setError] = useState('');
+  const [bankAccounts, setBankAccounts] = useState<any[]>(bankAccountsProp || []);
+  const [loadingBanks, setLoadingBanks] = useState(false);
+
+  useEffect(() => {
+    if (Array.isArray(bankAccountsProp) && bankAccountsProp.length > 0) {
+      setBankAccounts(bankAccountsProp);
+    }
+  }, [bankAccountsProp]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // Always refresh when pay form opens — avoids empty keep-alive cache
+      setLoadingBanks(true);
+      try {
+        const accounts = await accountsPayableService.getBankAccounts();
+        if (!cancelled) setBankAccounts(accounts || []);
+      } catch (err) {
+        console.error('Failed to load bank accounts in payment form:', err);
+      } finally {
+        if (!cancelled) setLoadingBanks(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -934,7 +965,7 @@ function PaymentForm({
 
     onSave({
       billId: bill.id,
-      supplierId: bill.supplierId,
+      supplierId: bill.supplierId || bill.vendorId,
       amount: formData.amount,
       paymentDate: new Date(formData.paymentDate),
       paymentMethod: formData.paymentMethod,
@@ -1025,12 +1056,28 @@ function PaymentForm({
                 className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               >
                 <option value="">Select bank account...</option>
-                {bankAccounts.map((acc: { id: string; name: string; bankName?: string; accountNumber?: string }) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.name} — {acc.bankName} ({acc.accountNumber})
-                  </option>
-                ))}
+                {(bankAccounts || []).map((acc: any) => {
+                  const label =
+                    acc.name ||
+                    acc.accountName ||
+                    'Bank account';
+                  const bank = acc.bankName ? ` — ${acc.bankName}` : '';
+                  const number = acc.accountNumber ? ` (${acc.accountNumber})` : '';
+                  return (
+                    <option key={acc.id || acc._id} value={acc.id || acc._id}>
+                      {label}{bank}{number}
+                    </option>
+                  );
+                })}
               </select>
+              {loadingBanks && (
+                <p className="mt-1.5 text-[11px] text-gray-500">Loading bank accounts...</p>
+              )}
+              {!loadingBanks && (!bankAccounts || bankAccounts.length === 0) && (
+                <p className="mt-1.5 text-[11px] text-amber-600">
+                  No active bank accounts found. Add one under Accounting → Bank Accounts.
+                </p>
+              )}
             </div>
           )}
 
@@ -1239,7 +1286,4 @@ function BillDetailModal({
     </div>
   );
 }
-/** Next.js route shell — real UI mounts via ModuleViewHost. */
-export default function ModuleRoutePlaceholder() {
-  return null;
-}
+export { AccountsPayablePage };

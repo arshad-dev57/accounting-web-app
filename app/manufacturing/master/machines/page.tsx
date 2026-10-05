@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import { Wrench } from 'lucide-react';
 import { MfgEntityList, MfgStatusBadge } from '../../_components/MfgEntityList';
