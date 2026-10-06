@@ -49,7 +49,7 @@ type CompanyContextValue = {
   isAllCompanies: boolean;
   loading: boolean;
   error: string;
-  setActiveCompanyId: (id: string) => void;
+  setActiveCompanyId: (id: string) => void | Promise<void>;
   refresh: () => Promise<void>;
   createCompany: (payload: Record<string, unknown>) => Promise<CompanySummary>;
 };
@@ -225,10 +225,32 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
   }, [hydrated, refresh]);
 
   const setActiveCompanyId = useCallback(
-    (id: string) => {
+    async (id: string) => {
       setActiveId(id);
       setStoredCompanyId(id);
       writeCompaniesCache(companies, id);
+      // Persist preferred company so POS / other clients follow the same active company
+      if (id && id !== ALL_COMPANIES_VALUE) {
+        const token =
+          typeof window !== 'undefined'
+            ? localStorage.getItem('auth_token') || ''
+            : '';
+        if (token) {
+          try {
+            await fetch(`${API_BASE_URL}/api/companies/active`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+                'X-Company-Id': id,
+              },
+              body: JSON.stringify({ companyId: id }),
+            });
+          } catch {
+            /* local switch still works even if persist fails */
+          }
+        }
+      }
       // Clear warehouse + legacy FY globals — both are company-scoped
       try {
         localStorage.removeItem('selected_location_id');
@@ -256,7 +278,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       if (!json.success) throw new Error(json.message || 'Failed to create company');
       const created = json.data as CompanySummary;
       await refresh();
-      setActiveCompanyId(created.id);
+      await setActiveCompanyId(created.id);
       return created;
     },
     [refresh, setActiveCompanyId]

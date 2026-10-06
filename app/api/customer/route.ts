@@ -122,7 +122,15 @@ export const customerService = {
     const url = `/api/warehouse/customers${query.toString() ? `?${query.toString()}` : ''}`;
     const response = await apiClient.get(url);
     if (!response.success) {
-      throw new Error(response.message || 'Failed to fetch customers');
+      const detail =
+        response.data?.error ||
+        response.data?.code ||
+        (response.statusCode ? `HTTP ${response.statusCode}` : '');
+      throw new Error(
+        [response.message || 'Failed to fetch customers', detail]
+          .filter(Boolean)
+          .join(' — ')
+      );
     }
     return response.data;
   },

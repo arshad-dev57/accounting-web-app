@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { backendProxyHeaders } from '@/lib/company-api-headers';
 import { API_BASE_URL } from '@/lib/constants';
 
 async function proxyPos(request: NextRequest, pathSegments: string[]) {
   try {
-    const token =
-      request.cookies.get('auth_token')?.value ||
-      request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
-      '';
+    const { token, headers } = backendProxyHeaders(request);
 
     if (!token) {
       return NextResponse.json(
@@ -23,10 +21,7 @@ async function proxyPos(request: NextRequest, pathSegments: string[]) {
 
     const init: RequestInit = {
       method: request.method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
       cache: 'no-store',
     };
 

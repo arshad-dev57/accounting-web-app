@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const API_BASE_URL = process.env.API_URL || 'https://account-backend-five.vercel.app';
+import { API_BASE_URL } from '@/lib/constants';
 
 async function proxySubscription(request: NextRequest, pathSegments: string[]) {
   try {

@@ -45,41 +45,52 @@ export default function SupplierDetailPage() {
       setLoading(true);
       setError(null);
 
-      // Fetch supplier profile & supplier ledger simultaneously
+      // Backend mount is /api/warehouse/supplier (singular)
       const [supRes, ledgerRes] = await Promise.all([
-        apiClient.get('/api/warehouse/suppliers/' + id).catch((e) => {
+        apiClient.get('/api/warehouse/supplier/' + id).catch((e) => {
           console.error('Supplier fetch error:', e);
           return null;
         }),
-        apiClient.get('/api/warehouse/suppliers/' + id + '/ledger').catch((e) => {
+        apiClient.get('/api/warehouse/supplier/' + id + '/ledger').catch((e) => {
           console.error('Supplier ledger fetch error:', e);
           return null;
         })
       ]);
 
       let supObj = null;
-      if (supRes && supRes.success && supRes.data) {
+      if (supRes?.success) {
         const raw = supRes.data;
-        supObj = raw.data?.supplier || raw.data || raw.supplier || raw;
+        // Backend: { success, data: { ...supplier, stats } }
+        // apiClient may nest once more as response.data
+        supObj = raw?.data?.supplier || raw?.supplier || raw?.data || raw;
+        if (supObj && typeof supObj === 'object' && Array.isArray(supObj) === false) {
+          // ok
+        } else {
+          supObj = null;
+        }
       }
 
       let ledgerObj = null;
-      if (ledgerRes && ledgerRes.success && ledgerRes.data) {
+      if (ledgerRes?.success) {
         const rawLedger = ledgerRes.data;
-        ledgerObj = rawLedger.data || rawLedger;
+        ledgerObj = rawLedger?.data || rawLedger;
       }
 
       if (!supObj && ledgerObj?.supplier) {
         supObj = ledgerObj.supplier;
       }
 
-      if (supObj) {
+      if (supObj && (supObj.id || supObj._id || supObj.name)) {
         setSupplier(supObj);
         if (ledgerObj) {
           setLedgerData(ledgerObj);
         }
       } else {
-        setError('Supplier details could not be found.');
+        const msg =
+          (!supRes?.success && supRes?.message) ||
+          (!ledgerRes?.success && ledgerRes?.message) ||
+          'Supplier details could not be found.';
+        setError(msg);
       }
     } catch (err: any) {
       console.error('Error fetching supplier detail:', err);

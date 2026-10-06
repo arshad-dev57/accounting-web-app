@@ -293,7 +293,7 @@ export default function PurchaseRequisitionsPage() {
   const searchProducts = async (q: string) => {
     setWizardState((p) => ({ ...p, isSearchingProducts: true }));
     try {
-      const results = await purchaseOrderService.searchProducts(q, 15, selectedLocationId || undefined);
+      const results = await purchaseOrderService.searchProducts(q, 15);
       setWizardState((p) => ({ ...p, productSearchResults: results, isSearchingProducts: false }));
     } catch {
       setWizardState((p) => ({ ...p, isSearchingProducts: false }));

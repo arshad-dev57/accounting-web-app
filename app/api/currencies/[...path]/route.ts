@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { backendProxyHeaders } from '@/lib/company-api-headers';
-
-const API_BASE_URL = process.env.API_URL || 'https://account-backend-five.vercel.app';
+import { API_BASE_URL } from '@/lib/constants';
 
 type Ctx = { params: Promise<{ path: string[] }> };
 

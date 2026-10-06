@@ -31,6 +31,7 @@ import { taxService } from '../../../lib/tax-service';
 import TaxUseToggle from '../../../components/TaxUseToggle';
 import { usersService } from '../../users/service';
 import type { User } from '../../users/types';
+import { useCompanyOptional } from '../../../lib/company-context';
 
 // ─── Utility styles ───────────────────────────────────────────────────────────
 const card   = { background:'#ffffff', border:'1px solid #e5e7eb', borderRadius:'16px', padding:'20px', boxShadow:'0 1px 2px rgba(15,23,42,0.04)' };
@@ -1223,6 +1224,8 @@ export default function POSManagementPage() {
   const [activeTab, setActiveTab] = useState<Tab>('Terminals');
   const { user, loading, isAdmin } = usePermissions();
   const { locationIdForApi, isAllLocations, selectedLocation } = useLocation();
+  const companyCtx = useCompanyOptional();
+  const companyScopeKey = companyCtx?.activeCompanyId || 'default';
 
   useEffect(() => {
     if (!loading && !user) {
@@ -1248,6 +1251,11 @@ export default function POSManagementPage() {
     );
   }
 
+  const companyLabel =
+    companyCtx?.isAllCompanies
+      ? 'All companies'
+      : companyCtx?.activeCompany?.name || '';
+
   return (
     <div style={{ minHeight:'100vh', background:'#f3f6fa', fontFamily:"'Inter',sans-serif", color:'#0f172a' }}>
       <AppBreadcrumbs extra={[{ label: activeTab }]} />
@@ -1256,6 +1264,7 @@ export default function POSManagementPage() {
         <div>
           <h1 style={{ margin:0, fontSize:'26px', fontWeight:800 }}>🏪 Point of Sale Management</h1>
           <p style={{ color:'#64748b', margin:'6px 0 0', fontSize:'14px' }}>
+            {companyLabel ? `${companyLabel} · ` : ''}
             {isAllLocations
               ? 'All locations · Terminals · Shifts · Sales · Returns'
               : `${selectedLocation?.name || 'Location'} · Terminals · Shifts · Sales · Returns`}
@@ -1278,8 +1287,8 @@ export default function POSManagementPage() {
         ))}
       </div>
 
-      {/* Content */}
-      <div style={{ padding:'28px 32px', maxWidth: activeTab==='Receipt' ? '1400px' : '1300px' }}>
+      {/* Content — remount on company switch so terminals/sales/etc reload for active company */}
+      <div key={companyScopeKey} style={{ padding:'28px 32px', maxWidth: activeTab==='Receipt' ? '1400px' : '1300px' }}>
         {activeTab==='Terminals'  && <TerminalsTab isAdmin={isAdmin} locationIdForApi={locationIdForApi} />}
         {activeTab==='Shifts'     && <ShiftsTab isAdmin={isAdmin} locationIdForApi={locationIdForApi} />}
         {activeTab==='Sales'      && <SalesTab locationIdForApi={locationIdForApi} />}

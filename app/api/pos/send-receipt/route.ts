@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { backendProxyHeaders } from '@/lib/company-api-headers';
 import { API_BASE_URL } from '@/lib/constants';
 
 export async function POST(request: NextRequest) {
   try {
-    const token =
-      request.cookies.get('auth_token')?.value ||
-      request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
-      '';
+    const { token, headers } = backendProxyHeaders(request);
 
     if (!token) {
       return NextResponse.json(
@@ -27,10 +25,7 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(`${API_BASE_URL}/api/pos/send-receipt`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         email,
         sale,

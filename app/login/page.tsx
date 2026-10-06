@@ -54,12 +54,44 @@ function LoginForm() {
 
     const data = await response.json();
 
-    if (response.ok && data.success) {
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || 'Invalid email or password');
+    }
+
+    // Legacy fallback — should not happen for web direct login
+    if (data.requiresOtp && !data.token) {
       window.location.replace(`/login-otp?email=${encodeURIComponent(email)}`);
       return;
     }
 
-    throw new Error(data.message || 'Invalid email or password');
+    if (!data.token || !data.user) {
+      throw new Error(data.message || 'Login failed');
+    }
+
+    const { apiClient } = await import('../lib/api-client');
+    apiClient.setTokens(data.token, data.refreshToken);
+
+    const { setMarketingLoggedInFlag } = await import('../../lib/marketing-session');
+    setMarketingLoggedInFlag();
+
+    const { saveUserToLocal } = await import('../../lib/permission-service');
+    saveUserToLocal(data.user);
+
+    const { persistPdfReportSettingsFromLogin } = await import('../../lib/pdf-report-settings');
+    persistPdfReportSettingsFromLogin(
+      data.pdfReportSettings || data.user?.pdfReportSettings
+    );
+
+    try {
+      const { hydrateCompanyPrefsFromApi } = await import('../../lib/company-prefs');
+      await hydrateCompanyPrefsFromApi();
+    } catch {
+      /* dropdowns will fetch once if cache is empty */
+    }
+
+    const { resolvePostAuthDestination } = await import('../../lib/subscription-service');
+    const destination = await resolvePostAuthDestination(data.token);
+    window.location.replace(destination);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

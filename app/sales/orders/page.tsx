@@ -469,37 +469,6 @@ export function SalesOrdersPage() {
   const processingCount = orders.filter((o) => o.orderStatus === 'Processing').length;
   const deliveredCount = orders.filter((o) => o.orderStatus === 'Delivered').length;
 
-  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
-    setActionLoading(`status-${orderId}`);
-    try {
-      await salesOrderService.updateOrderStatus(orderId, newStatus);
-      fetchOrders();
-    } catch (error: any) {
-      console.error('Failed to update status:', error);
-      alert(error.message || 'Failed to update order status');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const getValidTransitions = (currentStatus: string) => {
-    const validTransitions: Record<string, string[]> = {
-      Draft: ['Pending', 'Cancelled'],
-      Pending: ['Processing', 'Partially Delivered', 'Delivered', 'Cancelled', 'On Hold'],
-      Processing: ['Packed', 'Partially Delivered', 'Delivered', 'Cancelled', 'On Hold'],
-      Packed: ['Shipped', 'Partially Delivered', 'Delivered', 'Cancelled'],
-      Shipped: ['In Transit', 'Partially Delivered', 'Delivered', 'Cancelled'],
-      'In Transit': ['Partially Delivered', 'Delivered', 'Cancelled'],
-      'Partially Delivered': ['Delivered', 'Partially Returned', 'Returned', 'Cancelled'],
-      Delivered: ['Partially Returned', 'Returned'],
-      'Partially Returned': ['Returned', 'Partially Delivered', 'Delivered'],
-      Cancelled: [],
-      Returned: [],
-      'On Hold': ['Pending', 'Processing', 'Cancelled'],
-    };
-    return validTransitions[currentStatus] || [];
-  };
-
   const handleCancelOrder = async (orderId: string, reason?: string) => {
     if (!confirm('Are you sure you want to cancel this order?')) return;
     setActionLoading(`cancel-${orderId}`);
@@ -694,23 +663,14 @@ export function SalesOrdersPage() {
                             <Edit3 className="w-4 h-4" />
                           </button>
                         )}
-                        <select
-                          value={order.orderStatus}
-                          onChange={(e) => handleUpdateStatus(order._id || order.id || '', e.target.value)}
-                          disabled={actionLoading?.startsWith('status-') || getValidTransitions(order.orderStatus).length === 0}
-                          className="text-xs px-2 py-1 border border-gray-200 rounded hover:border-[#014582] focus:ring-2 focus:ring-[#014582] outline-none disabled:opacity-50"
-                        >
-                          <option value={order.orderStatus}>{order.orderStatus}</option>
-                          {getValidTransitions(order.orderStatus).map((status) => (
-                            <option key={status} value={status}>{status}</option>
-                          ))}
-                        </select>
-                        {['Draft', 'Pending', 'Processing'].includes(order.orderStatus) && (
+                        {['Draft', 'Pending', 'Processing', 'On Hold', 'Packed', 'Shipped', 'In Transit'].includes(
+                          order.orderStatus
+                        ) && (
                           <button
                             onClick={() => handleCancelOrder(order._id || order.id || '')}
                             disabled={actionLoading?.startsWith('cancel-')}
                             className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all disabled:opacity-50"
-                            title="Cancel"
+                            title="Cancel order"
                           >
                             <X className="w-4 h-4" />
                           </button>

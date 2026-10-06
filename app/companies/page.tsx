@@ -128,7 +128,7 @@ export default function CompaniesPage() {
     if (!companyCtx || company.id === activeCompanyId) return;
     setSwitching(true);
     setActionMessage('');
-    companyCtx.setActiveCompanyId(company.id);
+    await companyCtx.setActiveCompanyId(company.id);
     setActionMessage(`Switched to "${company.name}". Reloading…`);
     setTimeout(() => window.location.reload(), 300);
   };

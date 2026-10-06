@@ -513,8 +513,7 @@ export default function PurchaseOrdersPage() {
     try {
       const results = await purchaseOrderService.searchProducts(
         query,
-        10,
-        selectedLocationId || undefined
+        10
       );
       setWizardState(prev => ({ ...prev, productSearchResults: results }));
       return results;
@@ -1634,7 +1633,6 @@ function ProductSelectorStep({
   removeProductFromOrder,
   searchProducts,
   formatCurrency,
-  selectedLocationId,
   previousStep,
   nextStep,
   canGoToStep3,
@@ -1645,7 +1643,6 @@ function ProductSelectorStep({
   removeProductFromOrder: (index: number) => void;
   searchProducts: (query: string) => Promise<Product[]>;
   formatCurrency: (amount: number | null | undefined) => string;
-  selectedLocationId?: string;
   previousStep: () => void;
   nextStep: () => void;
   canGoToStep3: boolean;
@@ -1702,7 +1699,7 @@ function ProductSelectorStep({
         page: p,
         limit,
         search: q,
-        locationId: selectedLocationId,
+        // Company-wide catalog — do not filter by warehouse
       });
       setProducts(res.data);
       setPagination(res.pagination);
@@ -1712,7 +1709,7 @@ function ProductSelectorStep({
     } finally {
       setLoading(false);
     }
-  }, [limit, selectedLocationId]);
+  }, [limit]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -2338,7 +2335,6 @@ function CreateOrderWizard({
             removeProductFromOrder={removeProductFromOrder}
             searchProducts={searchProducts}
             formatCurrency={formatCurrency}
-            selectedLocationId={selectedLocationId}
             previousStep={previousStep}
             nextStep={nextStep}
             canGoToStep3={canGoToStep3}

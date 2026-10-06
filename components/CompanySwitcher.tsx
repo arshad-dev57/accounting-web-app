@@ -43,8 +43,8 @@ export default function CompanySwitcher({
     ? 'All Companies'
     : activeCompany?.name || (loading ? 'Loading…' : 'Select company');
 
-  const switchTo = (id: string) => {
-    setActiveCompanyId(id);
+  const switchTo = async (id: string) => {
+    await setActiveCompanyId(id);
     setOpen(false);
     // Hard navigation clears module caches / stale company data
     if (typeof window !== 'undefined') {

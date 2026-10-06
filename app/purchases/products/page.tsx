@@ -7,12 +7,10 @@ import { ProductsPage } from '../../warehouse/products/page';
 
 export default function PurchasesProductsPage() {
   return (
-    <LocationProvider>
-      <ProductsPage />
+    <LocationProvider allowAll allowAllUsers>
+      <ProductsPage companyWide />
     </LocationProvider>
   );
 }
-
-
 
 export { PurchasesProductsPage };

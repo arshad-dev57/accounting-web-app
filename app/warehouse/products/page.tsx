@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   Plus, Search, Edit, Trash2, Eye, Package, ChevronDown,
   X, Save, AlertCircle, Info, FileText, Truck,
@@ -13,7 +14,7 @@ import {
   Settings, Loader2, ChevronLeft, ChevronRight, Barcode,
   Camera, Download, Printer, CheckCircle, XCircle, ZoomIn,
   Thermometer, Package2, ShoppingCart, RotateCcw, Star,
-  Globe, AlertTriangle, Archive, Boxes, QrCode, RefreshCw
+  Globe, AlertTriangle, Archive, Boxes, QrCode, RefreshCw, ArrowLeft
 } from 'lucide-react';
 import { productService, Product, getProductId } from '../../api/product/route';
 import { categoryService, Category } from '../../api/category/route';
@@ -337,7 +338,17 @@ function ProductImageStrip({ product }: { product: Product }) {
 // ============================================================
 // PRODUCT DETAIL VIEW
 // ============================================================
-function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose: () => void; onEdit: () => void }) {
+function ProductDetail({
+  product,
+  onBack,
+  onEdit,
+  backHref,
+}: {
+  product: Product;
+  onBack?: () => void;
+  onEdit: () => void;
+  backHref?: string;
+}) {
   const { formatAmount } = useCurrency();
   const [activeTab, setActiveTab] = useState('overview');
   const dimensionText = formatProductDimensions(product);
@@ -386,16 +397,31 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
     );
   };
 
+  const backControl = backHref ? (
+    <Link
+      href={backHref}
+      className="p-2 hover:bg-gray-100 rounded-lg transition-all inline-flex"
+      title="Back to products"
+    >
+      <ArrowLeft className="w-5 h-5 text-gray-500" />
+    </Link>
+  ) : (
+    <button type="button" onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition-all" title="Back">
+      <ArrowLeft className="w-5 h-5 text-gray-500" />
+    </button>
+  );
+
   return (
-    <div className="fixed inset-0 z-40 overflow-y-auto bg-black/50 backdrop-blur-sm">
-      <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
-      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[min(90vh,calc(100%-2rem))] shadow-2xl overflow-hidden flex flex-col">
+    <div className="space-y-4 md:space-y-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-4">
+            {backControl}
             <ProductThumb product={product} size={56} />
             <div>
-              <h2 className="text-xl font-bold text-gray-900">{product.name}</h2>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Product detail</p>
+              <h1 className="text-xl font-bold text-gray-900">{product.name}</h1>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="font-mono text-xs font-bold text-[#014582] bg-[#014582]/10 px-2 py-0.5 rounded">{product.sku}</span>
                 <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${stockStatus.cls}`}>
@@ -409,9 +435,6 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
           <div className="flex items-center gap-2">
             <button onClick={onEdit} className="flex items-center gap-1.5 px-4 py-2 bg-[#014582] text-white text-sm font-semibold rounded-lg hover:bg-[#01366a] transition-all">
               <Edit className="w-3.5 h-3.5" /> Edit
-            </button>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-all">
-              <X className="w-5 h-5 text-gray-500" />
             </button>
           </div>
         </div>
@@ -453,7 +476,7 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
         </div>
 
         {/* Tab Content */}
-        <div className="p-6 flex-1 overflow-y-auto min-h-0">
+        <div className="p-6 flex-1">
 
           {/* ── OVERVIEW ── */}
           {activeTab === 'overview' && (
@@ -708,7 +731,6 @@ function ProductDetail({ product, onClose, onEdit }: { product: Product; onClose
           )}
 
         </div>
-      </div>
       </div>
     </div>
   );
@@ -2318,8 +2340,23 @@ function ProductForm({
 // ============================================================
 // MAIN PAGE
 // ============================================================
-export default function ProductsPage() {
+export default function ProductsPage({
+  companyWide = false,
+  detailBasePath,
+}: {
+  /** Purchases / company catalog: ignore warehouse filter, load all products */
+  companyWide?: boolean;
+  /** Base path for product detail pages, e.g. /warehouse/products */
+  detailBasePath?: string;
+} = {}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const productsBasePath =
+    detailBasePath ||
+    (pathname?.startsWith('/purchases') ? '/purchases/products' : '/warehouse/products');
   const { selectedLocationId, selectedLocation, locationIdForApi, isAllLocations } = useLocation();
+  const effectiveLocationIdForApi = companyWide ? '' : locationIdForApi;
+  const effectiveIsAllLocations = companyWide || isAllLocations;
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -2330,7 +2367,6 @@ export default function ProductsPage() {
   const [selectedStatus, setSelectedStatus] = useState('all'); // full catalog; stock qty is per location
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -2359,7 +2395,8 @@ export default function ProductsPage() {
           // Flat list: parents + children with parentId (needed for subcategory filter)
           categoryService.getCategories({
             tree: false,
-            locationId: selectedLocationId || undefined,
+            // Company-wide catalog — do not scope categories by warehouse
+            locationId: companyWide ? undefined : selectedLocationId || undefined,
           }),
           supplierService.getSuppliers({ limit: 100 }),
         ]);
@@ -2380,10 +2417,10 @@ export default function ProductsPage() {
     };
     fetchDropdowns();
     fetchSettings();
-  }, [fetchSettings]);
+  }, [fetchSettings, companyWide, selectedLocationId]);
 
   const fetchProducts = useCallback(async () => {
-    if (!selectedLocationId) return;
+    if (!companyWide && !selectedLocationId) return;
     setLoading(true);
     try {
       const categoryIds = resolveProductCategoryIds(selectedCategory, categories);
@@ -2391,7 +2428,7 @@ export default function ProductsPage() {
         page: pagination.page,
         limit: pagination.limit,
         search: searchTerm || undefined,
-        locationId: locationIdForApi || undefined,
+        locationId: effectiveLocationIdForApi || undefined,
         categoryIds,
         stockStatus: selectedStatus !== 'all' ? (selectedStatus as 'low' | 'out' | 'in') : undefined,
         sortBy: 'createdAt',
@@ -2407,8 +2444,9 @@ export default function ProductsPage() {
       setLoading(false);
     }
   }, [
+    companyWide,
     selectedLocationId,
-    locationIdForApi,
+    effectiveLocationIdForApi,
     pagination.page,
     pagination.limit,
     searchTerm,
@@ -2423,7 +2461,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, page: 1 }));
-  }, [selectedLocationId, locationIdForApi]);
+  }, [selectedLocationId, effectiveLocationIdForApi]);
 
   const handleBarcodeScan = useCallback(async (scannedValue: string) => {
     setShowScanner(false);
@@ -2432,10 +2470,15 @@ export default function ProductsPage() {
       const result = await productService.getProducts({
         search: scannedValue,
         limit: 1,
-        locationId: locationIdForApi || undefined,
+        locationId: effectiveLocationIdForApi || undefined,
       });
       if (result.data.length > 0) {
-        setViewingProduct(result.data[0]);
+        const id = getProductId(result.data[0]);
+        if (id) {
+          router.push(`${productsBasePath}/${id}`);
+        } else {
+          alert(`No product found for barcode: ${scannedValue}`);
+        }
       } else {
         alert(`No product found for barcode: ${scannedValue}`);
       }
@@ -2444,7 +2487,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [locationIdForApi]);
+  }, [effectiveLocationIdForApi, productsBasePath, router]);
 
   useHardwareBarcodeScanner((code) => {
     if (showCreateForm) return;
@@ -2476,21 +2519,16 @@ export default function ProductsPage() {
     setShowCreateForm(true);
   };
 
-  const handleViewClick = async (product: Product) => {
+  const handleViewClick = (product: Product) => {
     const id = getProductId(product);
     if (!id) {
-      setViewingProduct(product);
+      alert('Product id is missing');
       return;
     }
-    try {
-      setViewingProduct(await productService.getProductById(id));
-    } catch {
-      setViewingProduct(product);
-    }
+    router.push(`${productsBasePath}/${id}`);
   };
 
   const handleEditClick = async (product: Product) => {
-    setViewingProduct(null);
     const id = getProductId(product);
     if (!id) {
       setEditingProduct(product);
@@ -2504,6 +2542,28 @@ export default function ProductsPage() {
     }
     setShowCreateForm(true);
   };
+
+  // Open edit form when arriving from detail page
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const editId = sessionStorage.getItem('products_edit_id');
+    if (!editId) return;
+    sessionStorage.removeItem('products_edit_id');
+    let cancelled = false;
+    (async () => {
+      try {
+        const product = await productService.getProductById(editId);
+        if (cancelled) return;
+        setEditingProduct(product);
+        setShowCreateForm(true);
+      } catch {
+        if (!cancelled) alert('Could not load product for editing');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const handleDeleteClick = async (id: string) => {
     console.log('🔵 [handleDeleteClick] Starting delete for product ID:', id);
     if (!confirm('Delete this product?')) {
@@ -2531,12 +2591,12 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {(selectedLocation || isAllLocations) && (
+      {(companyWide || selectedLocation || effectiveIsAllLocations) && (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2 rounded-lg bg-sky-50 border border-sky-100 text-sm text-sky-800">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 flex-shrink-0" />
             <span>
-              {isAllLocations ? (
+              {companyWide || effectiveIsAllLocations ? (
                 <>
                   Products for <strong>All warehouses</strong>
                   {' · '}
@@ -2565,14 +2625,6 @@ export default function ProductsPage() {
         />
       )}
 
-      {viewingProduct && (
-        <ProductDetail
-          product={viewingProduct}
-          onClose={() => setViewingProduct(null)}
-          onEdit={() => handleEditClick(viewingProduct)}
-        />
-      )}
-
       {showCreateForm ? (
         <ProductForm
           editingProduct={editingProduct}
@@ -2582,7 +2634,7 @@ export default function ProductsPage() {
           suppliers={suppliers}
           settingsData={settingsData}
           loadingSettings={loadingSettings}
-          locationId={locationIdForApi || undefined}
+          locationId={effectiveLocationIdForApi || undefined}
           onCategoryCreated={(cat) => {
             setCategories((prev) => {
               if (prev.some((c) => String(c.id) === String(cat.id))) return prev;
@@ -2630,10 +2682,10 @@ export default function ProductsPage() {
           onViewClick={handleViewClick}
           onScanClick={() => setShowScanner(true)}
           categories={categories}
-          locationName={selectedLocation?.name}
+          locationName={companyWide || effectiveIsAllLocations ? 'All warehouses' : selectedLocation?.name}
         />
       )}
     </div>
   );
 }
-export { ProductsPage };
+export { ProductsPage, ProductDetail };
