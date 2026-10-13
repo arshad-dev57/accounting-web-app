@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
+  formatReceiptQty,
   itemCount,
   loyaltyPoints,
   money,
@@ -66,19 +67,19 @@ export default function POSReceipt({
     padding: '16px 14px',
     fontSize: 13,
     lineHeight: 1.35,
-    fontWeight: 700,
+    fontWeight: 400,
   };
   const center: CSSProperties = { textAlign: 'center' };
-  const muted: CSSProperties = { fontSize: 12, color: '#000000', fontWeight: 700 };
+  const muted: CSSProperties = { fontSize: 12, color: '#000000', fontWeight: 400 };
 
   return (
     <div className="pos-receipt-paper" style={wrap}>
       <div style={inner}>
-        {tpl.showLogo ? (
+        {tpl.showLogo && company.logo ? (
           <div style={{ textAlign: 'center', marginBottom: 8 }}>
             <img
               className="company-logo"
-              src={company.logo || '/bisontechs.png'}
+              src={company.logo}
               alt={company.name}
               style={{ height: 56, maxWidth: 160, objectFit: 'contain', display: 'inline-block' }}
             />
@@ -86,7 +87,7 @@ export default function POSReceipt({
         ) : null}
 
         <div style={center}>
-          <div style={{ fontSize: 15, fontWeight: 900, letterSpacing: 0.4, textTransform: 'uppercase' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase' }}>
             {company.name}
           </div>
           {tpl.showAddress && company.address ? (
@@ -98,20 +99,20 @@ export default function POSReceipt({
             <div style={muted}>{company.website.replace(/^https?:\/\//, '')}</div>
           ) : null}
           {tpl.showTaxId && company.taxId ? (
-            <div style={{ ...muted, marginTop: 4, fontWeight: 700 }}>NTN / Tax ID: {company.taxId}</div>
+            <div style={{ ...muted, marginTop: 4 }}>NTN / Tax ID: {company.taxId}</div>
           ) : null}
         </div>
 
         <Dash />
-        <div style={{ ...center, fontWeight: 900, letterSpacing: 1.4, fontSize: 11 }}>
+        <div style={{ ...center, fontWeight: 600, letterSpacing: 1.4, fontSize: 11 }}>
           {tpl.receiptHeader || 'TAX INVOICE / SALES RECEIPT'}
         </div>
         {tpl.copyLabel ? (
-          <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 2, fontWeight: 700 }}>{tpl.copyLabel}</div>
+          <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 2, fontWeight: 400 }}>{tpl.copyLabel}</div>
         ) : null}
         <Dash />
 
-        <Row label="Receipt #" value={invoice} strong />
+        <Row label="Receipt #" value={invoice} />
         <Row label="Date" value={soldAt.toLocaleDateString()} />
         <Row label="Time" value={soldAt.toLocaleTimeString()} />
         {tpl.showTerminal && meta.terminal ? (
@@ -124,13 +125,13 @@ export default function POSReceipt({
         {sale.status ? <Row label="Status" value={String(sale.status)} /> : null}
 
         <Dash />
-        <div style={{ fontWeight: 700 }}>BILL TO</div>
+        <div style={{ fontWeight: 600 }}>BILL TO</div>
         <div>{sale.customerName || 'Walk-in Customer'}</div>
         {sale.customerPhone ? <div>Phone: {sale.customerPhone}</div> : null}
         {sale.customerEmail ? <div>Email: {sale.customerEmail}</div> : null}
 
         <Dash />
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontWeight: 700, borderBottom: '1px dashed #000000' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontWeight: 400, borderBottom: '1px dashed #000000' }}>
           <tbody>
             <tr>
               <td style={{ padding: '0 0 4px', textAlign: 'left' }}>ITEM</td>
@@ -142,23 +143,23 @@ export default function POSReceipt({
 
         {items.map((item, i) => (
           <div key={i} style={{ margin: '8px 0' }}>
-            <div style={{ fontWeight: 700, textTransform: 'uppercase' }}>{item.productName || 'Item'}</div>
+            <div style={{ fontWeight: 400, textTransform: 'uppercase' }}>{item.productName || 'Item'}</div>
             {tpl.showSku ? (
               <div style={muted}>
                 {item.sku ? `SKU ${item.sku}` : 'SKU —'}
                 {item.barcodeNumber ? `  ·  ${item.barcodeNumber}` : ''}
               </div>
             ) : null}
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, color: '#000000', fontWeight: 700 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, color: '#000000', fontWeight: 400 }}>
               <tbody>
                 <tr>
                   <td style={{ paddingTop: 2, textAlign: 'left' }}>
-                    {item.quantity || 0} × {money(item.unitPrice)}
+                    {formatReceiptQty(item)} × {money(item.unitPrice)}
                     {item.discount ? `  Disc ${item.discount}%` : ''}
                     {item.taxRate ? `  Tax ${item.taxRate}%` : ''}
                   </td>
-                  <td style={{ paddingTop: 2, textAlign: 'center', width: 36 }}>{item.quantity || 0}</td>
-                  <td style={{ paddingTop: 2, textAlign: 'right', width: 88, fontWeight: 700, color: '#111827' }}>
+                  <td style={{ paddingTop: 2, textAlign: 'center', width: 52 }}>{formatReceiptQty(item)}</td>
+                  <td style={{ paddingTop: 2, textAlign: 'right', width: 88, fontWeight: 400, color: '#111827' }}>
                     {money(item.lineTotal)}
                   </td>
                 </tr>
@@ -176,7 +177,7 @@ export default function POSReceipt({
         <Row label="TOTAL" value={money(sale.grandTotal)} strong large />
         <Dash />
 
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>PAYMENT</div>
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>PAYMENT</div>
         {payments.length > 0 ? (
           payments.map((pmt, i) => (
             <Row
@@ -188,14 +189,14 @@ export default function POSReceipt({
         ) : (
           <Row label="Paid" value={money(sale.paidAmount)} />
         )}
-        <Row label="Amount paid" value={money(sale.paidAmount)} strong />
+        <Row label="Amount paid" value={money(sale.paidAmount)} />
         {Number(sale.changeAmount) > 0 ? <Row label="Change due" value={money(sale.changeAmount)} /> : null}
         {tpl.showLoyalty && points > 0 ? <Row label="Loyalty points earned" value={String(points)} /> : null}
         {sale.notes ? (
           <>
             <Dash />
             <div style={{ fontSize: 10 }}>
-              <span style={{ fontWeight: 700 }}>Notes: </span>
+              <span style={{ fontWeight: 600 }}>Notes: </span>
               {sale.notes}
             </div>
           </>
@@ -227,7 +228,7 @@ export default function POSReceipt({
                 />
               ) : null}
             </div>
-            <div style={{ ...center, fontSize: 11, color: '#000000', marginBottom: 4, fontWeight: 700 }}>
+            <div style={{ ...center, fontSize: 11, color: '#000000', marginBottom: 4, fontWeight: 400 }}>
               Barcode = receipt # · QR = sale details
             </div>
           </>
@@ -235,28 +236,28 @@ export default function POSReceipt({
 
         <Dash />
         {tpl.receiptReturnPolicy ? (
-          <div style={{ ...center, fontSize: 11, color: '#000000', whiteSpace: 'pre-wrap', fontWeight: 700 }}>
+          <div style={{ ...center, fontSize: 11, color: '#000000', whiteSpace: 'pre-wrap', fontWeight: 400 }}>
             {tpl.receiptReturnPolicy}
           </div>
         ) : null}
         {tpl.receiptNotes ? (
-          <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 8, whiteSpace: 'pre-wrap', fontWeight: 700 }}>
+          <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 8, whiteSpace: 'pre-wrap', fontWeight: 400 }}>
             {tpl.receiptNotes}
           </div>
         ) : null}
         {tpl.receiptFooter ? (
-          <div style={{ ...center, fontWeight: 700, marginTop: 12 }}>{tpl.receiptFooter}</div>
+          <div style={{ ...center, fontWeight: 400, marginTop: 12 }}>{tpl.receiptFooter}</div>
         ) : null}
         {tpl.servedByPrefix ? (
-          <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 8, fontWeight: 700 }}>
+          <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 8, fontWeight: 400 }}>
             {tpl.servedByPrefix} {meta.cashier || 'our team'}
           </div>
         ) : null}
-        <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 4, fontWeight: 700 }}>
+        <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 4, fontWeight: 400 }}>
           Generated {new Date().toLocaleString()}
         </div>
         {tpl.poweredBy ? (
-          <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 2, fontWeight: 700 }}>{tpl.poweredBy}</div>
+          <div style={{ ...center, fontSize: 11, color: '#000000', marginTop: 2, fontWeight: 400 }}>{tpl.poweredBy}</div>
         ) : null}
       </div>
     </div>
@@ -286,7 +287,7 @@ function Row({
   large?: boolean;
 }) {
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: large ? 13 : 11, fontWeight: strong ? 700 : 400 }}>
+    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: large ? 13 : 11, fontWeight: strong ? 600 : 400 }}>
       <tbody>
         <tr>
           <td style={{ textAlign: 'left', padding: '1px 8px 1px 0', verticalAlign: 'top' }}>{label}</td>

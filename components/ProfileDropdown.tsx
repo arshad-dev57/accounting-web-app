@@ -11,18 +11,21 @@ import {
   LogOut,
   Mail,
   MapPin,
+  Maximize2,
   Pencil,
   PenLine,
   Phone,
   User,
   X,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { usePermissions } from '../lib/usePermissions';
-import { saveUserToLocal } from '../lib/permission-service';
-import { APP_LOGO_FALLBACK, APP_NAME, notifyCompanyBrandingUpdated } from './BrandHeader';
+import { saveUserToLocal, isAdminRole } from '../lib/permission-service';
+import { notifyCompanyBrandingUpdated } from './BrandHeader';
 import { fetchProfileCached, invalidateProfileCache } from '../lib/profile-cache';
 import { performLogout } from '../lib/auth-logout';
+import { useCompanyOptional } from '../lib/company-context';
 import SearchableSelect from './SearchableSelect';
 import SignaturePadModal from './SignaturePadModal';
 import {
@@ -127,6 +130,8 @@ export default function ProfileDropdown({
   accentClassName = 'bg-[#014582]',
 }: Props) {
   const { user } = usePermissions();
+  const companyCtx = useCompanyOptional();
+  const router = useRouter();
   const rootRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -203,6 +208,16 @@ export default function ProfileDropdown({
     void loadProfile();
   }, [loadProfile]);
 
+  // Reload profile when active company changes so dropdown always shows selected company
+  useEffect(() => {
+    const onCompanyChanged = () => {
+      invalidateProfileCache();
+      void loadProfile(true);
+    };
+    window.addEventListener('active-company-changed', onCompanyChanged);
+    return () => window.removeEventListener('active-company-changed', onCompanyChanged);
+  }, [loadProfile]);
+
   useEffect(() => {
     const onOpen = () => setOpen(true);
     window.addEventListener('open-profile-dropdown', onOpen);
@@ -221,17 +236,24 @@ export default function ProfileDropdown({
     return () => document.removeEventListener('mousedown', onDoc);
   }, [signatureOpen]);
 
-  const displayName =
-    profile?.organizationName ||
-    profile?.personName ||
-    `${user?.firstName || ''} ${user?.lastName || ''}`.trim() ||
-    user?.email ||
-    'Profile';
+  const activeCompany = companyCtx?.activeCompany || null;
+  const userIsAdmin = isAdminRole(user?.role);
 
-  const personLabel =
-    profile?.personName ||
-    `${user?.firstName || ''} ${user?.lastName || ''}`.trim() ||
-    'User';
+  // Logged-in user's own name (always from the auth user object)
+  const loggedInName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || 'User';
+
+  // Trigger button shows company name for admins, user's own name for non-admins
+  const displayName = userIsAdmin
+    ? activeCompany?.name || profile?.organizationName || loggedInName
+    : loggedInName;
+
+  // Header in dropdown always shows the logged-in person's name
+  const personLabel = loggedInName;
+
+  // Admins see company logo; sub-users see no logo (initials are cleaner)
+  const triggerLogo = userIsAdmin
+    ? logoPreview || activeCompany?.logo || profile?.businessDetails?.logo || ''
+    : '';
 
   const fullPhone = useMemo(
     () => `${form.phoneDial}${form.phoneLocal.replace(/\s+/g, '')}`,
@@ -322,8 +344,8 @@ export default function ProfileDropdown({
       applyProfileToForm(updated);
       setEditing(false);
       notifyCompanyBrandingUpdated({
-        logo: updated.businessDetails?.logo || APP_LOGO_FALLBACK,
-        organizationName: updated.organizationName || APP_NAME,
+        logo: updated.businessDetails?.logo || '',
+        organizationName: updated.organizationName || '',
       });
       invalidateProfileCache();
 
@@ -372,9 +394,9 @@ export default function ProfileDropdown({
         <div
           className={`w-8 h-8 ${accentClassName} rounded-full flex items-center justify-center text-white text-sm font-bold overflow-hidden`}
         >
-          {logoPreview ? (
+          {triggerLogo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoPreview} alt="" className="w-full h-full object-cover" />
+            <img src={triggerLogo} alt="" className="w-full h-full object-cover" />
           ) : (
             initials(displayName)
           )}
@@ -395,9 +417,9 @@ export default function ProfileDropdown({
                 <div
                   className={`w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center text-white font-bold ${accentClassName}`}
                 >
-                  {logoPreview ? (
+                  {(logoPreview || triggerLogo) ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={logoPreview} alt="" className="w-full h-full object-cover" />
+                    <img src={logoPreview || triggerLogo} alt="" className="w-full h-full object-cover" />
                   ) : (
                     initials(displayName)
                   )}
@@ -423,26 +445,50 @@ export default function ProfileDropdown({
               <div className="min-w-0 flex-1">
                 <p className={`text-sm font-bold truncate ${text}`}>{displayName}</p>
                 <p className={`text-xs truncate ${muted}`}>{personLabel}</p>
-                <p className={`text-[11px] truncate mt-0.5 ${muted}`}>{profile?.email || user?.email}</p>
+                <p className={`text-[11px] truncate mt-0.5 ${muted}`}>
+                  {user?.email}
+                </p>
+                {activeCompany && (
+                  <p className={`text-[10px] mt-1 font-medium ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                    {activeCompany.name}
+                  </p>
+                )}
               </div>
-              {!editing ? (
-                <button
-                  type="button"
-                  onClick={() => setEditing(true)}
-                  className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
-                  title="Edit profile"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={cancelEdit}
-                  className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
+              <div className="flex items-center gap-1 shrink-0">
+                {userIsAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      router.push('/companies/profile');
+                    }}
+                    className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
+                    title="Open full company profile"
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </button>
+                )}
+                {userIsAdmin && (
+                  !editing ? (
+                    <button
+                      type="button"
+                      onClick={() => setEditing(true)}
+                      className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
+                      title="Edit company profile"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )
+                )}
+              </div>
             </div>
           </div>
 
@@ -458,33 +504,51 @@ export default function ProfileDropdown({
               </div>
             )}
 
-            {!loading && !editing && profile && (
+            {!loading && !editing && (
               <>
-                <DetailRow icon={<Building2 className="w-3.5 h-3.5" />} label="Organization" value={profile.organizationName} muted={muted} text={text} />
-                <DetailRow icon={<User className="w-3.5 h-3.5" />} label="Contact person" value={profile.personName} muted={muted} text={text} />
-                <DetailRow icon={<Mail className="w-3.5 h-3.5" />} label="Email" value={profile.email} muted={muted} text={text} />
-                <DetailRow icon={<Phone className="w-3.5 h-3.5" />} label="Phone" value={profile.contactNo || profile.phone} muted={muted} text={text} />
-                <DetailRow icon={<MapPin className="w-3.5 h-3.5" />} label="Address" value={[profile.address, profile.country].filter(Boolean).join(', ')} muted={muted} text={text} />
-                <DetailRow icon={<Globe className="w-3.5 h-3.5" />} label="Website" value={profile.websiteLink} muted={muted} text={text} />
-                <DetailRow icon={<Building2 className="w-3.5 h-3.5" />} label="Industry" value={profile.businessDetails?.industry} muted={muted} text={text} />
-                <DetailRow icon={<Building2 className="w-3.5 h-3.5" />} label="Business type" value={profile.businessDetails?.businessType} muted={muted} text={text} />
-                <DetailRow icon={<Building2 className="w-3.5 h-3.5" />} label="Tax / NTN" value={profile.businessDetails?.taxRegistrationNumber} muted={muted} text={text} />
-                <DetailRow icon={<Building2 className="w-3.5 h-3.5" />} label="Fiscal year" value={profile.businessDetails?.fiscalYear} muted={muted} text={text} />
-                {profile.businessDetails?.signature && (
-                  <div>
-                    <p className={`text-[10px] uppercase tracking-wide mb-1 ${muted}`}>Signature</p>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={profile.businessDetails.signature}
-                      alt="Signature"
-                      className="h-12 max-w-full object-contain rounded border border-gray-200 bg-white p-1"
-                    />
+                {/* Always show the logged-in user's own details first */}
+                <DetailRow icon={<User className="w-3.5 h-3.5" />} label="Full Name" value={loggedInName} muted={muted} text={text} />
+                <DetailRow icon={<Mail className="w-3.5 h-3.5" />} label="Email" value={user?.email} muted={muted} text={text} />
+                {user?.role && (
+                  <div className="flex items-start gap-2.5">
+                    <span className={`mt-0.5 ${muted}`}><User className="w-3.5 h-3.5" /></span>
+                    <div className="min-w-0">
+                      <p className={`text-[10px] uppercase tracking-wide ${muted}`}>Role</p>
+                      <p className={`text-sm capitalize ${text}`}>{(user.role as string).replace(/_/g, ' ')}</p>
+                    </div>
                   </div>
+                )}
+
+                {/* Company info — only show for admin/owner */}
+                {userIsAdmin && profile && (
+                  <>
+                    <div className={`my-2 border-t ${isDark ? 'border-white/10' : 'border-gray-100'}`} />
+                    <p className={`text-[10px] uppercase tracking-wider font-semibold ${muted} mb-1`}>Company Details</p>
+                    <DetailRow icon={<Building2 className="w-3.5 h-3.5" />} label="Organization" value={activeCompany?.name || profile.organizationName} muted={muted} text={text} />
+                    <DetailRow icon={<Mail className="w-3.5 h-3.5" />} label="Company Email" value={activeCompany?.email || profile.email} muted={muted} text={text} />
+                    <DetailRow icon={<Phone className="w-3.5 h-3.5" />} label="Phone" value={activeCompany?.phone || profile.contactNo || profile.phone} muted={muted} text={text} />
+                    <DetailRow icon={<MapPin className="w-3.5 h-3.5" />} label="Address" value={[activeCompany?.address || profile.address, profile.country].filter(Boolean).join(', ')} muted={muted} text={text} />
+                    <DetailRow icon={<Globe className="w-3.5 h-3.5" />} label="Website" value={activeCompany?.website || profile.websiteLink} muted={muted} text={text} />
+                    <DetailRow icon={<Building2 className="w-3.5 h-3.5" />} label="Business type" value={activeCompany?.businessType || profile.businessDetails?.businessType} muted={muted} text={text} />
+                    <DetailRow icon={<Building2 className="w-3.5 h-3.5" />} label="Tax / NTN" value={activeCompany?.taxRegistrationNumber || profile.businessDetails?.taxRegistrationNumber} muted={muted} text={text} />
+                    <DetailRow icon={<Building2 className="w-3.5 h-3.5" />} label="Fiscal year" value={profile.businessDetails?.fiscalYear} muted={muted} text={text} />
+                    {profile.businessDetails?.signature && (
+                      <div>
+                        <p className={`text-[10px] uppercase tracking-wide mb-1 ${muted}`}>Signature</p>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={profile.businessDetails.signature}
+                          alt="Signature"
+                          className="h-12 max-w-full object-contain rounded border border-gray-200 bg-white p-1"
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}
 
-            {!loading && editing && (
+            {!loading && editing && userIsAdmin && (
               <div className="space-y-2.5">
                 <Field label="Organization name" value={form.organizationName} onChange={(v) => setForm((f) => ({ ...f, organizationName: v }))} className={inputCls} labelClassName={labelCls} />
                 <Field label="Contact person" value={form.personName} onChange={(v) => setForm((f) => ({ ...f, personName: v }))} className={inputCls} labelClassName={labelCls} />

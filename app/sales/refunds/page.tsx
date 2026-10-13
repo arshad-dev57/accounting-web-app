@@ -13,10 +13,9 @@ import {
   Check, AlertTriangle,
   Ban, Filter, CircleCheck, CircleX,
   Receipt, ShoppingCart, Banknote, CreditCard,
-  Building2, User, Phone, Mail, MapPin
+  Building2, User, Phone, Mail
 } from 'lucide-react';
 import { salesRefundService, RefundModel, RefundStats, OrderModel } from '../../api/salesrefunds/route';
-import { useLocationOptional } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -37,7 +36,6 @@ interface CreateFormState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export function SalesRefundsPage() {
-  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const [refunds, setRefunds] = useState<RefundModel[]>([]);
   const [filteredRefunds, setFilteredRefunds] = useState<RefundModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,7 +103,6 @@ export function SalesRefundsPage() {
         method: methodFilter !== 'all' ? methodFilter : undefined,
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
-        locationId: selectedLocationId || undefined,
       });
 
       setRefunds(response.data || []);
@@ -120,7 +117,7 @@ export function SalesRefundsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, methodFilter, fromDate, toDate, pagination.page, pagination.limit, selectedLocationId]);
+  }, [searchTerm, statusFilter, methodFilter, fromDate, toDate, pagination.page, pagination.limit]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -137,7 +134,6 @@ export function SalesRefundsPage() {
         method: methodFilter !== 'all' ? methodFilter : undefined,
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
-        locationId: selectedLocationId || undefined,
       });
 
       setRefunds(prev => [...prev, ...(response.data || [])]);
@@ -148,7 +144,7 @@ export function SalesRefundsPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, methodFilter, fromDate, toDate, selectedLocationId]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, methodFilter, fromDate, toDate]);
 
   // ─── Apply Local Filters ────────────────────────────────────
 
@@ -174,11 +170,6 @@ export function SalesRefundsPage() {
   useEffect(() => {
     fetchRefunds(true);
   }, []);
-
-  useEffect(() => {
-    fetchRefunds(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLocationId]);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -256,7 +247,7 @@ export function SalesRefundsPage() {
     }
     setFormState(prev => ({ ...prev, isSearchingOrders: true }));
     try {
-      const results = await salesRefundService.searchOrders(query, 10, selectedLocationId || undefined);
+      const results = await salesRefundService.searchOrders(query, 10);
       setFormState(prev => ({ ...prev, orderSearchResults: results }));
     } catch (error) {
       console.error('Failed to search orders:', error);
@@ -494,14 +485,6 @@ export function SalesRefundsPage() {
             <strong>Flow:</strong> Create refund as Pending → <strong>Complete</strong> to post cash refund (Dr AR / Cr Bank).
             Stock is restored when the linked return is completed, not here.
           </div>
-
-          {selectedLocation && (
-            <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
-              <MapPin className="w-4 h-4 flex-shrink-0" />
-              Showing refunds for <strong>{selectedLocation.name}</strong>
-              <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
-            </div>
-          )}
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">

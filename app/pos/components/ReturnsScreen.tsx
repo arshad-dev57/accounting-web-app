@@ -213,27 +213,33 @@ export default function ReturnsScreen() {
               <p className="text-sm font-semibold text-gray-800 mb-2">Items to return</p>
               {(sale.items || []).map((it: any) => {
                 const max = remainingOf(it);
+                const unit = it.unitName || 'Pcs';
+                const allowFrac = Number(it.quantity) % 1 !== 0 || String(unit).toUpperCase().match(/KG|G|LTR|ML|M/);
                 return (
                   <div key={it.productId} className="flex items-center justify-between gap-3 py-2 border-b border-gray-100">
                     <div className="min-w-0">
                       <p className="font-semibold text-gray-900 truncate">{it.productName}</p>
                       <p className="text-xs text-gray-500">
-                        Sold {it.quantity} × ${Number(it.unitPrice || 0).toFixed(2)} · remaining {max}
+                        Sold {it.quantity} {unit} × Rs. {Number(it.unitPrice || 0).toFixed(2)} · remaining {max} {unit}
                       </p>
                     </div>
-                    <input
-                      type="number"
-                      min={0}
-                      max={max}
-                      value={qtys[it.productId] ?? 0}
-                      onChange={(e) =>
-                        setQtys((p) => ({
-                          ...p,
-                          [it.productId]: Math.min(max, Math.max(0, Number(e.target.value) || 0)),
-                        }))
-                      }
-                      className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-right"
-                    />
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        max={max}
+                        step={allowFrac ? '0.001' : '1'}
+                        value={qtys[it.productId] ?? 0}
+                        onChange={(e) =>
+                          setQtys((p) => ({
+                            ...p,
+                            [it.productId]: Math.min(max, Math.max(0, Number(e.target.value) || 0)),
+                          }))
+                        }
+                        className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-right"
+                      />
+                      <span className="text-[10px] text-gray-500 w-8">{unit}</span>
+                    </div>
                   </div>
                 );
               })}

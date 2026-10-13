@@ -78,6 +78,7 @@ export default function CapitalEquityPage() {
     totalRetainedEarnings: 0,
     totalReserves: 0,
     totalDrawings: 0,
+    totalDividends: 0,
     totalEquity: 0
   });
   const [transactions, setTransactions] = useState<OwnerTransaction[]>([]);
@@ -258,20 +259,37 @@ export default function CapitalEquityPage() {
     }
   };
 
-  // ─── Transfer to Retained Earnings ──────────────────────────
+  // ─── Reserve Transfer ───────────────────────────────────────
 
-  const handleTransferToRetainedEarnings = async (data: any) => {
+  const handleReserveTransfer = async (data: any) => {
     setSubmitting(true);
     try {
-      await equityService.transferToRetainedEarnings(data);
-      toast.success('Transfer completed successfully!');
+      await equityService.transferReserve(data);
+      toast.success('Reserve transfer posted successfully!');
       setShowTransactionForm(false);
       fetchSummary();
       fetchTransactions();
       fetchEquityAccounts(true);
     } catch (error: any) {
-      console.error('Failed to transfer:', error);
-      toast.error(error.message || 'Failed to transfer');
+      console.error('Failed to transfer reserve:', error);
+      toast.error(error.message || 'Failed to transfer reserve');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRecordDividend = async (data: any) => {
+    setSubmitting(true);
+    try {
+      await equityService.recordDividend(data);
+      toast.success('Dividend / distribution recorded!');
+      setShowTransactionForm(false);
+      fetchSummary();
+      fetchTransactions();
+      fetchEquityAccounts(true);
+    } catch (error: any) {
+      console.error('Failed to record dividend:', error);
+      toast.error(error.message || 'Failed to record dividend');
     } finally {
       setSubmitting(false);
     }
@@ -353,24 +371,12 @@ export default function CapitalEquityPage() {
         />
       ) : showTransactionForm ? (
         <AddTransactionForm
+          equityAccounts={equityAccounts}
           onCancel={() => setShowTransactionForm(false)}
-          onAddCapital={(data: TransactionFormData) => {
-            const capitalAccount = equityAccounts.find(a => a.accountType === 'Capital');
-            if (capitalAccount) {
-              handleAddCapital({ ...data, accountId: capitalAccount.id });
-            } else {
-              toast.error('No capital account found');
-            }
-          }}
-          onRecordDrawings={(data: TransactionFormData) => {
-            const drawingsAccount = equityAccounts.find(a => a.accountType === 'Drawings');
-            if (drawingsAccount) {
-              handleRecordDrawings({ ...data, accountId: drawingsAccount.id });
-            } else {
-              toast.error('No drawings account found');
-            }
-          }}
-          onTransfer={handleTransferToRetainedEarnings}
+          onAddCapital={handleAddCapital}
+          onRecordDrawings={handleRecordDrawings}
+          onTransferReserve={handleReserveTransfer}
+          onRecordDividend={handleRecordDividend}
           submitting={submitting}
           formatCurrency={formatCurrency}
           currencySymbol={currencySymbol}
@@ -412,26 +418,30 @@ export default function CapitalEquityPage() {
           </div>
 
           {/* Stats — IAS 1 equity components */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Total Equity</p>
               <p className="text-lg md:text-xl font-bold text-purple-600 mt-0.5 md:mt-1">{formatCurrency(summary.totalEquity)}</p>
-              <p className="text-[10px] text-gray-400 mt-1">Capital + RE + CYE − Drawings</p>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
-              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Owner&apos;s Capital</p>
+              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Capital</p>
               <p className="text-lg md:text-xl font-bold text-purple-600 mt-0.5 md:mt-1">{formatCurrency(summary.totalCapital)}</p>
-              <p className="text-[10px] text-gray-400 mt-1">Contributions (credit)</p>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
               <p className="text-[10px] md:text-xs text-gray-400 font-medium">Retained Earnings</p>
               <p className="text-lg md:text-xl font-bold text-green-600 mt-0.5 md:mt-1">{formatCurrency(summary.totalRetainedEarnings)}</p>
-              <p className="text-[10px] text-gray-400 mt-1">Accumulated profits</p>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
-              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Owner&apos;s Drawings</p>
+              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Reserves</p>
+              <p className="text-lg md:text-xl font-bold text-yellow-600 mt-0.5 md:mt-1">{formatCurrency(summary.totalReserves)}</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
+              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Drawings</p>
               <p className="text-lg md:text-xl font-bold text-red-600 mt-0.5 md:mt-1">{formatCurrency(summary.totalDrawings)}</p>
-              <p className="text-[10px] text-gray-400 mt-1">Withdrawals (reduce equity)</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
+              <p className="text-[10px] md:text-xs text-gray-400 font-medium">Dividends</p>
+              <p className="text-lg md:text-xl font-bold text-orange-600 mt-0.5 md:mt-1">{formatCurrency(summary.totalDividends || 0)}</p>
             </div>
           </div>
 
@@ -952,23 +962,81 @@ function RecordDrawingsForm({
 // ═══════════════════════════════════════════════════════════════
 
 function AddTransactionForm({
+  equityAccounts = [],
   onCancel,
   onAddCapital,
   onRecordDrawings,
-  onTransfer,
+  onTransferReserve,
+  onRecordDividend,
   submitting,
-  formatCurrency,
   currencySymbol
 }: any) {
+  const capitalAccounts = (equityAccounts as EquityAccount[]).filter(
+    (a) => a.accountType === 'Capital' || (a.accountType as string) === 'Share Capital'
+  );
+  const drawingsAccounts = (equityAccounts as EquityAccount[]).filter(
+    (a) => a.accountType === 'Drawings'
+  );
+  const reserveAccounts = (equityAccounts as EquityAccount[]).filter(
+    (a) =>
+      a.accountType === 'Reserves' ||
+      a.accountType === 'Retained Earnings' ||
+      a.accountType === 'Capital'
+  );
+  const dividendAccounts = (equityAccounts as EquityAccount[]).filter(
+    (a) =>
+      (a.accountType as string) === 'Dividends' ||
+      /dividend|distribution/i.test(a.accountName || '')
+  );
+
   const [formData, setFormData] = useState({
     transactionType: 'Additional Capital',
     amount: '',
     description: '',
-    reference: ''
+    reference: '',
+    accountId: '',
+    fromAccountId: '',
+    toAccountId: '',
+    paymentMethod: 'Cash',
+    bankAccountId: '',
+    date: new Date().toISOString().slice(0, 10),
   });
   const [error, setError] = useState('');
+  const [banks, setBanks] = useState<{ id: string; accountName: string }[]>([]);
 
-  const transactionTypes = ['Additional Capital', 'Drawings', 'Reserve Transfer'];
+  useEffect(() => {
+    equityService.getBankAccounts().then(setBanks);
+  }, []);
+
+  useEffect(() => {
+    setFormData((prev) => {
+      if (prev.accountId) return prev;
+      if (prev.transactionType === 'Additional Capital' && capitalAccounts[0]) {
+        return { ...prev, accountId: capitalAccounts[0].id };
+      }
+      if (prev.transactionType === 'Drawings' && drawingsAccounts[0]) {
+        return { ...prev, accountId: drawingsAccounts[0].id };
+      }
+      if (prev.transactionType === 'Dividend / Distribution' && dividendAccounts[0]) {
+        return { ...prev, accountId: dividendAccounts[0].id };
+      }
+      return prev;
+    });
+    // Intentional: seed default account once when type/list ready
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.transactionType, equityAccounts.length]);
+
+  const transactionTypes = [
+    'Additional Capital',
+    'Drawings',
+    'Reserve Transfer',
+    'Dividend / Distribution',
+  ];
+
+  const needsCashBank =
+    formData.transactionType === 'Additional Capital' ||
+    formData.transactionType === 'Drawings' ||
+    formData.transactionType === 'Dividend / Distribution';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -981,26 +1049,70 @@ function AddTransactionForm({
       setError('Please enter a description');
       return;
     }
+    if (needsCashBank && formData.paymentMethod !== 'Cash' && !formData.bankAccountId) {
+      setError('Please select a bank account');
+      return;
+    }
     setError('');
 
-    const data = {
-      amount: amount,
+    const base = {
+      amount,
       description: formData.description,
-      reference: formData.reference
+      reference: formData.reference,
+      date: formData.date || undefined,
+      paymentMethod: formData.paymentMethod,
+      bankAccountId: formData.paymentMethod === 'Cash' ? null : formData.bankAccountId,
     };
 
     switch (formData.transactionType) {
-      case 'Additional Capital':
-        onAddCapital(data);
+      case 'Additional Capital': {
+        if (!formData.accountId) {
+          setError('Please select an equity / capital account');
+          return;
+        }
+        onAddCapital({ ...base, accountId: formData.accountId });
         break;
-      case 'Drawings':
-        onRecordDrawings(data);
+      }
+      case 'Drawings': {
+        if (!formData.accountId) {
+          setError('Please select a drawings account');
+          return;
+        }
+        onRecordDrawings({ ...base, accountId: formData.accountId });
         break;
-      case 'Reserve Transfer':
-        onTransfer(data);
+      }
+      case 'Reserve Transfer': {
+        if (!formData.fromAccountId || !formData.toAccountId) {
+          setError('Please select source and destination reserve accounts');
+          return;
+        }
+        if (formData.fromAccountId === formData.toAccountId) {
+          setError('Source and destination must be different');
+          return;
+        }
+        onTransferReserve({
+          amount,
+          description: formData.description,
+          reference: formData.reference,
+          date: formData.date || undefined,
+          fromAccountId: formData.fromAccountId,
+          toAccountId: formData.toAccountId,
+        });
         break;
+      }
+      case 'Dividend / Distribution': {
+        onRecordDividend({
+          ...base,
+          accountId: formData.accountId || undefined,
+          mode: 'paid',
+        });
+        break;
+      }
     }
   };
+
+  const inputCls =
+    'w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50';
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -1027,14 +1139,117 @@ function AddTransactionForm({
             <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Transaction Type *</label>
             <select
               value={formData.transactionType}
-              onChange={(e) => setFormData(prev => ({ ...prev, transactionType: e.target.value }))}
-              className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  transactionType: e.target.value,
+                  accountId: '',
+                  fromAccountId: '',
+                  toAccountId: '',
+                }))
+              }
+              className={inputCls}
             >
               {transactionTypes.map((type) => (
                 <option key={type} value={type}>{type}</option>
               ))}
             </select>
           </div>
+
+          {formData.transactionType === 'Additional Capital' && (
+            <div>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Equity Account *</label>
+              <select
+                value={formData.accountId}
+                onChange={(e) => setFormData((prev) => ({ ...prev, accountId: e.target.value }))}
+                className={inputCls}
+                required
+              >
+                <option value="">Select capital account</option>
+                {capitalAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.accountCode} — {a.accountName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {formData.transactionType === 'Drawings' && (
+            <div>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Drawings Account *</label>
+              <select
+                value={formData.accountId}
+                onChange={(e) => setFormData((prev) => ({ ...prev, accountId: e.target.value }))}
+                className={inputCls}
+                required
+              >
+                <option value="">Select drawings account</option>
+                {drawingsAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.accountCode} — {a.accountName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {formData.transactionType === 'Reserve Transfer' && (
+            <>
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">From Reserve *</label>
+                <select
+                  value={formData.fromAccountId}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, fromAccountId: e.target.value }))}
+                  className={inputCls}
+                  required
+                >
+                  <option value="">Select source</option>
+                  {reserveAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.accountCode} — {a.accountName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">To Reserve *</label>
+                <select
+                  value={formData.toAccountId}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, toAccountId: e.target.value }))}
+                  className={inputCls}
+                  required
+                >
+                  <option value="">Select destination</option>
+                  {reserveAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.accountCode} — {a.accountName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          {formData.transactionType === 'Dividend / Distribution' && (
+            <div>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+                Distribution Account
+              </label>
+              <select
+                value={formData.accountId}
+                onChange={(e) => setFormData((prev) => ({ ...prev, accountId: e.target.value }))}
+                className={inputCls}
+              >
+                <option value="">Auto (create Dividends if needed)</option>
+                {dividendAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.accountCode} — {a.accountName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Amount *</label>
@@ -1051,6 +1266,56 @@ function AddTransactionForm({
                 required
               />
             </div>
+          </div>
+
+          {needsCashBank && (
+            <>
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+                  {formData.transactionType === 'Additional Capital' ? 'Received Through *' : 'Paid From *'}
+                </label>
+                <select
+                  value={formData.paymentMethod}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      paymentMethod: e.target.value,
+                      bankAccountId: e.target.value === 'Cash' ? '' : prev.bankAccountId,
+                    }))
+                  }
+                  className={inputCls}
+                >
+                  <option value="Cash">Cash Account</option>
+                  <option value="Bank Transfer">Bank Account</option>
+                </select>
+              </div>
+              {formData.paymentMethod !== 'Cash' && (
+                <div>
+                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Bank Account *</label>
+                  <select
+                    value={formData.bankAccountId}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, bankAccountId: e.target.value }))}
+                    className={inputCls}
+                  >
+                    <option value="">Select bank account</option>
+                    {banks.map((b) => (
+                      <option key={b.id} value={b.id}>{b.accountName}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
+          )}
+
+          <div>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Date *</label>
+            <input
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
+              className={inputCls}
+              required
+            />
           </div>
 
           <div>

@@ -7,6 +7,22 @@ export interface ExpenseItem {
   amount: number;
 }
 
+export interface ExpenseAttachment {
+  id?: string;
+  fileUrl: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  cloudinaryPublicId?: string;
+}
+
+export interface ExpenseDimension {
+  id: string;
+  name: string;
+  code?: string;
+  costCenterId?: string | null;
+}
+
 export interface Expense {
   id: string;
   expenseNumber: string;
@@ -33,6 +49,12 @@ export interface Expense {
     name: string;
   };
   expenseAccountId?: string;
+  departmentId?: string | null;
+  costCenterId?: string | null;
+  department?: { id: string; name: string } | null;
+  costCenter?: { id: string; code?: string; name: string } | null;
+  receipt?: string | null;
+  attachments?: ExpenseAttachment[];
   createdAt: string;
   updatedAt: string;
 }
@@ -97,9 +119,50 @@ export interface CreateExpenseRequest {
   paymentMethod: string;
   bankAccountId?: string;
   locationId?: string;
+  departmentId?: string | null;
+  costCenterId?: string | null;
+  receipt?: string | null;
+  attachments?: ExpenseAttachment[];
 }
 
 export const expenseService = {
+  getDimensions: async (): Promise<{
+    departments: ExpenseDimension[];
+    costCenters: ExpenseDimension[];
+  }> => {
+    try {
+      const response = await apiClient.get('/api/expenses/dimensions');
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to fetch expense dimensions');
+      }
+      const data = response.data?.data || response.data || {};
+      return {
+        departments: data.departments || [],
+        costCenters: data.costCenters || [],
+      };
+    } catch (error: any) {
+      console.error('Get expense dimensions error:', error);
+      return { departments: [], costCenters: [] };
+    }
+  },
+
+  uploadAttachment: async (file: File): Promise<ExpenseAttachment> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post('/api/expenses/upload', formData);
+    if (!response.success) {
+      throw new Error(response.message || response.data?.message || 'Failed to upload attachment');
+    }
+    const data = response.data?.data || response.data;
+    return {
+      fileUrl: data.fileUrl,
+      fileName: data.fileName || file.name,
+      fileSize: data.fileSize || file.size,
+      mimeType: data.mimeType || file.type,
+      cloudinaryPublicId: data.cloudinaryPublicId || '',
+    };
+  },
+
   getExpenseAccounts: async (): Promise<ExpenseAccount[]> => {
     try {
       const response = await apiClient.get('/api/expenses/accounts');

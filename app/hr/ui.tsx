@@ -23,25 +23,31 @@ export function HRPageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="relative overflow-hidden bg-[#014582] rounded-2xl px-5 py-4 flex items-center justify-between mb-6 shadow-[0_12px_28px_rgba(1,69,130,0.16)]">
-      <div className="absolute -right-10 -top-14 w-48 h-48 rounded-full bg-[#0FA3E0]/20 pointer-events-none" />
-      <div className="flex items-center gap-3">
+    <div className="relative overflow-hidden bg-gradient-to-r from-[#00274d] via-[#014582] to-blue-700 rounded-2xl px-6 py-5 flex items-center justify-between mb-6 shadow-xl">
+      <div className="absolute -right-10 -top-14 w-48 h-48 rounded-full bg-white/10 pointer-events-none" />
+      <div className="flex items-center gap-3 relative min-w-0">
         {backHref && (
           <Link
             href={backHref}
-            className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center hover:bg-white/25 transition-all"
+            className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center hover:bg-white/25 transition-all flex-shrink-0"
           >
             <ArrowLeft className="w-4 h-4 text-white" />
           </Link>
         )}
-        <div>
-          <h1 className="text-lg font-extrabold text-white tracking-tight">{title}</h1>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/20 uppercase tracking-wider">
+              HR Layer
+            </span>
+            <span className="text-xs text-white/70">Real-time ERP Sync</span>
+          </div>
+          <h1 className="text-2xl font-extrabold text-white tracking-tight">{title}</h1>
           {subtitle && (
-            <p className="text-[11px] text-white/70 font-medium mt-0.5">{subtitle}</p>
+            <p className="text-xs text-white/80 font-medium mt-1">{subtitle}</p>
           )}
         </div>
       </div>
-      {actions && <div className="relative flex items-center gap-2">{actions}</div>}
+      {actions && <div className="relative flex items-center gap-2 flex-shrink-0">{actions}</div>}
     </div>
   );
 }

@@ -124,13 +124,19 @@ export default function CompaniesPage() {
     }
   };
 
-  const setActive = async (company: CompanySummary) => {
+  const selectAndActivate = async (company: CompanySummary) => {
+    setSelectedId(company.id);
     if (!companyCtx || company.id === activeCompanyId) return;
     setSwitching(true);
     setActionMessage('');
-    await companyCtx.setActiveCompanyId(company.id);
-    setActionMessage(`Switched to "${company.name}". Reloading…`);
-    setTimeout(() => window.location.reload(), 300);
+    try {
+      await companyCtx.setActiveCompanyId(company.id);
+      setActionMessage(`Switched to "${company.name}". Reloading…`);
+      setTimeout(() => window.location.reload(), 300);
+    } catch (err) {
+      setSwitching(false);
+      setActionMessage(err instanceof Error ? err.message : 'Could not switch company');
+    }
   };
 
   return (
@@ -157,7 +163,7 @@ export default function CompaniesPage() {
             <div>
               <h1 className="text-2xl font-bold text-zinc-900">Companies</h1>
               <p className="mt-1 text-sm text-zinc-500">
-                View your companies, open details, or add a new one.
+                Click a company to select it as active. Add another company anytime — details stay with each company.
               </p>
             </div>
             <button
@@ -246,9 +252,9 @@ export default function CompaniesPage() {
                         return (
                           <tr
                             key={c.id}
-                            onClick={() => setSelectedId(c.id)}
+                            onClick={() => void selectAndActivate(c)}
                             className={`cursor-pointer border-b border-zinc-50 transition-colors ${
-                              isSelected ? 'bg-[#014582]/5' : 'hover:bg-zinc-50'
+                              isActive || isSelected ? 'bg-[#014582]/5' : 'hover:bg-zinc-50'
                             }`}
                           >
                             <td className="px-4 py-3">
@@ -344,21 +350,16 @@ export default function CompaniesPage() {
                           <Check className="h-3 w-3" />
                           Currently active
                         </span>
+                      ) : switching ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-[#014582] ring-1 ring-blue-200">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Switching…
+                        </span>
                       ) : (
-                        <button
-                          type="button"
-                          disabled={switching}
-                          onClick={() => void setActive(selected)}
-                          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-                          style={{ backgroundColor: BRAND }}
-                        >
-                          {switching ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Layers className="h-3.5 w-3.5" />
-                          )}
-                          Set as active
-                        </button>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-500 ring-1 ring-zinc-200">
+                          <Layers className="h-3 w-3" />
+                          Click row to activate
+                        </span>
                       )}
                       {selected.isOwner && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 ring-1 ring-indigo-200">

@@ -20,6 +20,7 @@ export interface EquitySummary {
   totalRetainedEarnings: number;
   totalReserves: number;
   totalDrawings: number;
+  totalDividends?: number;
   totalEquity: number;
 }
 
@@ -57,12 +58,14 @@ function deriveAccountType(
 ): EquityAccount['accountType'] {
   const fromSub = (subType || '').toLowerCase();
   if (fromSub.includes('drawing')) return 'Drawings';
+  if (fromSub.includes('dividend') || fromSub.includes('distribution')) return 'Dividends' as any;
   if (fromSub.includes('retained') || fromSub.includes('retention')) return 'Retained Earnings';
   if (fromSub.includes('reserve')) return 'Reserves';
   if (fromSub.includes('capital') || fromSub.includes('share')) return 'Capital';
 
   const n = (name || '').toLowerCase();
   if (n.includes('drawing')) return 'Drawings';
+  if (n.includes('dividend') || n.includes('distribution')) return 'Dividends' as any;
   if (
     n.includes('retained') ||
     n.includes('retention') ||
@@ -294,6 +297,8 @@ export const equityService = {
   transferToRetainedEarnings: async (data: {
     amount: number;
     description: string;
+    reference?: string;
+    date?: string;
   }): Promise<any> => {
     try {
       const response = await apiClient.post('/api/equity/transfer-retained-earnings', data);
@@ -304,6 +309,48 @@ export const equityService = {
     } catch (error: any) {
       console.error('Transfer error:', error);
       throw new Error(error.message || 'Failed to transfer');
+    }
+  },
+
+  transferReserve: async (data: {
+    fromAccountId: string;
+    toAccountId: string;
+    amount: number;
+    description: string;
+    reference?: string;
+    date?: string;
+  }): Promise<any> => {
+    try {
+      const response = await apiClient.post('/api/equity/transfer-reserve', data);
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to transfer reserve');
+      }
+      return response.data?.data;
+    } catch (error: any) {
+      console.error('Reserve transfer error:', error);
+      throw new Error(error.message || 'Failed to transfer reserve');
+    }
+  },
+
+  recordDividend: async (data: {
+    accountId?: string;
+    amount: number;
+    description: string;
+    reference?: string;
+    paymentMethod?: string;
+    bankAccountId?: string | null;
+    date?: string;
+    mode?: 'paid' | 'declared' | 'settled';
+  }): Promise<any> => {
+    try {
+      const response = await apiClient.post('/api/equity/record-dividend', data);
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to record dividend');
+      }
+      return response.data?.data;
+    } catch (error: any) {
+      console.error('Dividend error:', error);
+      throw new Error(error.message || 'Failed to record dividend');
     }
   },
 };

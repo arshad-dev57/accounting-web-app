@@ -39,6 +39,10 @@ import {
 import { useLocation } from '@/lib/location-context';
 import { loadCurrencyLocal } from '@/lib/currency-service';
 import { browserCompanyAuthHeaders } from '../../../lib/company-api-headers';
+import DashboardHeroBanner, {
+  heroChipClass,
+  heroIconBtnClass,
+} from '../../../components/DashboardHeroBanner';
 
 type WarehouseRow = {
   locationId: string;
@@ -409,39 +413,35 @@ export default function WarehouseDashboardPage() {
         </span>
       </div>
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            On-hand value, availability, movements and warehouse health · {period.toLowerCase()}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {TIME_PERIODS.map((p) => (
+      <DashboardHeroBanner
+        badge="Inventory Layer"
+        title="Inventory Dashboard"
+        subtitle={`On-hand value, availability, movements and warehouse health · ${period.toLowerCase()}`}
+        actions={
+          <>
+            {TIME_PERIODS.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => selectPeriod(p.label, p.value)}
+                disabled={isBusy}
+                className={heroChipClass(period === p.label)}
+              >
+                {p.label}
+              </button>
+            ))}
             <button
-              key={p.label}
-              onClick={() => selectPeriod(p.label, p.value)}
+              type="button"
+              onClick={() => fetchDashboard(periodValue, period, { refresh: true })}
               disabled={isBusy}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                period === p.label
-                  ? 'bg-[#1088dd] text-white shadow-sm'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
+              className={heroIconBtnClass()}
+              aria-label="Refresh dashboard"
             >
-              {p.label}
+              <RefreshCw className={`w-4 h-4 ${isBusy ? 'animate-spin' : ''}`} />
             </button>
-          ))}
-          <button
-            onClick={() => fetchDashboard(periodValue, period, { refresh: true })}
-            disabled={isBusy}
-            className="p-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-            aria-label="Refresh dashboard"
-          >
-            <RefreshCw className={`w-4 h-4 text-gray-600 ${isBusy ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {loading ? (
         <div className="flex flex-col items-center justify-center min-h-[420px] bg-white rounded-xl border border-gray-100 shadow-sm">

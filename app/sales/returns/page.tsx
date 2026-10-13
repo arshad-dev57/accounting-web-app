@@ -15,10 +15,9 @@ import {
   Ban, Filter, ArrowUpDown, ClipboardList,
   Truck, Home, Store, CreditCard, Banknote,
   CircleCheck, CircleX, CircleAlert,
-  Receipt, ShoppingCart, MapPin
+  Receipt, ShoppingCart
 } from 'lucide-react';
 import { salesReturnService, ReturnModel, ReturnStats, OrderModel, ReturnLineDraft } from '../../api/salesretuns/route';
-import { useLocationOptional } from '@/lib/location-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -39,7 +38,6 @@ interface WizardState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export function SalesReturnsPage() {
-  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const [returns, setReturns] = useState<ReturnModel[]>([]);
   const [filteredReturns, setFilteredReturns] = useState<ReturnModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,7 +122,6 @@ export function SalesReturnsPage() {
         type: typeFilter !== 'all' ? typeFilter : undefined,
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
-        locationId: selectedLocationId || undefined,
       });
 
       setReturns(response.data || []);
@@ -139,7 +136,7 @@ export function SalesReturnsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, typeFilter, fromDate, toDate, pagination.page, pagination.limit, selectedLocationId]);
+  }, [searchTerm, statusFilter, typeFilter, fromDate, toDate, pagination.page, pagination.limit]);
 
   // ─── Load More ──────────────────────────────────────────────
 
@@ -156,7 +153,6 @@ export function SalesReturnsPage() {
         type: typeFilter !== 'all' ? typeFilter : undefined,
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
-        locationId: selectedLocationId || undefined,
       });
 
       setReturns(prev => [...prev, ...(response.data || [])]);
@@ -167,7 +163,7 @@ export function SalesReturnsPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, typeFilter, fromDate, toDate, selectedLocationId]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, statusFilter, typeFilter, fromDate, toDate]);
 
   // ─── Apply Local Filters ────────────────────────────────────
 
@@ -193,11 +189,6 @@ export function SalesReturnsPage() {
   useEffect(() => {
     fetchReturns(true);
   }, []);
-
-  useEffect(() => {
-    fetchReturns(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLocationId]);
 
   // ─── Search ──────────────────────────────────────────────────
 
@@ -276,7 +267,7 @@ export function SalesReturnsPage() {
     }
     setWizardState(prev => ({ ...prev, isSearchingOrders: true }));
     try {
-      const results = await salesReturnService.searchOrders(query, 10, selectedLocationId || undefined);
+      const results = await salesReturnService.searchOrders(query, 10);
       setWizardState(prev => ({ ...prev, orderSearchResults: results }));
     } catch (error) {
       console.error('Failed to search orders:', error);
@@ -660,14 +651,6 @@ export function SalesReturnsPage() {
             <strong>Flow:</strong> Create return → <strong>Approve</strong> → <strong>Complete</strong> to restock inventory and post GL entries.
             For cash back, create a refund from Sales Refunds and mark it <strong>Complete</strong>.
           </div>
-
-          {selectedLocation && (
-            <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
-              <MapPin className="w-4 h-4 flex-shrink-0" />
-              Showing returns for <strong>{selectedLocation.name}</strong>
-              <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
-            </div>
-          )}
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">

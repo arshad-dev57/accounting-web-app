@@ -107,6 +107,8 @@ export type PosReceiptTemplate = {
   phone: string;
   email: string;
   website: string;
+  /** Custom receipt logo (URL or data URL). Overrides company profile logo when set. */
+  storeLogo: string;
   taxId: string;
   showLogo: boolean;
   showAddress: boolean;
@@ -137,8 +139,9 @@ export const DEFAULT_RECEIPT_TEMPLATE: PosReceiptTemplate = {
   phone: '',
   email: '',
   website: '',
+  storeLogo: '',
   taxId: '',
-  showLogo: true,
+  showLogo: true;
   showAddress: true,
   showPhone: true,
   showEmail: true,

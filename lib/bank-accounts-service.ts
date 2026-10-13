@@ -288,4 +288,60 @@ export const bankAccountService = {
       throw new Error(error.message || 'Failed to post deposit');
     }
   },
+
+  getTransactions: async (
+    bankAccountId: string,
+    params: {
+      page?: number;
+      limit?: number;
+      startDate?: string;
+      endDate?: string;
+      search?: string;
+    } = {}
+  ): Promise<{
+    account: Partial<BankAccount>;
+    data: BankAccountTransaction[];
+    total: number;
+    page: number;
+    pages: number;
+  }> => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        query.append(key, String(value));
+      }
+    });
+    const url = `/api/bank-accounts/${bankAccountId}/transactions${
+      query.toString() ? `?${query.toString()}` : ''
+    }`;
+
+    const response = await apiClient.get(url);
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to fetch bank transactions');
+    }
+
+    const raw = response.data || {};
+    return {
+      account: raw.account || {},
+      data: Array.isArray(raw.data) ? raw.data : [],
+      total: Number(raw.total || 0),
+      page: Number(raw.page || 1),
+      pages: Number(raw.pages || 1),
+    };
+  },
 };
+
+export interface BankAccountTransaction {
+  id: string;
+  journalEntryId: string;
+  entryNumber: string;
+  date: string;
+  description: string;
+  reference: string;
+  type: string;
+  debit: number;
+  credit: number;
+  amount: number;
+  direction: 'in' | 'out';
+  isReconciled?: boolean;
+}

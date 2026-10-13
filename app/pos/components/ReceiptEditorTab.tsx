@@ -185,6 +185,63 @@ export default function ReceiptEditorTab({ isAdmin }: { isAdmin: boolean }) {
             <Field label="Email" value={template.email} onChange={(v) => patch({ email: v })} disabled={!isAdmin} />
             <Field label="Website" value={template.website} onChange={(v) => patch({ website: v })} disabled={!isAdmin} />
             <Field label="NTN / Tax ID" value={template.taxId} onChange={(v) => patch({ taxId: v })} disabled={!isAdmin} />
+            <div>
+              <label style={labelStyle}>Receipt logo</label>
+              <p style={{ margin: '0 0 8px', fontSize: 12, color: '#64748b' }}>
+                Upload a logo for POS receipts. If empty, company profile logo is used.
+              </p>
+              {template.storeLogo ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                  <img
+                    src={template.storeLogo}
+                    alt="Receipt logo"
+                    style={{ height: 56, maxWidth: 140, objectFit: 'contain', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 8, padding: 6 }}
+                  />
+                  {isAdmin ? (
+                    <button
+                      type="button"
+                      onClick={() => patch({ storeLogo: '' })}
+                      style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#b91c1c', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                disabled={!isAdmin}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file) return;
+                  if (file.size > 1.5 * 1024 * 1024) {
+                    setError('Logo must be under 1.5 MB');
+                    return;
+                  }
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const result = typeof reader.result === 'string' ? reader.result : '';
+                    if (result) {
+                      patch({ storeLogo: result, showLogo: true });
+                      setError('');
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                }}
+                style={{ ...field, padding: '8px 10px' }}
+              />
+              <div style={{ marginTop: 8 }}>
+                <Field
+                  label="Or paste logo URL"
+                  value={template.storeLogo.startsWith('data:') ? '' : template.storeLogo}
+                  onChange={(v) => patch({ storeLogo: v.trim(), showLogo: v.trim() ? true : template.showLogo })}
+                  disabled={!isAdmin}
+                  placeholder="https://… or leave blank"
+                />
+              </div>
+            </div>
           </Section>
 
           <Section title="Receipt text">

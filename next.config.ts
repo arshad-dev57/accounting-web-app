@@ -37,9 +37,9 @@ const nextConfig: NextConfig = {
       .replace(/\/+$/, '');
     return [
       {
-        // Multipart inventory import uses App Router routes (rewrite drops file uploads)
+        // Multipart preview + JSON confirm use App Router proxies (see app/api/bank-reconciliation/import/*).
         source:
-          '/api/:path((?!pos/|download/|hr/holidays|hr/shifts|warehouse/inventory/import).*)',
+          '/api/:path((?!pos/|download/|hr/holidays|hr/shifts|warehouse/inventory/import|bank-reconciliation/import).*)',
         destination: `${backendUrl}/api/:path*`,
       },
     ];

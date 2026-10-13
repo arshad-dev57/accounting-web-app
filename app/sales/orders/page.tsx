@@ -8,12 +8,11 @@ import {
   Truck, DollarSign, Clock, X, ChevronDown,
   Eye, Trash2, CheckCircle, Loader2,
   FileText, CreditCard, Tag, Receipt, AlertCircle,
-  Mail, Phone, Building, MapPin, Save, ArrowLeft, Edit3
+  Mail, Phone, Building, Save, ArrowLeft, Edit3
 } from 'lucide-react';
 import { customerService } from '../../api/customer/route';
 import { productService } from '../../api/product/route';
 import { salesOrderService, type Order as SalesOrder } from '@/lib/sales-order-service';
-import { useLocationOptional } from '@/lib/location-context';
 import { useCurrency } from '../../../lib/currency-context';
 import { findProductFromScan, useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 import { matchScannedProduct } from '@/lib/pos-scanner';
@@ -404,7 +403,6 @@ function CustomerPickerModal({
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 export function SalesOrdersPage() {
-  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const { symbol, formatAmount } = useCurrency();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
@@ -439,7 +437,6 @@ export function SalesOrdersPage() {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         paymentStatus: paymentStatusFilter !== 'all' ? paymentStatusFilter : undefined,
         priority: priorityFilter !== 'all' ? priorityFilter : undefined,
-        locationId: selectedLocationId || undefined,
       });
 
       setOrders(
@@ -457,13 +454,9 @@ export function SalesOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchTerm, statusFilter, paymentStatusFilter, priorityFilter, selectedLocationId]);
+  }, [currentPage, searchTerm, statusFilter, paymentStatusFilter, priorityFilter]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedLocationId]);
 
   const pendingCount = orders.filter((o) => o.orderStatus === 'Pending').length;
   const processingCount = orders.filter((o) => o.orderStatus === 'Processing').length;
@@ -537,14 +530,6 @@ export function SalesOrdersPage() {
           </button>
         </div>
       </div>
-
-      {selectedLocation && (
-        <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
-          <MapPin className="w-4 h-4 flex-shrink-0" />
-          Showing orders for <strong>{selectedLocation.name}</strong>
-          <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
-        </div>
-      )}
 
       <div className="grid grid-cols-3 gap-4">
         {[
@@ -870,7 +855,6 @@ function CreateOrderForm({
   orderToEdit?: Order | null;
 }) {
   const isEditing = Boolean(orderToEdit?.id || orderToEdit?._id);
-  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const { symbol, formatAmount } = useCurrency();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
@@ -1345,7 +1329,7 @@ function CreateOrderForm({
       addProductLine(local as Product, 1);
       return;
     }
-    void findProductFromScan(code, selectedLocationId || undefined).then((found) => {
+    void findProductFromScan(code).then((found) => {
       if (!found) {
         setFormError(`No product found for barcode ${code}`);
         setProductSearchQuery(code);
@@ -1452,7 +1436,6 @@ function CreateOrderForm({
         customerNotes, internalNotes,
         tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
         subtotal, discountTotal: calculatedDiscount, taxTotal, grandTotal,
-        locationId: selectedLocationId || undefined,
       };
 
       if (isEditing) {
@@ -1487,20 +1470,6 @@ function CreateOrderForm({
           <X className="w-4 h-4" /> Cancel
         </button>
       </div>
-
-      {selectedLocation ? (
-        <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
-          <MapPin className="w-4 h-4 flex-shrink-0" />
-          Fulfilling from <strong>{selectedLocation.name}</strong>
-          <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
-          <span className="text-sky-600/80">— product stock is for this warehouse only</span>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          Select a warehouse from the top bar to load products
-        </div>
-      )}
 
       {formError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">

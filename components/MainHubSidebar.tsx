@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { usePermissions } from '../lib/usePermissions';
 import { BrandHeader } from './BrandHeader';
+import { CollapsibleSidebar } from './CollapsibleSidebar';
 import { performLogout } from '../lib/auth-logout';
 import {
   fetchSubscriptionCapacity,
@@ -29,9 +30,11 @@ import {
   readCachedSubscription,
 } from '../lib/subscription-service';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../lib/subscription-ui';
+import { useSidebarCollapsed } from '../lib/sidebar-collapse';
 
 export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: string }) {
   const { hasModuleAccess, isAdmin, canViewRegisteredUsers } = usePermissions();
+  const { collapsed } = useSidebarCollapsed();
   const cached = readCachedSubscription();
   const [posOnly, setPosOnly] = useState(() =>
     isPosOnlyTier(
@@ -167,13 +170,20 @@ export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: str
   const filteredMenuItems = menuItems.filter((item) => item.show);
 
   return (
-    <div className="w-56 min-h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0">
+    <CollapsibleSidebar
+      expandedClassName="w-56"
+      expandedWidth={224}
+      fixed={false}
+      fullHeight={false}
+    >
       <BrandHeader subtitle={posOnly ? 'POS' : 'Main Dashboard'} compact />
 
       <div className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3">
-          MAIN MENU
-        </p>
+        {!collapsed && (
+          <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3 sidebar-expanded-only">
+            MAIN MENU
+          </p>
+        )}
 
         {filteredMenuItems.map((item) => {
           const isActive =
@@ -183,42 +193,50 @@ export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: str
           return (
             <button
               key={item.path}
+              type="button"
+              title={item.label}
               onClick={() => {
                 window.location.href = item.path;
               }}
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200
                 ${
                   isActive
-                    ? 'bg-[#014582]/20 text-[#b388ff]'
+                    ? 'bg-[#014582] text-white shadow-md shadow-[#014582]/30'
                     : 'text-white/60 hover:text-white hover:bg-white/5'
                 }`}
             >
               <div className="flex items-center gap-3">
-                <span className={isActive ? 'text-[#b388ff]' : 'text-white/40'}>{item.icon}</span>
-                <span className="text-sm font-medium">{item.label}</span>
+                <span className={isActive ? 'text-white' : 'text-white/40'}>{item.icon}</span>
+                <span className="text-sm font-medium sidebar-expanded-only">{item.label}</span>
               </div>
-              {isActive && <ChevronRight className="w-4 h-4 text-[#b388ff]" />}
+              {isActive && !collapsed && (
+                <ChevronRight className="w-4 h-4 text-white sidebar-expanded-only" />
+              )}
             </button>
           );
         })}
       </div>
 
-      <div className="px-3 pb-6">
-        <div className="p-4 bg-[#014582]/10 rounded-xl border border-[#014582]/20">
-          <HelpCircle className="w-5 h-5 text-[#b388ff] mb-2" />
-          <p className="text-sm font-semibold text-white">Need Help?</p>
-          <p className="text-xs text-white/50 mt-1 mb-3">
-            Contact info@bisonstechs.com
-          </p>
-        </div>
+      <div className="px-3 pb-4">
+        {!collapsed && (
+          <div className="p-4 bg-[#014582]/10 rounded-xl border border-[#014582]/20 sidebar-help sidebar-expanded-only">
+            <HelpCircle className="w-5 h-5 text-white mb-2" />
+            <p className="text-sm font-semibold text-white">Need Help?</p>
+            <p className="text-xs text-white/50 mt-1 mb-3">
+              Contact info@bisonstechs.com
+            </p>
+          </div>
+        )}
         <button
+          type="button"
+          title="Logout"
           onClick={() => performLogout()}
           className="mt-3 w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition-all"
         >
           <LogOut className="w-4 h-4" />
-          <span className="text-sm">Logout</span>
+          <span className="text-sm sidebar-expanded-only">Logout</span>
         </button>
       </div>
-    </div>
+    </CollapsibleSidebar>
   );
 }

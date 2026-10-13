@@ -11,7 +11,6 @@ import {
   Building2,
 } from 'lucide-react';
 import { salesPaymentService, InvoiceForPayment, Customer, BankAccount } from '@/api/salespayment/route';
-import { useLocationOptional } from '@/lib/location-context';
 import { SalesNumberInput } from '@/components/sales/sales-number-input';
 
 interface SelectedInvoice extends InvoiceForPayment {
@@ -27,7 +26,6 @@ const fmtDate = (d: string) =>
 
 export default function CreatePaymentPage() {
   const router = useRouter();
-  const { selectedLocationId } = useLocationOptional();
 
   const [browseTab, setBrowseTab] = useState<'customer' | 'list'>('list');
 
@@ -112,7 +110,7 @@ export default function CreatePaymentPage() {
     } finally {
       setIsLoadingList(false);
     }
-  }, [listPage, listSearch, selectedLocationId]);
+  }, [listPage, listSearch]);
 
   useEffect(() => {
     if (browseTab === 'list') fetchListInvoices();
@@ -140,8 +138,7 @@ export default function CreatePaymentPage() {
     setIsLoadingCustInvoices(true);
     try {
       const invoices = await salesPaymentService.getCustomerInvoices(
-        customer.id || customer._id || '',
-        selectedLocationId || undefined
+        customer.id || customer._id || ''
       );
       setCustomerInvoices(invoices);
     } catch (err) {

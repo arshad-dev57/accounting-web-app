@@ -16,12 +16,10 @@ import {
   Ban, Filter, ArrowUpDown, Edit3
 } from 'lucide-react';
 import { salesPaymentService, SalesPayment, InvoiceForPayment, PaymentStats, Customer, BankAccount } from '../../api/salespayment/route';
-import { useLocationOptional } from '@/lib/location-context';
 import { SalesNumberInput } from '@/components/sales/sales-number-input';
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 export function SalesPaymentsPage() {
-  const { selectedLocationId } = useLocationOptional();
   const router = useRouter();
   const [payments, setPayments] = useState<SalesPayment[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<SalesPayment[]>([]);
@@ -47,6 +45,7 @@ export function SalesPaymentsPage() {
     monthAmount: 0
   });
   const [viewingPayment, setViewingPayment] = useState<SalesPayment | null>(null);
+  const [loadingPaymentDetail, setLoadingPaymentDetail] = useState(false);
   const [detailStartEditing, setDetailStartEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -85,7 +84,6 @@ export function SalesPaymentsPage() {
         status: selectedFilter !== 'all' ? selectedFilter : undefined,
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
-        locationId: selectedLocationId || undefined,
       });
 
       setPayments(response.data || []);
@@ -100,7 +98,7 @@ export function SalesPaymentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, selectedFilter, fromDate, toDate, pagination.page, pagination.limit, selectedLocationId]);
+  }, [searchTerm, selectedFilter, fromDate, toDate, pagination.page, pagination.limit]);
 
   // ─── Load More ──────────────────────────────────────────────
   const loadMore = useCallback(async () => {
@@ -115,7 +113,6 @@ export function SalesPaymentsPage() {
         status: selectedFilter !== 'all' ? selectedFilter : undefined,
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
-        locationId: selectedLocationId || undefined,
       });
 
       setPayments(prev => [...prev, ...(response.data || [])]);
@@ -126,7 +123,7 @@ export function SalesPaymentsPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, selectedFilter, fromDate, toDate, selectedLocationId]);
+  }, [pagination.hasNext, pagination.page, pagination.limit, searchTerm, selectedFilter, fromDate, toDate]);
 
   // ─── Apply Local Filters ────────────────────────────────────
   useEffect(() => {
@@ -152,11 +149,6 @@ export function SalesPaymentsPage() {
   useEffect(() => {
     fetchPayments(true);
   }, []);
-
-  useEffect(() => {
-    fetchPayments(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLocationId]);
 
   // ─── Search ──────────────────────────────────────────────────
   const handleSearch = (query: string) => {
@@ -224,8 +216,7 @@ export function SalesPaymentsPage() {
     setIsLoadingInvoices(true);
     try {
       const invoices = await salesPaymentService.getCustomerInvoices(
-        customer.id || customer._id || '',
-        selectedLocationId || undefined
+        customer.id || customer._id || ''
       );
       setAvailableInvoices(invoices);
       // Auto-select all invoices
@@ -382,9 +373,21 @@ export function SalesPaymentsPage() {
   };
 
   // ─── View Payment Detail ────────────────────────────────────
-  const viewPaymentDetail = (payment: SalesPayment, startEditing = false) => {
+  const viewPaymentDetail = async (payment: SalesPayment, startEditing = false) => {
     setDetailStartEditing(startEditing);
     setViewingPayment(payment);
+    setLoadingPaymentDetail(true);
+    try {
+      const full = await salesPaymentService.getPaymentById(payment.id);
+      if (full?.id) {
+        setViewingPayment(full);
+      }
+    } catch (error: any) {
+      console.error('Failed to load payment detail:', error);
+      alert(error.message || 'Failed to load payment details');
+    } finally {
+      setLoadingPaymentDetail(false);
+    }
   };
 
   // ─── Get Status Color ──────────────────────────────────────
@@ -713,10 +716,12 @@ export function SalesPaymentsPage() {
       {viewingPayment && (
         <PaymentDetailModal
           payment={viewingPayment}
+          loading={loadingPaymentDetail}
           initialEditing={detailStartEditing}
           onClose={() => {
             setViewingPayment(null);
             setDetailStartEditing(false);
+            setLoadingPaymentDetail(false);
           }}
           onSaveEdit={async (id: string, data: any) => {
             setSubmitting(true);
@@ -1179,6 +1184,7 @@ function CreatePaymentForm({
 
 function PaymentDetailModal({
   payment,
+  loading = false,
   initialEditing = false,
   onClose,
   onSaveEdit,
@@ -1209,9 +1215,15 @@ function PaymentDetailModal({
     });
   }, [payment.id, payment.paymentDate, payment.paymentMethod, payment.reference, payment.notes, payment.status, initialEditing]);
 
+  const invoiceRows = payment.invoicePayments || [];
+  const appliedTotal = invoiceRows.reduce((sum: number, inv: any) => sum + (Number(inv.amountPaid) || 0), 0);
+  const creatorName = payment.creator
+    ? [payment.creator.firstName, payment.creator.lastName].filter(Boolean).join(' ')
+    : payment.createdBy;
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
+      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl">
         <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 bg-[#014582]/10 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -1234,15 +1246,31 @@ function PaymentDetailModal({
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-          <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)] relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white/70 z-10 flex items-center justify-center">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Loader2 className="w-5 h-5 animate-spin text-[#014582]" />
+                Loading payment details...
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
             <div>
               <p className="text-xs text-gray-400 font-medium">Customer</p>
               <p className="text-sm font-semibold text-gray-800 mt-1">{payment.customerName}</p>
+              {payment.customer?.customerNumber && (
+                <p className="text-xs text-gray-400 mt-0.5">{payment.customer.customerNumber}</p>
+              )}
             </div>
             <div>
-              <p className="text-xs text-gray-400 font-medium">Amount</p>
+              <p className="text-xs text-gray-400 font-medium">Amount Received</p>
               <p className="text-lg font-bold text-[#014582] mt-1">{formatCurrency(payment.amount)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 font-medium">Applied to Invoices</p>
+              <p className="text-sm font-semibold text-green-700 mt-1">{formatCurrency(appliedTotal)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-400 font-medium">Payment Method</p>
@@ -1264,51 +1292,122 @@ function PaymentDetailModal({
                 <p className="text-sm font-semibold text-gray-800 mt-1">{formatDate(payment.paymentDate)}</p>
               )}
             </div>
+            <div>
+              <p className="text-xs text-gray-400 font-medium">Received By</p>
+              <p className="text-sm font-semibold text-gray-800 mt-1">{creatorName || '—'}</p>
+            </div>
           </div>
 
-          {payment.bankAccountName && (
+          {(payment.bankAccountName || payment.paymentMethod !== 'Cash') && (
             <div className="mb-4">
               <p className="text-xs text-gray-400 font-medium">Bank Account</p>
-              <p className="text-sm font-semibold text-gray-800 mt-1">{payment.bankAccountName}</p>
+              <p className="text-sm font-semibold text-gray-800 mt-1">{payment.bankAccountName || '—'}</p>
             </div>
           )}
 
-          <div className="mb-4">
-            <p className="text-xs text-gray-400 font-medium">Reference</p>
-            {editing ? (
-              <input className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm" value={form.reference} onChange={(e) => setForm((p) => ({ ...p, reference: e.target.value }))} />
-            ) : (
-              <p className="text-sm font-semibold text-gray-800 mt-1">{payment.reference || '—'}</p>
-            )}
-          </div>
-
-          <div className="mb-4">
-            <p className="text-xs text-gray-400 font-medium">Notes</p>
-            {editing ? (
-              <textarea className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm" rows={2} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
-            ) : (
-              <p className="text-sm text-gray-600 mt-1">{payment.notes || '—'}</p>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <p className="text-xs text-gray-400 font-medium">Reference</p>
+              {editing ? (
+                <input className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm" value={form.reference} onChange={(e) => setForm((p) => ({ ...p, reference: e.target.value }))} />
+              ) : (
+                <p className="text-sm font-semibold text-gray-800 mt-1">{payment.reference || '—'}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 font-medium">Notes</p>
+              {editing ? (
+                <textarea className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm" rows={2} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
+              ) : (
+                <p className="text-sm text-gray-600 mt-1">{payment.notes || '—'}</p>
+              )}
+            </div>
           </div>
 
           <div className="border-t border-gray-100 pt-4 mt-4">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-bold text-gray-700">Invoices Paid</h4>
-              <span className="text-xs text-gray-400">{payment.totalInvoices} invoices</span>
+              <h4 className="text-sm font-bold text-gray-700">Invoice Allocation</h4>
+              <span className="text-xs text-gray-400">{invoiceRows.length} invoice{invoiceRows.length === 1 ? '' : 's'}</span>
             </div>
-            <div className="space-y-2">
-              {payment.invoicePayments?.map((inv: any) => (
-                <div key={inv.id} className="flex items-center justify-between py-2 border-b border-gray-50">
-                  <div>
-                    <p className="text-sm font-medium text-[#014582]">{inv.invoiceNumber}</p>
-                    {inv.invoice && (
-                      <p className="text-xs text-gray-400">Total: {formatCurrency(inv.invoice.grandTotal)}</p>
-                    )}
-                  </div>
-                  <p className="text-sm font-semibold text-green-600">{formatCurrency(inv.amountPaid)}</p>
-                </div>
-              ))}
-            </div>
+
+            {invoiceRows.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">
+                No invoice allocations found for this payment.
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-gray-100">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                    <tr>
+                      <th className="px-3 py-2.5 text-left font-semibold">Invoice</th>
+                      <th className="px-3 py-2.5 text-left font-semibold">Invoice Date</th>
+                      <th className="px-3 py-2.5 text-left font-semibold">Due Date</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">Invoice Total</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">Applied Here</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">Invoice Paid</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">Outstanding</th>
+                      <th className="px-3 py-2.5 text-left font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoiceRows.map((inv: any) => {
+                      const invoice = inv.invoice || {};
+                      const paymentStatus = invoice.paymentStatus || '—';
+                      return (
+                        <tr key={inv.id} className="border-t border-gray-50 hover:bg-gray-50/60">
+                          <td className="px-3 py-3">
+                            <p className="font-semibold text-[#014582]">{inv.invoiceNumber || invoice.invoiceNumber}</p>
+                            {invoice.paymentTerms && (
+                              <p className="text-[11px] text-gray-400 mt-0.5">{invoice.paymentTerms}</p>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-gray-600">
+                            {invoice.invoiceDate ? formatDate(invoice.invoiceDate) : '—'}
+                          </td>
+                          <td className="px-3 py-3 text-gray-600">
+                            {invoice.dueDate ? formatDate(invoice.dueDate) : '—'}
+                          </td>
+                          <td className="px-3 py-3 text-right font-medium text-gray-800">
+                            {formatCurrency(invoice.grandTotal)}
+                          </td>
+                          <td className="px-3 py-3 text-right font-semibold text-green-600">
+                            {formatCurrency(inv.amountPaid)}
+                          </td>
+                          <td className="px-3 py-3 text-right text-gray-700">
+                            {formatCurrency(invoice.paidAmount)}
+                          </td>
+                          <td className="px-3 py-3 text-right text-amber-700 font-medium">
+                            {formatCurrency(invoice.outstanding)}
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className={`inline-flex text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                              paymentStatus === 'Paid'
+                                ? 'bg-green-100 text-green-700'
+                                : paymentStatus === 'Partial'
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {paymentStatus}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-gray-200 bg-gray-50/80">
+                      <td colSpan={4} className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">
+                        Total applied
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-bold text-green-700">
+                        {formatCurrency(appliedTotal)}
+                      </td>
+                      <td colSpan={3} />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
           </div>
 
           {payment.journalEntry && (
@@ -1320,7 +1419,10 @@ function PaymentDetailModal({
               <div className="bg-gray-50 rounded-lg p-3 space-y-1">
                 {payment.journalEntry.lines?.map((line: any) => (
                   <div key={line.id} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">{line.accountName}</span>
+                    <span className="text-gray-600">
+                      {line.accountCode ? `${line.accountCode} · ` : ''}
+                      {line.accountName || line.account?.name || 'Account'}
+                    </span>
                     {line.debit > 0 && (
                       <span className="text-green-600 font-semibold">Dr {formatCurrency(line.debit)}</span>
                     )}

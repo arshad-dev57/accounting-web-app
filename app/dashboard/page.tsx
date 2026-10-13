@@ -2,9 +2,10 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, type ComponentType } from 'react';
+import { useEffect, useState, useMemo, type ComponentType } from 'react';
 import Image from 'next/image';
 import { ChevronRight } from 'lucide-react';
+import { usePermissions } from '../../lib/usePermissions';
 import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import SubscriptionStatusBanner from '../../components/SubscriptionStatusBanner';
@@ -62,6 +63,10 @@ type ModuleItem = {
   Icon: ComponentType<{ className?: string }>;
   href?: string;
   action?: 'search' | 'profile';
+  /** Key used with canAccessDashboardModule / dashboard.module_<key>.view */
+  permModule?: string;
+  /** Hide from non-admin users entirely */
+  adminOnly?: boolean;
 };
 
 const modules: ModuleItem[] = [
@@ -70,54 +75,63 @@ const modules: ModuleItem[] = [
     href: '/accounting/dashboard',
     Icon: AccountingAppIcon,
     detail: 'Let\'s automate your bills, bank transactions and accounting processes.',
+    permModule: 'accounting',
   },
   {
     title: 'Sales',
     href: '/sales/dashboard',
     Icon: SalesAppIcon,
     detail: 'Create quotations, manage orders, and track customer invoices in one place.',
+    permModule: 'sales',
   },
   {
     title: 'Purchases',
     href: '/purchases',
     Icon: PurchasesAppIcon,
     detail: 'Raise purchase orders, receive goods, and control vendor bills smoothly.',
+    permModule: 'purchases',
   },
   {
     title: 'Inventory',
     href: '/warehouse/dashboard',
     Icon: InventoryAppIcon,
     detail: 'Track stock levels, warehouses, and product movements in real time.',
+    permModule: 'inventory',
   },
   {
     title: 'Manufacturing',
     href: '/manufacturing/dashboard',
     Icon: ManufacturingAppIcon,
     detail: 'BOMs, production orders, work centers, MRP and shop-floor control in one place.',
+    permModule: 'manufacturing',
   },
   {
     title: 'HR Management',
     href: '/hr/dashboard',
     Icon: HrAppIcon,
     detail: 'Manage employees, attendance, payroll, and HR records from one dashboard.',
+    permModule: 'hr',
   },
   {
     title: 'Tax Compliance',
     href: '/tax',
     Icon: TaxAppIcon,
     detail: 'Stay compliant with tax filings, reports, and registration details.',
+    permModule: 'tax',
   },
   {
     title: 'Users',
     href: '/users',
     Icon: UsersAppIcon,
     detail: 'Invite team members, manage roles, and control access across your company.',
+    permModule: 'users',
   },
   {
     title: 'Point of Sale',
     href: '/pos',
     Icon: PosAppIcon,
     detail: 'Run fast checkout counters with receipts, payments, and live sales updates.',
+    permModule: 'pos',
   },
   {
     title: 'Search',
@@ -142,6 +156,8 @@ const modules: ModuleItem[] = [
     href: '/companies',
     Icon: CompanyAppIcon,
     detail: 'Create a new company or manage your workspace companies from one place.',
+    // Only admins / company managers — not regular role users
+    adminOnly: true,
   },
 ];
 
@@ -167,6 +183,19 @@ function openHeaderAction(action: ModuleItem['action']) {
 
 export default function DashboardPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const { canAccessDashboardModule, isAdmin, ready: permsReady } = usePermissions();
+
+  const visibleModules = useMemo(() => {
+    if (isAdmin) return modules;
+    // Wait until permissions are ready — no flash of wrong tiles
+    if (!permsReady) return [];
+
+    return modules.filter((m) => {
+      if (m.adminOnly) return false;
+      if (!m.permModule) return true; // Search, Support, Profile
+      return canAccessDashboardModule(m.permModule);
+    });
+  }, [isAdmin, permsReady, canAccessDashboardModule]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -253,45 +282,55 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8 lg:gap-10 pb-28 sm:pb-32">
-              {modules.map((mod) => {
-                const Icon = mod.Icon;
-                return (
-                  <button
-                    key={mod.title}
-                    type="button"
-                    onClick={() => {
-                      if (mod.action) {
-                        openHeaderAction(mod.action);
-                        return;
-                      }
-                      if (mod.href) window.location.href = mod.href;
-                    }}
-                    className="group relative z-0 hover:z-40 focus-within:z-40 flex flex-col items-center justify-center gap-3 sm:gap-4 md:gap-5 py-8 sm:py-10 md:py-12 px-3 sm:px-4 md:px-5 rounded-2xl sm:rounded-3xl bg-white hover:bg-[#f3f4f6] transition-colors duration-200 shadow-sm border border-[#e5e7eb]"
-                  >
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-[96px] md:h-[96px] rounded-xl sm:rounded-2xl md:rounded-[22px] bg-[#f3f4f6] border border-gray-200 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.06)] group-hover:shadow-[0_4px_20px_rgba(0,0,0,0.10)] transition-shadow duration-300">
-                      <Icon className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16" />
-                    </div>
-                    <span className="text-xs sm:text-sm md:text-base font-medium text-gray-800 text-center leading-snug px-1">
-                      {mod.title}
-                    </span>
-
+              {!isAdmin && !permsReady
+                ? Array.from({ length: 4 }).map((_, i) => (
                     <div
-                      className="pointer-events-none absolute left-1/2 top-[calc(100%-0.35rem)] w-[min(440px,calc(100vw-1.5rem))] max-w-[440px] -translate-x-1/2 opacity-0 translate-y-1 scale-95 group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:scale-100 transition-all duration-200 ease-out"
-                      role="tooltip"
+                      key={`skel-${i}`}
+                      className="flex flex-col items-center justify-center gap-4 py-10 px-4 rounded-3xl bg-white border border-[#e5e7eb] animate-pulse"
                     >
-                      <div className="mx-auto h-0 w-0 border-l-[12px] border-r-[12px] border-b-[13px] border-l-transparent border-r-transparent border-b-[#1e293b]" />
-                      <div className="rounded-2xl bg-[#1e293b] px-5 sm:px-6 py-5 sm:py-6 text-left shadow-xl shadow-black/20">
-                        <p className="text-sm sm:text-base md:text-[17px] leading-relaxed text-white/90">
-                          {mod.detail}
-                        </p>
-                        <p className="mt-4 sm:mt-5 text-right text-sm sm:text-base md:text-[16px] font-medium text-[#00C2FF]">
-                          Open →
-                        </p>
-                      </div>
+                      <div className="w-20 h-20 rounded-2xl bg-gray-100" />
+                      <div className="h-3 w-20 rounded bg-gray-100" />
                     </div>
-                  </button>
-                );
-              })}
+                  ))
+                : visibleModules.map((mod) => {
+                    const Icon = mod.Icon;
+                    return (
+                      <button
+                        key={mod.title}
+                        type="button"
+                        onClick={() => {
+                          if (mod.action) {
+                            openHeaderAction(mod.action);
+                            return;
+                          }
+                          if (mod.href) window.location.href = mod.href;
+                        }}
+                        className="group relative z-0 hover:z-40 focus-within:z-40 flex flex-col items-center justify-center gap-3 sm:gap-4 md:gap-5 py-8 sm:py-10 md:py-12 px-3 sm:px-4 md:px-5 rounded-2xl sm:rounded-3xl bg-white hover:bg-[#f3f4f6] transition-colors duration-200 shadow-sm border border-[#e5e7eb]"
+                      >
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-[96px] md:h-[96px] rounded-xl sm:rounded-2xl md:rounded-[22px] bg-[#f3f4f6] border border-gray-200 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.06)] group-hover:shadow-[0_4px_20px_rgba(0,0,0,0.10)] transition-shadow duration-300">
+                          <Icon className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16" />
+                        </div>
+                        <span className="text-xs sm:text-sm md:text-base font-medium text-gray-800 text-center leading-snug px-1">
+                          {mod.title}
+                        </span>
+
+                        <div
+                          className="pointer-events-none absolute left-1/2 top-[calc(100%-0.35rem)] w-[min(440px,calc(100vw-1.5rem))] max-w-[440px] -translate-x-1/2 opacity-0 translate-y-1 scale-95 group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:scale-100 transition-all duration-200 ease-out"
+                          role="tooltip"
+                        >
+                          <div className="mx-auto h-0 w-0 border-l-[12px] border-r-[12px] border-b-[13px] border-l-transparent border-r-transparent border-b-[#1e293b]" />
+                          <div className="rounded-2xl bg-[#1e293b] px-5 sm:px-6 py-5 sm:py-6 text-left shadow-xl shadow-black/20">
+                            <p className="text-sm sm:text-base md:text-[17px] leading-relaxed text-white/90">
+                              {mod.detail}
+                            </p>
+                            <p className="mt-4 sm:mt-5 text-right text-sm sm:text-base md:text-[16px] font-medium text-[#00C2FF]">
+                              Open →
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
             </div>
           </div>
         </div>

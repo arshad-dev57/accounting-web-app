@@ -7,6 +7,8 @@ import {
   invalidateProfileCache,
   profileToBranding,
 } from '../lib/profile-cache';
+import { useCompanyOptional } from '../lib/company-context';
+import { useSidebarCollapsed } from '../lib/sidebar-collapse';
 
 export const APP_NAME = 'Bisonstechs';
 export const APP_LOGO_FALLBACK = '/bisontechs.png';
@@ -19,23 +21,29 @@ export type CompanyBranding = {
   organizationName: string;
 };
 
+function initials(name?: string) {
+  if (!name?.trim()) return 'CO';
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || 'CO';
+}
+
 function readCachedBranding(): CompanyBranding {
   if (typeof window === 'undefined') {
-    return { logo: APP_LOGO_FALLBACK, organizationName: APP_NAME };
+    return { logo: '', organizationName: '' };
   }
   try {
     const raw = localStorage.getItem(PROFILE_CACHE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as CompanyBranding;
       return {
-        logo: parsed.logo || APP_LOGO_FALLBACK,
-        organizationName: parsed.organizationName || APP_NAME,
+        logo: parsed.logo || '',
+        organizationName: parsed.organizationName || '',
       };
     }
   } catch {
     /* ignore */
   }
-  return { logo: APP_LOGO_FALLBACK, organizationName: APP_NAME };
+  return { logo: '', organizationName: '' };
 }
 
 function writeCachedBranding(branding: CompanyBranding) {
@@ -47,9 +55,10 @@ function writeCachedBranding(branding: CompanyBranding) {
 }
 
 export function useCompanyBranding() {
+  const companyCtx = useCompanyOptional();
   const [branding, setBranding] = useState<CompanyBranding>({
-    logo: APP_LOGO_FALLBACK,
-    organizationName: APP_NAME,
+    logo: '',
+    organizationName: '',
   });
 
   useEffect(() => {
@@ -59,37 +68,56 @@ export function useCompanyBranding() {
   useEffect(() => {
     let cancelled = false;
 
-    const load = async () => {
+    const apply = (next: CompanyBranding) => {
+      if (cancelled) return;
+      writeCachedBranding(next);
+      setBranding(next);
+    };
+
+    const load = async (force = false) => {
       try {
-        const profile = await fetchProfileCached();
-        if (cancelled || !profile) return;
-        const next = profileToBranding(profile);
-        writeCachedBranding(next);
-        setBranding(next);
+        const profile = await fetchProfileCached(force);
+        if (cancelled) return;
+        const fromProfile = profile ? profileToBranding(profile) : null;
+        const active = companyCtx?.activeCompany;
+        apply({
+          logo: active?.logo || fromProfile?.logo || '',
+          organizationName:
+            active?.name || fromProfile?.organizationName || '',
+        });
       } catch {
-        /* keep cached / fallback */
+        const active = companyCtx?.activeCompany;
+        if (active) {
+          apply({
+            logo: active.logo || '',
+            organizationName: active.name || '',
+          });
+        }
       }
     };
 
-    load();
+    void load();
+
     const onRefresh = () => {
       invalidateProfileCache();
-      void (async () => {
-        const profile = await fetchProfileCached(true);
-        if (cancelled || !profile) return;
-        const next = profileToBranding(profile);
-        writeCachedBranding(next);
-        setBranding(next);
-      })();
+      void load(true);
     };
+
     window.addEventListener('company-branding-updated', onRefresh);
+    window.addEventListener('active-company-changed', onRefresh);
     return () => {
       cancelled = true;
       window.removeEventListener('company-branding-updated', onRefresh);
+      window.removeEventListener('active-company-changed', onRefresh);
     };
-  }, []);
+  }, [companyCtx?.activeCompanyId, companyCtx?.activeCompany?.logo, companyCtx?.activeCompany?.name]);
 
-  return branding;
+  // Prefer live active company over stale cache while switching
+  const active = companyCtx?.activeCompany;
+  return {
+    logo: active?.logo || branding.logo || '',
+    organizationName: active?.name || branding.organizationName || '',
+  };
 }
 
 type BrandHeaderProps = {
@@ -103,8 +131,8 @@ export function notifyCompanyBrandingUpdated(branding?: Partial<CompanyBranding>
   if (branding) {
     const current = readCachedBranding();
     writeCachedBranding({
-      logo: branding.logo || current.logo || APP_LOGO_FALLBACK,
-      organizationName: branding.organizationName || current.organizationName || APP_NAME,
+      logo: branding.logo ?? current.logo ?? '',
+      organizationName: branding.organizationName || current.organizationName || '',
     });
   }
   if (typeof window !== 'undefined') {
@@ -116,20 +144,31 @@ function CompanyLogo({
   src,
   alt,
   className,
+  name,
 }: {
   src?: string;
   alt?: string;
   className?: string;
+  name?: string;
 }) {
+  const [failed, setFailed] = useState(false);
+  const showImg = Boolean(src) && !failed;
+
+  if (!showImg) {
+    return (
+      <span className="flex h-full w-full items-center justify-center bg-[#014582] text-xs font-bold text-white">
+        {initials(name || alt)}
+      </span>
+    );
+  }
+
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={src || APP_LOGO_FALLBACK}
-      alt={alt || APP_NAME}
+      src={src}
+      alt={alt || name || 'Company'}
       className={className || 'w-full h-full object-contain'}
-      onError={(e) => {
-        (e.currentTarget as HTMLImageElement).src = APP_LOGO_FALLBACK;
-      }}
+      onError={() => setFailed(true)}
     />
   );
 }
@@ -140,24 +179,32 @@ export function BrandHeader({
   href = MODULE_SELECTION_HREF,
 }: BrandHeaderProps) {
   const { logo, organizationName } = useCompanyBranding();
+  const { collapsed } = useSidebarCollapsed();
+  const brandName = organizationName || APP_NAME;
 
   return (
     <Link
       href={href}
       title="Go to module selection"
-      className={`flex items-center gap-3 border-b border-white/10 flex-shrink-0 transition-colors hover:bg-white/5 ${
-        compact ? 'px-4 py-4' : 'px-5 py-6'
+      className={`flex items-center border-b border-white/10 flex-shrink-0 transition-colors hover:bg-white/5 ${
+        collapsed
+          ? 'justify-center px-2 py-3'
+          : compact
+            ? 'gap-3 px-4 py-4'
+            : 'gap-3 px-5 py-6'
       }`}
     >
       <div className="w-10 h-10 rounded-xl bg-white overflow-hidden flex items-center justify-center flex-shrink-0">
-        <CompanyLogo src={logo} alt={organizationName || APP_NAME} />
+        <CompanyLogo src={logo} alt={brandName} name={brandName} />
       </div>
-      <div className="min-w-0">
-        <p className="text-sm font-extrabold tracking-wide text-white truncate">{APP_NAME}</p>
-        <p className="text-[11px] text-white/50 truncate">
-          {subtitle || organizationName || 'Business Suite'}
-        </p>
-      </div>
+      {!collapsed && (
+        <div className="min-w-0 sidebar-expanded-only">
+          <p className="text-sm font-extrabold tracking-wide text-white truncate">{brandName}</p>
+          <p className="text-[11px] text-white/50 truncate">
+            {subtitle || 'Business Suite'}
+          </p>
+        </div>
+      )}
     </Link>
   );
 }
@@ -176,7 +223,8 @@ export function TopBarBrand({
   dark = false,
   href = MODULE_SELECTION_HREF,
 }: TopBarBrandProps) {
-  const { logo } = useCompanyBranding();
+  const { logo, organizationName } = useCompanyBranding();
+  const brandName = organizationName || APP_NAME;
 
   return (
     <Link
@@ -189,7 +237,7 @@ export function TopBarBrand({
           dark ? 'bg-white' : 'bg-white border border-gray-200'
         }`}
       >
-        <CompanyLogo src={logo} />
+        <CompanyLogo src={logo} alt={brandName} name={brandName} />
       </div>
       <div className="min-w-0">
         <p
@@ -197,7 +245,7 @@ export function TopBarBrand({
             dark ? 'text-white/85' : 'text-gray-500'
           }`}
         >
-          {APP_NAME}
+          {brandName}
         </p>
         <h1
           className={`text-lg font-bold flex items-center gap-2 leading-tight truncate ${

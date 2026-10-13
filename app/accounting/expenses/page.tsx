@@ -28,9 +28,19 @@ import {
   Banknote as BanknoteIcon, CreditCard, Handshake, Home, ShoppingBag,
   Receipt as ReceiptIcon, Briefcase, DollarSign as DollarSignIcon,
   Home as HomeIcon, Bolt, Users as UsersIcon, Megaphone, Package, Plane, Utensils,
-  Shield as Security, Wrench as Build, Monitor as Computer, Receipt as ReceiptIcon2
+  Shield as Security, Wrench as Build, Monitor as Computer, Receipt as ReceiptIcon2,
+  Paperclip, Upload, ExternalLink
 } from 'lucide-react';
-import { expenseService, Expense, ExpenseStats, ExpenseAccount, Vendor, BankAccount } from '@/lib/expense-service';
+import {
+  expenseService,
+  Expense,
+  ExpenseStats,
+  ExpenseAccount,
+  ExpenseAttachment,
+  ExpenseDimension,
+  Vendor,
+  BankAccount,
+} from '@/lib/expense-service';
 import TaxRateSelect from '../../../components/TaxRateSelect';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -85,6 +95,8 @@ export default function ExpensesPage() {
   const [expenseAccounts, setExpenseAccounts] = useState<ExpenseAccount[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [departments, setDepartments] = useState<ExpenseDimension[]>([]);
+  const [costCenters, setCostCenters] = useState<ExpenseDimension[]>([]);
 
   const { symbol: currencySymbol } = useCurrency();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -99,14 +111,17 @@ export default function ExpensesPage() {
 
   const fetchDropdownData = useCallback(async () => {
     try {
-      const [accountsRes, vendorsRes, bankRes] = await Promise.all([
+      const [accountsRes, vendorsRes, bankRes, dimensionsRes] = await Promise.all([
         expenseService.getExpenseAccounts(),
         expenseService.getVendors(),
-        expenseService.getBankAccounts()
+        expenseService.getBankAccounts(),
+        expenseService.getDimensions(),
       ]);
       setExpenseAccounts(accountsRes || []);
       setVendors(vendorsRes || []);
       setBankAccounts(bankRes || []);
+      setDepartments(dimensionsRes?.departments || []);
+      setCostCenters(dimensionsRes?.costCenters || []);
     } catch (error) {
       console.error('Failed to fetch dropdown data:', error);
     }
@@ -387,6 +402,8 @@ export default function ExpensesPage() {
           expenseAccounts={expenseAccounts}
           vendors={vendors}
           bankAccounts={bankAccounts}
+          departments={departments}
+          costCenters={costCenters}
           paymentMethods={paymentMethods}
           expenseTypeOptions={expenseTypeOptions.filter(t => t !== 'All')}
           initialData={editingExpense}
@@ -695,10 +712,99 @@ function toInputDate(value?: string) {
   return d.toISOString().split('T')[0];
 }
 
+function SearchableSelect({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder = 'Select...',
+  optional = true,
+}: {
+  label: string;
+  value: string;
+  onChange: (id: string) => void;
+  options: Array<{ id: string; label: string }>;
+  placeholder?: string;
+  optional?: boolean;
+}) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const selected = options.find((o) => o.id === value);
+  const filtered = options.filter((o) =>
+    o.label.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div className="relative">
+      <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+        {label}{optional ? ' (optional)' : ''}
+      </label>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm bg-gray-50 text-left focus:ring-2 focus:ring-[#014582] outline-none"
+      >
+        <span className={selected ? 'text-gray-800' : 'text-gray-400'}>
+          {selected?.label || placeholder}
+        </span>
+        <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-gray-100">
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search..."
+              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-[#014582] outline-none"
+            />
+          </div>
+          <div className="max-h-44 overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => {
+                onChange('');
+                setQuery('');
+                setOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-xs text-gray-400 hover:bg-gray-50"
+            >
+              — None —
+            </button>
+            {filtered.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => {
+                  onChange(opt.id);
+                  setQuery('');
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2 text-xs hover:bg-[#014582]/5 ${
+                  opt.id === value ? 'bg-[#014582]/10 text-[#014582] font-semibold' : 'text-gray-700'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <p className="px-3 py-2 text-xs text-gray-400">No matches</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CreateExpenseForm({
   expenseAccounts,
   vendors,
   bankAccounts,
+  departments = [],
+  costCenters = [],
   paymentMethods,
   expenseTypeOptions,
   initialData = null,
@@ -718,7 +824,9 @@ function CreateExpenseForm({
     reference: initialData?.reference || '',
     paymentMethod: initialData?.paymentMethod || 'Cash',
     bankAccountId: initialData?.bankAccountId || '',
-    taxRate: Number(initialData?.taxRate) || 0
+    taxRate: Number(initialData?.taxRate) || 0,
+    departmentId: initialData?.departmentId || initialData?.department?.id || '',
+    costCenterId: initialData?.costCenterId || initialData?.costCenter?.id || '',
   });
 
   const [items, setItems] = useState<ExpenseItem[]>(() => {
@@ -739,6 +847,10 @@ function CreateExpenseForm({
         ? Number(initialData?.totalAmount) || 0
         : 0)
   );
+  const [attachments, setAttachments] = useState<ExpenseAttachment[]>(
+    Array.isArray(initialData?.attachments) ? initialData.attachments : []
+  );
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
   const requiresItems = formData.expenseType === 'Rent' || formData.expenseType === 'Office Supplies' || formData.expenseType === 'Software';
@@ -771,6 +883,30 @@ function CreateExpenseForm({
     }
     newItems[index] = item;
     setItems(newItems);
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    setUploading(true);
+    setError('');
+    try {
+      const uploaded: ExpenseAttachment[] = [];
+      for (const file of Array.from(files)) {
+        const result = await expenseService.uploadAttachment(file);
+        uploaded.push(result);
+      }
+      setAttachments((prev) => [...prev, ...uploaded]);
+    } catch (err: any) {
+      setError(err.message || 'Failed to upload attachment');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -806,7 +942,10 @@ function CreateExpenseForm({
       description: formData.description,
       reference: formData.reference,
       paymentMethod: formData.paymentMethod,
-      bankAccountId: formData.paymentMethod !== 'Cash' ? formData.bankAccountId : undefined
+      bankAccountId: formData.paymentMethod !== 'Cash' ? formData.bankAccountId : undefined,
+      departmentId: formData.departmentId || undefined,
+      costCenterId: formData.costCenterId || undefined,
+      attachments: attachments.length > 0 ? attachments : undefined,
     });
   };
 
@@ -891,6 +1030,40 @@ function CreateExpenseForm({
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Department & Cost Center (optional) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <SearchableSelect
+              label="Department"
+              value={formData.departmentId}
+              onChange={(id) => setFormData((prev) => ({ ...prev, departmentId: id }))}
+              options={(departments || []).map((d: ExpenseDimension) => ({
+                id: d.id,
+                label: d.name,
+              }))}
+              placeholder="Select department..."
+            />
+            <div>
+              <SearchableSelect
+                label="Cost Center"
+                value={formData.costCenterId}
+                onChange={(id) => setFormData((prev) => ({ ...prev, costCenterId: id }))}
+                options={(costCenters || []).map((c: ExpenseDimension) => ({
+                  id: c.id,
+                  label: c.code ? `${c.code} — ${c.name}` : c.name,
+                }))}
+                placeholder="Select cost center..."
+              />
+              {(!costCenters || costCenters.length === 0) && (
+                <p className="mt-1 text-[11px] text-gray-400">
+                  No cost centers yet —{' '}
+                  <a href="/accounting/cost-centers" className="text-[#014582] underline font-medium">
+                    create them here
+                  </a>
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Items or Simple Amount */}
@@ -1054,6 +1227,61 @@ function CreateExpenseForm({
             </div>
           )}
 
+          {/* Attachments (optional) */}
+          <div>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+              Attachments (optional)
+            </label>
+            <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-[#014582]/40 hover:bg-[#014582]/5 transition-all">
+              {uploading ? (
+                <Loader2 className="w-4 h-4 text-[#014582] animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4 text-[#014582]" />
+              )}
+              <span className="text-xs md:text-sm text-gray-600">
+                {uploading ? 'Uploading...' : 'Upload receipt or files'}
+              </span>
+              <input
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+                disabled={uploading || submitting}
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+              />
+            </label>
+            {attachments.length > 0 && (
+              <ul className="mt-2 space-y-1.5">
+                {attachments.map((att, index) => (
+                  <li
+                    key={`${att.fileUrl}-${index}`}
+                    className="flex items-center justify-between gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Paperclip className="w-3.5 h-3.5 text-[#014582] flex-shrink-0" />
+                      <a
+                        href={att.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-[#014582] hover:underline truncate"
+                      >
+                        {att.fileName || 'Attachment'}
+                      </a>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      className="p-1 text-gray-400 hover:text-red-500"
+                      title="Remove"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           {/* Actions */}
           <div className="flex flex-col sm:flex-row items-center justify-end gap-2 sm:gap-3 pt-3 md:pt-4 border-t border-gray-100">
             <button
@@ -1170,7 +1398,49 @@ function ExpenseDetailModal({
                 <span className="text-sm font-medium text-gray-800">{expense.description}</span>
               </div>
             )}
+            {(expense.department?.name || expense.departmentId) && (
+              <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                <span className="text-xs text-gray-400 font-medium">Department</span>
+                <span className="text-sm font-medium text-gray-800">
+                  {expense.department?.name || expense.departmentId}
+                </span>
+              </div>
+            )}
+            {(expense.costCenter?.name || expense.costCenterId) && (
+              <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                <span className="text-xs text-gray-400 font-medium">Cost Center</span>
+                <span className="text-sm font-medium text-gray-800">
+                  {expense.costCenter?.code
+                    ? `${expense.costCenter.code} — ${expense.costCenter.name}`
+                    : expense.costCenter?.name || expense.costCenterId}
+                </span>
+              </div>
+            )}
           </div>
+
+          {Array.isArray(expense.attachments) && expense.attachments.length > 0 && (
+            <div className="border-t border-gray-100 pt-4 mt-4">
+              <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                <Paperclip className="w-4 h-4 text-[#014582]" />
+                Attachments
+              </h4>
+              <ul className="space-y-2">
+                {expense.attachments.map((att: ExpenseAttachment, index: number) => (
+                  <li key={att.id || `${att.fileUrl}-${index}`}>
+                    <a
+                      href={att.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-[#014582] hover:underline"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      {att.fileName || 'View file'}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Items */}
           {expense.items?.length > 0 && (

@@ -225,8 +225,16 @@ export const locationService = {
     if (!response.success) {
       throw new Error(response.message || 'Failed to load product stocks');
     }
-    const raw = response.data?.data || response.data;
-    return Array.isArray(raw) ? raw : raw?.stocks || [];
+    // apiClient wraps body in .data; backend returns { data: { locations: [...] } }
+    const payload = response.data?.data ?? response.data;
+    const list =
+      (Array.isArray(payload) && payload) ||
+      payload?.locations ||
+      payload?.stocks ||
+      payload?.data?.locations ||
+      payload?.data?.stocks ||
+      [];
+    return Array.isArray(list) ? list : [];
   },
 
   transfer: async (body: {

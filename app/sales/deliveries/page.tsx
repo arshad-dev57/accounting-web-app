@@ -6,10 +6,9 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Plus, Search, RefreshCw, Truck, Clock, 
-  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, MapPin, Edit3, Save
+  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, Edit3, Save
 } from 'lucide-react';
 import { Delivery, DeliveryStats } from '@/types/delivery';
-import { useLocationOptional } from '@/lib/location-context';
 
 const STATUS_COLORS: Record<string, string> = {
   'Pending': 'bg-orange-100 text-orange-700',
@@ -31,7 +30,6 @@ const STATUS_OPTIONS = ['all', 'Pending', 'Partially Delivered', 'Delivered'];
 
 export function DeliveriesPage() {
   const router = useRouter();
-  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
@@ -116,11 +114,7 @@ export function DeliveriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchTerm, statusFilter, selectedLocationId]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedLocationId]);
+  }, [currentPage, searchTerm, statusFilter]);
 
   const handleDeliveryClick = (delivery: Delivery, startEditing = false) => {
     setDeliveryStartEditing(startEditing);
@@ -261,14 +255,6 @@ export function DeliveriesPage() {
           <strong>Flow:</strong> Create delivery as Pending → <strong>Confirm</strong> to deduct stock from warehouse.
           Invoice posting records revenue and COGS separately.
         </div>
-
-        {selectedLocation && (
-          <div className="mb-4 flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
-            <MapPin className="w-4 h-4 flex-shrink-0" />
-            Showing deliveries for <strong>{selectedLocation.name}</strong>
-            <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
-          </div>
-        )}
 
         {/* KPI Cards */}
         <div className="grid grid-cols-3 gap-4 mb-4">

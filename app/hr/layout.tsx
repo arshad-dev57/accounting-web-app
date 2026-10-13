@@ -42,10 +42,12 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { TopBarBrand } from '../../components/BrandHeader';
+import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
 import { performLogout } from '../../lib/auth-logout';
+import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
 
 const SECTIONS: {
   label: string;
@@ -128,6 +130,7 @@ const SECTIONS: {
 
 function HRSidebar() {
   const pathname = usePathname();
+  const { collapsed } = useSidebarCollapsed();
 
   const isActive = (path: string, label: string, matchPrefix?: boolean): boolean => {
     if (label === 'Analytics') return false;
@@ -143,25 +146,35 @@ function HRSidebar() {
   };
 
   return (
-    <div className="w-64 h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0 fixed left-0 top-0">
+    <CollapsibleSidebar expandedClassName="w-64" expandedWidth={256}>
       <div className="p-4 flex-shrink-0">
-        <Link href="/dashboard" className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 transition-all">
-          <div className="w-10 h-10 rounded-xl bg-[#014582] flex items-center justify-center">
+        <Link
+          href="/dashboard"
+          title="HR Management"
+          className={`flex items-center rounded-lg hover:bg-white/5 transition-all ${
+            collapsed ? 'justify-center px-1 py-2' : 'gap-3 px-2 py-2'
+          }`}
+        >
+          <div className="w-10 h-10 rounded-xl bg-[#014582] flex items-center justify-center flex-shrink-0">
             <UsersRound className="w-5 h-5 text-white" />
           </div>
-          <div>
-            <p className="text-sm font-extrabold text-white">HR Management</p>
-            <p className="text-[10px] text-white/50 font-medium">hr@bisonstechs.com</p>
-          </div>
+          {!collapsed && (
+            <div className="sidebar-expanded-only">
+              <p className="text-sm font-extrabold text-white">HR Management</p>
+              <p className="text-[10px] text-white/50 font-medium">hr@bisonstechs.com</p>
+            </div>
+          )}
         </Link>
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-4 custom-scrollbar">
         {SECTIONS.map((section) => (
           <div key={section.label}>
-            <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-2">
-              {section.label}
-            </p>
+            {!collapsed && (
+              <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-2 sidebar-expanded-only">
+                {section.label}
+              </p>
+            )}
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const Icon = item.icon;
@@ -170,15 +183,18 @@ function HRSidebar() {
                   <Link
                     key={item.href + item.label}
                     href={item.href}
+                    title={item.label}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
                       active
-                        ? 'text-white bg-[#014582]/60 font-semibold'
+                        ? 'text-white bg-[#014582] shadow-md shadow-[#014582]/30 font-semibold'
                         : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
-                    <span className="truncate">{item.label}</span>
-                    {active && <ChevronRight className="w-3 h-3 ml-auto flex-shrink-0" />}
+                    <span className="truncate sidebar-expanded-only">{item.label}</span>
+                    {active && !collapsed && (
+                      <ChevronRight className="w-3 h-3 ml-auto flex-shrink-0 sidebar-expanded-only" />
+                    )}
                   </Link>
                 );
               })}
@@ -190,21 +206,23 @@ function HRSidebar() {
       <div className="px-3 pb-6 pt-2 flex-shrink-0 border-t border-white/10">
         <Link
           href="/dashboard"
+          title="Main Dashboard"
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-white/40 hover:text-white hover:bg-white/5"
         >
           <Home className="w-5 h-5" />
-          <span className="text-sm font-medium">Main Dashboard</span>
+          <span className="text-sm font-medium sidebar-expanded-only">Main Dashboard</span>
         </Link>
         <button
           type="button"
+          title="Logout"
           onClick={() => void performLogout()}
           className="w-full flex items-center gap-3 px-3 py-2.5 mt-1 text-[#E74C3C]/90 hover:text-[#E74C3C] hover:bg-white/5 rounded-lg transition-all"
         >
           <LogOut className="w-5 h-5" />
-          <span className="text-sm font-medium">Logout</span>
+          <span className="text-sm font-medium sidebar-expanded-only">Logout</span>
         </button>
       </div>
-    </div>
+    </CollapsibleSidebar>
   );
 }
 
@@ -216,7 +234,7 @@ export default function HRLayout({
   return (
     <>
       <HRSidebar />
-      <div className="ml-64 min-h-screen bg-[#F0F4F8] flex flex-col">
+      <SidebarMain className="bg-[#F0F4F8]">
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
           <TopBarBrand
             title="HR Management"
@@ -235,7 +253,7 @@ export default function HRLayout({
         <AppBreadcrumbs />
 
         <div className="flex-1 p-6">{children}</div>
-      </div>
+      </SidebarMain>
     </>
   );
 }

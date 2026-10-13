@@ -42,8 +42,14 @@
   export interface SalesInvoiceSummary {
     id: string;
     invoiceNumber: string;
+    invoiceDate?: string;
+    dueDate?: string;
     grandTotal: number;
+    paidAmount?: number;
     outstanding: number;
+    paymentStatus?: string;
+    invoiceStatus?: string;
+    paymentTerms?: string;
   }
 
   export interface JournalEntry {
@@ -387,7 +393,12 @@
         if (!response.success) {
           throw new Error(response.message || 'Failed to fetch payment');
         }
-        return response.data?.data;
+        const body = response.data;
+        const payment = body?.data ?? body;
+        if (!payment?.id) {
+          throw new Error('Payment details not found');
+        }
+        return payment;
       } catch (error: any) {
         console.error('Get payment by ID error:', error);
         throw new Error(error.message || 'Failed to fetch payment');

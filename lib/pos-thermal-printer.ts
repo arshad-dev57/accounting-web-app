@@ -9,6 +9,7 @@ import {
   type PosSettings,
 } from './pos-settings';
 import {
+  formatReceiptQty,
   itemCount,
   money,
   printReceiptNode,
@@ -245,11 +246,10 @@ export function buildEscPosReceipt(opts: {
 
   b.init();
   b.align('center');
-  b.bold(true);
+  b.bold(false);
   b.size(2, 2);
   for (const row of wrapText(company.name || 'STORE', Math.floor(cols / 2))) b.line(row);
   b.size(1, 1);
-  b.bold(true);
   if (tpl.showAddress && company.address) wrapText(company.address, cols).forEach((r) => b.line(r));
   if (tpl.showPhone && company.phone) b.line(`Tel: ${company.phone}`);
   if (tpl.showEmail && company.email) b.line(company.email);
@@ -257,14 +257,11 @@ export function buildEscPosReceipt(opts: {
   if (tpl.showTaxId && company.taxId) b.line(`NTN: ${company.taxId}`);
   b.line(dashLine(cols));
   b.line(tpl.receiptHeader || 'TAX INVOICE / SALES RECEIPT');
-  b.bold(false);
   if (tpl.copyLabel) b.line(tpl.copyLabel);
   b.line(dashLine(cols));
 
   b.align('left');
-  b.bold(true);
   b.line(padLine('Receipt #', invoice, cols));
-  b.bold(false);
   b.line(padLine('Date', soldAt.toLocaleDateString(), cols));
   b.line(padLine('Time', soldAt.toLocaleTimeString(), cols));
   if (tpl.showTerminal && meta.terminal) {
@@ -275,28 +272,22 @@ export function buildEscPosReceipt(opts: {
   if (sale.status) b.line(padLine('Status', String(sale.status), cols));
 
   b.line(dashLine(cols));
-  b.bold(true);
   b.line('BILL TO');
-  b.bold(false);
   b.line(sale.customerName || 'Walk-in Customer');
   if (sale.customerPhone) b.line(`Phone: ${sale.customerPhone}`);
 
   b.line(dashLine(cols));
-  b.bold(true);
   b.line(padLine('ITEM', 'AMOUNT', cols));
-  b.bold(false);
   b.line(dashLine(cols));
 
   items.forEach((item) => {
-    b.bold(true);
     wrapText(String(item.productName || 'Item').toUpperCase(), cols).forEach((r) => b.line(r));
-    b.bold(false);
     if (tpl.showSku) {
       const skuBits = [item.sku ? `SKU ${item.sku}` : '', item.barcodeNumber || ''].filter(Boolean).join(' · ');
       if (skuBits) wrapText(skuBits, cols).forEach((r) => b.line(r));
     }
     const qtyBits = [
-      `${item.quantity || 0} x ${money(item.unitPrice)}`,
+      `${formatReceiptQty(item)} x ${money(item.unitPrice)}`,
       item.discount ? `Disc ${item.discount}%` : '',
       item.taxRate ? `Tax ${item.taxRate}%` : '',
     ]
@@ -312,15 +303,12 @@ export function buildEscPosReceipt(opts: {
   if (Number(sale.taxTotal) > 0) b.line(padLine('Tax', money(sale.taxTotal), cols));
   b.line(dashLine(cols));
   b.bold(true);
-  b.size(2, 2);
-  b.line(padLine('TOTAL', money(sale.grandTotal), Math.floor(cols / 2)));
   b.size(1, 1);
+  b.line(padLine('TOTAL', money(sale.grandTotal), cols));
   b.bold(false);
   b.line(dashLine(cols));
 
-  b.bold(true);
   b.line('PAYMENT');
-  b.bold(false);
   if (payments.length) {
     payments.forEach((p) => {
       const label = p.reference ? `${p.paymentMethod} ${p.reference}` : p.paymentMethod || 'Payment';
@@ -355,9 +343,7 @@ export function buildEscPosReceipt(opts: {
   b.line(dashLine(cols));
   if (tpl.receiptReturnPolicy) wrapText(tpl.receiptReturnPolicy, cols).forEach((r) => b.line(r));
   if (tpl.receiptNotes) wrapText(tpl.receiptNotes, cols).forEach((r) => b.line(r));
-  b.bold(true);
   b.line(tpl.receiptFooter || 'Thank you!');
-  b.bold(false);
   if (tpl.servedByPrefix && meta.cashier) b.line(`${tpl.servedByPrefix} ${meta.cashier}`);
   if (tpl.poweredBy) b.line(tpl.poweredBy);
   b.line(new Date().toLocaleString());

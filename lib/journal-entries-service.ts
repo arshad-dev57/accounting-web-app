@@ -86,6 +86,9 @@ export const journalEntryService = {
 
     query.set('page', String(page));
     query.set('limit', String(limit));
+    // Default: newest created journal entries first (standard register UX)
+    if (!params.sortBy) query.set('sortBy', 'createdAt');
+    if (!params.sortOrder) query.set('sortOrder', 'desc');
 
     Object.entries(params).forEach(([key, value]) => {
       if (key === 'page' || key === 'limit') return;
@@ -132,11 +135,22 @@ export const journalEntryService = {
         draftCount: data.stats?.draftCount ?? summary.draftCount ?? 0
       };
       
-      const entries = rawEntries.map((entry: any) => ({
-        ...entry,
-        totalDebit: entry.totalDebit || (entry.lines || []).reduce((sum: number, line: any) => sum + (line.debit || 0), 0),
-        totalCredit: entry.totalCredit || (entry.lines || []).reduce((sum: number, line: any) => sum + (line.credit || 0), 0)
-      }));
+      const entries = rawEntries
+        .map((entry: any) => ({
+          ...entry,
+          totalDebit: entry.totalDebit || (entry.lines || []).reduce((sum: number, line: any) => sum + (line.debit || 0), 0),
+          totalCredit: entry.totalCredit || (entry.lines || []).reduce((sum: number, line: any) => sum + (line.credit || 0), 0)
+        }))
+        .sort((a: any, b: any) => {
+          const createdDiff =
+            new Date(b.createdAt || b.postedAt || 0).getTime() -
+            new Date(a.createdAt || a.postedAt || 0).getTime();
+          if (createdDiff !== 0) return createdDiff;
+          const dateDiff =
+            new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime();
+          if (dateDiff !== 0) return dateDiff;
+          return String(b.entryNumber || '').localeCompare(String(a.entryNumber || ''));
+        });
       
       return {
         success: response.success,

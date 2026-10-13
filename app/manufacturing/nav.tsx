@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   ClipboardList,
   ListTodo,
-  Factory,
   Boxes,
   Route,
   Users,
@@ -33,6 +32,9 @@ import {
   GitFork,
 } from 'lucide-react';
 import { performLogout } from '@/lib/auth-logout';
+import { BrandHeader } from '../../components/BrandHeader';
+import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
+import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
 
 export const MFG_SECTIONS: {
   label: string;
@@ -112,29 +114,22 @@ export const MFG_SECTIONS: {
 
 export function MfgSidebar() {
   const pathname = usePathname();
+  const { collapsed } = useSidebarCollapsed();
   const isActive = (path: string): boolean =>
     pathname === path || pathname.startsWith(`${path}/`);
 
   return (
-    <div className="w-64 h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0 fixed left-0 top-0">
-      <div className="p-4 flex-shrink-0">
-        <Link href="/dashboard" className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 transition-all">
-          <div className="w-10 h-10 rounded-xl bg-[#014582] flex items-center justify-center">
-            <Factory className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-extrabold text-white">Manufacturing</p>
-            <p className="text-[10px] text-white/50 font-medium">Production · Quality · Cost</p>
-          </div>
-        </Link>
-      </div>
+    <CollapsibleSidebar expandedClassName="w-64" expandedWidth={256}>
+      <BrandHeader subtitle="Manufacturing Module" />
 
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-4 custom-scrollbar">
         {MFG_SECTIONS.map((section) => (
           <div key={section.label}>
-            <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-1.5">
-              {section.label}
-            </p>
+            {!collapsed && (
+              <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-1.5 sidebar-expanded-only">
+                {section.label}
+              </p>
+            )}
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const active = item.match ? pathname.startsWith(item.match) : isActive(item.href);
@@ -143,12 +138,13 @@ export function MfgSidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    title={item.label}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
-                      active ? 'bg-[#014582]/20 text-[#b388ff]' : 'text-white/50 hover:text-white hover:bg-white/5'
+                      active ? 'bg-[#014582] text-white shadow-md shadow-[#014582]/30' : 'text-white/50 hover:text-white hover:bg-white/5'
                     }`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
-                    <span className="text-[12px] font-medium">{item.label}</span>
+                    <span className="text-[12px] font-medium sidebar-expanded-only">{item.label}</span>
                   </Link>
                 );
               })}
@@ -157,21 +153,24 @@ export function MfgSidebar() {
         ))}
       </div>
 
-      <div className="px-3 pb-6 flex-shrink-0">
-        <div className="p-4 bg-[#014582]/10 rounded-xl border border-[#014582]/20">
-          <Home className="w-5 h-5 text-[#b388ff] mb-2" />
-          <p className="text-sm font-semibold text-white">Need Help?</p>
-          <p className="text-xs text-white/40 mt-1">Contact the support team</p>
-        </div>
+      <div className="px-3 pb-4 flex-shrink-0">
+        {!collapsed && (
+          <div className="p-4 bg-[#014582]/10 rounded-xl border border-[#014582]/20 sidebar-help sidebar-expanded-only">
+            <Home className="w-5 h-5 text-white mb-2" />
+            <p className="text-sm font-semibold text-white">Need Help?</p>
+            <p className="text-xs text-white/40 mt-1">Contact the support team</p>
+          </div>
+        )}
         <button
           type="button"
+          title="Logout"
           onClick={() => void performLogout()}
           className="w-full flex items-center gap-3 px-3 py-2.5 mt-3 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all"
         >
           <LogOut className="w-4 h-4" />
-          <span className="text-sm font-medium">Logout</span>
+          <span className="text-sm font-medium sidebar-expanded-only">Logout</span>
         </button>
       </div>
-    </div>
+    </CollapsibleSidebar>
   );
 }

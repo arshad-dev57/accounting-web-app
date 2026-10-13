@@ -24,6 +24,7 @@ import {
 } from '../../lib/support-ticket-service';
 import { usePermissions } from '../../lib/usePermissions';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
+import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import GlobalSearch from '../../components/GlobalSearch';
 
@@ -172,18 +173,25 @@ export default function SupportTicketsPage() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <div className="w-56 min-h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0">
+      <CollapsibleSidebar
+        expandedClassName="w-56"
+        expandedWidth={224}
+        fixed={false}
+        fullHeight={false}
+        bgClassName="bg-[#1a1a2e]"
+      >
         <BrandHeader subtitle="Support" compact />
         <div className="flex-1 px-3 py-4">
           <Link
             href="/dashboard"
+            title="Back to Dashboard"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/60 hover:text-white hover:bg-white/5 text-sm"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
+            <span className="sidebar-expanded-only">Back to Dashboard</span>
           </Link>
         </div>
-      </div>
+      </CollapsibleSidebar>
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">

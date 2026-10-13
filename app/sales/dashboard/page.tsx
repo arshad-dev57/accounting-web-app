@@ -39,6 +39,10 @@ import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
 import { useModulePageVisible } from '../../../components/ModuleViewHost';
 import { browserCompanyAuthHeaders } from '../../../lib/company-api-headers';
 import { useCompanyOptional } from '../../../lib/company-context';
+import DashboardHeroBanner, {
+  heroChipClass,
+  heroIconBtnClass,
+} from '../../../components/DashboardHeroBanner';
 
 type TrendPoint = {
   date: string;
@@ -303,8 +307,6 @@ export function SalesDashboardPage() {
   const collected = invoices?.stats?.paidAmount ?? 0;
   const outstanding = invoices?.stats?.outstanding ?? 0;
   const creditAmount = data?.credits?.creditAmount ?? 0;
-  const creditRemaining = data?.credits?.remainingAmount ?? 0;
-  const creditCount = data?.credits?.total ?? 0;
   const posRevenue = pos?.revenue ?? 0;
   const posCount = pos?.count ?? 0;
   const combinedRevenue = (orders?.revenue ?? 0) + posRevenue;
@@ -427,54 +429,51 @@ export function SalesDashboardPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sales Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {isBusy && data ? (
-              <span className="inline-flex items-center gap-1.5 text-[#014582] font-medium">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                {loadingMessage}
-              </span>
-            ) : (
-              <>
-                POS, orders, invoices and collections for {periodLabel.toLowerCase()}
-                {selectedFiscalYear?.name ? ` · ${selectedFiscalYear.name}` : ''}
-              </>
-            )}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {TIME_PERIODS.map((p) => (
+      <DashboardHeroBanner
+        badge="Sales Layer"
+        title="Sales Dashboard"
+        subtitle={
+          isBusy && data ? (
+            <span className="inline-flex items-center gap-1.5 font-medium text-white">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              {loadingMessage}
+            </span>
+          ) : (
+            <>
+              POS, orders, invoices and collections for {periodLabel.toLowerCase()}
+              {selectedFiscalYear?.name ? ` · ${selectedFiscalYear.name}` : ''}
+            </>
+          )
+        }
+        actions={
+          <>
+            {TIME_PERIODS.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => selectPeriod(p.label, p.value)}
+                disabled={isBusy}
+                className={heroChipClass(periodLabel === p.label)}
+              >
+                {p.label}
+              </button>
+            ))}
             <button
-              key={p.label}
-              onClick={() => selectPeriod(p.label, p.value)}
+              type="button"
+              onClick={() => {
+                setLoadingMessage('Refreshing dashboard...');
+                setRefreshing(true);
+                fetchDashboard(period, { refresh: true, force: true });
+              }}
               disabled={isBusy}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                periodLabel === p.label
-                  ? 'bg-[#014582] text-white shadow-sm'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
+              className={heroIconBtnClass()}
+              aria-label="Refresh dashboard"
             >
-              {p.label}
+              <RefreshCw className={`w-4 h-4 ${isBusy ? 'animate-spin' : ''}`} />
             </button>
-          ))}
-          <button
-            onClick={() => {
-              setLoadingMessage('Refreshing dashboard...');
-              setRefreshing(true);
-              fetchDashboard(period, { refresh: true, force: true });
-            }}
-            disabled={isBusy}
-            className="p-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-            aria-label="Refresh dashboard"
-          >
-            <RefreshCw className={`w-4 h-4 text-gray-600 ${isBusy ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {loading && !data ? (
         <div className="flex flex-col items-center justify-center min-h-[420px] bg-white rounded-xl border border-gray-100 shadow-sm">
@@ -538,30 +537,6 @@ export function SalesDashboardPage() {
           );
         })}
       </div>
-
-      {/* Credits banner */}
-      {canSeeCredits && (
-        <button
-          onClick={() => router.push('/accounting/credit-notes')}
-          className="w-full bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-4 text-left hover:shadow-md transition-all"
-        >
-          <div className="p-3 rounded-xl bg-violet-50 text-violet-600">
-            <StickyNote className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-800">Sales Credits</p>
-            <p className="text-sm text-gray-500">
-              {creditCount === 0
-                ? 'Credit notes posting to AR & GL'
-                : `${creditCount} notes · ${formatCurrency(creditAmount)} issued`}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-lg font-bold text-violet-600">{formatCurrency(creditRemaining)}</p>
-            <p className="text-xs text-gray-400">Unapplied</p>
-          </div>
-        </button>
-      )}
 
       {/* Charts row */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">

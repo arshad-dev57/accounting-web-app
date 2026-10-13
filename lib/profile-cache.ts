@@ -1,6 +1,3 @@
-const APP_LOGO_FALLBACK = '/bisontechs.png';
-const APP_NAME = 'BisonsTechs';
-
 export type CompanyBranding = {
   logo: string;
   organizationName: string;
@@ -58,12 +55,13 @@ export function invalidateProfileCache() {
 
 export function profileToBranding(profile: Record<string, unknown> | null): CompanyBranding {
   if (!profile) {
-    return { logo: APP_LOGO_FALLBACK, organizationName: APP_NAME };
+    return { logo: '', organizationName: '' };
   }
   const businessDetails = profile.businessDetails as { logo?: string } | undefined;
   return {
-    logo: businessDetails?.logo || APP_LOGO_FALLBACK,
-    organizationName: (profile.organizationName as string) || APP_NAME,
+    // Prefer company logo only — do not force static BisonsTechs fallback
+    logo: businessDetails?.logo || '',
+    organizationName: (profile.organizationName as string) || '',
   };
 }
 

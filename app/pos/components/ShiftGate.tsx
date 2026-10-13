@@ -5,13 +5,14 @@ import { posTerminalService, posShiftService } from '../../../lib/pos-service';
 import { useLocation } from '../../../lib/location-context';
 import LocationSelect from '../../../components/LocationSelect';
 import { Monitor, ArrowLeft, Settings, Loader2, CheckCircle, XCircle } from 'lucide-react';
-import Image from 'next/image';
 import AppBreadcrumbs from '../../../components/AppBreadcrumbs';
+import { useCompanyBranding } from '../../../components/BrandHeader';
 
 interface Props { onShiftOpened: (shift: any) => void; isAdmin?: boolean; }
 
 export default function ShiftGate({ onShiftOpened, isAdmin }: Props) {
   const { locationIdForApi, isAllLocations, selectedLocation } = useLocation();
+  const { logo, organizationName } = useCompanyBranding();
   const [step, setStep] = useState<'terminal' | 'cash'>('terminal');
   const [terminals, setTerminals] = useState<any[]>([]);
   const [selectedTerminal, setSelectedTerminal] = useState<any>(null);
@@ -83,18 +84,25 @@ export default function ShiftGate({ onShiftOpened, isAdmin }: Props) {
       <AppBreadcrumbs variant="dark" extra={[{ label: 'Open Shift' }]} />
       <div className="min-h-[calc(100vh-40px)] flex items-center justify-center">
       <div className="bg-white border border-gray-200 rounded-3xl shadow-xl p-6 sm:p-12 max-w-xl w-[92%] my-6">
-        {/* Logo */}
+        {/* Company logo */}
         <div className="flex flex-col items-center justify-center gap-2 mb-6">
-          <div className="w-32 h-16 bg-white rounded-xl flex items-center justify-center p-2">
-            <Image
-              src="/bisontechs.png"
-              alt="Bisonstechs"
-              width={120}
-              height={40}
-              className="object-contain"
-            />
+          <div className="w-32 h-16 bg-white rounded-xl flex items-center justify-center p-2 overflow-hidden border border-gray-100">
+            {logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logo}
+                alt={organizationName || 'Company'}
+                className="max-h-14 max-w-full object-contain"
+              />
+            ) : (
+              <span className="text-lg font-bold text-[#014582]">
+                {(organizationName || 'CO').slice(0, 2).toUpperCase()}
+              </span>
+            )}
           </div>
-          <p className="text-xl font-extrabold text-[#014582]">Bisonstechs</p>
+          <p className="text-xl font-extrabold text-[#014582]">
+            {organizationName || 'Company'}
+          </p>
           <p className="text-sm font-medium text-gray-600">Point of Sale</p>
         </div>
 

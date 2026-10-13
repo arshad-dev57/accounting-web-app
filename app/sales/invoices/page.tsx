@@ -4,10 +4,9 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, RefreshCw, Plus, Eye, X, MapPin, Download, Edit3, Save, Loader2, Trash2 } from 'lucide-react';
+import { Search, RefreshCw, Plus, Eye, X, Download, Edit3, Save, Loader2, Trash2 } from 'lucide-react';
 import { SalesInvoice, InvoiceStats } from '@/types/sales-invoice';
 import CreateInvoiceWizard from '@/components/sales-invoices/CreateInvoiceWizard';
-import { useLocationOptional } from '@/lib/location-context';
 import PDFService from '@/lib/pdf-service';
 import { ProductPicker, type PickedProduct } from '@/manufacturing/_components/ProductPicker';
 import { productService } from '../../api/product/route';
@@ -34,7 +33,6 @@ const STATUS_OPTIONS = ['all', 'Draft', 'Posted', 'Partially Paid', 'Paid', 'Can
 
 export function SalesInvoicesPage() {
   const router = useRouter();
-  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -75,16 +73,11 @@ export function SalesInvoicesPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchTerm, selectedLocationId]);
+  }, [statusFilter, searchTerm]);
 
   useEffect(() => {
     fetchInvoices();
   }, []);
-
-  useEffect(() => {
-    fetchInvoices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLocationId]);
 
   const handleCreateSuccess = () => {
     setShowCreateWizard(false);
@@ -219,14 +212,6 @@ export function SalesInvoicesPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Invoices</h1>
         <p className="text-gray-600">Manage your sales invoices and track payments</p>
       </div>
-
-      {selectedLocation && (
-        <div className="mb-4 flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
-          <MapPin className="w-4 h-4 flex-shrink-0" />
-          Showing invoices for <strong>{selectedLocation.name}</strong>
-          <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
-        </div>
-      )}
 
       {/* Stats Cards */}
       {stats && (

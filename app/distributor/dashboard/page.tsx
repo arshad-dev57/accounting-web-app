@@ -17,6 +17,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { fetchDistributorDashboard } from '@/lib/distributor-service';
+import DashboardHeroBanner from '@/components/DashboardHeroBanner';
 
 export default function DistributorDashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -56,37 +57,29 @@ export default function DistributorDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#00274d] via-[#014582] to-blue-700 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/20 uppercase tracking-wider">
-              Executive Distribution Layer
-            </span>
-            <span className="text-xs text-white/70">Real-time ERP Sync</span>
-          </div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Distributor Operational Dashboard</h1>
-          <p className="text-xs text-white/80 mt-1 max-w-xl">
-            Connected overview of Sales, Customer Credit Exposure, Recovery Efficiency, Stock Movement & Salesperson Targets.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/distributor/credit"
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold backdrop-blur-md transition-all flex items-center gap-2 border border-white/20"
-          >
-            <CreditCard className="w-4 h-4" />
-            Check Credit Exposure
-          </Link>
-          <Link
-            href="/distributor/customers"
-            className="px-4 py-2 bg-white text-[#014582] hover:bg-blue-50 rounded-xl text-xs font-bold transition-all shadow-lg flex items-center gap-2"
-          >
-            <Users className="w-4 h-4" />
-            Customer 360
-          </Link>
-        </div>
-      </div>
+      <DashboardHeroBanner
+        badge="Executive Distribution Layer"
+        title="Distributor Operational Dashboard"
+        subtitle="Connected overview of Sales, Customer Credit Exposure, Recovery Efficiency, Stock Movement & Salesperson Targets."
+        actions={
+          <>
+            <Link
+              href="/distributor/credit"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold backdrop-blur-md transition-all flex items-center gap-2 border border-white/20"
+            >
+              <CreditCard className="w-4 h-4" />
+              Check Credit Exposure
+            </Link>
+            <Link
+              href="/distributor/customers"
+              className="px-4 py-2 bg-white text-[#014582] hover:bg-blue-50 rounded-xl text-xs font-bold transition-all shadow-lg flex items-center gap-2"
+            >
+              <Users className="w-4 h-4" />
+              Customer 360
+            </Link>
+          </>
+        }
+      />
 
       {/* Primary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

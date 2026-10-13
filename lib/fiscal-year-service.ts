@@ -34,6 +34,7 @@ export const FISCAL_YEAR_QUERY_PATHS = [
   '/api/accounts-receivable',
   '/api/aged-receivables',
   '/api/expenses',
+  '/api/budgets',
   '/api/income',
   '/api/journal-entries',
   '/api/payments-made',

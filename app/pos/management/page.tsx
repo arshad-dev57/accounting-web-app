@@ -138,14 +138,15 @@ function TerminalsTab({
   const create = async () => {
     if (!isAdmin) { setError('Only admin can create terminals'); return; }
     if (!form.name || !form.code) { setError('Name and Code are required'); return; }
-    if (!form.locationId) { setError('Select a warehouse/shop location'); return; }
     setSaving(true); setError('');
     try {
-      const created: any = await posTerminalService.create({
+      const payload: { name: string; code: string; locationId?: string } = {
         name: form.name,
         code: form.code,
-        locationId: form.locationId,
-      });
+      };
+      // Warehouse is optional — omit for company-wide inventory on this terminal
+      if (form.locationId) payload.locationId = form.locationId;
+      const created: any = await posTerminalService.create(payload);
       const terminalId = created?.data?.id ?? created?.id;
       if (form.userId && terminalId) {
         try {
@@ -166,7 +167,8 @@ function TerminalsTab({
     finally { setSaving(false); }
   };
 
-  const eligibleUsers = usersEligibleForLocation(companyUsers, form.locationId);
+  // All active company users can be assigned (users are company-scoped)
+  const eligibleUsers = usersEligibleForLocation(companyUsers, '');
 
   const toggle = async (id:string, isActive:boolean) => {
     await posTerminalService.update(id, { isActive:!isActive });
@@ -192,7 +194,7 @@ function TerminalsTab({
         <div style={{ ...card, marginBottom:'20px', border:'1px solid rgba(1,69,130,0.25)' }}>
           <h3 style={{ color:'#0f172a', marginTop:0, marginBottom:'8px', fontSize:'15px' }}>Create Terminal</h3>
           <p style={{ color:'#64748b', fontSize:'13px', marginTop:0, marginBottom:'16px' }}>
-            Optionally assign a cashier to this terminal. They will only see this terminal on the desktop POS app.
+            Warehouse is optional. Leave it blank for company-wide inventory. Assign a user so they only see this terminal on desktop POS.
           </p>
           <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' as const }}>
             <input style={{ ...input, flex:1, minWidth:'150px' }} placeholder="Terminal Name (e.g. Main Counter)" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} />
@@ -200,18 +202,9 @@ function TerminalsTab({
             <select
               style={{ ...input, flex:1, minWidth:'180px' }}
               value={form.locationId}
-              onChange={(e) => {
-                const locationId = e.target.value;
-                setForm((p) => ({
-                  ...p,
-                  locationId,
-                  userId: p.userId && usersEligibleForLocation(companyUsers, locationId).some((u) => u.id === p.userId)
-                    ? p.userId
-                    : '',
-                }));
-              }}
+              onChange={(e) => setForm((p) => ({ ...p, locationId: e.target.value }))}
             >
-              <option value="">Select location…</option>
+              <option value="">— No warehouse (all inventory) —</option>
               {locations.map((l) => (
                 <option key={l.id} value={l.id} style={{ color: '#111' }}>
                   {l.name} ({l.code}) · {l.type}
@@ -222,9 +215,8 @@ function TerminalsTab({
               style={{ ...input, flex:1, minWidth:'200px' }}
               value={form.userId}
               onChange={(e) => setForm((p) => ({ ...p, userId: e.target.value }))}
-              disabled={!form.locationId}
             >
-              <option value="">{form.locationId ? 'Assign user (optional)…' : 'Select location first…'}</option>
+              <option value="">Assign user (optional)…</option>
               {eligibleUsers.map((u) => {
                 const onOther = u.assignedTerminalId && u.assignedTerminal
                   ? ` (on ${u.assignedTerminal.name || u.assignedTerminal.code})`
@@ -256,10 +248,16 @@ function TerminalsTab({
                   <td style={tCell}><span style={{ color:'#0f172a', fontWeight:600 }}>{t.name}</span></td>
                   <td style={tCell}><code style={{ background:'rgba(1,69,130,0.08)', color:'#014582', padding:'2px 8px', borderRadius:'6px', fontSize:'12px' }}>{t.code}</code></td>
                   <td style={tCell}>
-                    {t.location?.name || '—'}
-                    {t.location?.code ? (
-                      <span style={{ color:'#64748b', marginLeft:6, fontSize:11 }}>({t.location.code})</span>
-                    ) : null}
+                    {t.location?.name ? (
+                      <>
+                        {t.location.name}
+                        {t.location?.code ? (
+                          <span style={{ color:'#64748b', marginLeft:6, fontSize:11 }}>({t.location.code})</span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span style={{ color:'#64748b' }}>All inventory</span>
+                    )}
                   </td>
                   <td style={tCell}>
                     {assigned ? (

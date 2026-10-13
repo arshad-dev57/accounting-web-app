@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import React from 'react';
 import { Factory } from 'lucide-react';
 import { TopBarBrand } from '../../components/BrandHeader';
+import { SidebarMain } from '../../components/CollapsibleSidebar';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
@@ -45,7 +46,7 @@ export default function ManufacturingLayout({ children }: { children: React.Reac
     <FiscalYearProvider>
       <LocationProvider allowAll allowAllUsers>
         <MfgSidebar />
-        <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
+        <SidebarMain className="bg-gray-50">
           <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
             <TopBarBrand title="Manufacturing" icon={<Factory className="w-5 h-5 text-[#014582]" />} />
             <div className="flex items-center gap-4">
@@ -58,7 +59,7 @@ export default function ManufacturingLayout({ children }: { children: React.Reac
           </header>
           <AppBreadcrumbs />
           <div className="flex-1 p-6">{children}</div>
-        </div>
+        </SidebarMain>
       </LocationProvider>
     </FiscalYearProvider>
   );

@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { loadCurrencyLocal } from '../../../lib/currency-service';
-import { useLocationOptional } from '@/lib/location-context';
 
 type ReportRow = {
   id: string;
@@ -91,7 +90,6 @@ function authHeaders(): HeadersInit {
 }
 
 export function SalesReportsPage() {
-  const { selectedLocationId, selectedLocation } = useLocationOptional();
   const [period, setPeriod] = useState('month');
   const [channel, setChannel] = useState('all');
   const [status, setStatus] = useState('all');
@@ -121,7 +119,7 @@ export function SalesReportsPage() {
       if (endDate) qs.set('endDate', endDate);
     }
     return qs.toString();
-  }, [channel, period, status, search, page, startDate, endDate, selectedLocationId]);
+  }, [channel, period, status, search, page, startDate, endDate]);
 
   const fetchReport = async () => {
     try {
@@ -315,14 +313,7 @@ export function SalesReportsPage() {
         </div>
       </div>
 
-      {selectedLocation && (
-        <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
-          <MapPin className="w-4 h-4 flex-shrink-0" />
-          Showing report for <strong>{selectedLocation.name}</strong>
-          <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
-        </div>
-      )}
-
+      
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
         <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">

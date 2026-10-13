@@ -32,6 +32,7 @@ import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
+import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
 import { performLogout } from '../../lib/auth-logout';
@@ -41,12 +42,14 @@ import {
   purchasesViewHostConfig,
 } from '../../lib/module-view-host/registries';
 import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
+import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
 
 // ============================================================
 // PURCHASES SIDEBAR
 // ============================================================
 function PurchasesSidebar() {
   const pathname = usePathname();
+  const { collapsed } = useSidebarCollapsed();
   const { hasSubPageAccess, hasModuleAccess, isAdmin } = usePermissions();
   
   const [expandedSections, setExpandedSections] = React.useState({
@@ -109,30 +112,35 @@ function PurchasesSidebar() {
   });
 
   return (
-    <div className="w-64 h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0 fixed left-0 top-0">
+    <CollapsibleSidebar expandedClassName="w-64" expandedWidth={256}>
       <BrandHeader subtitle="Purchases Module" />
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar">
-        <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3">
-          PURCHASES NAVIGATION
-        </p>
+        {!collapsed && (
+          <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3 sidebar-expanded-only">
+            PURCHASES NAVIGATION
+          </p>
+        )}
 
         {/* Purchases Core */}
         <div>
-          <button
-            onClick={() => toggleSection('purchasesCore')}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-white/5 transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-white/40">
-                <ShoppingCart className="w-4 h-4" />
-              </span>
-              <span className="text-sm font-medium text-white/90">Purchases Core</span>
-            </div>
-            <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${expandedSections.purchasesCore ? 'rotate-180' : ''}`} />
-          </button>
-          {expandedSections.purchasesCore && filteredPurchasesPages.length > 0 && (
+          {!collapsed && (
+            <button
+              type="button"
+              onClick={() => toggleSection('purchasesCore')}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-white/5 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-white/40">
+                  <ShoppingCart className="w-4 h-4" />
+                </span>
+                <span className="text-sm font-medium text-white/90 sidebar-expanded-only">Purchases Core</span>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-white/40 transition-transform sidebar-expanded-only ${expandedSections.purchasesCore ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+          {(collapsed || expandedSections.purchasesCore) && filteredPurchasesPages.length > 0 && (
             <div className="ml-6 mt-1 space-y-1">
               {filteredPurchasesPages.map((page) => {
                 const iconMap: Record<string, React.ReactNode> = {
@@ -154,13 +162,14 @@ function PurchasesSidebar() {
                   <Link
                     key={page.path}
                     href={page.path}
+                    title={page.label}
                     {...keepAliveNavProps(purchasesViewHostConfig, page.path)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                      isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
+                      isActive(page.path) ? 'text-white bg-[#014582] shadow-md shadow-[#014582]/30 font-semibold' : 'text-white/70 hover:text-white hover:bg-white/5'
                     }`}
                   >
                     {icon}
-                    <span>{page.label}</span>
+                    <span className="sidebar-expanded-only">{page.label}</span>
                   </Link>
                 );
               })}
@@ -170,19 +179,22 @@ function PurchasesSidebar() {
 
         {/* Returns & Refunds */}
         <div>
-          <button
-            onClick={() => toggleSection('returnsRefunds')}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-white/5 transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-white/40">
-                <Undo2 className="w-4 h-4" />
-              </span>
-              <span className="text-sm font-medium text-white/90">Returns & Refunds</span>
-            </div>
-            <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${expandedSections.returnsRefunds ? 'rotate-180' : ''}`} />
-          </button>
-          {expandedSections.returnsRefunds && filteredReturnsRefundsPages.length > 0 && (
+          {!collapsed && (
+            <button
+              type="button"
+              onClick={() => toggleSection('returnsRefunds')}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-white/5 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-white/40">
+                  <Undo2 className="w-4 h-4" />
+                </span>
+                <span className="text-sm font-medium text-white/90 sidebar-expanded-only">Returns & Refunds</span>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-white/40 transition-transform sidebar-expanded-only ${expandedSections.returnsRefunds ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+          {(collapsed || expandedSections.returnsRefunds) && filteredReturnsRefundsPages.length > 0 && (
             <div className="ml-6 mt-1 space-y-1">
               {filteredReturnsRefundsPages.map((page) => {
                 const iconMap: Record<string, React.ReactNode> = {
@@ -194,13 +206,14 @@ function PurchasesSidebar() {
                   <Link
                     key={page.path}
                     href={page.path}
+                    title={page.label}
                     {...keepAliveNavProps(purchasesViewHostConfig, page.path)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                      isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
+                      isActive(page.path) ? 'text-white bg-[#014582] shadow-md shadow-[#014582]/30 font-semibold' : 'text-white/70 hover:text-white hover:bg-white/5'
                     }`}
                   >
                     {iconMap[page.permission] || <FileText className="w-4 h-4" />}
-                    <span>{page.label}</span>
+                    <span className="sidebar-expanded-only">{page.label}</span>
                   </Link>
                 );
               })}
@@ -210,19 +223,22 @@ function PurchasesSidebar() {
 
         {/* Settings */}
         <div>
-          <button
-            onClick={() => toggleSection('settings')}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-white/5 transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-white/40">
-                <Settings className="w-4 h-4" />
-              </span>
-              <span className="text-sm font-medium text-white/90">Settings</span>
-            </div>
-            <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${expandedSections.settings ? 'rotate-180' : ''}`} />
-          </button>
-          {expandedSections.settings && filteredSettingsPages.length > 0 && (
+          {!collapsed && (
+            <button
+              type="button"
+              onClick={() => toggleSection('settings')}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-white/5 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-white/40">
+                  <Settings className="w-4 h-4" />
+                </span>
+                <span className="text-sm font-medium text-white/90 sidebar-expanded-only">Settings</span>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-white/40 transition-transform sidebar-expanded-only ${expandedSections.settings ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+          {(collapsed || expandedSections.settings) && filteredSettingsPages.length > 0 && (
             <div className="ml-6 mt-1 space-y-1">
               {filteredSettingsPages.map((page) => {
                 const iconMap: Record<string, React.ReactNode> = {
@@ -237,13 +253,14 @@ function PurchasesSidebar() {
                   <Link
                     key={page.path}
                     href={page.path}
+                    title={page.label}
                     {...keepAliveNavProps(purchasesViewHostConfig, page.path)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                      isActive(page.path) ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/5'
+                      isActive(page.path) ? 'text-white bg-[#014582] shadow-md shadow-[#014582]/30 font-semibold' : 'text-white/70 hover:text-white hover:bg-white/5'
                     }`}
                   >
                     {isTax ? <Scale className="w-4 h-4" /> : isPdf ? <FileText className="w-4 h-4" /> : (iconMap[page.permission] || <Settings className="w-4 h-4" />)}
-                    <span>{page.label}</span>
+                    <span className="sidebar-expanded-only">{page.label}</span>
                   </Link>
                 );
               })}
@@ -253,55 +270,62 @@ function PurchasesSidebar() {
 
         <div className="my-4 border-t border-white/10" />
 
-        <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3">
-          MAIN MENU
-        </p>
+        {!collapsed && (
+          <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3 sidebar-expanded-only">
+            MAIN MENU
+          </p>
+        )}
 
         <Link
           href="/dashboard"
+          title="Main Dashboard"
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
         >
           <Home className="w-5 h-5" />
-          <span className="text-sm font-medium">Main Dashboard</span>
+          <span className="text-sm font-medium sidebar-expanded-only">Main Dashboard</span>
         </Link>
 
         {isAdmin || hasModuleAccess('warehouse') && (
           <Link
             href="/warehouse/dashboard"
+            title="Inventory"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
           >
             <Warehouse className="w-5 h-5" />
-            <span className="text-sm font-medium">Inventory</span>
+            <span className="text-sm font-medium sidebar-expanded-only">Inventory</span>
           </Link>
         )}
 
         {isAdmin || hasModuleAccess('accounting') && (
           <Link
             href="/accounting/dashboard"
+            title="Accounting"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
           >
             <Building2 className="w-5 h-5" />
-            <span className="text-sm font-medium">Accounting</span>
+            <span className="text-sm font-medium sidebar-expanded-only">Accounting</span>
           </Link>
         )}
 
         {isAdmin || hasModuleAccess('sales') && (
           <Link
             href="/sales/dashboard"
+            title="Sales"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
           >
             <ShoppingCart className="w-5 h-5" />
-            <span className="text-sm font-medium">Sales</span>
+            <span className="text-sm font-medium sidebar-expanded-only">Sales</span>
           </Link>
         )}
 
         {isAdmin && (
           <Link
             href="/users"
+            title="Users"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
           >
             <Users className="w-5 h-5" />
-            <span className="text-sm font-medium">Users</span>
+            <span className="text-sm font-medium sidebar-expanded-only">Users</span>
           </Link>
         )}
       </div>
@@ -311,29 +335,33 @@ function PurchasesSidebar() {
         {isAdmin && SUBSCRIPTION_PURCHASE_UI_ENABLED && (
           <Link
             href="/plans"
+            title="Subscription Plans"
             className="w-full flex items-center gap-3 px-3 py-2.5 mb-2 rounded-lg transition-all text-white/60 hover:text-white hover:bg-white/5"
           >
             <CreditCard className="w-5 h-5" />
-            <span className="text-sm font-medium">Subscription Plans</span>
+            <span className="text-sm font-medium sidebar-expanded-only">Subscription Plans</span>
           </Link>
         )}
 
-        <div className="p-4 bg-[#00E676]/10 rounded-xl border border-[#00E676]/20">
-          <HelpCircle className="w-5 h-5 text-[#00E676] mb-2" />
-          <p className="text-sm font-semibold text-white">Need Help?</p>
-          <p className="text-xs text-white/40">Contact our support team</p>
-        </div>
+        {!collapsed && (
+          <div className="p-4 bg-[#00E676]/10 rounded-xl border border-[#00E676]/20 sidebar-help sidebar-expanded-only">
+            <HelpCircle className="w-5 h-5 text-[#00E676] mb-2" />
+            <p className="text-sm font-semibold text-white">Need Help?</p>
+            <p className="text-xs text-white/40">Contact our support team</p>
+          </div>
+        )}
 
         <button
           type="button"
+          title="Logout"
           onClick={() => void performLogout()}
           className="w-full flex items-center gap-3 px-3 py-2.5 mt-3 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all"
         >
           <LogOut className="w-5 h-5" />
-          <span className="text-sm font-medium">Logout</span>
+          <span className="text-sm font-medium sidebar-expanded-only">Logout</span>
         </button>
       </div>
-    </div>
+    </CollapsibleSidebar>
   );
 }
 
@@ -349,7 +377,7 @@ export default function PurchasesLayout({
     <FiscalYearProvider>
       <PurchasesSidebar />
 
-      <div className="ml-64 min-h-screen bg-gray-50 flex flex-col">
+      <SidebarMain className="bg-gray-50">
         {/* Top Bar */}
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
           <TopBarBrand
@@ -374,7 +402,7 @@ export default function PurchasesLayout({
             {children}
           </ModuleViewHost>
         </div>
-      </div>
+      </SidebarMain>
     </FiscalYearProvider>
   );
 }

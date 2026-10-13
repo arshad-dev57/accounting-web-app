@@ -5,11 +5,10 @@ export const dynamic = 'force-dynamic';
 import { useState, useCallback, useEffect } from 'react';
 import { 
   Plus, Search, RefreshCw, FileText, Clock, 
-  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, MapPin, Ban, ShoppingCart, Edit3, Send, Download,
+  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, Ban, ShoppingCart, Edit3, Send, Download,
   ArrowLeft, CheckSquare, Square, Users, Package, AlertCircle, CheckCircle2
 } from 'lucide-react';
 import { Quotation, Customer, Product, QuotationLineDraft } from '@/lib/types/quotation';
-import { useLocationOptional } from '@/lib/location-context';
 import PDFService from '@/lib/pdf-service';
 import TaxRateSelect from '@/components/TaxRateSelect';
 
@@ -32,8 +31,7 @@ const pill = (map: Record<string, string>, val: string) =>
 const STATUS_OPTIONS = ['all', 'Draft', 'Pending Approval', 'Approved', 'Sent', 'Accepted', 'Rejected', 'Expired', 'Partially Converted', 'Converted', 'Cancelled'];
 
 export function QuotationsPage() {
-  const { selectedLocationId, selectedLocation } = useLocationOptional();
-  
+
   // Navigation View Modes: 'list' | 'create' | 'detail'
   const [viewMode, setViewMode] = useState<'list' | 'create' | 'detail'>('list');
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
@@ -100,11 +98,8 @@ export function QuotationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchTerm, statusFilter, selectedLocationId]);
+  }, [currentPage, searchTerm, statusFilter]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedLocationId]);
 
   useEffect(() => {
     if (viewMode === 'list') {
@@ -337,14 +332,6 @@ export function QuotationsPage() {
               </button>
             </div>
           </div>
-
-          {selectedLocation && (
-            <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
-              <MapPin className="w-4 h-4 flex-shrink-0" />
-              Showing quotations for <strong>{selectedLocation.name}</strong>
-              <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
-            </div>
-          )}
 
           {/* KPI Dashboard Grid */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -821,7 +808,6 @@ function FullPageCreateQuotation({
   onBack: () => void;
   onSuccess: (msg?: string) => void;
 }) {
-  const { selectedLocationId } = useLocationOptional();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Customer List State (Support Select & Deselect with checkboxes)
@@ -1062,7 +1048,6 @@ function FullPageCreateQuotation({
         notes: notes || null,
         termsConditions: termsConditions || null,
         status: initialStatus,
-        ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
       };
 
       const response = await fetch('/api/quotations', {

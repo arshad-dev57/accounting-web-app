@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { Quotation, QuotationLineDraft, Customer, Product } from '@/lib/types/quotation';
 import TaxRateSelect from '../../../components/TaxRateSelect';
-import { useLocationOptional } from '@/lib/location-context';
 import { ProductPicker, type PickedProduct } from '@/manufacturing/_components/ProductPicker';
 import { productService } from '../../api/product/route';
 
@@ -29,7 +28,6 @@ interface CreateQuotationWizardProps {
 
 export default function CreateQuotationWizard({ onClose, onSuccess, quotation }: CreateQuotationWizardProps) {
   const isEditing = Boolean(quotation?.id);
-  const { selectedLocationId } = useLocationOptional();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -139,7 +137,6 @@ export default function CreateQuotationWizard({ onClose, onSuccess, quotation }:
           q: productSearch,
           limit: '10',
         });
-        if (selectedLocationId) params.append('locationId', selectedLocationId);
 
         const response = await fetch(`/api/product/search?${params.toString()}`, {
           headers,
@@ -158,7 +155,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess, quotation }:
 
     const debounceTimer = setTimeout(searchProducts, 300);
     return () => clearTimeout(debounceTimer);
-  }, [productSearch, selectedLocationId]);
+  }, [productSearch]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PK', {
@@ -300,7 +297,7 @@ export default function CreateQuotationWizard({ onClose, onSuccess, quotation }:
       handleAddProduct(local as Product);
       return;
     }
-    void findProductFromScan(code, selectedLocationId || undefined).then((found) => {
+    void findProductFromScan(code).then((found) => {
       if (!found) {
         setProductSearch(code);
         return;
@@ -348,7 +345,6 @@ export default function CreateQuotationWizard({ onClose, onSuccess, quotation }:
         notes: notes || null,
         termsConditions: termsConditions || null,
         status: 'Draft',
-        ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
       };
 
       const token = localStorage.getItem('auth_token');

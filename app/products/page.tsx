@@ -21,9 +21,11 @@ import { supplierService, Supplier } from '../api/supplier/route';
 import { settingService } from '../api/settings/route';
 import { ProductTaxFields } from '../../components/TaxRateSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
+import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
 import GlobalSearch from '../../components/GlobalSearch';
 import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
+import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
 import { useHardwareBarcodeScanner } from '@/lib/use-hardware-scanner';
 import { BarcodeScannerModal } from '@/lib/barcode-scanner-modal';
 import {
@@ -1674,6 +1676,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 // ============================================================
 export default function ProductsPage() {
   const { isAdmin } = usePermissions();
+  const { collapsed } = useSidebarCollapsed();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -1826,69 +1829,80 @@ const fetchDropdowns = async () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="w-56 min-h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0">
+      <CollapsibleSidebar
+        expandedClassName="w-56"
+        expandedWidth={224}
+        fixed={false}
+        fullHeight={false}
+        bgClassName="bg-[#1a1a2e]"
+      >
         <BrandHeader subtitle="Products" />
 
-        {/* Menu Items */}
         <div className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3">
-            NAVIGATION
-          </p>
+          {!collapsed && (
+            <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3 sidebar-expanded-only">
+              NAVIGATION
+            </p>
+          )}
           
           <Link
             href="/dashboard"
+            title="Main Dashboard"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/60 hover:text-white hover:bg-white/5"
           >
             <Home className="w-5 h-5" />
-            <span className="text-sm font-medium">Main Dashboard</span>
+            <span className="text-sm font-medium sidebar-expanded-only">Main Dashboard</span>
           </Link>
 
           <Link
             href="/warehouse/dashboard"
+            title="Warehouse"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/60 hover:text-white hover:bg-white/5"
           >
             <Building2 className="w-5 h-5" />
-            <span className="text-sm font-medium">Warehouse</span>
+            <span className="text-sm font-medium sidebar-expanded-only">Warehouse</span>
           </Link>
 
           <Link
             href="/accounting/dashboard"
+            title="Accounting"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/60 hover:text-white hover:bg-white/5"
           >
             <Building2 className="w-5 h-5" />
-            <span className="text-sm font-medium">Accounting</span>
+            <span className="text-sm font-medium sidebar-expanded-only">Accounting</span>
           </Link>
 
           <Link
             href="/sales/dashboard"
+            title="Sales"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/60 hover:text-white hover:bg-white/5"
           >
             <ShoppingCart className="w-5 h-5" />
-            <span className="text-sm font-medium">Sales</span>
+            <span className="text-sm font-medium sidebar-expanded-only">Sales</span>
           </Link>
         </div>
 
-        {/* Bottom Section */}
-        <div className="px-3 pb-6 space-y-1">
+        <div className="px-3 pb-4 space-y-1">
           {isAdmin && SUBSCRIPTION_PURCHASE_UI_ENABLED && (
             <Link
               href="/plans"
+              title="Subscription Plans"
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
             >
               <CreditCard className="w-5 h-5" />
-              <span className="text-sm font-medium">Subscription Plans</span>
+              <span className="text-sm font-medium sidebar-expanded-only">Subscription Plans</span>
             </Link>
           )}
           <Link
             href="/warehouse/product-settings"
+            title="Product Settings"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
           >
             <Settings className="w-5 h-5" />
-            <span className="text-sm font-medium">Product Settings</span>
+            <span className="text-sm font-medium sidebar-expanded-only">Product Settings</span>
           </Link>
         </div>
-      </div>
+      </CollapsibleSidebar>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">

@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePermissions } from '../../../lib/usePermissions';
 import { useDashboardFiltersReady } from '../../../lib/use-dashboard-filters-ready';
 import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { useCurrency } from '../../../lib/currency-context';
@@ -11,6 +12,10 @@ import FiscalYearSelect from '../../../components/FiscalYearSelect';
 import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
 import { browserCompanyAuthHeaders } from '../../../lib/company-api-headers';
 import { useCompanyOptional } from '../../../lib/company-context';
+import DashboardHeroBanner, {
+  heroChipClass,
+  heroIconBtnClass,
+} from '../../../components/DashboardHeroBanner';
 import {
   TrendingUp,
   TrendingDown,
@@ -153,6 +158,7 @@ function formatDate(iso?: string) {
 export default function AccountingDashboard() {
   const router = useRouter();
   const companyCtx = useCompanyOptional();
+  const { canWidget, isAdmin } = usePermissions();
   const { symbol: currencySymbol } = useCurrency();
   const formatCurrency = (amount: number) => {
     return `${currencySymbol} ${toNum(amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -222,9 +228,12 @@ export default function AccountingDashboard() {
   }, [filtersReady, selectedFiscalYearId, companyCtx?.activeCompanyId]);
 
   const selectPeriod = (label: string) => {
-    if (loading || refreshing) return;
+    if (label === period && isBusy) return;
     setPeriod(label);
-    fetchDashboard(label);
+    fetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
+    void fetchDashboard(label, { refresh: true, signal: controller.signal });
   };
 
   const kpi = data?.kpi || {};
@@ -430,6 +439,7 @@ export default function AccountingDashboard() {
       trend: formatTrend(toNum(kpi.totalRevenue?.change)),
       trendUp: !!kpi.totalRevenue?.isPositive,
       basis: 'Accrual',
+      visible: canWidget('revenue') || canWidget('financial'),
     },
     {
       label: 'Gross Profit',
@@ -439,6 +449,7 @@ export default function AccountingDashboard() {
       trend: formatTrend(toNum(kpi.grossProfit?.change)),
       trendUp: !!kpi.grossProfit?.isPositive,
       basis: 'Accrual',
+      visible: canWidget('profit') || canWidget('financial'),
     },
     {
       label: 'Net Profit',
@@ -448,6 +459,7 @@ export default function AccountingDashboard() {
       trend: formatTrend(toNum(kpi.netProfit?.change)),
       trendUp: !!kpi.netProfit?.isPositive,
       basis: 'Accrual',
+      visible: canWidget('profit') || canWidget('financial'),
     },
     {
       label: 'Expenses',
@@ -457,6 +469,7 @@ export default function AccountingDashboard() {
       trend: formatTrend(toNum(kpi.totalExpenses?.change)),
       trendUp: !!kpi.totalExpenses?.isPositive,
       basis: 'Accrual',
+      visible: canWidget('expenses') || canWidget('financial'),
     },
     {
       label: 'Bank Balance',
@@ -466,6 +479,7 @@ export default function AccountingDashboard() {
       trend: bankAccountsCount > 0 ? `${bankAccountsCount} accounts` : 'No accounts',
       trendUp: bankBalance >= 0,
       basis: 'Snapshot',
+      visible: canWidget('bank') || canWidget('cash_bank'),
     },
     {
       label: 'Cash',
@@ -475,6 +489,7 @@ export default function AccountingDashboard() {
       trend: 'Cash in Hand',
       trendUp: cashInHand >= 0,
       basis: 'Snapshot',
+      visible: canWidget('cash') || canWidget('cash_bank'),
     },
     {
       label: 'Receivables',
@@ -484,6 +499,7 @@ export default function AccountingDashboard() {
       trend: receivableCount > 0 ? `${receivableCount} open` : 'Clear',
       trendUp: receivables <= 0,
       basis: 'Subledger',
+      visible: canWidget('ar_ap') || canWidget('sales'),
     },
     {
       label: 'Payables',
@@ -493,49 +509,51 @@ export default function AccountingDashboard() {
       trend: payableCount > 0 ? `${payableCount} open` : 'Clear',
       trendUp: payables <= 0,
       basis: 'Subledger',
+      visible: canWidget('ar_ap') || canWidget('purchases'),
     },
-  ];
+  ].filter((item) => item.visible);
 
   const isBusy = loading || refreshing;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Accounting Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1">
+      <DashboardHeroBanner
+        badge="Accounting Layer"
+        title="Accounting Dashboard"
+        subtitle={
+          <>
             Accrual P&amp;L (posted ledger) · AR/AP subledger · cash/bank snapshots · {period.toLowerCase()}
             {selectedFiscalYear ? ` · ${selectedFiscalYear.name}` : ''}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <FiscalYearSelect compact showManageLink={false} />
-          {TIME_PERIODS.map((p) => (
+          </>
+        }
+        actions={
+          <>
+            {TIME_PERIODS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => selectPeriod(p)}
+                className={heroChipClass(period === p)}
+              >
+                {p}
+              </button>
+            ))}
             <button
-              key={p}
-              onClick={() => selectPeriod(p)}
-              disabled={isBusy}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                period === p
-                  ? 'bg-[#1088dd] text-white shadow-sm'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
+              type="button"
+              onClick={() => {
+                fetchAbortRef.current?.abort();
+                const controller = new AbortController();
+                fetchAbortRef.current = controller;
+                void fetchDashboard(period, { refresh: true, signal: controller.signal });
+              }}
+              className={heroIconBtnClass()}
+              aria-label="Refresh dashboard"
             >
-              {p}
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
-          ))}
-          <button
-            onClick={() => fetchDashboard(period, { refresh: true })}
-            disabled={isBusy}
-            className="p-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-            aria-label="Refresh dashboard"
-          >
-            <RefreshCw className={`w-4 h-4 text-gray-600 ${isBusy ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {loading && !data ? (
         <div className="flex flex-col items-center justify-center min-h-[420px] bg-white rounded-xl border border-gray-100 shadow-sm">
@@ -546,53 +564,76 @@ export default function AccountingDashboard() {
       ) : error && !data ? (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600">{error}</div>
       ) : (
-        <>
-          {/* Net profit summary — IFRS-style P&L headline */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  Net Profit · {period}
-                </p>
-                <p
-                  className={`text-3xl font-bold mt-1 ${
-                    netProfit >= 0 ? 'text-gray-900' : 'text-red-600'
-                  }`}
-                >
-                  {formatCurrency(netProfit)}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Margin {profitMargin.toFixed(1)}% · Revenue {formatCurrency(revenue)} − COGS &amp;
-                  expenses {formatCurrency(expenses)}
-                  {toNum(kpi.netProfit?.change) !== 0
-                    ? ` · vs prior period ${formatTrend(toNum(kpi.netProfit?.change))}`
-                    : ''}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+        <div className="relative">
+          {refreshing && (
+            <div
+              className="absolute inset-0 z-20 flex items-start justify-center pt-28 rounded-xl bg-white/55 backdrop-blur-[1px] transition-all"
+              aria-live="polite"
+              aria-busy="true"
+            >
+              <div className="sticky top-28 flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-5 py-3 shadow-lg">
+                <Loader2 className="w-5 h-5 animate-spin text-[#014582]" />
                 <div>
-                  <p className="text-xs text-gray-400">Revenue</p>
-                  <p className="text-lg font-bold text-emerald-600">{formatCurrency(revenue)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400">Gross Profit</p>
-                  <p className={`text-lg font-bold ${grossProfit >= 0 ? 'text-lime-700' : 'text-red-600'}`}>
-                    {formatCurrency(grossProfit)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400">Expenses</p>
-                  <p className="text-lg font-bold text-red-600">{formatCurrency(expenses)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400">Bank + Cash</p>
-                  <p className="text-lg font-bold text-[#1088dd]">
-                    {formatCurrency(bankBalance + cashInHand)}
-                  </p>
+                  <p className="text-sm font-semibold text-gray-800">Updating Dashboard</p>
+                  <p className="text-xs text-gray-500">Loading {period.toLowerCase()} data...</p>
                 </div>
               </div>
             </div>
-          </div>
+          )}
+
+          <div
+            className={`space-y-6 transition-opacity duration-200 ${
+              refreshing ? 'opacity-50 pointer-events-none select-none' : ''
+            }`}
+          >
+          {/* Net profit summary — IFRS-style P&L headline */}
+          {(canWidget('profit') || canWidget('financial')) && (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Net Profit · {period}
+                  </p>
+                  <p
+                    className={`text-3xl font-bold mt-1 ${
+                      netProfit >= 0 ? 'text-gray-900' : 'text-red-600'
+                    }`}
+                  >
+                    {formatCurrency(netProfit)}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Margin {profitMargin.toFixed(1)}% · Revenue {formatCurrency(revenue)} − COGS &amp;
+                    expenses {formatCurrency(expenses)}
+                    {toNum(kpi.netProfit?.change) !== 0
+                      ? ` · vs prior period ${formatTrend(toNum(kpi.netProfit?.change))}`
+                      : ''}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                  <div>
+                    <p className="text-xs text-gray-400">Revenue</p>
+                    <p className="text-lg font-bold text-emerald-600">{formatCurrency(revenue)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Gross Profit</p>
+                    <p className={`text-lg font-bold ${grossProfit >= 0 ? 'text-lime-700' : 'text-red-600'}`}>
+                      {formatCurrency(grossProfit)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Expenses</p>
+                    <p className="text-lg font-bold text-red-600">{formatCurrency(expenses)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Bank + Cash</p>
+                    <p className="text-lg font-bold text-[#1088dd]">
+                      {formatCurrency(bankBalance + cashInHand)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* KPI cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -1026,7 +1067,8 @@ export default function AccountingDashboard() {
               />
             </div>
           </div>
-        </>
+          </div>
+        </div>
       )}
     </div>
   );

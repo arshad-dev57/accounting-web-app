@@ -37,6 +37,10 @@ import { useFiscalYear } from '../../../lib/fiscal-year-context';
 import { getStoredFiscalYearId } from '../../../lib/fiscal-year-service';
 import { browserCompanyAuthHeaders } from '../../../lib/company-api-headers';
 import { useCompanyOptional } from '../../../lib/company-context';
+import DashboardHeroBanner, {
+  heroChipClass,
+  heroIconBtnClass,
+} from '../../../components/DashboardHeroBanner';
 
 type SpendPoint = {
   date: string;
@@ -277,41 +281,40 @@ export default function PurchasesDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Purchases Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1">
+      <DashboardHeroBanner
+        badge="Purchases Layer"
+        title="Purchases Dashboard"
+        subtitle={
+          <>
             Orders, spend, payables and supplier activity for {periodLabel.toLowerCase()}
             {selectedFiscalYear?.name ? ` · ${selectedFiscalYear.name}` : ''}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {TIME_PERIODS.map((p) => (
+          </>
+        }
+        actions={
+          <>
+            {TIME_PERIODS.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => selectPeriod(p.label, p.value)}
+                disabled={isBusy}
+                className={heroChipClass(periodLabel === p.label)}
+              >
+                {p.label}
+              </button>
+            ))}
             <button
-              key={p.label}
-              onClick={() => selectPeriod(p.label, p.value)}
+              type="button"
+              onClick={() => fetchDashboard(period, { refresh: true })}
               disabled={isBusy}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                periodLabel === p.label
-                  ? 'bg-[#00E676] text-white shadow-sm'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
+              className={heroIconBtnClass()}
+              aria-label="Refresh dashboard"
             >
-              {p.label}
+              <RefreshCw className={`w-4 h-4 ${isBusy ? 'animate-spin' : ''}`} />
             </button>
-          ))}
-          <button
-            onClick={() => fetchDashboard(period, { refresh: true })}
-            disabled={isBusy}
-            className="p-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-            aria-label="Refresh dashboard"
-          >
-            <RefreshCw className={`w-4 h-4 text-gray-600 ${isBusy ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {loading ? (
         <div className="flex flex-col items-center justify-center min-h-[420px] bg-white rounded-xl border border-gray-100 shadow-sm">

@@ -29,7 +29,7 @@ import {
   History, Building as BuildingIcon, Hash,
   Banknote as BanknoteIcon, CreditCard, ArrowLeftRight
 } from 'lucide-react';
-import { bankAccountService, BankAccount, BankAccountStats } from '@/lib/bank-accounts-service';
+import { bankAccountService, BankAccount, BankAccountStats, BankAccountTransaction } from '@/lib/bank-accounts-service';
 import CreateBankAccountForm from '@/components/accounting/CreateBankAccountForm';
 
 // ─── TYPES ─────────────────────────────────────────────────────
@@ -121,7 +121,6 @@ export default function BankAccountsPage() {
     }
   }, [filter, searchTerm, pagination.page, pagination.limit]);
 
-  // ─── Load More ──────────────────────────────────────────────
 
   const loadMore = useCallback(async () => {
     if (!pagination.hasNext || loadingMore) return;
@@ -144,13 +143,10 @@ export default function BankAccountsPage() {
     }
   }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm]);
 
-  // ─── Initial Fetch ──────────────────────────────────────────
-
   useEffect(() => {
     fetchAccounts(true);
   }, []);
 
-  // ─── Search ──────────────────────────────────────────────────
 
   const handleSearch = (query: string) => {
     setSearchTerm(query);
@@ -352,6 +348,10 @@ export default function BankAccountsPage() {
                 const color = getColorForAccount(account.accountName);
                 const isActive = account.status === 'Active';
                 const balancePositive = account.currentBalance >= 0;
+                const isCash =
+                  String(account.accountType || '').toLowerCase() === 'cash' ||
+                  String(account.bankName || '').toLowerCase() === 'cash' ||
+                  /cash in hand/i.test(account.accountName || '');
 
                 return (
                   <div
@@ -362,11 +362,20 @@ export default function BankAccountsPage() {
                     <div className="p-3 md:p-4">
                       <div className="flex items-center gap-3 md:gap-4">
                         <div className={`p-2 md:p-2.5 rounded-xl`} style={{ backgroundColor: `${color}20` }}>
-                          <Banknote className="w-4 h-4 md:w-5 md:h-5" style={{ color }} />
+                          {isCash ? (
+                            <Wallet className="w-4 h-4 md:w-5 md:h-5" style={{ color }} />
+                          ) : (
+                            <Banknote className="w-4 h-4 md:w-5 md:h-5" style={{ color }} />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="font-semibold text-gray-800 text-sm md:text-base truncate">{account.accountName}</p>
+                            {isCash && (
+                              <span className="text-[10px] md:text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                Cash
+                              </span>
+                            )}
                             <span className={`text-[10px] md:text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full ${getStatusColor(account.status)}`}>
                               {account.status}
                             </span>
@@ -535,10 +544,45 @@ function AccountDetailModal({
 }: any) {
   const color = getColorForAccount(account.accountName);
   const balancePositive = account.currentBalance >= 0;
+  const [txns, setTxns] = useState<BankAccountTransaction[]>([]);
+  const [txLoading, setTxLoading] = useState(true);
+  const [txPage, setTxPage] = useState(1);
+  const [txPages, setTxPages] = useState(1);
+  const [txTotal, setTxTotal] = useState(0);
+  const [txSearch, setTxSearch] = useState('');
+  const [txError, setTxError] = useState('');
+
+  const loadTransactions = useCallback(
+    async (page = 1, search = txSearch) => {
+      setTxLoading(true);
+      setTxError('');
+      try {
+        const res = await bankAccountService.getTransactions(account.id, {
+          page,
+          limit: 15,
+          search: search.trim() || undefined,
+        });
+        setTxns(res.data || []);
+        setTxPage(res.page);
+        setTxPages(res.pages);
+        setTxTotal(res.total);
+      } catch (err: unknown) {
+        setTxError(err instanceof Error ? err.message : 'Failed to load transactions');
+        setTxns([]);
+      } finally {
+        setTxLoading(false);
+      }
+    },
+    [account.id, txSearch]
+  );
+
+  useEffect(() => {
+    loadTransactions(1);
+  }, [account.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-hidden shadow-2xl">
+      <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col">
         <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
           <div className="flex items-start gap-3 md:gap-4">
             <div className="p-2 md:p-2.5 rounded-xl" style={{ backgroundColor: `${color}20` }}>
@@ -558,7 +602,7 @@ function AccountDetailModal({
           </button>
         </div>
 
-        <div className="p-4 md:p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+        <div className="p-4 md:p-6 overflow-y-auto flex-1">
           <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4">
             <div className="bg-gray-50 rounded-xl p-3 md:p-4">
               <p className="text-[10px] md:text-xs text-gray-500">Opening Balance</p>
@@ -572,37 +616,25 @@ function AccountDetailModal({
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between py-2 border-b border-gray-50">
-              <span className="text-xs text-gray-400 font-medium">Bank Name</span>
-              <span className="text-sm font-medium text-gray-800">{account.bankName}</span>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 mb-4 text-sm">
+            <div className="flex justify-between py-1.5 border-b border-gray-50">
+              <span className="text-xs text-gray-400">Type</span>
+              <span className="font-medium text-gray-800">{account.accountType}</span>
             </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-50">
-              <span className="text-xs text-gray-400 font-medium">Account Number</span>
-              <span className="text-sm font-medium text-gray-800">{account.accountNumber}</span>
+            <div className="flex justify-between py-1.5 border-b border-gray-50">
+              <span className="text-xs text-gray-400">Currency</span>
+              <span className="font-medium text-gray-800">{account.currency}</span>
             </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-50">
-              <span className="text-xs text-gray-400 font-medium">Branch Code</span>
-              <span className="text-sm font-medium text-gray-800">{account.branchCode || '—'}</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-50">
-              <span className="text-xs text-gray-400 font-medium">Account Type</span>
-              <span className="text-sm font-medium text-gray-800">{account.accountType}</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-50">
-              <span className="text-xs text-gray-400 font-medium">Currency</span>
-              <span className="text-sm font-medium text-gray-800">{account.currency}</span>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <span className="text-xs text-gray-400 font-medium">Status</span>
-              <span className="flex items-center gap-1.5 text-sm font-medium text-gray-800">
+            <div className="flex justify-between py-1.5 border-b border-gray-50">
+              <span className="text-xs text-gray-400">Status</span>
+              <span className="flex items-center gap-1.5 font-medium text-gray-800">
                 <span className={`w-2 h-2 rounded-full ${getStatusDot(account.status)}`} />
                 {account.status}
               </span>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
+          <div className="flex flex-wrap gap-2 mb-5">
             <button
               type="button"
               onClick={onAddMoney}
@@ -619,6 +651,125 @@ function AccountDetailModal({
               <ArrowLeftRight className="w-3.5 h-3.5" />
               Transfer
             </button>
+          </div>
+
+          <div className="border-t border-gray-100 pt-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+              <div>
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <History className="w-4 h-4 text-[#014582]" />
+                  Transactions
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">{txTotal} posted entries through this bank</p>
+              </div>
+              <div className="relative w-full sm:w-56">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                <input
+                  value={txSearch}
+                  onChange={(e) => setTxSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') loadTransactions(1, txSearch);
+                  }}
+                  placeholder="Search description / ref…"
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 py-1.5 pl-8 pr-2 text-xs outline-none focus:border-[#014582] focus:bg-white"
+                />
+              </div>
+            </div>
+
+            {txError && (
+              <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+                {txError}
+              </div>
+            )}
+
+            <div className="rounded-xl border border-gray-100 overflow-hidden">
+              <div className="max-h-[320px] overflow-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-gray-50 text-[10px] uppercase tracking-wide text-gray-500">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">Date</th>
+                      <th className="px-3 py-2 text-left font-medium">Particulars</th>
+                      <th className="px-3 py-2 text-right font-medium">In</th>
+                      <th className="px-3 py-2 text-right font-medium">Out</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {txLoading ? (
+                      <tr>
+                        <td colSpan={4} className="px-3 py-10 text-center text-gray-400">
+                          <span className="inline-flex items-center gap-2 text-xs">
+                            <Loader2 className="w-4 h-4 animate-spin text-[#014582]" />
+                            Loading transactions…
+                          </span>
+                        </td>
+                      </tr>
+                    ) : txns.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-3 py-10 text-center text-gray-400 text-xs">
+                          No transactions found for this bank account.
+                        </td>
+                      </tr>
+                    ) : (
+                      txns.map((t) => (
+                        <tr key={t.id} className="border-t border-gray-50 hover:bg-gray-50/80">
+                          <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600">
+                            {t.date
+                              ? new Date(t.date).toLocaleDateString('en-PK', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                })
+                              : '—'}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <p className="text-xs font-medium text-gray-800 truncate max-w-[240px]">
+                              {t.description || t.entryNumber || '—'}
+                            </p>
+                            <p className="text-[10px] text-gray-400">
+                              {t.entryNumber}
+                              {t.reference ? ` · ${t.reference}` : ''}
+                              {t.type ? ` · ${t.type}` : ''}
+                            </p>
+                          </td>
+                          <td className="px-3 py-2.5 text-right text-xs font-semibold text-emerald-600">
+                            {t.debit > 0 ? formatCurrency(t.debit) : ''}
+                          </td>
+                          <td className="px-3 py-2.5 text-right text-xs font-semibold text-red-600">
+                            {t.credit > 0 ? formatCurrency(t.credit) : ''}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {txPages > 1 && (
+              <div className="flex items-center justify-between mt-3">
+                <p className="text-[11px] text-gray-400">
+                  Page {txPage} of {txPages}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={txPage <= 1 || txLoading}
+                    onClick={() => loadTransactions(txPage - 1)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 disabled:opacity-40"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" /> Prev
+                  </button>
+                  <button
+                    type="button"
+                    disabled={txPage >= txPages || txLoading}
+                    onClick={() => loadTransactions(txPage + 1)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 disabled:opacity-40"
+                  >
+                    Next <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

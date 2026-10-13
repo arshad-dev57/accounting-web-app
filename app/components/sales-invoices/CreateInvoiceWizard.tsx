@@ -5,7 +5,6 @@ import { X, ChevronRight } from 'lucide-react';
 import { OrderForInvoicing, InvoiceLineDraft } from '@/types/sales-invoice';
 import TaxRateSelect from '../../../components/TaxRateSelect';
 import { computeTaxLine, taxService, type TaxPricingModel } from '../../../lib/tax-service';
-import { useLocation } from '@/lib/location-context';
 
 interface CreateInvoiceWizardProps {
   onClose: () => void;
@@ -13,7 +12,6 @@ interface CreateInvoiceWizardProps {
 }
 
 export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoiceWizardProps) {
-  const { selectedLocationId, selectedLocation } = useLocation();
   const [step, setStep] = useState(0);
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [orderSearchResults, setOrderSearchResults] = useState<OrderForInvoicing[]>([]);
@@ -43,24 +41,9 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [orderSearchQuery, selectedLocationId]);
-
-  // Clear selection when warehouse changes
-  useEffect(() => {
-    setSelectedOrder(null);
-    setLineDrafts([]);
-    setOrderSearchResults([]);
-    if (orderSearchQuery.length >= 2) {
-      searchOrders(orderSearchQuery);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLocationId]);
+  }, [orderSearchQuery]);
 
   const searchOrders = async (query: string) => {
-    if (!selectedLocationId) {
-      setOrderSearchResults([]);
-      return;
-    }
     try {
       setIsSearchingOrders(true);
       const token = localStorage.getItem('auth_token');
@@ -73,7 +56,6 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
       const params = new URLSearchParams({
         search: query,
         limit: '10',
-        locationId: selectedLocationId,
       });
 
       const response = await fetch(
@@ -169,7 +151,6 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
         dueDate: dueDate.toISOString().split('T')[0],
         paymentTerms: paymentTerms || 'Net 30',
         notes: notes || null,
-        ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
       };
 
       const response = await fetch('/api/sales-invoices/from-order', {
@@ -236,23 +217,12 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
           {step === 0 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Step 1: Find Order</h3>
-              {selectedLocation ? (
-                <p className="text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
-                  Searching orders for <strong>{selectedLocation.name}</strong>
-                  <span className="text-sky-600 font-mono text-xs ml-1">({selectedLocation.code})</span>
-                </p>
-              ) : (
-                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                  Select a warehouse from the top bar first
-                </p>
-              )}
               <input
                 type="text"
                 placeholder="Search order # or customer..."
                 value={orderSearchQuery}
                 onChange={(e) => setOrderSearchQuery(e.target.value)}
-                disabled={!selectedLocationId}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#014582] disabled:bg-gray-50 disabled:text-gray-400"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#014582]"
               />
               {isSearchingOrders && (
                 <div className="text-center text-gray-500 py-4">Searching...</div>

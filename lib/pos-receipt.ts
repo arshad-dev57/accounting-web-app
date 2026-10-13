@@ -1,11 +1,24 @@
 import JsBarcode from 'jsbarcode';
 import { loadCurrencyLocal } from './currency-service';
+import { formatQty } from './product-uom';
 import {
   loadPosSettings,
   loadReceiptTemplate,
   type PosReceiptTemplate,
   type PosSettings,
 } from './pos-settings';
+
+/** Qty with unit for receipt lines, e.g. "1.5 KG". */
+export function formatReceiptQty(item?: {
+  quantity?: number | null;
+  unitName?: string | null;
+  salesUnitName?: string | null;
+  stockUnitName?: string | null;
+} | null) {
+  const qty = Number(item?.quantity) || 0;
+  const unit = String(item?.unitName || item?.salesUnitName || item?.stockUnitName || 'Pcs').trim() || 'Pcs';
+  return formatQty(qty, unit);
+}
 
 export type PosReceiptCompany = {
   name: string;
@@ -38,6 +51,9 @@ export type PosReceiptSale = {
     sku?: string;
     barcodeNumber?: string;
     quantity?: number;
+    unitName?: string;
+    salesUnitName?: string;
+    stockUnitName?: string;
     unitPrice?: number;
     discount?: number;
     taxRate?: number;
@@ -126,6 +142,7 @@ export function resolveReceiptCompany(
     local.name ||
     'Bisonstechs';
   const logo =
+    tpl.storeLogo ||
     bd.logo ||
     company.logo ||
     profile?.logo ||
@@ -156,24 +173,25 @@ export function sampleReceiptSale(): PosReceiptSale {
     customerEmail: 'customer@email.com',
     items: [
       {
-        productName: 'Sample Product',
+        productName: 'Basmati Rice',
         sku: 'SKU-001',
         barcodeNumber: '1234567890123',
-        quantity: 2,
-        unitPrice: 50,
+        quantity: 1.5,
+        unitName: 'KG',
+        unitPrice: 280,
         discount: 0,
         taxRate: 17,
-        taxAmount: 17,
-        lineTotal: 117,
+        taxAmount: 71.4,
+        lineTotal: 491.4,
       },
     ],
-    payments: [{ paymentMethod: 'Cash', amount: 120, reference: '' }],
-    subtotal: 100,
+    payments: [{ paymentMethod: 'Cash', amount: 500, reference: '' }],
+    subtotal: 420,
     discountTotal: 0,
-    taxTotal: 17,
-    grandTotal: 117,
-    paidAmount: 120,
-    changeAmount: 3,
+    taxTotal: 71.4,
+    grandTotal: 491.4,
+    paidAmount: 500,
+    changeAmount: 8.6,
     cashierName: 'Ahmed Khan',
     terminalName: 'Front Counter',
     terminalCode: 'TERM-01',
@@ -440,14 +458,12 @@ export function printReceiptNode(node: HTMLElement, widthMm: 58 | 80 = 80) {
     }
     html, body, .pos-receipt-paper, .pos-receipt-paper * {
       color: #000 !important;
-      font-weight: 700 !important;
-      -webkit-text-stroke: 0.25px #000;
     }
     body {
       font-family: "Courier New", Courier, monospace;
       font-size: 13px;
       line-height: 1.35;
-      font-weight: 700;
+      font-weight: 400;
     }
     .pos-receipt-paper {
       width: 100% !important;
@@ -578,18 +594,18 @@ export async function downloadPosReceiptPdf(opts: {
   }
 
   doc.setTextColor(17, 24, 39);
-  center(company.name.toUpperCase(), 11, 'bold');
+  center(company.name.toUpperCase(), 11, 'normal');
   if (template.showAddress && company.address) center(company.address, 7);
   if (template.showPhone && company.phone) center(`Tel: ${company.phone}`, 7);
   if (template.showEmail && company.email) center(company.email, 7);
   if (template.showWebsite && company.website) center(company.website.replace(/^https?:\/\//, ''), 7);
-  if (template.showTaxId && company.taxId) center(`NTN / Tax ID: ${company.taxId}`, 7, 'bold');
+  if (template.showTaxId && company.taxId) center(`NTN / Tax ID: ${company.taxId}`, 7);
   y += 1;
   dash();
-  center(template.receiptHeader || settings.receiptHeader || 'TAX INVOICE / SALES RECEIPT', 9, 'bold');
+  center(template.receiptHeader || settings.receiptHeader || 'TAX INVOICE / SALES RECEIPT', 9, 'normal');
   center(template.copyLabel || 'ORIGINAL CUSTOMER COPY', 7);
   dash();
-  line('Receipt #', invoice, 8, 'bold');
+  line('Receipt #', invoice, 8, 'normal');
   line('Date', new Date(sale.createdAt || Date.now()).toLocaleString());
   if (template.showTerminal && meta.terminal) line('Terminal', meta.terminalCode ? `${meta.terminal} (${meta.terminalCode})` : meta.terminal);
   if (template.showCashier && meta.cashier) line('Cashier', meta.cashier);
@@ -597,10 +613,10 @@ export async function downloadPosReceiptPdf(opts: {
   if (sale.customerPhone) line('Phone', sale.customerPhone);
   if (sale.customerEmail) line('Email', sale.customerEmail);
   dash();
-  line('ITEM', 'AMOUNT', 7, 'bold');
+  line('ITEM', 'AMOUNT', 7, 'normal');
   items.forEach((item) => {
     const name = item.productName || 'Item';
-    doc.setFont('courier', 'bold');
+    doc.setFont('courier', 'normal');
     doc.setFontSize(8);
     const wrapped = doc.splitTextToSize(name, inner - 2);
     wrapped.forEach((row: string) => {
@@ -613,7 +629,7 @@ export async function downloadPosReceiptPdf(opts: {
       doc.text(`SKU: ${item.sku}`, 4, y);
       y += 3.4;
     }
-    const qtyLine = `${item.quantity || 0} x ${money(item.unitPrice)}`;
+    const qtyLine = `${formatReceiptQty(item)} x ${money(item.unitPrice)}`;
     const extras = [
       item.discount ? `Disc ${item.discount}%` : '',
       item.taxRate ? `Tax ${item.taxRate}%` : '',
@@ -632,7 +648,7 @@ export async function downloadPosReceiptPdf(opts: {
     const label = pmt.reference ? `${pmt.paymentMethod} (${pmt.reference})` : pmt.paymentMethod || 'Payment';
     line(label || 'Payment', money(pmt.amount));
   });
-  line('Paid', money(sale.paidAmount), 8, 'bold');
+  line('Paid', money(sale.paidAmount), 8, 'normal');
   if (Number(sale.changeAmount) > 0) line('Change', money(sale.changeAmount));
   const points = loyaltyPoints(sale, settings);
   if (template.showLoyalty && points > 0) line('Loyalty pts earned', String(points));
@@ -672,7 +688,7 @@ export async function downloadPosReceiptPdf(opts: {
     });
     y += 1;
   }
-  center(template.receiptFooter || 'Thank you for shopping with us!', 8, 'bold');
+  center(template.receiptFooter || 'Thank you for shopping with us!', 8, 'normal');
   center(`Generated ${new Date().toLocaleString()}`, 6);
   center(template.poweredBy || 'Powered by BisonTechs POS', 6);
 

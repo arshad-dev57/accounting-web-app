@@ -545,7 +545,26 @@ function ProductDetail({
               </div>
               <div>
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Stock Levels</h4>
-                <DetailRow label="Stock Unit" value={product.stockUnit} />
+                <DetailRow label="Stock Unit" value={product.stockUnit || product.stockUnitName} />
+                <DetailRow label="Purchase Unit" value={product.purchaseUnitName || product.stockUnit || product.stockUnitName} />
+                <DetailRow
+                  label="Purchase Conversion"
+                  value={
+                    product.purchaseConversionFactor
+                      ? `1 ${product.purchaseUnitName || 'purchase'} = ${product.purchaseConversionFactor} ${product.stockUnit || product.stockUnitName || 'stock'}`
+                      : undefined
+                  }
+                />
+                <DetailRow label="Sales Unit" value={product.salesUnitName || product.stockUnit || product.stockUnitName} />
+                <DetailRow
+                  label="Sales Conversion"
+                  value={
+                    product.salesConversionFactor
+                      ? `1 ${product.salesUnitName || 'sales'} = ${product.salesConversionFactor} ${product.stockUnit || product.stockUnitName || 'stock'}`
+                      : undefined
+                  }
+                />
+                <DetailRow label="Fractional Qty (POS)" value={product.allowFractionalQty ? 'Yes' : 'No'} />
                 <DetailRow label="Stock at this location" value={`${Number(product.currentStock || 0).toLocaleString()} ${product.stockUnit || ''}`} />
                 {product.companyStock != null ? (
                   <DetailRow label="All locations (total)" value={`${Number(product.companyStock).toLocaleString()} ${product.stockUnit || ''}`} />
@@ -1108,6 +1127,11 @@ function ProductForm({
     taxRate: editingProduct?.taxRate || '',
     taxType: editingProduct?.taxType || editingProduct?.taxTypeName || '',
     stockUnit: editingProduct?.stockUnit || editingProduct?.stockUnitName || '',
+    purchaseUnit: editingProduct?.purchaseUnitName || editingProduct?.purchaseUnit || editingProduct?.stockUnit || editingProduct?.stockUnitName || '',
+    salesUnit: editingProduct?.salesUnitName || editingProduct?.salesUnit || editingProduct?.stockUnit || editingProduct?.stockUnitName || '',
+    purchaseConversionFactor: editingProduct?.purchaseConversionFactor ?? 1,
+    salesConversionFactor: editingProduct?.salesConversionFactor ?? 1,
+    allowFractionalQty: !!editingProduct?.allowFractionalQty,
     currentStock: editingProduct?.currentStock || '',
     minimumStock: editingProduct?.minimumStock || '',
     maximumStock: editingProduct?.maximumStock || '',
@@ -1185,9 +1209,12 @@ function ProductForm({
       try {
         const stocks = await locationService.getProductStocks(productId);
         if (cancelled) return;
+        // Prefer assigned stock for the active filter, else first assigned warehouse.
+        // Fall back to current filter location — never wipe a user-selected warehouse to "".
         const preferred =
           (locationId && stocks.find((s) => s.locationId === locationId)?.locationId) ||
           stocks[0]?.locationId ||
+          locationId ||
           '';
         setWarehouseId(preferred);
       } catch {
@@ -1360,6 +1387,11 @@ function ProductForm({
         rackLocation: 'rackLocationName',
         productType: 'productType',
         stockUnit: 'stockUnitName',
+        purchaseUnit: 'purchaseUnitName',
+        salesUnit: 'salesUnitName',
+        purchaseConversionFactor: 'purchaseConversionFactor',
+        salesConversionFactor: 'salesConversionFactor',
+        allowFractionalQty: 'allowFractionalQty',
         weightUnit: 'weightUnitName',
         dimensionUnit: 'dimensionUnit',
         taxType: 'taxType',
@@ -1683,13 +1715,17 @@ function ProductForm({
                 />
               </div>
               <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Stock Unit</label>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Stock / Base Unit</label>
                 <QuickAddSelect
                   kind="setting"
                   settingCategory="stockUnit"
                   title="Add stock unit"
                   value={formData.stockUnit}
-                  onChange={(v) => handleInputChange('stockUnit', v)}
+                  onChange={(v) => {
+                    handleInputChange('stockUnit', v);
+                    if (!formData.salesUnit) handleInputChange('salesUnit', v);
+                    if (!formData.purchaseUnit) handleInputChange('purchaseUnit', v);
+                  }}
                   placeholder="Select unit..."
                   options={stockUnits.map((unit) => ({
                     value: unit.name,
@@ -1699,7 +1735,105 @@ function ProductForm({
                     onSettingCreated?.('stockUnit', raw || { name: opt.label });
                   }}
                 />
+                <p className="text-[10px] text-gray-500 mt-1">Inventory is always tracked in this unit (e.g. KG, Pcs).</p>
               </div>
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Purchase Unit</label>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="stockUnit"
+                  title="Add purchase unit"
+                  value={formData.purchaseUnit}
+                  onChange={(v) => handleInputChange('purchaseUnit', v)}
+                  placeholder="e.g. Bag, Box, Pcs..."
+                  options={stockUnits.map((unit) => ({
+                    value: unit.name,
+                    label: unit.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('stockUnit', raw || { name: opt.label });
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+                  Purchase Conversion (1 {formData.purchaseUnit || 'purchase unit'} = ? {formData.stockUnit || 'stock'})
+                </label>
+                <input
+                  type="number"
+                  min="0.000001"
+                  step="any"
+                  value={formData.purchaseConversionFactor}
+                  onChange={(e) => handleInputChange('purchaseConversionFactor', e.target.value)}
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] outline-none bg-gray-50"
+                  placeholder="e.g. 25 if 1 bag = 25 KG"
+                />
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Sales Unit</label>
+                <QuickAddSelect
+                  kind="setting"
+                  settingCategory="stockUnit"
+                  title="Add sales unit"
+                  value={formData.salesUnit}
+                  onChange={(v) => handleInputChange('salesUnit', v)}
+                  placeholder="e.g. KG, G, Pcs..."
+                  options={stockUnits.map((unit) => ({
+                    value: unit.name,
+                    label: unit.name,
+                  }))}
+                  onCreated={(opt, raw) => {
+                    onSettingCreated?.('stockUnit', raw || { name: opt.label });
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
+                  Sales Conversion (1 {formData.salesUnit || 'sales unit'} = ? {formData.stockUnit || 'stock'})
+                </label>
+                <input
+                  type="number"
+                  min="0.000001"
+                  step="any"
+                  value={formData.salesConversionFactor}
+                  onChange={(e) => handleInputChange('salesConversionFactor', e.target.value)}
+                  className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] outline-none bg-gray-50"
+                  placeholder="e.g. 1 if selling in KG, or 0.001 if selling in G vs stock KG"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-6">
+                <input
+                  id="allowFractionalQty"
+                  type="checkbox"
+                  checked={!!formData.allowFractionalQty}
+                  onChange={(e) => handleInputChange('allowFractionalQty', e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <label htmlFor="allowFractionalQty" className="text-xs md:text-sm text-gray-700">
+                  Allow decimal qty in POS (KG, G, LTR, etc.)
+                </label>
+              </div>
+              {(Number(formData.costPrice) > 0 && Number(formData.purchaseConversionFactor) > 0) && (
+                <div className="md:col-span-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                  Cost per {formData.stockUnit || 'stock unit'}:{' '}
+                  <strong>
+                    Rs. {(Number(formData.costPrice) / Number(formData.purchaseConversionFactor || 1)).toFixed(2)}
+                  </strong>
+                  {Number(formData.sellingPrice) > 0 && Number(formData.salesConversionFactor) > 0 && (
+                    <>
+                      {' '}· Gross margin / {formData.salesUnit || 'sales unit'}:{' '}
+                      <strong>
+                        Rs.{' '}
+                        {(
+                          Number(formData.sellingPrice) -
+                          (Number(formData.costPrice) / Number(formData.purchaseConversionFactor || 1)) *
+                            Number(formData.salesConversionFactor || 1)
+                        ).toFixed(2)}
+                      </strong>
+                    </>
+                  )}
+                </div>
+              )}
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">
                   {editingProduct ? 'Current Stock (read-only)' : 'Opening Stock'}

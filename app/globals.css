@@ -3,6 +3,7 @@
 :root {
   --color-primary: #014582;
   --color-primary-hover: #01366a;
+  --app-sidebar-width: 16rem;
 }
 
 /* Custom Scrollbar for Accounting Sidebar */
@@ -21,4 +22,55 @@
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* ── Collapsed sidebar: icons only ───────────────────────── */
+[data-app-sidebar][data-collapsed="true"] .sidebar-expanded-only {
+  display: none !important;
+}
+
+[data-app-sidebar][data-collapsed="true"] p[class*="tracking-wider"],
+[data-app-sidebar][data-collapsed="true"] p.text-\[10px\],
+[data-app-sidebar][data-collapsed="true"] p.text-\[11px\] {
+  display: none !important;
+}
+
+/* Hide labels next to icons in nav rows */
+[data-app-sidebar][data-collapsed="true"] a.flex > span:not(:first-child),
+[data-app-sidebar][data-collapsed="true"] button.flex > span:not(:first-child),
+[data-app-sidebar][data-collapsed="true"] a .flex.items-center.gap-3 > :not(:first-child),
+[data-app-sidebar][data-collapsed="true"] button .flex.items-center.gap-3 > :not(:first-child),
+[data-app-sidebar][data-collapsed="true"] .flex.items-center.gap-3 > span.text-sm,
+[data-app-sidebar][data-collapsed="true"] .flex.items-center.gap-3 > span.truncate {
+  display: none !important;
+}
+
+/* Hide trailing chevrons / help cards when collapsed */
+[data-app-sidebar][data-collapsed="true"] .lucide-chevron-right,
+[data-app-sidebar][data-collapsed="true"] .lucide-chevron-down,
+[data-app-sidebar][data-collapsed="true"] [class*="bg-[#014582]/10"],
+[data-app-sidebar][data-collapsed="true"] .sidebar-help {
+  display: none !important;
+}
+
+/* Center icon buttons */
+[data-app-sidebar][data-collapsed="true"] a.flex,
+[data-app-sidebar][data-collapsed="true"] button.flex:not([data-sidebar-toggle]) {
+  justify-content: center !important;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+}
+
+[data-app-sidebar][data-collapsed="true"] .flex.items-center.gap-3 {
+  gap: 0 !important;
+  justify-content: center !important;
+}
+
+[data-app-sidebar][data-collapsed="true"] .ml-6 {
+  margin-left: 0 !important;
+}
+
+[data-app-sidebar][data-collapsed="true"] .px-3 {
+  padding-left: 0.35rem !important;
+  padding-right: 0.35rem !important;
 }

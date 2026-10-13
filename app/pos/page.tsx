@@ -216,20 +216,37 @@ export default function POSLandingPage() {
 
                   <div className="flex flex-col sm:flex-row gap-3">
                     {canDownload && downloadUrl ? (
-                      <a
-                        href={downloadUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#014582] text-white font-semibold text-sm hover:bg-[#013566] transition-colors shadow-sm"
-                      >
-                        <Download className="w-5 h-5" />
-                        Download desktop app
-                      </a>
+                      <>
+                        <a
+                          href={downloadUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#014582] text-white font-semibold text-sm hover:bg-[#013566] transition-colors shadow-sm"
+                        >
+                          <Download className="w-5 h-5" />
+                          Download for this device
+                        </a>
+                        <Link
+                          href="/download/pos"
+                          className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-gray-200 text-gray-800 font-semibold text-sm hover:bg-gray-50 transition-colors"
+                        >
+                          <Monitor className="w-5 h-5" />
+                          All platforms
+                        </Link>
+                      </>
                     ) : (
-                      <div className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm">
-                        <Download className="w-4 h-4 flex-shrink-0" />
-                        Installer not published yet — ask your administrator for the desktop app file.
-                      </div>
+                      <>
+                        <div className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm">
+                          <Download className="w-4 h-4 flex-shrink-0" />
+                          Installer not published yet — configure GitHub Release env vars or ask your administrator.
+                        </div>
+                        <Link
+                          href="/download/pos"
+                          className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-gray-200 text-gray-700 font-semibold text-sm hover:bg-gray-50"
+                        >
+                          Download page
+                        </Link>
+                      </>
                     )}
 
                     {isAdmin && (

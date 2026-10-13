@@ -6,9 +6,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, Search, Calendar, Package, Truck, Receipt,
-  CheckCircle, Loader2, X, ChevronLeft, ChevronRight, AlertCircle, MapPin, Info
+  CheckCircle, Loader2, X, ChevronLeft, ChevronRight, AlertCircle, Info
 } from 'lucide-react';
-import { useLocationOptional } from '@/lib/location-context';
 import { SalesNumberInput } from '@/components/sales/sales-number-input';
 
 interface SourceItem {
@@ -56,7 +55,6 @@ interface LineDraft {
 
 export default function CreateInvoicePage() {
   const router = useRouter();
-  const { selectedLocationId, selectedLocation } = useLocationOptional();
 
   // Tab: orders vs deliveries
   const [sourceTab, setSourceTab] = useState<'orders' | 'deliveries'>('orders');
@@ -164,7 +162,7 @@ export default function CreateInvoicePage() {
     } finally {
       setIsLoadingDocs(false);
     }
-  }, [sourceTab, currentPage, searchQuery, selectedLocationId]);
+  }, [sourceTab, currentPage, searchQuery]);
 
   useEffect(() => {
     fetchAvailableDocs();
@@ -304,7 +302,7 @@ export default function CreateInvoicePage() {
         dueDate,
         paymentTerms,
         notes: notes.trim() || null,
-        locationId: selectedLocationId || selectedDocs[0]?.locationId || undefined,
+        locationId: selectedDocs[0]?.locationId || undefined,
         items: activeItems.map((l) => ({
           orderId: l.orderId,
           deliveryId: l.deliveryId,
@@ -358,13 +356,6 @@ export default function CreateInvoicePage() {
           </p>
         </div>
 
-        {selectedLocation && (
-          <div className="flex items-center gap-2 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
-            <MapPin className="w-4 h-4 flex-shrink-0" />
-            Invoicing from <strong>{selectedLocation.name}</strong>
-            <span className="text-sky-600 font-mono text-xs">({selectedLocation.code})</span>
-          </div>
-        )}
       </div>
 
       {formError && (

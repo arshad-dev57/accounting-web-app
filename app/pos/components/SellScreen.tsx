@@ -39,6 +39,12 @@ import { effectiveLocationId } from '../../../lib/location-service';
 import { useLocation } from '../../../lib/location-context';
 import { useCurrency } from '../../../lib/currency-context';
 import { loadCurrencyLocal } from '../../../lib/currency-service';
+import {
+  formatQty,
+  maxSellableSalesQty,
+  resolveProductUom,
+  weightQuickAmounts,
+} from '../../../lib/product-uom';
 
 function getAuthToken() {
   if (typeof window === 'undefined') return '';
@@ -112,7 +118,26 @@ function ManagerPinModal({
   );
 }
 
-interface CartItem { productId:string; productName:string; sku:string; barcodeNumber?:string; quantity:number; unitPrice:number; discount:number; taxRate:number; taxAmount:number; lineTotal:number; mainImage?:string; currentStock:number; availableStock?:number; isCustom?: boolean; }
+interface CartItem {
+  productId: string;
+  productName: string;
+  sku: string;
+  barcodeNumber?: string;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+  taxRate: number;
+  taxAmount: number;
+  lineTotal: number;
+  mainImage?: string;
+  currentStock: number;
+  availableStock?: number;
+  isCustom?: boolean;
+  unitName?: string;
+  salesConversionFactor?: number;
+  allowFractionalQty?: boolean;
+  stockUnitName?: string;
+}
 interface Payment {
   paymentMethod: string;
   amount: number;
@@ -121,10 +146,34 @@ interface Payment {
   cardLast4?: string;
   entryMode?: string;
 }
-interface Product { id:string; name:string; sku:string; barcodeNumber:string; sellingPrice:number; costPrice:number; currentStock:number; availableStock?:number; mainImage?:string; categoryId?:string; categoryName?:string; taxRate?:number; }
-function sellableQty(p: { currentStock?: number; availableStock?: number }) {
-  const n = p.availableStock ?? p.currentStock ?? 0;
-  return Number.isFinite(n) ? n : 0;
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  barcodeNumber: string;
+  sellingPrice: number;
+  costPrice: number;
+  currentStock: number;
+  availableStock?: number;
+  mainImage?: string;
+  categoryId?: string;
+  categoryName?: string;
+  taxRate?: number;
+  stockUnitName?: string;
+  salesUnitName?: string;
+  salesConversionFactor?: number;
+  allowFractionalQty?: boolean;
+}
+function sellableQty(p: Product | CartItem) {
+  return maxSellableSalesQty(p as any);
+}
+function qtyStep(p: { allowFractionalQty?: boolean; unitName?: string; salesUnitName?: string; stockUnitName?: string }) {
+  const uom = resolveProductUom({
+    allowFractionalQty: p.allowFractionalQty,
+    salesUnitName: p.unitName || p.salesUnitName,
+    stockUnitName: p.stockUnitName,
+  });
+  return uom.allowFractional ? 0.1 : 1;
 }
 
 function categoryIdOf(cat: Category): string {
@@ -396,6 +445,16 @@ export default function SellScreen({ shift }: { shift: any }) {
   // Numpad (for quick quantity / price editing)
   const [editingItem, setEditingItem] = useState<string|null>(null);
   const [numpadValue, setNumpadValue] = useState('');
+
+  // Weight / qty entry modal (kiryana: type 1.5 KG instead of tapping +1)
+  const [qtyPrompt, setQtyPrompt] = useState<{
+    product: Product;
+    mode: 'add' | 'edit';
+    cartProductId?: string;
+  } | null>(null);
+  const [qtyInput, setQtyInput] = useState('');
+  const [qtyPromptError, setQtyPromptError] = useState('');
+  const qtyInputRef = useRef<HTMLInputElement>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const scanRef = useRef<HTMLInputElement>(null);
@@ -687,7 +746,7 @@ export default function SellScreen({ shift }: { shift: any }) {
   const addCustomItem = () => {
     const name = customName.trim();
     const price = parseFloat(customPrice);
-    const qty = Math.max(1, Math.round(Number(customQty) || 0));
+    const qty = Math.max(0.001, Number(customQty) || 0);
     if (!name) {
       setCustomError('Enter item name');
       return;
@@ -726,6 +785,10 @@ export default function SellScreen({ shift }: { shift: any }) {
           currentStock: 999999,
           availableStock: 999999,
           isCustom: true,
+          unitName: 'Pcs',
+          salesConversionFactor: 1,
+          allowFractionalQty: true,
+          stockUnitName: 'Pcs',
         },
       ];
     });
@@ -735,18 +798,97 @@ export default function SellScreen({ shift }: { shift: any }) {
     setCustomError('');
   };
 
-  const addToCart = (p: Product) => {
+  const openQtyPrompt = (p: Product, mode: 'add' | 'edit' = 'add', cartProductId?: string) => {
+    const uom = resolveProductUom(p);
+    const existing = cart.find((i) => i.productId === (cartProductId || p.id));
+    setQtyPromptError('');
+    setQtyPrompt({ product: p, mode, cartProductId: cartProductId || p.id });
+    if (mode === 'edit' && existing) {
+      setQtyInput(String(existing.quantity));
+    } else {
+      setQtyInput(uom.allowFractional ? '' : '1');
+    }
+    requestAnimationFrame(() => qtyInputRef.current?.focus());
+  };
+
+  /** POS always keeps up to 3 decimals so 1.5 KG works even if product was saved as Pcs. */
+  const posNormalizeQty = (raw: number) => {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.round(n * 1000) / 1000;
+  };
+
+  const commitQtyToCart = (p: Product, rawQty: number, mode: 'add' | 'edit' = 'add') => {
     const model = taxContextRef.current?.pricingModel || 'exclusive';
     const rate = resolveProductTaxRate(p.taxRate, taxContextRef.current);
-    const { lineTotal, taxAmount } = computeLineTotal(1, p.sellingPrice, 0, rate, model);
-    setCart(prev => {
-      const existing = prev.find(i=>i.productId===p.id);
+    const uom = resolveProductUom(p);
+    const maxQty = sellableQty(p);
+    const qty = posNormalizeQty(rawQty);
+    if (qty <= 0) {
+      setQtyPromptError(`Enter a valid quantity in ${uom.salesUnit}`);
+      return false;
+    }
+    if (maxQty <= 0) {
+      setQtyPromptError(`${p.name} is out of stock`);
+      return false;
+    }
+    if (qty > maxQty + 1e-9) {
+      setQtyPromptError(`Only ${formatQty(maxQty, uom.salesUnit)} available`);
+      return false;
+    }
+
+    const fractional = uom.allowFractional || Math.abs(qty - Math.round(qty)) > 1e-9;
+
+    setCart((prev) => {
+      const existing = prev.find((i) => i.productId === p.id);
       if (existing) {
-        if (existing.quantity >= sellableQty(p)) return prev;
-        return prev.map(i=>i.productId===p.id ? { ...i, quantity:i.quantity+1, ...computeLineTotal(i.quantity+1,i.unitPrice,i.discount,i.taxRate, model) } : i);
+        const nextQty = mode === 'edit' ? qty : posNormalizeQty(existing.quantity + qty);
+        if (nextQty > maxQty + 1e-9) return prev;
+        return prev.map((i) =>
+          i.productId === p.id
+            ? {
+                ...i,
+                quantity: nextQty,
+                unitName: uom.salesUnit,
+                salesConversionFactor: uom.salesFactor,
+                allowFractionalQty: fractional || Boolean(i.allowFractionalQty),
+                stockUnitName: uom.stockUnit,
+                ...computeLineTotal(nextQty, i.unitPrice, i.discount, i.taxRate, model),
+              }
+            : i
+        );
       }
-      return [...prev, { productId:p.id, productName:p.name, sku:p.sku||'', barcodeNumber:p.barcodeNumber||'', quantity:1, unitPrice:p.sellingPrice, discount:0, taxRate:rate, taxAmount, lineTotal, mainImage:p.mainImage, currentStock: sellableQty(p), availableStock: sellableQty(p) }];
+      return [
+        ...prev,
+        {
+          productId: p.id,
+          productName: p.name,
+          sku: p.sku || '',
+          barcodeNumber: p.barcodeNumber || '',
+          quantity: qty,
+          unitPrice: p.sellingPrice,
+          discount: 0,
+          taxRate: rate,
+          ...computeLineTotal(qty, p.sellingPrice, 0, rate, model),
+          mainImage: p.mainImage,
+          currentStock: p.currentStock,
+          availableStock: p.availableStock ?? p.currentStock,
+          unitName: uom.salesUnit,
+          salesConversionFactor: uom.salesFactor,
+          allowFractionalQty: fractional,
+          stockUnitName: uom.stockUnit,
+        },
+      ];
     });
+    setQtyPrompt(null);
+    setQtyInput('');
+    setQtyPromptError('');
+    return true;
+  };
+
+  /** Product tap: always ask qty so cashier can type 1.5 KG. */
+  const addToCart = (p: Product) => {
+    openQtyPrompt(p, 'add');
   };
   addToCartRef.current = addToCart;
 
@@ -807,8 +949,16 @@ export default function SellScreen({ shift }: { shift: any }) {
     if (qty <= 0) { removeFromCart(productId); return; }
     setCart(prev=>prev.map(i=>{
       if(i.productId!==productId) return i;
-      if(!i.isCustom && qty>sellableQty(i)) return i;
-      return { ...i, quantity:qty, ...computeLineTotal(qty,i.unitPrice,i.discount,i.taxRate, pricingModel) };
+      const normalized = posNormalizeQty(qty);
+      if (normalized <= 0) { return i; }
+      if (!i.isCustom && normalized > sellableQty(i) + 1e-9) return i;
+      const fractional = Boolean(i.allowFractionalQty) || Math.abs(normalized - Math.round(normalized)) > 1e-9;
+      return {
+        ...i,
+        quantity: normalized,
+        allowFractionalQty: fractional,
+        ...computeLineTotal(normalized, i.unitPrice, i.discount, i.taxRate, pricingModel),
+      };
     }));
   };
 
@@ -855,6 +1005,10 @@ export default function SellScreen({ shift }: { shift: any }) {
             taxAmount,
             lineTotal,
             currentStock: item.currentStock || item.quantity,
+            unitName: item.unitName || 'Pcs',
+            salesConversionFactor: item.conversionFactor ?? item.salesConversionFactor ?? 1,
+            allowFractionalQty: true,
+            stockUnitName: item.stockUnitName || item.unitName || 'Pcs',
           };
         })
       );
@@ -908,7 +1062,7 @@ export default function SellScreen({ shift }: { shift: any }) {
 
   useEffect(() => {
     if (editingItem && numpadValue) {
-      const qty = parseInt(numpadValue);
+      const qty = parseFloat(numpadValue);
       if (!isNaN(qty) && qty >= 0) updateQty(editingItem, qty);
     }
   }, [numpadValue, editingItem]);
@@ -1023,7 +1177,12 @@ export default function SellScreen({ shift }: { shift: any }) {
           productId: i.isCustom ? null : i.productId,
           productName: i.productName,
           sku: i.isCustom ? 'CUSTOM' : i.sku,
-          quantity: Math.max(1, Math.round(Number(i.quantity) || 0)),
+          quantity: Number(i.quantity) || 0,
+          unitName: i.unitName || 'Pcs',
+          conversionFactor: i.salesConversionFactor ?? 1,
+          salesConversionFactor: i.salesConversionFactor ?? 1,
+          allowFractionalQty: Boolean(i.allowFractionalQty),
+          stockUnitName: i.stockUnitName || i.unitName || 'Pcs',
           unitPrice: i.unitPrice,
           discount: i.discount,
           taxRate: i.taxRate,
@@ -1126,6 +1285,7 @@ export default function SellScreen({ shift }: { shift: any }) {
             header: loadReceiptTemplate().receiptHeader,
             returnPolicy: loadReceiptTemplate().receiptReturnPolicy,
             notes: loadReceiptTemplate().receiptNotes,
+            storeLogo: loadReceiptTemplate().storeLogo || '',
             cashierName: `${shift.cashier?.firstName || ''} ${shift.cashier?.lastName || ''}`.trim(),
             terminalName: shift.terminal?.name,
           },
@@ -1310,9 +1470,14 @@ export default function SellScreen({ shift }: { shift: any }) {
               {p.categoryName && (
                 <div className="text-gray-600 text-xs truncate">{p.categoryName}</div>
               )}
-              <div className="text-[#014582] font-bold text-lg">{money(p.sellingPrice)}</div>
-              <div className={`text-xs font-semibold ${p.currentStock <= 0 ? 'text-red-600' : p.currentStock <= 5 ? 'text-amber-700' : 'text-emerald-700'}`}>
-                Stock: {p.currentStock}
+              <div className="text-[#014582] font-bold text-lg">
+                {money(p.sellingPrice)}
+                <span className="text-[10px] font-medium text-gray-500 ml-1">
+                  / {resolveProductUom(p).salesUnit}
+                </span>
+              </div>
+              <div className={`text-xs font-semibold ${(p.availableStock ?? p.currentStock) <= 0 ? 'text-red-600' : (p.availableStock ?? p.currentStock) <= 5 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                Stock: {formatQty(p.availableStock ?? p.currentStock, resolveProductUom(p).stockUnit)}
               </div>
             </div>
           ))}
@@ -1501,7 +1666,14 @@ export default function SellScreen({ shift }: { shift: any }) {
                     {item.productName}
                     {item.isCustom ? <span className="ml-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 py-0.5">Custom</span> : null}
                   </div>
-                  <div className="text-gray-700 text-sm">{money(item.unitPrice)} each</div>
+                  <div className="text-gray-700 text-sm">
+                    {money(item.unitPrice)} / {item.unitName || 'Pcs'}
+                  </div>
+                  {!item.isCustom && (
+                    <div className="text-[10px] text-gray-500 mt-0.5">
+                      Stock: {formatQty(item.availableStock ?? item.currentStock, item.stockUnitName || item.unitName)}
+                    </div>
+                  )}
                   {/* discount input */}
                   <div className="flex items-center gap-1.5 mt-1.5">
                     <span className="text-gray-600 text-xs">Disc%:</span>
@@ -1521,11 +1693,49 @@ export default function SellScreen({ shift }: { shift: any }) {
                   </button>
                   <div className="text-[#014582] font-bold text-base">{money(item.lineTotal)}</div>
                   <div className="flex items-center gap-1">
-                    <button className="w-7 h-7 rounded-lg border border-gray-300 bg-transparent text-gray-900 cursor-pointer text-sm flex items-center justify-center" onClick={()=>updateQty(item.productId,item.quantity-1)}>
+                    <button
+                      className="w-7 h-7 rounded-lg border border-gray-300 bg-transparent text-gray-900 cursor-pointer text-sm flex items-center justify-center"
+                      onClick={() => updateQty(item.productId, item.quantity - qtyStep(item))}
+                    >
                       <Minus className="w-3 h-3" />
                     </button>
-                    <span className="text-gray-900 font-semibold w-8 text-center text-sm">{item.quantity}</span>
-                    <button className="w-7 h-7 rounded-lg border border-gray-300 bg-transparent text-gray-900 cursor-pointer text-sm flex items-center justify-center" onClick={()=>updateQty(item.productId,item.quantity+1)}>
+                    <button
+                      type="button"
+                      title="Edit quantity"
+                      onClick={() => {
+                        if (item.isCustom) {
+                          setEditingItem(item.productId);
+                          setNumpadValue(String(item.quantity));
+                          return;
+                        }
+                        openQtyPrompt(
+                          {
+                            id: item.productId,
+                            name: item.productName,
+                            sku: item.sku,
+                            barcodeNumber: item.barcodeNumber,
+                            sellingPrice: item.unitPrice,
+                            costPrice: 0,
+                            currentStock: item.currentStock || 0,
+                            availableStock: item.availableStock ?? item.currentStock,
+                            taxRate: item.taxRate,
+                            salesUnitName: item.unitName,
+                            stockUnitName: item.stockUnitName,
+                            salesConversionFactor: item.salesConversionFactor,
+                            allowFractionalQty: item.allowFractionalQty,
+                          } as Product,
+                          'edit',
+                          item.productId
+                        );
+                      }}
+                      className="min-w-[4.5rem] px-1.5 py-1 rounded-md border border-gray-200 bg-white text-gray-900 text-xs text-center font-semibold hover:border-[#014582]"
+                    >
+                      {formatQty(item.quantity, item.unitName || 'Pcs')}
+                    </button>
+                    <button
+                      className="w-7 h-7 rounded-lg border border-gray-300 bg-transparent text-gray-900 cursor-pointer text-sm flex items-center justify-center"
+                      onClick={() => updateQty(item.productId, item.quantity + qtyStep(item))}
+                    >
                       <Plus className="w-3 h-3" />
                     </button>
                   </div>
@@ -1624,140 +1834,238 @@ export default function SellScreen({ shift }: { shift: any }) {
         </button>
       </div>
 
-      {showCheckout && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[150]">
-          <div className="relative bg-white border border-gray-200 shadow-lg rounded-2xl p-7 w-[500px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
-            <h2 className="text-gray-900 text-xl font-semibold m-0 mb-5 flex items-center gap-2">
-              <CreditCard className="w-5 h-5" />
-              Checkout
-            </h2>
-
-            {(saleError || chargeError) && (
-              <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-3 text-red-600 text-xs mb-4">
-                {saleError || chargeError}
+      {qtyPrompt && (() => {
+        const uom = resolveProductUom(qtyPrompt.product);
+        const quick = uom.allowFractional
+          ? weightQuickAmounts(uom.salesUnit)
+          : [1, 2, 3, 5, 10];
+        const maxQty = sellableQty(qtyPrompt.product);
+        return (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[160] p-4">
+            <div className="bg-white border border-gray-200 shadow-xl rounded-2xl w-full max-w-sm p-5">
+              <h3 className="text-gray-900 text-lg font-bold m-0 mb-1">
+                {qtyPrompt.mode === 'edit' ? 'Edit quantity' : 'Enter quantity'}
+              </h3>
+              <p className="text-sm text-gray-600 m-0 mb-3">{qtyPrompt.product.name}</p>
+              <p className="text-xs text-gray-500 m-0 mb-3">
+                Price {money(qtyPrompt.product.sellingPrice)} / {uom.salesUnit}
+                {maxQty > 0 ? ` · Available ${formatQty(maxQty, uom.salesUnit)}` : ''}
+              </p>
+              <div className="flex items-stretch gap-2 mb-3">
+                <input
+                  ref={qtyInputRef}
+                  type="number"
+                  inputMode="decimal"
+                  min="0.001"
+                  step="0.001"
+                  autoFocus
+                  value={qtyInput}
+                  onChange={(e) => {
+                    setQtyInput(e.target.value);
+                    setQtyPromptError('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      commitQtyToCart(qtyPrompt.product, parseFloat(qtyInput), qtyPrompt.mode);
+                    }
+                    if (e.key === 'Escape') {
+                      setQtyPrompt(null);
+                    }
+                  }}
+                  placeholder={uom.allowFractional ? 'e.g. 1.5' : 'e.g. 1'}
+                  className="flex-1 bg-white border-2 border-[#014582] rounded-xl px-4 py-3 text-gray-900 text-2xl font-bold outline-none text-center"
+                />
+                <div className="flex items-center px-3 rounded-xl bg-sky-50 border border-sky-100 text-[#014582] font-bold text-sm min-w-[3.5rem] justify-center">
+                  {uom.salesUnit}
+                </div>
               </div>
-            )}
-
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 mb-4 max-h-[150px] overflow-y-auto">
-              {cart.map(item=>(
-                <div key={item.productId} className="flex justify-between text-xs mb-1.5">
-                  <span className="text-gray-600">{item.productName} × {item.quantity}</span>
-                  <span className="text-gray-900 font-semibold">{money(item.lineTotal)}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="border-t border-gray-200 pt-3 mb-4">
-              {overallDiscount > 0 && (
-                <div className="flex justify-between text-amber-600 text-xs mb-1">
-                  <span>Discount ({overallDiscount}%)</span><span>-{money(discountTotal)}</span>
-                </div>
-              )}
-              {taxTotal > 0 && (
-                <div className="flex justify-between text-gray-400 text-xs mb-1">
-                  <span>{taxContext?.regime || 'Tax'}{pricingModel === 'inclusive' ? ' (incl.)' : ''}</span><span>{money(taxTotal)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-gray-900 text-xl font-bold">
-                <span>Total</span><span className="text-[#014582]">{money(grandTotal)}</span>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {quick.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => {
+                      setQtyInput(String(q));
+                      setQtyPromptError('');
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-800 text-xs font-semibold hover:border-[#014582] hover:bg-sky-50"
+                  >
+                    {formatQty(q, uom.salesUnit)}
+                  </button>
+                ))}
               </div>
-            </div>
-
-            {/* Payment methods */}
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-2.5">
-                <label className="text-gray-400 text-xs">Payment</label>
+              {qtyPromptError ? (
+                <p className="text-red-600 text-xs mb-3 m-0">{qtyPromptError}</p>
+              ) : null}
+              <div className="flex gap-2">
                 <button
-                  onClick={addPayment}
-                  className="bg-transparent border border-[#014582]/40 text-[#014582] rounded-lg px-2.5 py-1 cursor-pointer text-xs"
+                  type="button"
+                  onClick={() => setQtyPrompt(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold"
                 >
-                  + Split
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => commitQtyToCart(qtyPrompt.product, parseFloat(qtyInput), qtyPrompt.mode)}
+                  className="flex-1 py-2.5 rounded-xl bg-[#014582] text-white text-sm font-bold"
+                >
+                  {qtyPrompt.mode === 'edit' ? 'Update' : 'Add to cart'}
                 </button>
               </div>
-              {payments.map((pmt,i)=>(
-                <div key={i} className="mb-2">
-                  <div className="flex gap-2 items-center">
-                    <select
-                      value={pmt.paymentMethod}
-                      onChange={e=>updatePayment(i,'paymentMethod',e.target.value)}
-                      className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-xs outline-none"
-                    >
-                      {PAYMENT_METHODS.map(m=><option key={m} value={m}>{m}</option>)}
-                    </select>
-                    <input
-                      type="number"
-                      value={pmt.amount}
-                      onChange={e=>updatePayment(i,'amount',parseFloat(e.target.value)||0)}
-                      min="0"
-                      step="0.01"
-                      disabled={!!pmt.terminalApproved}
-                      className="w-24 bg-white border border-gray-200 rounded-lg px-2 py-2 text-gray-900 text-xs outline-none disabled:opacity-60"
-                      placeholder="Amount"
-                    />
-                    {payments.length > 1 && (
-                      <button onClick={()=>removePayment(i)} className="bg-transparent border-none text-red-600 cursor-pointer text-sm">
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  {methodNeedsPaymentDevice(pmt.paymentMethod) && (
-                    <div className="mt-1.5 flex items-center justify-between gap-2">
-                      {pmt.terminalApproved ? (
-                        <span className="text-emerald-600 text-[11px] font-semibold">
-                          Approved{pmt.cardLast4 ? ` · ****${pmt.cardLast4}` : ''}{pmt.entryMode ? ` · ${pmt.entryMode}` : ''}
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => void chargeOnTerminal(i)}
-                          className="flex-1 py-2 rounded-lg bg-[#014582] text-white text-[11px] font-semibold flex items-center justify-center gap-1.5"
-                        >
-                          <Nfc className="w-3.5 h-3.5" />
-                          Charge {loadPosSettings().paymentTerminalModel}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {showCheckout && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[150] p-3">
+          <div className="relative bg-white border border-gray-200 shadow-lg rounded-2xl w-[500px] max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between gap-3 px-6 pt-5 pb-3 border-b border-gray-100 shrink-0">
+              <h2 className="text-gray-900 text-xl font-semibold m-0 flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Checkout
+              </h2>
               <button
-                onClick={setExactAmount}
-                className="w-full py-2 rounded-lg border border-dashed border-[#014582]/40 bg-transparent text-[#014582] cursor-pointer text-xs mt-1 hover:bg-[#014582]/5 transition-colors"
+                type="button"
+                onClick={() => setShowCheckout(false)}
+                className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                aria-label="Close checkout"
               >
-                💡 Set exact amount: {money(grandTotal)}
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Change */}
-            {changeDue !== 0 && (
-              <div className={`p-2.5 rounded-lg border mb-3.5 flex justify-between ${
-                changeDue>=0
-                  ? 'bg-green-500/10 border-green-500/20'
-                  : 'bg-red-500/10 border-red-500/20'
-              }`}>
-                <span className={`${changeDue>=0?'text-emerald-600':'text-red-600'} font-semibold text-sm`}>
-                  {changeDue>=0?'Change Due':'Still Owed'}
-                </span>
-                <span className={`${changeDue>=0?'text-emerald-600':'text-red-600'} font-bold text-lg`}>
-                  {money(Math.abs(changeDue))}
-                </span>
+            <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+              {(saleError || chargeError) && (
+                <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-3 text-red-600 text-xs mb-4">
+                  {saleError || chargeError}
+                </div>
+              )}
+
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 mb-4 max-h-[150px] overflow-y-auto">
+                {cart.map(item=>(
+                  <div key={item.productId} className="flex justify-between text-xs mb-1.5">
+                    <span className="text-gray-600">{item.productName} × {formatQty(item.quantity, item.unitName)}</span>
+                    <span className="text-gray-900 font-semibold">{money(item.lineTotal)}</span>
+                  </div>
+                ))}
               </div>
-            )}
 
-            <button
-              type="button"
-              onClick={() => { void handleOpenDrawer(); }}
-              disabled={drawerBusy}
-              className="w-full py-2.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm font-semibold mb-3 disabled:opacity-50"
-            >
-              {drawerBusy ? 'Opening drawer…' : 'Open cash drawer'}
-            </button>
-            {drawerMsg ? <p className="text-[11px] text-gray-500 -mt-2 mb-3 text-center">{drawerMsg}</p> : null}
+              <div className="border-t border-gray-200 pt-3 mb-4">
+                {overallDiscount > 0 && (
+                  <div className="flex justify-between text-amber-600 text-xs mb-1">
+                    <span>Discount ({overallDiscount}%)</span><span>-{money(discountTotal)}</span>
+                  </div>
+                )}
+                {taxTotal > 0 && (
+                  <div className="flex justify-between text-gray-400 text-xs mb-1">
+                    <span>{taxContext?.regime || 'Tax'}{pricingModel === 'inclusive' ? ' (incl.)' : ''}</span><span>{money(taxTotal)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-gray-900 text-xl font-bold">
+                  <span>Total</span><span className="text-[#014582]">{money(grandTotal)}</span>
+                </div>
+              </div>
 
-            <div className="flex gap-3">
+              {/* Payment methods */}
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-2.5">
+                  <label className="text-gray-400 text-xs">Payment</label>
+                  <button
+                    onClick={addPayment}
+                    className="bg-transparent border border-[#014582]/40 text-[#014582] rounded-lg px-2.5 py-1 cursor-pointer text-xs"
+                  >
+                    + Split
+                  </button>
+                </div>
+                {payments.map((pmt,i)=>(
+                  <div key={i} className="mb-2">
+                    <div className="flex gap-2 items-center">
+                      <select
+                        value={pmt.paymentMethod}
+                        onChange={e=>updatePayment(i,'paymentMethod',e.target.value)}
+                        className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-xs outline-none"
+                      >
+                        {PAYMENT_METHODS.map(m=><option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <input
+                        type="number"
+                        value={pmt.amount}
+                        onChange={e=>updatePayment(i,'amount',parseFloat(e.target.value)||0)}
+                        min="0"
+                        step="0.01"
+                        disabled={!!pmt.terminalApproved}
+                        className="w-24 bg-white border border-gray-200 rounded-lg px-2 py-2 text-gray-900 text-xs outline-none disabled:opacity-60"
+                        placeholder="Amount"
+                      />
+                      {payments.length > 1 && (
+                        <button onClick={()=>removePayment(i)} className="bg-transparent border-none text-red-600 cursor-pointer text-sm">
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    {methodNeedsPaymentDevice(pmt.paymentMethod) && (
+                      <div className="mt-1.5 flex items-center justify-between gap-2">
+                        {pmt.terminalApproved ? (
+                          <span className="text-emerald-600 text-[11px] font-semibold">
+                            Approved{pmt.cardLast4 ? ` · ****${pmt.cardLast4}` : ''}{pmt.entryMode ? ` · ${pmt.entryMode}` : ''}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => void chargeOnTerminal(i)}
+                            className="flex-1 py-2 rounded-lg bg-[#014582] text-white text-[11px] font-semibold flex items-center justify-center gap-1.5"
+                          >
+                            <Nfc className="w-3.5 h-3.5" />
+                            Charge {loadPosSettings().paymentTerminalModel}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={setExactAmount}
+                  className="w-full py-2 rounded-lg border border-dashed border-[#014582]/40 bg-transparent text-[#014582] cursor-pointer text-xs mt-1 hover:bg-[#014582]/5 transition-colors"
+                >
+                  💡 Set exact amount: {money(grandTotal)}
+                </button>
+              </div>
+
+              {/* Change */}
+              {changeDue !== 0 && (
+                <div className={`p-2.5 rounded-lg border mb-3.5 flex justify-between ${
+                  changeDue>=0
+                    ? 'bg-green-500/10 border-green-500/20'
+                    : 'bg-red-500/10 border-red-500/20'
+                }`}>
+                  <span className={`${changeDue>=0?'text-emerald-600':'text-red-600'} font-semibold text-sm`}>
+                    {changeDue>=0?'Change Due':'Still Owed'}
+                  </span>
+                  <span className={`${changeDue>=0?'text-emerald-600':'text-red-600'} font-bold text-lg`}>
+                    {money(Math.abs(changeDue))}
+                  </span>
+                </div>
+              )}
+
               <button
-                onClick={()=>setShowCheckout(false)}
-                className="flex-1 py-3 rounded-lg bg-transparent border border-gray-200 text-gray-400 text-sm cursor-pointer"
+                type="button"
+                onClick={() => { void handleOpenDrawer(); }}
+                disabled={drawerBusy}
+                className="w-full py-2.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm font-semibold mb-1 disabled:opacity-50"
+              >
+                {drawerBusy ? 'Opening drawer…' : 'Open cash drawer'}
+              </button>
+              {drawerMsg ? <p className="text-[11px] text-gray-500 mb-1 text-center">{drawerMsg}</p> : null}
+            </div>
+
+            <div className="shrink-0 border-t border-gray-200 bg-white px-6 py-4 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCheckout(false)}
+                className="flex-1 py-3 rounded-lg bg-white border border-gray-300 text-gray-800 text-sm font-semibold cursor-pointer hover:bg-gray-50"
               >
                 Cancel
               </button>
@@ -1780,30 +2088,30 @@ export default function SellScreen({ shift }: { shift: any }) {
                 )}
               </button>
             </div>
-          </div>
 
-          {chargingIndex !== null && (
-            <div className="absolute inset-0 bg-black/80 rounded-2xl flex items-center justify-center p-6">
-              <div className="text-center max-w-sm">
-                <div className="mx-auto mb-4 w-16 h-16 rounded-full border-2 border-[#014582] flex items-center justify-center animate-pulse">
-                  <Nfc className="w-8 h-8 text-sky-700" />
+            {chargingIndex !== null && (
+              <div className="absolute inset-0 bg-black/80 rounded-2xl flex items-center justify-center p-6 z-10">
+                <div className="text-center max-w-sm">
+                  <div className="mx-auto mb-4 w-16 h-16 rounded-full border-2 border-[#014582] flex items-center justify-center animate-pulse">
+                    <Nfc className="w-8 h-8 text-sky-700" />
+                  </div>
+                  <p className="text-gray-900 text-lg font-semibold m-0">Present card on {loadPosSettings().paymentTerminalModel}</p>
+                  <p className="text-[#014582] text-2xl font-bold mt-2 mb-1">
+                    {money(payments[chargingIndex]?.amount || grandTotal)}
+                  </p>
+                  <p className="text-gray-400 text-xs mb-5">Chip, tap or swipe — waiting for the payment device</p>
+                  {chargeError ? <p className="text-red-600 text-xs mb-3">{chargeError}</p> : null}
+                  <button
+                    type="button"
+                    onClick={() => { void cancelPaymentTerminalSale(); setChargingIndex(null); }}
+                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-xs"
+                  >
+                    Cancel on terminal
+                  </button>
                 </div>
-                <p className="text-gray-900 text-lg font-semibold m-0">Present card on {loadPosSettings().paymentTerminalModel}</p>
-                <p className="text-[#014582] text-2xl font-bold mt-2 mb-1">
-                  {money(payments[chargingIndex]?.amount || grandTotal)}
-                </p>
-                <p className="text-gray-400 text-xs mb-5">Chip, tap or swipe — waiting for the payment device</p>
-                {chargeError ? <p className="text-red-600 text-xs mb-3">{chargeError}</p> : null}
-                <button
-                  type="button"
-                  onClick={() => { void cancelPaymentTerminalSale(); setChargingIndex(null); }}
-                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-xs"
-                >
-                  Cancel on terminal
-                </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 

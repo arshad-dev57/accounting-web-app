@@ -7,6 +7,7 @@ import {
   ALL_COMPANIES_VALUE,
   useCompanyOptional,
 } from '../lib/company-context';
+import { loadUserFromLocal, isAdminRole } from '../lib/permission-service';
 
 const BRAND = '#014582';
 
@@ -39,6 +40,10 @@ export default function CompanySwitcher({
   const { companies, activeCompanyId, activeCompany, isAllCompanies, loading, setActiveCompanyId } =
     ctx;
 
+  // Only admin / owner users can switch or manage companies
+  const currentUser = loadUserFromLocal();
+  const userIsAdmin = isAdminRole(currentUser?.role);
+
   const label = isAllCompanies
     ? 'All Companies'
     : activeCompany?.name || (loading ? 'Loading…' : 'Select company');
@@ -51,6 +56,33 @@ export default function CompanySwitcher({
       window.location.reload();
     }
   };
+
+  // Non-admin users: show a read-only company badge — no dropdown, no switching
+  if (!userIsAdmin) {
+    return (
+      <div
+        className={`inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 ${
+          compact ? 'max-w-[180px]' : 'min-w-[160px] max-w-[260px]'
+        }`}
+        title="Current company"
+      >
+        <span
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white"
+          style={{ backgroundColor: BRAND }}
+        >
+          <Building2 className="h-3.5 w-3.5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+            Company
+          </span>
+          <span className="block truncate text-sm font-semibold text-zinc-900">
+            {activeCompany?.name || (loading ? 'Loading…' : 'Company')}
+          </span>
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className="relative">

@@ -32,11 +32,13 @@ import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import LocationSelect from '../../components/LocationSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
+import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 import { LocationProvider } from '../../lib/location-context';
+import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
 import ModuleViewHost from '../../components/ModuleViewHost';
 import {
   warehouseViewHostConfig,
@@ -48,6 +50,7 @@ import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
 // ============================================================
 function WarehouseSidebar() {
   const pathname = usePathname();
+  const { collapsed } = useSidebarCollapsed();
   const { hasSubPageAccess, hasModuleAccess, isAdmin } = usePermissions();
 
   const menuItems = [
@@ -94,98 +97,105 @@ function WarehouseSidebar() {
   });
 
   return (
-    <div className="w-56 h-screen bg-[#1a1a2e] text-white flex flex-col shadow-xl flex-shrink-0 fixed left-0 top-0">
+    <CollapsibleSidebar expandedClassName="w-56" expandedWidth={224}>
       <BrandHeader subtitle="Inventory Module" />
 
       {/* Menu Items */}
       <div className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-        <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3">
-          INVENTORY MENU
-        </p>
+        {!collapsed && (
+          <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3 sidebar-expanded-only">
+            INVENTORY MENU
+          </p>
+        )}
         
         {filteredMenuItems.map((item) => (
           <Link
             key={item.path}
             href={item.path}
+            title={item.label}
             {...keepAliveNavProps(warehouseViewHostConfig, item.path)}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 group
               ${isActive(item.path) 
-                ? 'bg-[#014582]/20 text-[#b388ff]' 
+                ? 'bg-[#014582] text-white shadow-md shadow-[#014582]/30' 
                 : 'text-white/60 hover:text-white hover:bg-white/5'
               }`}
           >
             <div className="flex items-center gap-3">
-              <span className={isActive(item.path) ? 'text-[#b388ff]' : 'text-white/40'}>
+              <span className={isActive(item.path) ? 'text-white' : 'text-white/40'}>
                 {item.icon}
               </span>
-              <span className="text-sm font-medium">{item.label}</span>
+              <span className="text-sm font-medium sidebar-expanded-only">{item.label}</span>
             </div>
-            {isActive(item.path) && (
-              <ChevronRight className="w-4 h-4 text-[#b388ff]" />
+            {isActive(item.path) && !collapsed && (
+              <ChevronRight className="w-4 h-4 text-white sidebar-expanded-only" />
             )}
           </Link>
         ))}
 
         <div className="my-4 border-t border-white/10" />
 
-        <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3">
-          MAIN MENU
+        {!collapsed && (
+          <p className="px-2 text-[10px] font-semibold text-white/30 tracking-wider mb-3 sidebar-expanded-only">
+            MAIN MENU
+          </p>
+        )}
         <Link
           href="/distributor/dashboard"
+          title="Distributor Hub"
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/70 hover:text-white hover:bg-white/5 font-semibold text-amber-400"
         >
           <Truck className="w-5 h-5 text-amber-400" />
-          <span className="text-sm font-medium">Distributor Hub</span>
+          <span className="text-sm font-medium sidebar-expanded-only">Distributor Hub</span>
         </Link>
-
-        </p>
 
         {filteredMainMenuItems.map((item) => (
           <Link
             key={item.path}
             href={item.path}
+            title={item.label}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/40 hover:text-white hover:bg-white/5"
           >
             {item.icon}
-            <span className="text-sm font-medium">{item.label}</span>
+            <span className="text-sm font-medium sidebar-expanded-only">{item.label}</span>
           </Link>
         ))}
       </div>
 
       {/* Bottom Section */}
-      <div className="px-3 pb-6 flex-shrink-0">
+      <div className="px-3 pb-4 flex-shrink-0">
         {isAdmin && SUBSCRIPTION_PURCHASE_UI_ENABLED && (
           <Link
             href="/plans"
+            title="Subscription Plans"
             className="w-full flex items-center gap-3 px-3 py-2.5 mb-2 rounded-lg transition-all text-white/60 hover:text-white hover:bg-white/5"
           >
             <CreditCard className="w-5 h-5" />
-            <span className="text-sm font-medium">Subscription Plans</span>
+            <span className="text-sm font-medium sidebar-expanded-only">Subscription Plans</span>
           </Link>
         )}
 
-        <div className="p-4 bg-[#014582]/10 rounded-xl border border-[#014582]/20">
-          <HelpCircle className="w-5 h-5 text-[#b388ff] mb-2" />
-          <p className="text-sm font-semibold text-white">Need Help?</p>
-          <p className="text-xs text-white/40">Contact our support team</p>
-        </div>
+        {!collapsed && (
+          <div className="p-4 bg-[#014582]/10 rounded-xl border border-[#014582]/20 sidebar-help sidebar-expanded-only">
+            <HelpCircle className="w-5 h-5 text-white mb-2" />
+            <p className="text-sm font-semibold text-white">Need Help?</p>
+            <p className="text-xs text-white/40">Contact our support team</p>
+          </div>
+        )}
 
         <button
           type="button"
+          title="Logout"
           onClick={() => void performLogout()}
           className="w-full flex items-center gap-3 px-3 py-2.5 mt-3 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-all"
         >
           <LogOut className="w-5 h-5" />
-          <span className="text-sm font-medium">Logout</span>
+          <span className="text-sm font-medium sidebar-expanded-only">Logout</span>
         </button>
       </div>
-    </div>
+    </CollapsibleSidebar>
   );
 }
 
-// ============================================================
-// WAREHOUSE LAYOUT
-// ============================================================
 export default function WarehouseLayout({
   children,
 }: {
@@ -196,7 +206,7 @@ export default function WarehouseLayout({
       <LocationProvider allowAll allowAllUsers>
       <WarehouseSidebar />
 
-      <div className="ml-56 min-h-screen bg-gray-50 flex flex-col">
+      <SidebarMain className="bg-gray-50">
         {/* Top Bar */}
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
           <TopBarBrand
@@ -225,7 +235,7 @@ export default function WarehouseLayout({
             {children}
           </ModuleViewHost>
         </div>
-      </div>
+      </SidebarMain>
       </LocationProvider>
     </FiscalYearProvider>
   );
