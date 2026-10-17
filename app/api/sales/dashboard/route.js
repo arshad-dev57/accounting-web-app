@@ -16,6 +16,21 @@ function defaultComparison() {
     priorReturns: 0,
     salesChangePercent: 0,
     returnsChangePercent: 0,
+    currentLabel: '',
+    priorLabel: '',
+  };
+}
+
+function normalizeComparison(c = {}) {
+  return {
+    currentSales: toNum(c.currentSales),
+    priorSales: toNum(c.priorSales),
+    currentReturns: toNum(c.currentReturns),
+    priorReturns: toNum(c.priorReturns),
+    salesChangePercent: toNum(c.salesChangePercent),
+    returnsChangePercent: toNum(c.returnsChangePercent),
+    currentLabel: c.currentLabel?.toString() || '',
+    priorLabel: c.priorLabel?.toString() || '',
   };
 }
 
@@ -190,10 +205,10 @@ function normalizeDashboard(raw = {}) {
       fullyApplied: toNum(credits.fullyApplied),
     },
     comparison: {
-      today: { ...defaultComparison(), ...(comparison.today || {}) },
-      week: { ...defaultComparison(), ...(comparison.week || {}) },
-      month: { ...defaultComparison(), ...(comparison.month || {}) },
-      year: { ...defaultComparison(), ...(comparison.year || {}) },
+      today: normalizeComparison(comparison.today),
+      week: normalizeComparison(comparison.week),
+      month: normalizeComparison(comparison.month),
+      year: normalizeComparison(comparison.year),
     },
     recentActivity: Array.isArray(raw.recentActivity)
       ? raw.recentActivity.map((a) => ({
@@ -215,6 +230,14 @@ function normalizeDashboard(raw = {}) {
           quantitySold: toNum(p.quantitySold ?? p.quantity),
           revenue: toNum(p.revenue),
           discountAmount: toNum(p.discountAmount),
+          orderCount: toNum(p.orderCount),
+          avgUnitPrice: toNum(p.avgUnitPrice),
+          orderRevenue: toNum(p.orderRevenue),
+          posRevenue: toNum(p.posRevenue),
+          invoiceRevenue: toNum(p.invoiceRevenue),
+          orderQty: toNum(p.orderQty),
+          posQty: toNum(p.posQty),
+          invoiceQty: toNum(p.invoiceQty),
         }))
       : [],
     // Backend: totalOrders — Flutter: orderCount

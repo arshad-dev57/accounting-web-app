@@ -34,6 +34,19 @@ import {
   resolveProductCategoryIds,
 } from '@/lib/product-pagination';
 
+function validateProductHsCode(code: string): string | null {
+  const trimmed = String(code || '').trim();
+  if (!trimmed) return null;
+  if (!/^[\d.]+$/.test(trimmed)) {
+    return 'HS code must contain only digits and dots (6–10 digits, e.g. 1006.30)';
+  }
+  const digits = trimmed.replace(/\./g, '');
+  if (digits.length < 6 || digits.length > 10) {
+    return 'HS code must be 6–10 digits (dots optional, e.g. 1006.30)';
+  }
+  return null;
+}
+
 function resolveCategorySelection(categories: Category[], categoryId?: string) {
   if (!categoryId) return { category: '', subCategory: '', subCategories: [] as Category[] };
   for (const parent of categories) {
@@ -803,6 +816,7 @@ function ProductForm({
 
   const [activeTab, setActiveTab] = useState('basic');
   const [formData, setFormData] = useState(() => buildProductFormState(editingProduct, categoryList));
+  const [hsCodeFieldError, setHsCodeFieldError] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -905,6 +919,14 @@ const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    const hsErr = validateProductHsCode(String(formData.hsCode || ''));
+    if (hsErr) {
+      setHsCodeFieldError(hsErr);
+      setError(hsErr);
+      setLoading(false);
+      return;
+    }
+    setHsCodeFieldError('');
     try {
       const payload = new FormData();
       const mapping: Record<string, string> = {
@@ -1489,7 +1511,23 @@ const handleSubmit = async (e: React.FormEvent) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">HS Code</label>
-                <input type="text" placeholder="e.g., 5201.00.00" value={formData.hsCode} onChange={(e) => handleInputChange('hsCode', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
+                <input
+                  type="text"
+                  placeholder="e.g. 1006.30"
+                  value={formData.hsCode}
+                  onChange={(e) => {
+                    handleInputChange('hsCode', e.target.value);
+                    if (hsCodeFieldError) setHsCodeFieldError('');
+                  }}
+                  onBlur={() => {
+                    const err = validateProductHsCode(String(formData.hsCode || ''));
+                    setHsCodeFieldError(err || '');
+                  }}
+                  className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 ${hsCodeFieldError ? 'border-red-300' : 'border-gray-200'}`}
+                />
+                {hsCodeFieldError ? (
+                  <p className="text-xs text-red-600 mt-1">{hsCodeFieldError}</p>
+                ) : null}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Country of Origin</label>

@@ -7,7 +7,9 @@ export interface Customer {
   name: string;
   email?: string;
   phone?: string;
+  /** UI field; API also returns companyName from Prisma */
   company?: string;
+  companyName?: string;
   customerType: 'Individual' | 'Business' | 'Wholesale' | 'Distributor' | 'Retailer' | 'Manufacturer';
   taxId?: string;
   address?: {
@@ -76,6 +78,18 @@ export interface CustomerListResponse {
   };
 }
 
+/** Map Prisma `companyName` → UI `company` (and keep both). */
+export function normalizeCustomer<T extends Partial<Customer>>(customer: T): T & { company?: string } {
+  if (!customer || typeof customer !== 'object') return customer;
+  const company = customer.company ?? customer.companyName ?? undefined;
+  return { ...customer, company, companyName: customer.companyName ?? company };
+}
+
+function normalizeCustomerList(list: Customer[] | undefined): Customer[] {
+  if (!Array.isArray(list)) return [];
+  return list.map((c) => normalizeCustomer(c));
+}
+
 export interface CustomerStatsResponse {
   success: boolean;
   data: {
@@ -132,7 +146,11 @@ export const customerService = {
           .join(' — ')
       );
     }
-    return response.data;
+    const payload = response.data as CustomerListResponse;
+    return {
+      ...payload,
+      data: normalizeCustomerList(payload?.data),
+    };
   },
 
   // ─── Get customer by ID ─────────────────────────────────────
@@ -141,7 +159,7 @@ export const customerService = {
     if (!response.success) {
       throw new Error(response.message || 'Failed to fetch customer');
     }
-    return response.data.data;
+    return normalizeCustomer(response.data.data);
   },
 
   // ─── Get customer by customer number ──────────────────────
@@ -150,7 +168,7 @@ export const customerService = {
     if (!response.success) {
       throw new Error(response.message || 'Customer not found');
     }
-    return response.data.data;
+    return normalizeCustomer(response.data.data);
   },
 
   // ─── Search customers ──────────────────────────────────────
@@ -159,7 +177,7 @@ export const customerService = {
     if (!response.success) {
       throw new Error(response.message || 'Failed to search customers');
     }
-    return response.data.data || [];
+    return normalizeCustomerList(response.data.data || []);
   },
 
   // ─── Create customer ──────────────────────────────────────
@@ -168,7 +186,7 @@ export const customerService = {
     if (!response.success) {
       throw new Error(response.message || 'Failed to create customer');
     }
-    return response.data.data;
+    return normalizeCustomer(response.data.data);
   },
 
   // ─── Update customer ──────────────────────────────────────
@@ -177,7 +195,7 @@ export const customerService = {
     if (!response.success) {
       throw new Error(response.message || 'Failed to update customer');
     }
-    return response.data.data;
+    return normalizeCustomer(response.data.data);
   },
 
   // ─── Delete customer ──────────────────────────────────────
@@ -194,7 +212,7 @@ export const customerService = {
     if (!response.success) {
       throw new Error(response.message || 'Failed to update customer status');
     }
-    return response.data.data;
+    return normalizeCustomer(response.data.data);
   },
 
   // ─── Get customer stats ──────────────────────────────────

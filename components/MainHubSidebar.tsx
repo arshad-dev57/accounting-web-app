@@ -18,6 +18,9 @@ import {
   Receipt,
   UsersRound,
   Factory,
+  ArrowLeftRight,
+  Ship,
+  Send,
 } from 'lucide-react';
 import { usePermissions } from '../lib/usePermissions';
 import { BrandHeader } from './BrandHeader';
@@ -128,6 +131,24 @@ export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: str
           label: 'HR Management',
           path: '/hr/dashboard',
           show: isAdmin || hasModuleAccess('hr'),
+        },
+        {
+          icon: <ArrowLeftRight className="w-5 h-5" />,
+          label: 'Trading',
+          path: '/trading/dashboard',
+          show: isAdmin || hasModuleAccess('trading'),
+        },
+        {
+          icon: <Ship className="w-5 h-5" />,
+          label: 'Import',
+          path: '/import/dashboard',
+          show: isAdmin || hasModuleAccess('import'),
+        },
+        {
+          icon: <Send className="w-5 h-5" />,
+          label: 'Export',
+          path: '/export/dashboard',
+          show: isAdmin || hasModuleAccess('export'),
         },
         {
           icon: <Store className="w-5 h-5" />,

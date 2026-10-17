@@ -26,6 +26,13 @@ import {
 } from '../../../lib/tax-service';
 import { ProductPicker, type PickedProduct } from '@/manufacturing/_components/ProductPicker';
 import { SalesNumberInput } from '@/components/sales/sales-number-input';
+import { CustomerFormModal } from '@/components/customers/CustomerFormModal';
+import { useLocationOptional } from '@/lib/location-context';
+import {
+  tradingService,
+  type ResolvedSellPrice,
+} from '@/lib/trading-service';
+import toast from 'react-hot-toast';
 
 type Order = SalesOrder & {
   totalAmount?: number;
@@ -40,6 +47,13 @@ interface OrderItem {
   totalPrice: number;
   taxRate?: number;
   taxAmount?: number;
+  /** When true, keep typed price; do not overwrite from customer pricing. */
+  manualPriceOverride?: boolean;
+  pricingSource?: string;
+  listPrice?: number;
+  currencyCode?: string;
+  minOrderQty?: number;
+  pricingWarnings?: string[];
 }
 
 interface Address {
@@ -856,6 +870,7 @@ function CreateOrderForm({
 }) {
   const isEditing = Boolean(orderToEdit?.id || orderToEdit?._id);
   const { symbol, formatAmount } = useCurrency();
+  const locationCtx = useLocationOptional();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -865,7 +880,10 @@ function CreateOrderForm({
   const [loadingProducts, setLoadingProducts] = useState(true);
 
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
+  const [pricingBanner, setPricingBanner] = useState<string>('');
 
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -1124,6 +1142,7 @@ function CreateOrderForm({
 
     if (!customer) {
       resetCustomerFields();
+      setPricingBanner('');
       return;
     }
 
@@ -1132,17 +1151,20 @@ function CreateOrderForm({
     setCustomerEmail(customer.email || '');
     setCustomerPhone(customer.phone || '');
     setCustomerType(customer.customerType || 'Individual');
-    setCustomerCompany(customer.company || '');
+    setCustomerCompany(customer.company || customer.companyName || '');
     setCustomerTaxId(customer.taxId || '');
 
-    console.log('📝 Customer fields filled:', {
-      name: customer.name,
-      email: customer.email,
-      phone: customer.phone,
-      type: customer.customerType,
-      company: customer.company,
-      taxId: customer.taxId
-    });
+    // Re-apply active negotiated / price-list prices for existing lines
+    const cid = customer.id || customer._id || null;
+    if (cid && orderItems.length > 0) {
+      void repriceOrderLines(cid, orderItems, true).then((next) => {
+        setOrderItems(next);
+      });
+    } else if (cid) {
+      setPricingBanner(
+        'Customer selected — negotiated / price-list prices will apply when you add products.'
+      );
+    }
 
     // ── Auto-fill addresses ──
     const address = customer.address || customer.shippingAddress || customer.primaryAddress || null;
@@ -1162,15 +1184,12 @@ function CreateOrderForm({
       setShippingPostalCode(shippingAddr.postalCode);
       setShippingCountry(shippingAddr.country);
 
-      console.log('✅ Shipping address set:', shippingAddr);
-
       if (sameAsShipping) {
         setBillingStreet(shippingAddr.street);
         setBillingCity(shippingAddr.city);
         setBillingState(shippingAddr.state);
         setBillingPostalCode(shippingAddr.postalCode);
         setBillingCountry(shippingAddr.country);
-        console.log('✅ Billing address set (same as shipping)');
       }
     } else {
       console.warn('⚠️ No address found for customer');
@@ -1184,7 +1203,6 @@ function CreateOrderForm({
         setBillingState(billingAddr.state || '');
         setBillingPostalCode(billingAddr.postalCode || '');
         setBillingCountry(billingAddr.country || 'Pakistan');
-        console.log('✅ Billing address set:', billingAddr);
       }
     }
   };
@@ -1215,7 +1233,119 @@ function CreateOrderForm({
     }
   };
 
-  const addProductLine = (product: Product, qty: number) => {
+  const customerIdForPricing = () =>
+    selectedCustomer?.id || selectedCustomer?._id || null;
+
+  const applyResolvedToOrderLine = (
+    line: OrderItem,
+    resolved: ResolvedSellPrice,
+    opts?: { force?: boolean }
+  ): OrderItem => {
+    if (line.manualPriceOverride && !opts?.force) {
+      return {
+        ...line,
+        pricingWarnings: resolved.warnings || line.pricingWarnings,
+        minOrderQty: resolved.minOrderQty ?? line.minOrderQty,
+      };
+    }
+    const unitPrice = Number(resolved.unitPrice);
+    const qty =
+      typeof line.quantity === 'number'
+        ? line.quantity
+        : parseInt(String(line.quantity), 10) || 1;
+    return lineWithTax({
+      ...line,
+      unitPrice,
+      totalPrice: unitPrice * qty,
+      listPrice: Number(resolved.listPrice),
+      currencyCode: resolved.currencyCode || line.currencyCode,
+      minOrderQty: Number(resolved.minOrderQty) || 1,
+      pricingSource: resolved.source,
+      manualPriceOverride: false,
+      pricingWarnings: resolved.warnings || [],
+      taxRate:
+        line.taxRate != null && line.taxRate > 0
+          ? line.taxRate
+          : Number(resolved.taxRate) || line.taxRate || 0,
+    });
+  };
+
+  const resolvePriceForProduct = async (
+    productId: string,
+    qty: number
+  ): Promise<ResolvedSellPrice | null> => {
+    try {
+      return await tradingService.resolveSellPrice({
+        customerId: customerIdForPricing(),
+        productId,
+        quantity: qty,
+      });
+    } catch (err) {
+      console.error('resolveSellPrice failed:', err);
+      return null;
+    }
+  };
+
+  const repriceOrderLines = useCallback(
+    async (customerId: string | null, lines: OrderItem[], force = false) => {
+      if (!lines.length) return lines;
+      if (!customerId) {
+        setPricingBanner(
+          'Select a customer to apply negotiated / price-list pricing. Catalog selling prices are shown until then.'
+        );
+        return lines;
+      }
+      try {
+        const resolved = await tradingService.resolveSellPrices({
+          customerId,
+          lines: lines.map((l) => ({
+            productId: l.productId,
+            quantity:
+              typeof l.quantity === 'number'
+                ? l.quantity
+                : parseInt(String(l.quantity), 10) || 1,
+          })),
+        });
+        const byProduct = new Map(resolved.map((r) => [r.productId, r]));
+        const next = lines.map((line) => {
+          if (line.manualPriceOverride && !force) return line;
+          const r = byProduct.get(line.productId);
+          return r ? applyResolvedToOrderLine(line, r, { force }) : line;
+        });
+        const negotiated = resolved.filter((r) => r.source === 'CUSTOMER_NEGOTIATED')
+          .length;
+        const msgs = resolved.flatMap((r) => [
+          ...(r.messages || []),
+          ...(r.warnings || []),
+        ]);
+        if (negotiated > 0) {
+          setPricingBanner(
+            `Applied customer negotiated pricing on ${negotiated} line(s).` +
+              (msgs.length ? ` ${msgs[0]}` : '')
+          );
+        } else if (msgs.length) {
+          setPricingBanner(msgs[0]);
+        } else {
+          setPricingBanner(
+            'Using standard selling prices (no active customer pricing for these products).'
+          );
+        }
+        return next;
+      } catch (err) {
+        console.error('SO price resolve failed:', err);
+        setPricingBanner(
+          err instanceof Error
+            ? err.message
+            : 'Could not resolve customer pricing; showing catalog prices.'
+        );
+        return lines;
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [taxContext, pricingModel]
+  );
+
+  const addProductLine = async (product: Product, qty: number) => {
     if (qty < 1) {
       setFormError('Quantity must be at least 1');
       return;
@@ -1235,33 +1365,67 @@ function CreateOrderForm({
     const taxRate =
       productRate > 0 ? productRate : resolveProductTaxRate(0, taxContext);
 
+    const resolved = await resolvePriceForProduct(selectedProductId, qty);
+    const unitPrice = resolved
+      ? Number(resolved.unitPrice)
+      : Number(product.sellingPrice) || 0;
+
     if (idx >= 0) {
       const newQty = orderItems[idx].quantity + qty;
       if (newQty > product.currentStock) {
         setFormError(`Insufficient stock. Available: ${product.currentStock}, total requested: ${newQty}`);
         return;
       }
+      const refreshed = await resolvePriceForProduct(selectedProductId, newQty);
       const updated = [...orderItems];
-      updated[idx] = lineWithTax({
+      const base = {
         ...updated[idx],
         quantity: newQty,
         taxRate: updated[idx].taxRate || taxRate,
-      });
+      };
+      updated[idx] = refreshed
+        ? applyResolvedToOrderLine(base, refreshed, {
+            force: !updated[idx].manualPriceOverride,
+          })
+        : lineWithTax(base);
       setOrderItems(updated);
+      if (refreshed?.source === 'CUSTOMER_NEGOTIATED') {
+        setPricingBanner(
+          `Negotiated price ${unitPrice.toLocaleString()} applied for ${product.name}`
+        );
+      }
     } else {
-      setOrderItems([
-        ...orderItems,
-        lineWithTax({
-          productId: getNormalizedId(product),
-          productName: product.name,
-          sku: product.sku,
-          quantity: qty,
-          unitPrice: product.sellingPrice,
-          totalPrice: product.sellingPrice * qty,
-          taxRate,
-          taxAmount: 0,
-        }),
-      ]);
+      const line = lineWithTax({
+        productId: selectedProductId,
+        productName: product.name,
+        sku: product.sku,
+        quantity: qty,
+        unitPrice,
+        totalPrice: unitPrice * qty,
+        taxRate: resolved?.taxRate != null && Number(resolved.taxRate) > 0
+          ? Number(resolved.taxRate)
+          : taxRate,
+        taxAmount: 0,
+        pricingSource: resolved?.source,
+        listPrice: resolved ? Number(resolved.listPrice) : Number(product.sellingPrice),
+        currencyCode: resolved?.currencyCode,
+        minOrderQty: resolved?.minOrderQty,
+        pricingWarnings: resolved?.warnings,
+        manualPriceOverride: false,
+      });
+      setOrderItems([...orderItems, line]);
+      if (resolved?.source === 'CUSTOMER_NEGOTIATED') {
+        setPricingBanner(
+          `Negotiated price ${unitPrice.toLocaleString()} applied for ${product.name}`
+        );
+        toast.success(`${product.name}: negotiated price loaded`);
+      } else if (!customerIdForPricing()) {
+        setPricingBanner(
+          'Select a customer to apply negotiated / price-list pricing. Catalog selling prices are shown until then.'
+        );
+      } else if (resolved?.warnings?.length) {
+        setPricingBanner(resolved.warnings[0]);
+      }
     }
 
     setSelectedProduct(null);
@@ -1275,7 +1439,7 @@ function CreateOrderForm({
       setFormError('Please select a product');
       return;
     }
-    addProductLine(selectedProduct, quantity);
+    void addProductLine(selectedProduct, quantity);
   };
 
   const handleBulkAddProducts = async (picked: PickedProduct[]) => {
@@ -1283,6 +1447,7 @@ function CreateOrderForm({
     setFormError('');
     const existingIds = new Set(orderItems.map((i) => getNormalizedId({ _id: i.productId })));
     const additions: OrderItem[] = [];
+    let negotiatedCount = 0;
 
     for (const p of picked) {
       if (existingIds.has(p.id)) continue;
@@ -1300,16 +1465,33 @@ function CreateOrderForm({
         const productRate = Number((product as any).taxRate) || 0;
         const taxRate =
           productRate > 0 ? productRate : resolveProductTaxRate(0, taxContext);
+        const productId = getNormalizedId(product);
+        const resolved = await resolvePriceForProduct(productId, 1);
+        const unitPrice = resolved
+          ? Number(resolved.unitPrice)
+          : Number(product.sellingPrice) || 0;
+        if (resolved?.source === 'CUSTOMER_NEGOTIATED') negotiatedCount += 1;
         additions.push(
           lineWithTax({
-            productId: getNormalizedId(product),
+            productId,
             productName: product.name,
             sku: product.sku,
             quantity: 1,
-            unitPrice: product.sellingPrice,
-            totalPrice: product.sellingPrice,
-            taxRate,
+            unitPrice,
+            totalPrice: unitPrice,
+            taxRate:
+              resolved?.taxRate != null && Number(resolved.taxRate) > 0
+                ? Number(resolved.taxRate)
+                : taxRate,
             taxAmount: 0,
+            pricingSource: resolved?.source,
+            listPrice: resolved
+              ? Number(resolved.listPrice)
+              : Number(product.sellingPrice),
+            currencyCode: resolved?.currencyCode,
+            minOrderQty: resolved?.minOrderQty,
+            pricingWarnings: resolved?.warnings,
+            manualPriceOverride: false,
           })
         );
         existingIds.add(p.id);
@@ -1320,6 +1502,16 @@ function CreateOrderForm({
 
     if (additions.length) {
       setOrderItems((prev) => [...prev, ...additions]);
+      if (negotiatedCount > 0) {
+        setPricingBanner(
+          `Applied customer negotiated pricing on ${negotiatedCount} line(s).`
+        );
+        toast.success(`Negotiated pricing applied on ${negotiatedCount} product(s)`);
+      } else if (!customerIdForPricing()) {
+        setPricingBanner(
+          'Select a customer to apply negotiated / price-list pricing. Catalog selling prices are shown until then.'
+        );
+      }
     }
   };
 
@@ -1366,8 +1558,22 @@ function CreateOrderForm({
       setFormError('');
     }
 
-    updated[i] = lineWithTax({ ...updated[i], quantity: qty });
+    const withQty = lineWithTax({ ...updated[i], quantity: qty });
+    updated[i] = withQty;
     setOrderItems(updated);
+
+    // Qty breaks may change price-list / negotiated applicability
+    if (!withQty.manualPriceOverride && customerIdForPricing()) {
+      void resolvePriceForProduct(String(withQty.productId), qty).then((resolved) => {
+        if (!resolved) return;
+        setOrderItems((prev) => {
+          const copy = [...prev];
+          if (!copy[i] || copy[i].manualPriceOverride) return prev;
+          copy[i] = applyResolvedToOrderLine({ ...copy[i], quantity: qty }, resolved);
+          return copy;
+        });
+      });
+    }
   };
 
   const handleBlurQty = (i: number, rawValue: string) => {
@@ -1385,6 +1591,36 @@ function CreateOrderForm({
     const updated = [...orderItems];
     updated[i] = lineWithTax({ ...updated[i], quantity: qty });
     setOrderItems(updated);
+
+    if (!updated[i].manualPriceOverride && customerIdForPricing()) {
+      void resolvePriceForProduct(String(updated[i].productId), qty).then((resolved) => {
+        if (!resolved) return;
+        setOrderItems((prev) => {
+          const copy = [...prev];
+          if (!copy[i] || copy[i].manualPriceOverride) return prev;
+          copy[i] = applyResolvedToOrderLine({ ...copy[i], quantity: qty }, resolved);
+          return copy;
+        });
+      });
+    }
+  };
+
+  const handleUpdateUnitPrice = (i: number, raw: string) => {
+    const price = parseFloat(raw);
+    const updated = [...orderItems];
+    const qty =
+      typeof updated[i].quantity === 'number'
+        ? updated[i].quantity
+        : parseInt(String(updated[i].quantity), 10) || 1;
+    updated[i] = lineWithTax({
+      ...updated[i],
+      unitPrice: Number.isFinite(price) && price >= 0 ? price : 0,
+      totalPrice: (Number.isFinite(price) && price >= 0 ? price : 0) * qty,
+      manualPriceOverride: true,
+      pricingSource: 'MANUAL',
+    });
+    setOrderItems(updated);
+    setPricingBanner('Manual price override — customer pricing will not overwrite this line.');
   };
 
   const handleUpdateTaxRate = (i: number, rate: number) => {
@@ -1396,11 +1632,19 @@ function CreateOrderForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
-    if (!customerName.trim()) { setFormError('Customer name is required'); return; }
+    if (!selectedCustomer && !customerName.trim()) {
+      setFormError('Please select a customer');
+      return;
+    }
     if (orderItems.length === 0) {
       setFormError('⚠️ Please select at least one product from the catalog before creating the order');
       return;
     }
+
+    const resolvedLocationId =
+      !locationCtx.isAllLocations && locationCtx.locationIdForApi
+        ? locationCtx.locationIdForApi
+        : undefined;
 
     setIsSubmitting(true);
     try {
@@ -1408,8 +1652,10 @@ function CreateOrderForm({
       const billingAddr = sameAsShipping ? shippingAddr : { street: billingStreet, city: billingCity, state: billingState, postalCode: billingPostalCode, country: billingCountry };
 
       const payload = {
+        customerId: selectedCustomer?.id || selectedCustomer?._id || undefined,
         customerName, customerEmail, customerPhone, customerType,
         customerCompany, customerTaxId,
+        ...(resolvedLocationId ? { locationId: resolvedLocationId } : {}),
         shippingAddress: shippingAddr,
         billingAddress: billingAddr,
         items: orderItems.map((item) => {
@@ -1422,6 +1668,9 @@ function CreateOrderForm({
             productId: String(item.productId || ''),
             taxRate: taxed.taxRate || 0,
             taxAmount: taxed.taxAmount || 0,
+            manualPriceOverride: Boolean(item.manualPriceOverride),
+            pricingSource: item.pricingSource || undefined,
+            priceSource: item.manualPriceOverride ? 'MANUAL' : item.pricingSource,
           };
         }),
         orderType,
@@ -1485,22 +1734,27 @@ function CreateOrderForm({
         </h2>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Select Customer</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Search Customer *</label>
           <div className="flex gap-3">
             <button
               type="button"
               onClick={() => setShowCustomerModal(true)}
-              className="flex-1 flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 hover:border-[#014582] hover:bg-purple-50 transition-all text-left focus:ring-2 focus:ring-[#014582] focus:outline-none"
+              className="flex-1 flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 hover:border-[#014582] hover:bg-blue-50 transition-all text-left focus:ring-2 focus:ring-[#014582] focus:outline-none"
             >
               <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              {selectedCustomer ? (
-                <span className="text-gray-800 font-medium truncate flex-1">
-                  {selectedCustomer.name}
-                </span>
-              ) : (
-                <span className="text-gray-400 flex-1">Click to select customer...</span>
-              )}
+              <span className="text-gray-400 flex-1">
+                {selectedCustomer ? 'Change customer…' : 'Search and select customer…'}
+              </span>
               <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowAddCustomerModal(true)}
+              className="px-3 py-2.5 border border-[#014582]/30 bg-[#014582]/5 text-[#014582] rounded-lg hover:bg-[#014582] hover:text-white transition-all"
+              title="Add new customer"
+            >
+              <Plus className="w-4 h-4" />
             </button>
 
             {selectedCustomer && (
@@ -1514,54 +1768,44 @@ function CreateOrderForm({
               </button>
             )}
           </div>
+        </div>
 
-          {selectedCustomer && (
-            <div className="mt-2 px-3 py-2 bg-purple-50 border border-purple-100 rounded-lg flex items-center gap-3">
-              <div className="w-6 h-6 rounded-full bg-[#014582] flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-xs font-bold">
-                  {selectedCustomer.name?.charAt(0)?.toUpperCase()}
-                </span>
-              </div>
-              <span className="text-sm text-purple-700 font-medium">
-                {selectedCustomer.name}
-                {selectedCustomer.customerNumber && (
-                  <span className="text-xs text-purple-400 font-mono ml-2">
-                    #{selectedCustomer.customerNumber}
-                  </span>
-                )}
+        {selectedCustomer ? (
+          <div className="rounded-xl border border-[#014582]/20 bg-gradient-to-br from-[#014582]/5 to-white p-4 flex items-start gap-3">
+            <div className="w-11 h-11 rounded-xl bg-[#014582] flex items-center justify-center flex-shrink-0 shadow-sm">
+              <span className="text-white text-sm font-bold">
+                {selectedCustomer.name?.charAt(0)?.toUpperCase() || '?'}
               </span>
             </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
-            <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className={inp} required />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-gray-900 truncate">{selectedCustomer.name}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                {selectedCustomer.customerNumber && (
+                  <span className="font-mono text-[#014582]/80">#{selectedCustomer.customerNumber}</span>
+                )}
+                {selectedCustomer.email && <span className="truncate">{selectedCustomer.email}</span>}
+                {selectedCustomer.phone && <span>{selectedCustomer.phone}</span>}
+                {(selectedCustomer.company || selectedCustomer.companyName || selectedCustomer.customerType) && (
+                  <span className="text-gray-400">
+                    {[
+                      selectedCustomer.customerType,
+                      selectedCustomer.company || selectedCustomer.companyName,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                )}
+              </div>
+            </div>
+            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+              Selected
+            </span>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className={inp} />
+        ) : (
+          <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-xs text-gray-400">
+            No customer selected yet. Use search above to pick a customer.
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-            <input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className={inp} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Customer Type</label>
-            <select value={customerType} onChange={(e) => setCustomerType(e.target.value)} className={sel}>
-              {CUSTOMER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-            <input type="text" value={customerCompany} onChange={(e) => setCustomerCompany(e.target.value)} className={inp} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tax ID / NTN</label>
-            <input type="text" value={customerTaxId} onChange={(e) => setCustomerTaxId(e.target.value)} className={inp} />
-          </div>
-        </div>
+        )}
       </section>
 
       {/* ── Shipping Address ──────────────────────────────────────────── */}
@@ -1639,6 +1883,12 @@ function CreateOrderForm({
           <Package className="w-5 h-5 text-[#014582]" /> Order Items
         </h2>
 
+        {pricingBanner && (
+          <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+            {pricingBanner}
+          </div>
+        )}
+
         {/* ── CATALOG PRODUCT PICKER ONLY ── */}
         <div className="p-5 bg-sky-50/70 border border-sky-150 rounded-xl space-y-3">
           <div className="flex items-center justify-between">
@@ -1646,6 +1896,9 @@ function CreateOrderForm({
               <p className="text-sm font-semibold text-sky-950">Select Products from Catalog</p>
               <p className="text-xs text-sky-700">
                 Click below to open the product catalog modal, browse stock levels, and pick products for this order.
+                {selectedCustomer
+                  ? ' Active negotiated / price-list prices load for the selected customer.'
+                  : ' Select a customer first for negotiated pricing.'}
               </p>
             </div>
           </div>
@@ -1680,9 +1933,35 @@ function CreateOrderForm({
                         {stock < 999999 && (
                           <span className="block text-[11px] text-gray-400">Stock: {stock} available</span>
                         )}
+                        {item.pricingSource === 'CUSTOMER_NEGOTIATED' && (
+                          <span className="block text-[10px] font-semibold text-emerald-700">
+                            Negotiated
+                            {item.listPrice != null && item.listPrice !== item.unitPrice
+                              ? ` · list ${formatAmount(Number(item.listPrice))}`
+                              : ''}
+                          </span>
+                        )}
+                        {item.pricingSource === 'PRICE_LIST' && (
+                          <span className="block text-[10px] font-semibold text-[#014582]">
+                            Price list
+                          </span>
+                        )}
+                        {item.manualPriceOverride && (
+                          <span className="block text-[10px] font-semibold text-amber-700">
+                            Manual override
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-2 font-mono text-xs text-gray-500">{item.sku}</td>
-                      <td className="px-4 py-2 text-right text-gray-600">{formatAmount(item.unitPrice)}</td>
+                      <td className="px-4 py-2 text-right text-gray-600">
+                        <SalesNumberInput
+                          min={0}
+                          step={0.01}
+                          value={item.unitPrice}
+                          onChange={(val) => handleUpdateUnitPrice(i, String(val))}
+                          className="w-24 px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-[#014582] outline-none text-right inline-block"
+                        />
+                      </td>
                       <td className="px-4 py-2 text-right min-w-[100px]">
                         <SalesNumberInput
                           min={1}
@@ -1929,6 +2208,25 @@ function CreateOrderForm({
         onClose={() => setShowCustomerModal(false)}
         onSelect={handleCustomerSelect}
       />
+
+      {showAddCustomerModal && (
+        <CustomerFormModal
+          saving={savingCustomer}
+          onCancel={() => setShowAddCustomerModal(false)}
+          onSave={async (data) => {
+            setSavingCustomer(true);
+            try {
+              const created = await customerService.createCustomer(data);
+              setShowAddCustomerModal(false);
+              handleCustomerSelect(created);
+            } catch (err: any) {
+              alert(err?.message || 'Failed to create customer');
+            } finally {
+              setSavingCustomer(false);
+            }
+          }}
+        />
+      )}
     </form>
   );
 }

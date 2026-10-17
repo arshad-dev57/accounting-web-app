@@ -133,7 +133,7 @@ function getStatusColor(status: string) {
 
 
 export default function PurchaseRequisitionsPage() {
-  const { selectedLocationId } = useLocationOptional();
+  const { locationIdForApi } = useLocationOptional();
   const [rows, setRows] = useState<PurchaseRequisitionModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -187,9 +187,9 @@ export default function PurchaseRequisitionsPage() {
           limit: 50,
           search: searchTerm || undefined,
           status: selectedFilter === 'all' ? undefined : selectedFilter,
-          locationId: selectedLocationId || undefined,
+          locationId: locationIdForApi || undefined,
         }),
-        purchaseRequisitionService.getStats(selectedLocationId || undefined),
+        purchaseRequisitionService.getStats(locationIdForApi || undefined),
       ]);
       setRows(list.data);
       setStats(st);
@@ -198,7 +198,7 @@ export default function PurchaseRequisitionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, selectedFilter, selectedLocationId]);
+  }, [searchTerm, selectedFilter, locationIdForApi]);
 
   useEffect(() => {
     load();
@@ -362,7 +362,7 @@ export default function PurchaseRequisitionsPage() {
         requiredDate: wizardState.requiredDate || undefined,
         suggestedSupplierId: wizardState.suggestedSupplier?.id,
         notes: wizardState.notes,
-        locationId: selectedLocationId || undefined,
+        locationId: locationIdForApi || undefined,
         items: wizardState.lines.map((l) => ({
           productId: l.productId,
           quantity: l.quantity,
@@ -450,7 +450,7 @@ export default function PurchaseRequisitionsPage() {
         orderDate: convertForm.orderDate,
         expectedDeliveryDate: convertForm.expectedDeliveryDate || undefined,
         notes: convertForm.notes,
-        locationId: selectedLocationId || undefined,
+        locationId: locationIdForApi || undefined,
         status: 'Draft',
       });
       setSuccess(`Purchase order ${po.orderNumber || ''} created from requisition`);

@@ -86,7 +86,8 @@ export default function CustomerDetailPage() {
       }
 
       if (custObj) {
-        setCustomer(custObj);
+        const company = custObj.company ?? custObj.companyName ?? null;
+        setCustomer({ ...custObj, company, companyName: custObj.companyName ?? company });
         if (ledgerObj) {
           setLedgerData(ledgerObj);
         }
@@ -191,10 +192,10 @@ export default function CustomerDetailPage() {
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight">{customer.name}</h1>
             <div className="flex flex-wrap items-center gap-4 text-xs text-white/80">
-              {customer.company && (
+              {(customer.company || customer.companyName) && (
                 <span className="flex items-center gap-1">
                   <Building2 className="w-3.5 h-3.5 text-white/60" />
-                  {customer.company}
+                  {customer.company || customer.companyName}
                 </span>
               )}
               {customer.email && (
@@ -482,7 +483,23 @@ export default function CustomerDetailPage() {
                 <span className="text-gray-500 block">Phone Number</span>
                 <span className="font-bold text-gray-800">{customer.phone || 'N/A'}</span>
               </div>
+              <div>
+                <span className="text-gray-500 block">Company</span>
+                <span className="font-bold text-gray-800">
+                  {customer.company || customer.companyName || 'N/A'}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500 block">Tax ID</span>
+                <span className="font-bold text-gray-800">{customer.taxId || 'N/A'}</span>
+              </div>
             </div>
+            {customer.notes ? (
+              <div className="text-xs pt-2 border-t border-gray-100">
+                <span className="text-gray-500 block mb-1">Notes</span>
+                <span className="text-gray-800 whitespace-pre-wrap">{customer.notes}</span>
+              </div>
+            ) : null}
           </div>
 
           {/* Credit & Terms Card */}
@@ -535,15 +552,19 @@ export default function CustomerDetailPage() {
               <div className="bg-gray-50 p-3 rounded-lg border">
                 <span className="font-bold text-gray-700 block mb-1">Shipping Address</span>
                 <p className="text-gray-600">
-                  {customer.shippingAddress?.street || 'Same as billing address'}
+                  {customer.shippingAddress?.street ||
+                    customer.address?.street ||
+                    'Same as billing address'}
                 </p>
                 <p className="text-gray-600">
                   {[
-                    customer.shippingAddress?.city,
-                    customer.shippingAddress?.state,
-                    customer.shippingAddress?.postalCode,
-                    customer.shippingAddress?.country
-                  ].filter(Boolean).join(', ')}
+                    customer.shippingAddress?.city || customer.address?.city,
+                    customer.shippingAddress?.state || customer.address?.state,
+                    customer.shippingAddress?.postalCode || customer.address?.postalCode,
+                    customer.shippingAddress?.country || customer.address?.country,
+                  ]
+                    .filter(Boolean)
+                    .join(', ') || 'N/A'}
                 </p>
               </div>
             </div>

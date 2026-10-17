@@ -46,6 +46,9 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      { source: '/import', destination: '/import/dashboard', permanent: false },
+      { source: '/export', destination: '/export/dashboard', permanent: false },
+      { source: '/trading', destination: '/trading/dashboard', permanent: false },
       { source: '/manufacturing', destination: '/manufacturing/dashboard', permanent: false },
       { source: '/manufacturing/master/bom-versions', destination: '/manufacturing/master/bom', permanent: false },
       { source: '/manufacturing/master/operations', destination: '/manufacturing/master/routings', permanent: false },

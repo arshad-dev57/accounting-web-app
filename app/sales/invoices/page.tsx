@@ -10,6 +10,7 @@ import CreateInvoiceWizard from '@/components/sales-invoices/CreateInvoiceWizard
 import PDFService from '@/lib/pdf-service';
 import { ProductPicker, type PickedProduct } from '@/manufacturing/_components/ProductPicker';
 import { productService } from '../../api/product/route';
+import { useCurrency } from '@/lib/currency-context';
 
 const STATUS_COLORS: Record<string, string> = {
   'Draft': 'bg-orange-100 text-orange-700',
@@ -33,6 +34,7 @@ const STATUS_OPTIONS = ['all', 'Draft', 'Posted', 'Partially Paid', 'Paid', 'Can
 
 export function SalesInvoicesPage() {
   const router = useRouter();
+  const { formatAmount } = useCurrency();
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -199,12 +201,7 @@ export function SalesInvoicesPage() {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(value);
-  };
+  const formatCurrency = (value: number) => formatAmount(Number(value) || 0);
 
   return (
     <div className="p-6">

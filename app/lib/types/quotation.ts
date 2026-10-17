@@ -68,6 +68,12 @@ export interface QuotationStats {
   convertedValue: number;
 }
 
+export type QuotationPricingSource =
+  | 'CUSTOMER_NEGOTIATED'
+  | 'PRICE_LIST'
+  | 'STANDARD_SELLING'
+  | 'MANUAL';
+
 export interface QuotationLineDraft {
   productId: string;
   productName: string;
@@ -76,6 +82,15 @@ export interface QuotationLineDraft {
   unitPrice: number;
   discount: number;
   taxRate: number;
+  /** When true, backend keeps the user-entered unitPrice */
+  manualPriceOverride?: boolean;
+  pricingSource?: QuotationPricingSource | string;
+  currencyCode?: string;
+  unitName?: string;
+  listPrice?: number;
+  minOrderQty?: number;
+  pricingMessages?: string[];
+  pricingWarnings?: string[];
 }
 
 export interface Customer {

@@ -141,7 +141,7 @@ export const DEFAULT_RECEIPT_TEMPLATE: PosReceiptTemplate = {
   website: '',
   storeLogo: '',
   taxId: '',
-  showLogo: true;
+  showLogo: true,
   showAddress: true,
   showPhone: true,
   showEmail: true,

@@ -336,3 +336,89 @@ export function UsersAppIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function ImportAppIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden>
+      <g className="imp-crane">
+        <path d="M10 50 L54 50 L48 38 L16 38 Z" fill="#00A09D" />
+        <rect x="22" y="24" width="20" height="14" rx="2" fill="#714B67" />
+        <rect x="26" y="27" width="12" height="8" rx="1" fill="#F7CD1F" />
+        <path d="M32 10 L32 24" stroke="#F06050" strokeWidth="3" strokeDasharray="2 2" />
+        <path className="imp-arrow" d="M32 20 L27 15 H37 Z" fill="#F06050" />
+        <circle cx="32" cy="10" r="3.5" fill="#875A7B" />
+      </g>
+      <style>{`
+        .imp-crane { transform-box: fill-box; transform-origin: center; animation: impBob 1.4s ease-in-out infinite alternate; }
+        .imp-arrow { animation: impDrop 1.1s ease-in-out infinite; }
+        @keyframes impBob {
+          from { transform: translateY(0px); }
+          to { transform: translateY(-2px); }
+        }
+        @keyframes impDrop {
+          0%, 100% { transform: translateY(0); opacity: 1; }
+          50% { transform: translateY(3px); opacity: 0.7; }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
+export function ExportAppIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden>
+      <g className="exp-vessel">
+        <path d="M8 44 L56 44 L50 32 L14 32 Z" fill="#714B67" />
+        <rect x="18" y="20" width="12" height="12" rx="1.5" fill="#00A09D" />
+        <rect x="34" y="22" width="12" height="10" rx="1.5" fill="#F7CD1F" />
+        <path className="exp-arrow" d="M42 12 L48 18 H36 Z" fill="#F06050" transform="rotate(45 42 15)" />
+        <circle className="exp-pulse" cx="44" cy="12" r="3" fill="#F06050" />
+      </g>
+      <style>{`
+        .exp-vessel { transform-box: fill-box; transform-origin: center; animation: expFloat 1.5s ease-in-out infinite alternate; }
+        .exp-arrow { animation: expFly 1.2s ease-in-out infinite; }
+        .exp-pulse { animation: expPulse 1s ease-in-out infinite; }
+        @keyframes expFloat {
+          from { transform: rotate(-1.5deg) translateY(0); }
+          to { transform: rotate(1.5deg) translateY(-2px); }
+        }
+        @keyframes expFly {
+          0%, 100% { transform: rotate(45deg) translate(0, 0); }
+          50% { transform: rotate(45deg) translate(2px, -3px); }
+        }
+        @keyframes expPulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.3); opacity: 0.6; }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
+export function TradingAppIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden>
+      <g className="trd-chart">
+        <rect x="12" y="32" width="8" height="20" rx="2" fill="#00A09D" />
+        <rect x="24" y="20" width="8" height="32" rx="2" fill="#714B67" />
+        <rect x="36" y="14" width="8" height="38" rx="2" fill="#F06050" />
+        <rect x="48" y="24" width="8" height="28" rx="2" fill="#F7CD1F" />
+        <path className="trd-line" d="M16 28 L28 16 L40 10 L52 18" fill="none" stroke="#00C2FF" strokeWidth="3" strokeLinecap="round" />
+        <circle className="trd-dot" cx="40" cy="10" r="3.5" fill="#F7CD1F" />
+      </g>
+      <style>{`
+        .trd-chart { transform-box: fill-box; transform-origin: center; animation: trdPulse 1.6s ease-in-out infinite alternate; }
+        .trd-dot { animation: trdDot 1s ease-in-out infinite; }
+        @keyframes trdPulse {
+          from { transform: scale(0.97); }
+          to { transform: scale(1.02); }
+        }
+        @keyframes trdDot {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.25); opacity: 0.7; }
+        }
+      `}</style>
+    </svg>
+  );
+}
+

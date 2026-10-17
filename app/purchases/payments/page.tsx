@@ -28,6 +28,7 @@ import {
   lookupRate,
   type CurrencyMaster,
 } from '../../../lib/multi-currency';
+import toast from 'react-hot-toast';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -408,43 +409,60 @@ export default function PurchasePaymentsPage() {
 
   const handleMakePayment = async () => {
     if (!formState.selectedSupplier) {
-      alert('Please select a supplier');
+      toast.error('Please select a supplier');
       return;
     }
     if (formState.selectedInvoices.length === 0) {
-      alert('Please select at least one invoice');
+      toast.error('Please select at least one invoice');
       return;
     }
     for (const inv of formState.selectedInvoices) {
       if (inv.amountToPay <= 0) {
-        alert(`Enter a valid amount for invoice ${inv.invoiceNumber}`);
+        toast.error(`Enter a valid amount for invoice ${inv.invoiceNumber}`);
         return;
       }
       if (inv.amountToPay > inv.outstanding) {
-        alert(`Amount for ${inv.invoiceNumber} cannot exceed outstanding ${inv.outstanding}`);
+        toast.error(
+          `Amount for ${inv.invoiceNumber} cannot exceed outstanding ${inv.outstanding}`
+        );
         return;
       }
     }
 
     const amount = parseFloat(formState.paymentAmount);
     if (isNaN(amount) || amount <= 0) {
-      alert('Enter a valid payment amount');
+      toast.error('Enter a valid payment amount');
       return;
     }
 
     const invoiceTotal = formState.selectedInvoices.reduce((sum, inv) => sum + inv.amountToPay, 0);
     if (Math.abs(amount - invoiceTotal) > 0.01) {
-      alert('Total payment amount must match the sum of selected invoice amounts');
+      toast.error('Total payment amount must match the sum of selected invoice amounts');
       return;
     }
     
     const isBankTransfer = formState.paymentMethod === 'Bank Transfer' || 
                            formState.paymentMethod === 'Cheque' || 
-                           formState.paymentMethod === 'Online Payment';
+                           formState.paymentMethod === 'Online Payment' ||
+                           formState.paymentMethod === 'Credit Card';
     
     if (isBankTransfer && !formState.selectedBankAccount) {
-      alert(`Please select a bank account for ${formState.paymentMethod}`);
+      toast.error(`Please select a bank account for ${formState.paymentMethod}`);
       return;
+    }
+
+    // Client-side bank balance guard (Cash is enforced on the server via COA)
+    if (isBankTransfer && formState.selectedBankAccount) {
+      const bank = formState.selectedBankAccount as BankAccount & {
+        currentBalance?: number;
+      };
+      const available = Number(bank.currentBalance ?? bank.balance) || 0;
+      if (available < amount) {
+        toast.error(
+          `Insufficient bank balance. Available: ${available.toLocaleString()}, Required: ${amount.toLocaleString()}. Payment cannot proceed.`
+        );
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -470,11 +488,12 @@ export default function PurchasePaymentsPage() {
         invoicePayments
       });
 
+      toast.success('Payment made successfully');
       closeCreateForm();
       fetchPayments(true);
     } catch (error: any) {
       console.error('Failed to make payment:', error);
-      alert(error.message || 'Failed to make payment');
+      toast.error(error.message || 'Failed to make payment');
     } finally {
       setSubmitting(false);
     }

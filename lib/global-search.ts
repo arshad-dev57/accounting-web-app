@@ -18,6 +18,9 @@ export type GlobalSearchGroupKey =
   | 'purchases'
   | 'warehouse'
   | 'manufacturing'
+  | 'import'
+  | 'export'
+  | 'trading'
   | 'hr'
   | 'tax'
   | 'pos';
@@ -51,6 +54,9 @@ export const SEARCH_GROUPS: Record<
   purchases: { label: 'Purchases', href: '/purchases/dashboard' },
   warehouse: { label: 'Inventory', href: '/warehouse/dashboard' },
   manufacturing: { label: 'Manufacturing', href: '/manufacturing/dashboard' },
+  import: { label: 'Import Management', href: '/import/dashboard' },
+  export: { label: 'Export Management', href: '/export/dashboard' },
+  trading: { label: 'Trading Management', href: '/trading/dashboard' },
   hr: { label: 'HR', href: '/hr/dashboard' },
   tax: { label: 'Tax', href: '/tax' },
   pos: { label: 'Point of Sale', href: '/pos' },

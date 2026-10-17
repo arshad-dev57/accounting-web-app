@@ -826,7 +826,7 @@ function CreateOrderForm({
     setCustomerEmail(customer.email || '');
     setCustomerPhone(customer.phone || '');
     setCustomerType(customer.customerType || 'Individual');
-    setCustomerCompany(customer.company || '');
+    setCustomerCompany(customer.company || customer.companyName || '');
     setCustomerTaxId(customer.taxId || '');
 
     if (customer.address) {

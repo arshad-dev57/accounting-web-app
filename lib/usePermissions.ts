@@ -287,6 +287,31 @@ export function usePermissions() {
         );
       }
 
+      if (key === 'import') {
+        return (
+          hasModuleAccess('import') ||
+          hasModuleAccess('purchases') ||
+          hasModuleAccess('warehouse')
+        );
+      }
+
+      if (key === 'export') {
+        return (
+          hasModuleAccess('export') ||
+          hasModuleAccess('sales') ||
+          hasModuleAccess('warehouse')
+        );
+      }
+
+      if (key === 'trading') {
+        return (
+          hasModuleAccess('trading') ||
+          hasModuleAccess('sales') ||
+          hasModuleAccess('purchases') ||
+          hasModuleAccess('warehouse')
+        );
+      }
+
       return hasModuleAccess(key);
     },
     [user, admin, effectiveMap, hasModuleAccess]

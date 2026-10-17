@@ -25,6 +25,9 @@ import {
   Store,
   UsersRound,
   Warehouse,
+  Ship,
+  Send,
+  ArrowLeftRight,
   X,
 } from 'lucide-react';
 import { usePermissions } from '../lib/usePermissions';
@@ -46,6 +49,9 @@ const GROUP_ICONS: Record<GlobalSearchGroupKey, ElementType> = {
   purchases: Package,
   warehouse: Warehouse,
   manufacturing: Factory,
+  import: Ship,
+  export: Send,
+  trading: ArrowLeftRight,
   hr: UsersRound,
   tax: Scale,
   pos: Store,

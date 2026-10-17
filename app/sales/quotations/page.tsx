@@ -11,6 +11,7 @@ import {
 import { Quotation, Customer, Product, QuotationLineDraft } from '@/lib/types/quotation';
 import PDFService from '@/lib/pdf-service';
 import TaxRateSelect from '@/components/TaxRateSelect';
+import { tradingService, type ResolvedSellPrice } from '@/lib/trading-service';
 
 const STATUS_COLORS: Record<string, string> = {
   Draft: 'bg-gray-100 text-gray-700 border-gray-200',
@@ -153,7 +154,10 @@ export function QuotationsPage() {
       if (result.success) {
         showToast('success', successMessage);
         if (selectedQuotation?.id === quotationId) {
-          setSelectedQuotation({ ...selectedQuotation, status: newStatus });
+          setSelectedQuotation({
+            ...selectedQuotation,
+            status: newStatus as Quotation['status'],
+          });
           await fetchQuotationDetail(quotationId);
         }
         fetchQuotations();
@@ -827,6 +831,8 @@ function FullPageCreateQuotation({
 
   // Selected Quotation Line Items
   const [lineDrafts, setLineDrafts] = useState<QuotationLineDraft[]>([]);
+  const [pricingBanner, setPricingBanner] = useState<string | null>(null);
+  const [pricingCurrency, setPricingCurrency] = useState('PKR');
 
   // Details
   const [quotationDate, setQuotationDate] = useState(new Date().toISOString().split('T')[0]);
@@ -835,6 +841,92 @@ function FullPageCreateQuotation({
   const [notes, setNotes] = useState('');
   const [termsConditions, setTermsConditions] = useState('');
   const [initialStatus, setInitialStatus] = useState<'Draft' | 'Pending Approval' | 'Approved'>('Draft');
+
+  const primaryCustomerId = selectedCustomers.length === 1 ? selectedCustomers[0].id : selectedCustomers[0]?.id || null;
+
+  const applyResolvedToLine = (
+    line: QuotationLineDraft,
+    resolved: ResolvedSellPrice,
+    opts?: { force?: boolean }
+  ): QuotationLineDraft => {
+    if (line.manualPriceOverride && !opts?.force) {
+      return {
+        ...line,
+        currencyCode: resolved.currencyCode || line.currencyCode,
+        unitName: resolved.unitName || line.unitName,
+        listPrice: Number(resolved.listPrice),
+        minOrderQty: Number(resolved.minOrderQty),
+        pricingMessages: resolved.messages || [],
+        pricingWarnings: resolved.warnings || [],
+      };
+    }
+    return {
+      ...line,
+      unitPrice: Number(resolved.unitPrice),
+      currencyCode: resolved.currencyCode || 'PKR',
+      unitName: resolved.unitName || line.unitName || 'Pcs',
+      listPrice: Number(resolved.listPrice),
+      minOrderQty: Number(resolved.minOrderQty),
+      pricingSource: resolved.source,
+      manualPriceOverride: false,
+      pricingMessages: resolved.messages || [],
+      pricingWarnings: resolved.warnings || [],
+    };
+  };
+
+  const resolveLinesForCustomer = useCallback(
+    async (customerId: string | null, lines: QuotationLineDraft[], force = false) => {
+      if (!lines.length) return lines;
+      if (!customerId) {
+        setPricingBanner(
+          'Select a customer to apply negotiated / price-list pricing. Standard selling prices are shown until then.'
+        );
+        return lines;
+      }
+      try {
+        const resolved = await tradingService.resolveSellPrices({
+          customerId,
+          asOfDate: quotationDate,
+          lines: lines.map((l) => ({
+            productId: l.productId,
+            quantity: l.quantity || 1,
+          })),
+        });
+        const byProduct = new Map(resolved.map((r) => [r.productId, r]));
+        const next = lines.map((line) => {
+          const r = byProduct.get(line.productId);
+          return r ? applyResolvedToLine(line, r, { force }) : line;
+        });
+        const first = resolved[0];
+        if (first?.currencyCode) setPricingCurrency(first.currencyCode);
+        const msgs = resolved.flatMap((r) => [
+          ...(r.messages || []),
+          ...(r.warnings || []),
+        ]);
+        const negotiated = resolved.filter((r) => r.source === 'CUSTOMER_NEGOTIATED').length;
+        if (negotiated > 0) {
+          setPricingBanner(
+            `Applied customer negotiated pricing on ${negotiated} line(s).` +
+              (msgs.length ? ` ${msgs[0]}` : '')
+          );
+        } else if (msgs.length) {
+          setPricingBanner(msgs[0]);
+        } else {
+          setPricingBanner('Using standard selling prices (no active customer pricing for these products).');
+        }
+        return next;
+      } catch (err) {
+        console.error('Price resolve failed:', err);
+        setPricingBanner(
+          err instanceof Error
+            ? err.message
+            : 'Could not resolve customer pricing; showing catalog prices.'
+        );
+        return lines;
+      }
+    },
+    [quotationDate]
+  );
 
   // Fetch Customers List
   const fetchCustomers = useCallback(async () => {
@@ -927,13 +1019,24 @@ function FullPageCreateQuotation({
     return () => clearTimeout(timer);
   }, [fetchProducts]);
 
-  // Customer Toggle (Select & Deselect)
-  const toggleCustomer = (customer: Customer) => {
+  // Customer Toggle (Select & Deselect) — re-resolve line prices for preview customer
+  const toggleCustomer = async (customer: Customer) => {
     const isSelected = selectedCustomers.some((c) => c.id === customer.id);
-    if (isSelected) {
-      setSelectedCustomers(selectedCustomers.filter((c) => c.id !== customer.id));
+    const nextCustomers = isSelected
+      ? selectedCustomers.filter((c) => c.id !== customer.id)
+      : [...selectedCustomers, customer];
+    setSelectedCustomers(nextCustomers);
+
+    const previewId = nextCustomers[0]?.id || null;
+    if (lineDrafts.length > 0) {
+      const nextLines = await resolveLinesForCustomer(previewId, lineDrafts, true);
+      setLineDrafts(nextLines);
+    } else if (nextCustomers.length > 1) {
+      setPricingBanner(
+        'Multiple customers selected — each quotation will receive that customer’s negotiated prices on save. Preview uses the first selected customer.'
+      );
     } else {
-      setSelectedCustomers([...selectedCustomers, customer]);
+      setPricingBanner(null);
     }
   };
 
@@ -960,29 +1063,65 @@ function FullPageCreateQuotation({
     return lineDrafts.some((line) => line.productId === productId);
   };
 
-  const toggleProductSelection = (product: Product) => {
+  const toggleProductSelection = async (product: Product) => {
     const pId = product.id || product._id;
     if (!pId) return;
 
     if (isProductSelected(pId)) {
       setLineDrafts(lineDrafts.filter((line) => line.productId !== pId));
+      return;
+    }
+
+    const newLine: QuotationLineDraft = {
+      productId: pId,
+      productName: product.name,
+      sku: product.sku || '',
+      quantity: 1,
+      unitPrice: product.sellingPrice || 0,
+      discount: 0,
+      taxRate: product.taxRate || 0,
+      pricingSource: 'STANDARD_SELLING',
+      currencyCode: pricingCurrency || 'PKR',
+      unitName: product.stockUnitName || 'Pcs',
+      listPrice: product.sellingPrice || 0,
+      manualPriceOverride: false,
+    };
+
+    const withLine = [...lineDrafts, newLine];
+    const previewId = primaryCustomerId;
+    if (previewId) {
+      const nextLines = await resolveLinesForCustomer(previewId, withLine, true);
+      setLineDrafts(nextLines);
     } else {
-      const newLine: QuotationLineDraft = {
-        productId: pId,
-        productName: product.name,
-        sku: product.sku || '',
-        quantity: 1,
-        unitPrice: product.sellingPrice || 0,
-        discount: 0,
-        taxRate: product.taxRate || 0,
-      };
-      setLineDrafts([...lineDrafts, newLine]);
+      setLineDrafts(withLine);
+      setPricingBanner(
+        'Select a customer to apply negotiated customer pricing. Catalog selling price is shown for now.'
+      );
     }
   };
 
-  const handleUpdateLine = (index: number, field: keyof QuotationLineDraft, value: number) => {
+  const handleUpdateLine = async (
+    index: number,
+    field: keyof QuotationLineDraft,
+    value: number
+  ) => {
     const updated = [...lineDrafts];
-    updated[index] = { ...updated[index], [field]: value };
+    const current = { ...updated[index], [field]: value };
+
+    if (field === 'unitPrice') {
+      current.manualPriceOverride = true;
+      current.pricingSource = 'MANUAL';
+      updated[index] = current;
+      setLineDrafts(updated);
+      return;
+    }
+
+    updated[index] = current;
+    if (field === 'quantity' && primaryCustomerId && !current.manualPriceOverride) {
+      const nextLines = await resolveLinesForCustomer(primaryCustomerId, updated, false);
+      setLineDrafts(nextLines);
+      return;
+    }
     setLineDrafts(updated);
   };
 
@@ -999,13 +1138,19 @@ function FullPageCreateQuotation({
   }, 0);
   const grandTotal = subtotal - totalDiscount + totalTax;
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-PK', {
-      style: 'currency',
-      currency: 'PKR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
+  const formatCurrency = (amount: number, currencyCode = pricingCurrency || 'PKR') => {
+    const code = (currencyCode || 'PKR').toUpperCase();
+    try {
+      return new Intl.NumberFormat(code === 'PKR' ? 'en-PK' : undefined, {
+        style: 'currency',
+        currency: code,
+        currencyDisplay: code === 'PKR' ? 'narrowSymbol' : 'symbol',
+        minimumFractionDigits: code === 'PKR' ? 0 : 2,
+        maximumFractionDigits: 2,
+      }).format(amount);
+    } catch {
+      return `${code} ${Number(amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    }
   };
 
   // Submit Handler: Supports creating multiple quotations for multiple selected customers
@@ -1017,6 +1162,18 @@ function FullPageCreateQuotation({
     if (lineDrafts.length === 0) {
       alert('Please select at least one product line item.');
       return;
+    }
+    for (const line of lineDrafts) {
+      if (!(Number(line.quantity) > 0)) {
+        alert(`Quantity must be greater than 0 for ${line.productName}`);
+        return;
+      }
+      if (line.minOrderQty && Number(line.quantity) < Number(line.minOrderQty)) {
+        const proceed = window.confirm(
+          `${line.productName}: quantity ${line.quantity} is below minimum order qty ${line.minOrderQty}. Continue?`
+        );
+        if (!proceed) return;
+      }
     }
 
     try {
@@ -1044,6 +1201,8 @@ function FullPageCreateQuotation({
           unitPrice: line.unitPrice,
           discount: line.discount,
           taxRate: line.taxRate,
+          manualPriceOverride: !!line.manualPriceOverride,
+          priceSource: line.manualPriceOverride ? 'MANUAL' : line.pricingSource,
         })),
         notes: notes || null,
         termsConditions: termsConditions || null,
@@ -1331,6 +1490,12 @@ function FullPageCreateQuotation({
         {lineDrafts.length > 0 && (
           <div className="space-y-3 pt-2">
             <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Configure Selected Quotation Line Items</h3>
+            {pricingBanner && (
+              <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                <p>{pricingBanner}</p>
+              </div>
+            )}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
               <table className="w-full text-sm">
                 <thead className="bg-gray-100 border-b border-gray-200">
@@ -1351,17 +1516,36 @@ function FullPageCreateQuotation({
                     const lineTaxable = lineSub - lineDisc;
                     const lineTax = lineTaxable * (line.taxRate / 100);
                     const lineTot = lineTaxable + lineTax;
+                    const sourceLabel =
+                      line.pricingSource === 'CUSTOMER_NEGOTIATED'
+                        ? 'Negotiated'
+                        : line.pricingSource === 'PRICE_LIST'
+                          ? 'Price list'
+                          : line.pricingSource === 'MANUAL'
+                            ? 'Manual override'
+                            : 'List / selling';
 
                     return (
                       <tr key={index} className="hover:bg-gray-50/50">
                         <td className="px-4 py-3">
                           <p className="font-semibold text-gray-800">{line.productName}</p>
                           <p className="text-xs font-mono text-gray-400">SKU: {line.sku}</p>
+                          <p className="text-[10px] text-emerald-700 font-medium mt-0.5">
+                            {sourceLabel}
+                            {line.listPrice != null && line.pricingSource === 'CUSTOMER_NEGOTIATED'
+                              ? ` · list ${formatCurrency(Number(line.listPrice), line.currencyCode)}`
+                              : ''}
+                            {line.unitName ? ` · ${line.unitName}` : ''}
+                          </p>
+                          {line.pricingWarnings?.[0] && (
+                            <p className="text-[10px] text-amber-700 mt-0.5">{line.pricingWarnings[0]}</p>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <input
                             type="number"
-                            min="0"
+                            min={0}
+                            step="any"
                             value={line.quantity === 0 ? '' : line.quantity}
                             placeholder="Qty"
                             onFocus={(e) => e.target.select()}
@@ -1371,7 +1555,7 @@ function FullPageCreateQuotation({
                                 handleUpdateLine(index, 'quantity', 0);
                                 return;
                               }
-                              const parsed = parseInt(raw);
+                              const parsed = parseFloat(raw);
                               if (!isNaN(parsed) && parsed >= 0) {
                                 handleUpdateLine(index, 'quantity', parsed);
                               }
@@ -1382,8 +1566,8 @@ function FullPageCreateQuotation({
                         <td className="px-4 py-3">
                           <input
                             type="number"
-                            min="0"
-                            step="0.01"
+                            min={0}
+                            step="any"
                             value={line.unitPrice === 0 ? '' : line.unitPrice}
                             placeholder="Price"
                             onFocus={(e) => e.target.select()}
@@ -1404,9 +1588,9 @@ function FullPageCreateQuotation({
                         <td className="px-4 py-3">
                           <input
                             type="number"
-                            min="0"
-                            max="100"
-                            step="0.1"
+                            min={0}
+                            max={100}
+                            step="any"
                             value={line.discount === 0 ? '' : line.discount}
                             placeholder="0%"
                             onFocus={(e) => e.target.select()}

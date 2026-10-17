@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Package, Search, X } from 'lucide-react';
 import { productService, getProductId, type Product } from '@/api/product/route';
-import { useLocation } from '@/lib/location-context';
+import { useLocationOptional } from '@/lib/location-context';
 import { MfgButton, MfgEmpty, MfgLoading, MfgPagination } from '../ui';
 
 export type PickedProduct = {
@@ -14,6 +14,10 @@ export type PickedProduct = {
   currentStock?: number;
   quantity?: number;
   stockUnit?: string;
+  costPrice?: number;
+  sellingPrice?: number;
+  wholesalePrice?: number;
+  currencyCode?: string;
 };
 
 function toPicked(p: Product): PickedProduct {
@@ -23,6 +27,10 @@ function toPicked(p: Product): PickedProduct {
     sku: p.sku,
     currentStock: Number(p.currentStock || p.locationStock || 0),
     stockUnit: p.stockUnitName || p.stockUnit || undefined,
+    costPrice: Number(p.costPrice || 0),
+    sellingPrice: Number(p.sellingPrice || 0),
+    wholesalePrice: Number((p as { wholesalePrice?: number }).wholesalePrice || 0),
+    currencyCode: p.currencyCode || p.currency || 'PKR',
   };
 }
 
@@ -46,7 +54,8 @@ export function ProductPicker({
   /** When true, fetch full company catalog (not filtered to current warehouse). */
   allLocations?: boolean;
 }) {
-  const { locationIdForApi } = useLocation();
+  const locationCtx = useLocationOptional();
+  const locationIdForApi = locationCtx?.locationIdForApi || '';
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
@@ -67,11 +76,15 @@ export function ProductPicker({
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // Always company-scoped via apiClient auth / X-Company-Id
       const res = await productService.getProducts({
         page,
         limit: 15,
         search: search || undefined,
-        locationId: allLocations ? undefined : locationIdForApi || undefined,
+        locationId:
+          allLocations || locationCtx?.isAllLocations
+            ? undefined
+            : locationIdForApi || undefined,
       });
       setRows(res.data || []);
       setTotal(res.pagination?.total || res.count || 0);
@@ -81,7 +94,7 @@ export function ProductPicker({
     } finally {
       setLoading(false);
     }
-  }, [page, search, locationIdForApi, allLocations]);
+  }, [page, search, locationIdForApi, allLocations, locationCtx?.isAllLocations]);
 
   useEffect(() => {
     if (open) load();
@@ -174,17 +187,18 @@ export function ProductPicker({
       )}
 
       {open && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#DDE4EE]">
               <div>
                 <h3 className="text-sm font-extrabold text-[#1A1A2E]">
                   {multiple ? 'Select products' : 'Select a product'}
                 </h3>
                 <p className="text-[11px] text-[#7A8FA6] mt-0.5">
+                  Company catalog · paginated from backend
                   {multiple
-                    ? 'Click products to tick them. You can select more than one, then press Add.'
-                    : 'Search and pick a product. List is paginated from the backend.'}
+                    ? ' — tick products, then press Add.'
+                    : ' — search and pick one product.'}
                 </p>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-gray-100">
@@ -220,6 +234,9 @@ export function ProductPicker({
                       <th className="px-4 py-3 w-10 border-b border-[#DDE4EE]" />
                       <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[#7A8FA6] border-b border-[#DDE4EE]">Product</th>
                       <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[#7A8FA6] border-b border-[#DDE4EE]">SKU</th>
+                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[#7A8FA6] border-b border-[#DDE4EE]">UOM</th>
+                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[#7A8FA6] border-b border-[#DDE4EE]">Cost</th>
+                      <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[#7A8FA6] border-b border-[#DDE4EE]">Sell</th>
                       <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[#7A8FA6] border-b border-[#DDE4EE]">Stock</th>
                     </tr>
                   </thead>
@@ -236,7 +253,7 @@ export function ProductPicker({
                         >
                           <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                             <input
-                              type="checkbox"
+                              type={multiple ? 'checkbox' : 'radio'}
                               checked={active}
                               onChange={() => toggle(p)}
                               className="w-4 h-4 rounded border-[#C6D2E3] text-[#014582] focus:ring-[#014582]/30"
@@ -249,6 +266,9 @@ export function ProductPicker({
                             </div>
                           </td>
                           <td className="px-4 py-3 text-[#7A8FA6]">{p.sku || '—'}</td>
+                          <td className="px-4 py-3 text-[#7A8FA6]">{p.stockUnitName || p.stockUnit || 'Pcs'}</td>
+                          <td className="px-4 py-3">{Number(p.costPrice || 0).toFixed(2)}</td>
+                          <td className="px-4 py-3">{Number(p.sellingPrice || 0).toFixed(2)}</td>
                           <td className="px-4 py-3 font-semibold">{Number(p.currentStock || 0)}</td>
                         </tr>
                       );
@@ -262,7 +282,7 @@ export function ProductPicker({
 
             <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-[#DDE4EE]">
               <p className="text-[11px] font-semibold text-[#014582]">
-                {draft.length} selected
+                {draft.length} selected · page {page} of {Math.max(1, Math.ceil(total / 15))}
               </p>
               <div className="flex items-center gap-2">
                 <MfgButton variant="secondary" onClick={() => setOpen(false)}>Cancel</MfgButton>

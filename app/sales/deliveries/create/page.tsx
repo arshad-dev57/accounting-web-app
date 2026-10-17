@@ -9,6 +9,7 @@ import {
   CheckCircle, Loader2, X, ChevronLeft, ChevronRight, AlertCircle, Plus
 } from 'lucide-react';
 import { SalesNumberInput } from '@/components/sales/sales-number-input';
+import { useLocationOptional } from '@/lib/location-context';
 
 interface PendingOrderItem {
   id: string;
@@ -52,6 +53,7 @@ interface LineDraft {
 
 export default function CreateDeliveryPage() {
   const router = useRouter();
+  const locationCtx = useLocationOptional();
 
   // Pending orders list state
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
@@ -249,13 +251,19 @@ export default function CreateDeliveryPage() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
+      const resolvedLocationId =
+        selectedOrders[0]?.locationId ||
+        (!locationCtx?.isAllLocations && locationCtx?.locationIdForApi
+          ? locationCtx.locationIdForApi
+          : undefined);
+
       const payload = {
         salesOrderIds: selectedOrders.map((o) => o.id),
         deliveryDate,
         deliveryPerson: deliveryPerson.trim() || null,
         trackingNumber: trackingNumber.trim() || null,
         notes: notes.trim() || null,
-        locationId: selectedOrders[0]?.locationId || undefined,
+        ...(resolvedLocationId ? { locationId: resolvedLocationId } : {}),
         items: selectedItems.map((l) => ({
           orderId: l.orderId,
           productId: l.productId,

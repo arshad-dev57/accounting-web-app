@@ -9,6 +9,7 @@ import {
   CheckCircle, Loader2, X, ChevronLeft, ChevronRight, AlertCircle, Info
 } from 'lucide-react';
 import { SalesNumberInput } from '@/components/sales/sales-number-input';
+import { useCurrency } from '@/lib/currency-context';
 
 interface SourceItem {
   id?: string;
@@ -55,6 +56,7 @@ interface LineDraft {
 
 export default function CreateInvoicePage() {
   const router = useRouter();
+  const { formatAmount, symbol: currencySymbol } = useCurrency();
 
   // Tab: orders vs deliveries
   const [sourceTab, setSourceTab] = useState<'orders' | 'deliveries'>('orders');
@@ -249,7 +251,13 @@ export default function CreateInvoicePage() {
   const handleUpdateItemField = (index: number, field: keyof LineDraft, value: any) => {
     setLineDrafts((prev) => {
       const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
+      let nextVal = value;
+      if (field === 'quantity') {
+        const max = Number(updated[index]?.maxQuantity) || 0;
+        const n = Number(value);
+        nextVal = Number.isFinite(n) ? Math.max(0, Math.min(n, max)) : 0;
+      }
+      updated[index] = { ...updated[index], [field]: nextVal };
       return updated;
     });
   };
@@ -284,6 +292,14 @@ export default function CreateInvoicePage() {
 
     if (activeItems.length === 0) {
       setFormError('⚠️ Please select at least one item to include in the invoice.');
+      return;
+    }
+
+    const overMax = activeItems.find((l) => Number(l.quantity) > Number(l.maxQuantity));
+    if (overMax) {
+      setFormError(
+        `⚠️ Quantity for ${overMax.productName} exceeds remaining to invoice (${overMax.maxQuantity}).`
+      );
       return;
     }
 
@@ -606,7 +622,7 @@ export default function CreateInvoicePage() {
                     <th className="px-4 py-3">SKU</th>
                     <th className="px-4 py-3 text-right">Available Qty</th>
                     <th className="px-4 py-3 text-right min-w-[120px]">Invoice Qty</th>
-                    <th className="px-4 py-3 text-right min-w-[120px]">Unit Price ($)</th>
+                    <th className="px-4 py-3 text-right min-w-[120px]">Unit Price ({currencySymbol})</th>
                     <th className="px-4 py-3 text-right min-w-[90px]">Disc %</th>
                     <th className="px-4 py-3 text-right min-w-[90px]">Tax %</th>
                     <th className="px-4 py-3 text-right font-bold">Line Total</th>
@@ -700,7 +716,7 @@ export default function CreateInvoicePage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right font-bold text-gray-900">
-                          {line.selected ? `$${lineTotal.toFixed(2)}` : '$0.00'}
+                          {line.selected ? formatAmount(lineTotal) : formatAmount(0)}
                         </td>
                       </tr>
                     );
@@ -769,19 +785,19 @@ export default function CreateInvoicePage() {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-gray-900">${subtotal.toFixed(2)}</span>
+                  <span className="font-semibold text-gray-900">{formatAmount(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Discount Total</span>
-                  <span className="font-semibold text-emerald-600">-${totalDiscount.toFixed(2)}</span>
+                  <span className="font-semibold text-emerald-600">-{formatAmount(totalDiscount)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Tax Total</span>
-                  <span className="font-semibold text-gray-900">${totalTax.toFixed(2)}</span>
+                  <span className="font-semibold text-gray-900">{formatAmount(totalTax)}</span>
                 </div>
                 <div className="border-t pt-3 flex justify-between text-base font-bold text-gray-900">
                   <span>Grand Total</span>
-                  <span className="text-[#014582] text-xl">${grandTotal.toFixed(2)}</span>
+                  <span className="text-[#014582] text-xl">{formatAmount(grandTotal)}</span>
                 </div>
               </div>
 

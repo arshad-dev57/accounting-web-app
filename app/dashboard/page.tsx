@@ -25,6 +25,9 @@ import {
   ProfileAppIcon,
   CompanyAppIcon,
   UsersAppIcon,
+  ImportAppIcon,
+  ExportAppIcon,
+  TradingAppIcon,
 } from '../../components/dashboard/ModuleAppIcons';
 
 const banners = [
@@ -104,6 +107,27 @@ const modules: ModuleItem[] = [
     Icon: ManufacturingAppIcon,
     detail: 'BOMs, production orders, work centers, MRP and shop-floor control in one place.',
     permModule: 'manufacturing',
+  },
+  {
+    title: 'Import Management',
+    href: '/import/dashboard',
+    Icon: ImportAppIcon,
+    detail: 'Import mock book for RFQs, shipments, customs and landed costs — POs/GRN/bills link to Purchases.',
+    permModule: 'import',
+  },
+  {
+    title: 'Export Management',
+    href: '/export/dashboard',
+    Icon: ExportAppIcon,
+    detail: 'Overseas export mock book (ESO-*) — sales orders, dispatches and receipts link to Sales.',
+    permModule: 'export',
+  },
+  {
+    title: 'Trading Management',
+    href: '/trading/dashboard',
+    Icon: TradingAppIcon,
+    detail: 'Domestic wholesale mock book (TSO-*) — separate from Export; posts via Sales/Purchases.',
+    permModule: 'trading',
   },
   {
     title: 'HR Management',

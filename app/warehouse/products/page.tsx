@@ -119,6 +119,19 @@ function BarcodeDisplay({ value, productName }: { value: string; productName: st
 }
 
 /** Keep a short, stable QR number for POS / warehouse scanning. */
+function validateProductHsCode(code: string): string | null {
+  const trimmed = String(code || '').trim();
+  if (!trimmed) return null;
+  if (!/^[\d.]+$/.test(trimmed)) {
+    return 'HS code must contain only digits and dots (6–10 digits, e.g. 1006.30)';
+  }
+  const digits = trimmed.replace(/\./g, '');
+  if (digits.length < 6 || digits.length > 10) {
+    return 'HS code must be 6–10 digits (dots optional, e.g. 1006.30)';
+  }
+  return null;
+}
+
 function normalizeQrPayload(raw: string): string {
   const text = String(raw || '').trim();
   if (!text) return '';
@@ -1113,6 +1126,7 @@ function ProductForm({
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const scanTargetRef = useRef<'barcode' | 'qr'>('qr');
   const [warehouseId, setWarehouseId] = useState(locationId || '');
+  const [hsCodeFieldError, setHsCodeFieldError] = useState('');
   const [formData, setFormData] = useState({
     name: editingProduct?.name || '',
     sku: editingProduct?.sku || '',
@@ -1358,6 +1372,14 @@ function ProductForm({
     e.preventDefault();
     setLoading(true);
     setError('');
+    const hsErr = validateProductHsCode(String(formData.hsCode || ''));
+    if (hsErr) {
+      setHsCodeFieldError(hsErr);
+      setError(hsErr);
+      setLoading(false);
+      return;
+    }
+    setHsCodeFieldError('');
     try {
       if (!isEditing) {
         const sku = await productService.generateSku(formData.name, formData.category);
@@ -2273,7 +2295,23 @@ function ProductForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">HS Code</label>
-                <input type="text" placeholder="e.g., 5201.00.00" value={formData.hsCode} onChange={(e) => handleInputChange('hsCode', e.target.value)} className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" />
+                <input
+                  type="text"
+                  placeholder="e.g. 1006.30"
+                  value={formData.hsCode}
+                  onChange={(e) => {
+                    handleInputChange('hsCode', e.target.value);
+                    if (hsCodeFieldError) setHsCodeFieldError('');
+                  }}
+                  onBlur={() => {
+                    const err = validateProductHsCode(String(formData.hsCode || ''));
+                    setHsCodeFieldError(err || '');
+                  }}
+                  className={`w-full px-3 md:px-4 py-1.5 md:py-2.5 border rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 ${hsCodeFieldError ? 'border-red-300' : 'border-gray-200'}`}
+                />
+                {hsCodeFieldError ? (
+                  <p className="text-[11px] text-red-600 mt-1">{hsCodeFieldError}</p>
+                ) : null}
               </div>
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Country of Origin</label>

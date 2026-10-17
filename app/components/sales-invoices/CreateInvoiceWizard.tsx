@@ -5,6 +5,7 @@ import { X, ChevronRight } from 'lucide-react';
 import { OrderForInvoicing, InvoiceLineDraft } from '@/types/sales-invoice';
 import TaxRateSelect from '../../../components/TaxRateSelect';
 import { computeTaxLine, taxService, type TaxPricingModel } from '../../../lib/tax-service';
+import { useCurrency } from '@/lib/currency-context';
 
 interface CreateInvoiceWizardProps {
   onClose: () => void;
@@ -12,6 +13,7 @@ interface CreateInvoiceWizardProps {
 }
 
 export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoiceWizardProps) {
+  const { formatAmount } = useCurrency();
   const [step, setStep] = useState(0);
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [orderSearchResults, setOrderSearchResults] = useState<OrderForInvoicing[]>([]);
@@ -176,12 +178,7 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(value);
-  };
+  const formatCurrency = (value: number) => formatAmount(Number(value) || 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
