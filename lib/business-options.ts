@@ -9,6 +9,59 @@ export const BUSINESS_TYPES = [
   'Other',
 ] as const;
 
+/** Operational business category (company workflow config — not legal entity type). */
+export const OPERATIONAL_BUSINESS_TYPES = [
+  'Trading',
+  'Manufacturing',
+  'Retail',
+  'Distribution',
+  'Services',
+  'Other',
+] as const;
+
+export const SALES_MODELS = [
+  { value: 'standard', label: 'Standard Sales' },
+  { value: 'installment', label: 'Installment-Based Sales' },
+  { value: 'both', label: 'Both (Standard & Installment)' },
+] as const;
+
+export const PURCHASE_MODELS = [
+  { value: 'standard', label: 'Standard Purchase' },
+  { value: 'installment', label: 'Installment-Based Purchase' },
+] as const;
+
+export const INSTALLMENT_REVENUE_POLICIES = [
+  {
+    value: 'full_on_sale',
+    label: 'Recognize full revenue on sale (existing AR treatment)',
+  },
+  {
+    value: 'as_collected',
+    label: 'Recognize revenue as installments are collected',
+  },
+] as const;
+
+export const INSTALLMENT_FREQUENCIES = [
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'biweekly', label: 'Bi-weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+] as const;
+
+export const OPERATIONAL_BUSINESS_TYPE_OPTIONS = OPERATIONAL_BUSINESS_TYPES.map(
+  (v) => ({ value: v, label: v })
+);
+
+export const SALES_MODEL_OPTIONS = SALES_MODELS.map((o) => ({
+  value: o.value,
+  label: o.label,
+}));
+
+export const PURCHASE_MODEL_OPTIONS = PURCHASE_MODELS.map((o) => ({
+  value: o.value,
+  label: o.label,
+}));
+
 export const FISCAL_YEARS = [
   'January - December',
   'July - June',

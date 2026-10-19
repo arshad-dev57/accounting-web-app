@@ -10,6 +10,9 @@ import {
 } from 'lucide-react';
 import { SalesNumberInput } from '@/components/sales/sales-number-input';
 import { useCurrency } from '@/lib/currency-context';
+import { useCompanyBusinessConfig } from '@/lib/company-business-config';
+import { INSTALLMENT_FREQUENCIES } from '@/lib/business-options';
+import { browserCompanyAuthHeaders } from '@/lib/company-api-headers';
 
 interface SourceItem {
   id?: string;
@@ -79,6 +82,12 @@ export default function CreateInvoicePage() {
   const [paymentTerms, setPaymentTerms] = useState('Net 30');
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [isInstallmentSale, setIsInstallmentSale] = useState(false);
+  const [downPaymentAmount, setDownPaymentAmount] = useState('');
+  const [installmentCount, setInstallmentCount] = useState('6');
+  const [installmentFrequency, setInstallmentFrequency] = useState('monthly');
+
+  const { showInstallmentSalesUi, allowStandardSales } = useCompanyBusinessConfig();
 
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -305,14 +314,21 @@ export default function CreateInvoicePage() {
 
     try {
       setIsSubmitting(true);
-      const token = localStorage.getItem('auth_token');
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const headers = browserCompanyAuthHeaders();
 
       const orderIds = selectedDocs.filter((d) => d.type === 'order').map((d) => d.id);
       const deliveryIds = selectedDocs.filter((d) => d.type === 'delivery').map((d) => d.id);
 
-      const payload = {
+      if (isInstallmentSale) {
+        const count = parseInt(installmentCount, 10);
+        if (!count || count < 1) {
+          setFormError('⚠️ Installment count must be at least 1.');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      const payload: Record<string, unknown> = {
         orderIds,
         deliveryIds,
         dueDate,
@@ -331,6 +347,13 @@ export default function CreateInvoicePage() {
           taxRate: l.taxRate,
         })),
       };
+
+      if (isInstallmentSale) {
+        payload.isInstallmentSale = true;
+        payload.downPaymentAmount = Number(downPaymentAmount) || 0;
+        payload.installmentCount = parseInt(installmentCount, 10);
+        payload.installmentFrequency = installmentFrequency;
+      }
 
       const response = await fetch('/api/sales-invoices/create-multi', {
         method: 'POST',
@@ -762,6 +785,75 @@ export default function CreateInvoicePage() {
                     required
                   />
                 </div>
+
+                {showInstallmentSalesUi && (
+                  <div className="md:col-span-2 rounded-lg border border-blue-100 bg-blue-50/60 p-4 space-y-3">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300"
+                        checked={isInstallmentSale}
+                        onChange={(e) => {
+                          setIsInstallmentSale(e.target.checked);
+                          if (e.target.checked) setPaymentTerms('Installment');
+                          else if (allowStandardSales) setPaymentTerms('Net 30');
+                        }}
+                      />
+                      Installment-based payment plan
+                    </label>
+                    {isInstallmentSale && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Down payment
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={downPaymentAmount}
+                            onChange={(e) => setDownPaymentAmount(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#014582] focus:outline-none"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Number of installments
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="120"
+                            value={installmentCount}
+                            onChange={(e) => setInstallmentCount(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#014582] focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Frequency
+                          </label>
+                          <select
+                            value={installmentFrequency}
+                            onChange={(e) => setInstallmentFrequency(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#014582] focus:outline-none"
+                          >
+                            {INSTALLMENT_FREQUENCIES.map((f) => (
+                              <option key={f.value} value={f.value}>
+                                {f.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-[11px] text-gray-600">
+                      Schedule is stored on this sales invoice. Collections use existing Payments
+                      and Accounting — no separate installment module.
+                    </p>
+                  </div>
+                )}
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">

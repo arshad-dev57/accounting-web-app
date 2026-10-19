@@ -86,7 +86,7 @@ export function SidebarMain({
 }) {
   return (
     <div
-      className={`min-h-screen flex flex-col transition-[margin] duration-200 ease-out ${className}`}
+      className={`app-square-grid min-h-screen flex flex-col transition-[margin] duration-200 ease-out ${className}`}
       style={{ marginLeft: 'var(--app-sidebar-width, 16rem)' }}
     >
       {children}

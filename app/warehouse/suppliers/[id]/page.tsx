@@ -28,6 +28,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
+import InstallmentAccountSummary from '@/components/installments/InstallmentAccountSummary';
 
 export default function SupplierDetailPage() {
   const { id } = useParams() as { id: string };
@@ -256,6 +257,17 @@ export default function SupplierDetailPage() {
           </div>
         </div>
       </div>
+
+      <InstallmentAccountSummary
+        side="supplier"
+        partyId={id}
+        formatCurrency={(n) =>
+          `Rs. ${Number(n || 0).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`
+        }
+      />
 
       {/* Main Tabs Navigation */}
       <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-4 pt-2 rounded-xl border">

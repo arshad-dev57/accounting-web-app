@@ -176,6 +176,8 @@ export interface MakePaymentRequest {
     invoiceId: string;
     invoiceNumber: string;
     amountPaid: number;
+    preferredInstallmentIds?: string[];
+    installmentIds?: string[];
   }>;
 }
 

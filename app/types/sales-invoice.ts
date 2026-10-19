@@ -53,6 +53,19 @@ export interface SalesInvoice {
   createdAt: string;
   updatedAt: string;
   items: SalesInvoiceItem[];
+  isInstallmentSale?: boolean;
+  downPaymentAmount?: number;
+  installmentCount?: number | null;
+  installmentFrequency?: string | null;
+  installmentAmount?: number | null;
+  installmentSchedules?: Array<{
+    id: string;
+    installmentNumber: number;
+    dueDate: string;
+    amount: number;
+    paidAmount?: number;
+    status: string;
+  }>;
 }
 
 export interface InvoiceStats {

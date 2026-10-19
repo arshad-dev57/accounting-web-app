@@ -38,8 +38,13 @@ interface CreateInvoiceWizardProps {
     currencyId?: string;
     exchangeRate?: string;
     exchangeRateDate?: string;
+    isInstallmentPurchase?: boolean;
+    downPaymentAmount?: string;
+    installmentCount?: string;
+    installmentFrequency?: string;
   };
   setWizardState: (state: any) => void;
+  showInstallmentPurchaseUi?: boolean;
   setSourceType: (type: 'grn' | 'po') => void;
   searchSource: (query: string) => void;
   selectSource: (source: InvoiceSource) => void;
@@ -290,7 +295,8 @@ export default function CreateInvoiceWizard({
   currencies = [],
   totalItems,
   formatCurrency,
-  formatDate
+  formatDate,
+  showInstallmentPurchaseUi = false,
 }: CreateInvoiceWizardProps) {
   const selectedSources =
     wizardState.selectedSources?.length
@@ -656,6 +662,80 @@ export default function CreateInvoiceWizard({
                   />
                 </div>
               </div>
+
+              {showInstallmentPurchaseUi && (
+                <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-4 space-y-3">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300"
+                      checked={Boolean(wizardState.isInstallmentPurchase)}
+                      onChange={(e) =>
+                        setWizardState((prev: any) => ({
+                          ...prev,
+                          isInstallmentPurchase: e.target.checked,
+                          paymentTerms: e.target.checked ? 'Installment' : prev.paymentTerms,
+                        }))
+                      }
+                    />
+                    Installment-based supplier payment plan
+                  </label>
+                  {wizardState.isInstallmentPurchase && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Advance / down payment</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={wizardState.downPaymentAmount || ''}
+                          onChange={(e) =>
+                            setWizardState((prev: any) => ({
+                              ...prev,
+                              downPaymentAmount: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Installments</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="120"
+                          value={wizardState.installmentCount || '6'}
+                          onChange={(e) =>
+                            setWizardState((prev: any) => ({
+                              ...prev,
+                              installmentCount: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Frequency</label>
+                        <select
+                          value={wizardState.installmentFrequency || 'monthly'}
+                          onChange={(e) =>
+                            setWizardState((prev: any) => ({
+                              ...prev,
+                              installmentFrequency: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm"
+                        >
+                          <option value="weekly">Weekly</option>
+                          <option value="biweekly">Bi-weekly</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="quarterly">Quarterly</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

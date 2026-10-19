@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { loadCurrencyLocal } from '../../../lib/currency-service';
+import { fetchInstallmentReport } from '@/api/installments/route';
+import { useCompanyBusinessConfig } from '@/lib/company-business-config';
 
 type ReportRow = {
   id: string;
@@ -104,6 +106,14 @@ export function SalesReportsPage() {
   const [summary, setSummary] = useState<ReportSummary | null>(null);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const { showInstallmentSalesUi } = useCompanyBusinessConfig();
+  const [installmentSummary, setInstallmentSummary] = useState<{
+    outstandingTotal?: number;
+    overdueTotal?: number;
+    paidTotal?: number;
+    scheduledTotal?: number;
+    nextDueDate?: string | null;
+  } | null>(null);
 
   const queryString = useMemo(() => {
     const qs = new URLSearchParams({
@@ -149,6 +159,24 @@ export function SalesReportsPage() {
     fetchReport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryString]);
+
+  useEffect(() => {
+    if (!showInstallmentSalesUi) {
+      setInstallmentSummary(null);
+      return;
+    }
+    let cancelled = false;
+    fetchInstallmentReport({ side: 'sales' })
+      .then((data) => {
+        if (!cancelled) setInstallmentSummary(data?.summary || null);
+      })
+      .catch(() => {
+        if (!cancelled) setInstallmentSummary(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showInstallmentSalesUi]);
 
   const fetchAllForExport = async (): Promise<ReportRow[]> => {
     const qs = new URLSearchParams(queryString);
@@ -281,6 +309,26 @@ export function SalesReportsPage() {
           <p className="text-sm text-gray-500 mt-1">
             Filter POS, orders and invoices — preview then download PDF or Excel
           </p>
+          {showInstallmentSalesUi && installmentSummary && (
+            <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs max-w-3xl">
+              <div className="rounded-lg border bg-white p-2.5">
+                <p className="text-gray-500">Installment scheduled</p>
+                <p className="font-semibold">{formatCurrency(installmentSummary.scheduledTotal || 0)}</p>
+              </div>
+              <div className="rounded-lg border bg-white p-2.5">
+                <p className="text-gray-500">Collected</p>
+                <p className="font-semibold text-emerald-700">{formatCurrency(installmentSummary.paidTotal || 0)}</p>
+              </div>
+              <div className="rounded-lg border bg-white p-2.5">
+                <p className="text-gray-500">Outstanding</p>
+                <p className="font-semibold">{formatCurrency(installmentSummary.outstandingTotal || 0)}</p>
+              </div>
+              <div className="rounded-lg border bg-white p-2.5">
+                <p className="text-gray-500">Overdue</p>
+                <p className="font-semibold text-red-700">{formatCurrency(installmentSummary.overdueTotal || 0)}</p>
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button

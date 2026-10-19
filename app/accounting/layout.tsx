@@ -35,7 +35,8 @@ import {
   Handshake,
   Landmark,
   Clock,
-  Layers
+  Layers,
+  CalendarClock,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
@@ -51,11 +52,15 @@ import ModuleViewHost from '../../components/ModuleViewHost';
 import { accountingViewHostConfig } from '../../lib/module-view-host/registries';
 import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
 import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
+import { useCompanyBusinessConfig } from '../../lib/company-business-config';
 
 function AccountingSidebar() {
   const pathname = usePathname();
   const { collapsed } = useSidebarCollapsed();
   const { hasSubPageAccess, hasModuleAccess, isAdmin } = usePermissions();
+  const { showInstallmentSalesUi, showInstallmentPurchaseUi } =
+    useCompanyBusinessConfig();
+  const showInstallments = showInstallmentSalesUi || showInstallmentPurchaseUi;
 
   const [expandedSections, setExpandedSections] = React.useState({
     accountingCore: true,
@@ -91,6 +96,16 @@ function AccountingSidebar() {
     { path: '/accounting/accounts-receivable', label: 'Accounts Receivable', permission: 'accounts-receivable' },
     // { path: '/accounting/bills', label: 'Bills', permission: 'bills' },
     // { path: '/accounting/payments-made', label: 'Payments Made', permission: 'payments-made' },
+    ...(showInstallments
+      ? [
+          {
+            path: '/accounting/installments',
+            label: 'Installments',
+            permission: 'accounts-receivable' as const,
+            iconKey: 'installments',
+          },
+        ]
+      : []),
     { path: '/accounting/expenses', label: 'Expenses', permission: 'expenses' },
     { path: '/accounting/budgets', label: 'Budgets', permission: 'expenses', iconKey: 'budgets' },
     { path: '/accounting/budgets/vs-actual', label: 'Budget vs Actual', permission: 'expenses', iconKey: 'budget-vs-actual' },
@@ -175,6 +190,7 @@ function AccountingSidebar() {
                   'payments-received': <DollarSign className="w-4 h-4" />,
                   'credit-notes': <FileText className="w-4 h-4" />,
                   'accounts-receivable': <Users className="w-4 h-4" />,
+                  'installments': <CalendarClock className="w-4 h-4" />,
                   'bills': <FileText className="w-4 h-4" />,
                   'payments-made': <CreditCard className="w-4 h-4" />,
                   'expenses': <Wallet className="w-4 h-4" />,

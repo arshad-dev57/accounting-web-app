@@ -27,6 +27,7 @@ import {
   CreditCard,
   Scale,
   ClipboardList,
+  CalendarClock,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
@@ -43,6 +44,7 @@ import {
 } from '../../lib/module-view-host/registries';
 import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
 import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
+import { useCompanyBusinessConfig } from '../../lib/company-business-config';
 
 // ============================================================
 // PURCHASES SIDEBAR
@@ -51,6 +53,7 @@ function PurchasesSidebar() {
   const pathname = usePathname();
   const { collapsed } = useSidebarCollapsed();
   const { hasSubPageAccess, hasModuleAccess, isAdmin } = usePermissions();
+  const { showInstallmentPurchaseUi } = useCompanyBusinessConfig();
   
   const [expandedSections, setExpandedSections] = React.useState({
     purchasesCore: true,
@@ -65,7 +68,8 @@ function PurchasesSidebar() {
     }));
   };
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) =>
+    pathname === path || Boolean(pathname?.startsWith(path + '/'));
 
   // Permission mapping for purchases sub-pages
   const purchasesPages = [
@@ -77,6 +81,15 @@ function PurchasesSidebar() {
     { path: '/purchases/suppliers', label: 'Suppliers', permission: 'suppliers' },
     { path: '/purchases/goodsRecieving', label: 'Goods Receiving', permission: 'goods-receiving' },
     { path: '/purchases/invoices', label: 'Purchase Invoices', permission: 'purchase-invoices' },
+    ...(showInstallmentPurchaseUi
+      ? [
+          {
+            path: '/purchases/installments',
+            label: 'Installments',
+            permission: 'purchase-invoices' as const,
+          },
+        ]
+      : []),
     { path: '/purchases/payments', label: 'Purchase Payments', permission: 'purchase-payments' },
   ];
 
@@ -154,7 +167,9 @@ function PurchasesSidebar() {
                   'purchase-invoices': <Receipt className="w-4 h-4" />,
                   'purchase-payments': <ArrowLeftRight className="w-4 h-4" />,
                 };
-                const icon = page.path.includes('/reports')
+                const icon = page.path.includes('/installments')
+                  ? <CalendarClock className="w-4 h-4" />
+                  : page.path.includes('/reports')
                   ? <FileText className="w-4 h-4" />
                   : (iconMap[page.permission] || <FileText className="w-4 h-4" />);
                 

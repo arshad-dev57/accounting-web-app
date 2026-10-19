@@ -104,14 +104,20 @@ export default function ImportBillsPage() {
       if (search) params.search = search;
       if (statusFilter !== 'All') params.status = statusFilter;
       const res = await importApi.listBills(params);
-      if (res && res.items) {
-        setItems(res.items);
-        setTotalPages(res.pagination?.pages || 1);
-      } else if (Array.isArray(res)) {
-        setItems(res);
-      } else {
-        setItems([]);
-      }
+      const raw = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.items)
+          ? res.items
+          : Array.isArray(res?.data)
+            ? res.data
+            : Array.isArray(res?.data?.items)
+              ? res.data.items
+              : [];
+      const list = (raw as ImportSupplierBill[]).filter(
+        (b): b is ImportSupplierBill => Boolean(b && (b.id || b.billNumber))
+      );
+      setItems(list);
+      setTotalPages(res?.pagination?.pages || 1);
     } catch (err: any) {
       console.error('Error fetching bills:', err);
       setError(err?.response?.data?.error || err.message || 'Failed to load supplier bills');
@@ -225,7 +231,13 @@ export default function ImportBillsPage() {
     try {
       setActionLoading(true);
       const updated = await importApi.postBill(billId);
-      setItems((prev) => prev.map((b) => (b.id === billId ? { ...b, ...updated } : b)));
+      if (!updated?.id && !updated?.billNumber) {
+        await fetchData();
+        return;
+      }
+      setItems((prev) =>
+        prev.map((b) => (b?.id === billId ? { ...b, ...updated } : b)).filter(Boolean)
+      );
       if (selectedBill?.id === billId) setSelectedBill((prev) => (prev ? { ...prev, ...updated } : null));
     } catch (err: any) {
       alert(err?.response?.data?.message || err.message || 'Failed to post bill');
@@ -241,7 +253,13 @@ export default function ImportBillsPage() {
         amountUsd: amount,
         paymentMethod: 'WIRE_TRANSFER',
       });
-      setItems((prev) => prev.map((b) => (b.id === billId ? updated : b)));
+      if (!updated?.id && !updated?.billNumber) {
+        await fetchData();
+        return;
+      }
+      setItems((prev) =>
+        prev.map((b) => (b?.id === billId ? updated : b)).filter(Boolean) as ImportSupplierBill[]
+      );
       if (selectedBill && selectedBill.id === billId) {
         setSelectedBill(updated);
       }
@@ -364,8 +382,8 @@ export default function ImportBillsPage() {
                 columns={['Bill Number', 'Linked PO', 'Supplier', 'Bill Date', 'Currency', 'Total (Foreign)', `Total (${baseCurrencyCode})`, 'Match', 'Status', 'Actions']}
               />
               <TradeTableBody>
-                {items.map((bill) => (
-                  <TradeTableRow key={bill.id}>
+                {items.filter(Boolean).map((bill) => (
+                  <TradeTableRow key={bill.id || bill.billNumber}>
                     <TradeTableCell className="font-bold text-[#014582]">{bill.billNumber}</TradeTableCell>
                     <TradeTableCell className="font-semibold text-gray-800">
                       {bill.poRef || bill.importPoId ? (

@@ -11,6 +11,7 @@ import PDFService from '@/lib/pdf-service';
 import { ProductPicker, type PickedProduct } from '@/manufacturing/_components/ProductPicker';
 import { productService } from '../../api/product/route';
 import { useCurrency } from '@/lib/currency-context';
+import InstallmentSchedulePanel from '@/components/installments/InstallmentSchedulePanel';
 
 const STATUS_COLORS: Record<string, string> = {
   'Draft': 'bg-orange-100 text-orange-700',
@@ -86,9 +87,38 @@ export function SalesInvoicesPage() {
     fetchInvoices();
   };
 
-  const handleInvoiceClick = (invoice: SalesInvoice, startEditing = false) => {
+  const handleInvoiceClick = async (invoice: SalesInvoice, startEditing = false) => {
     setInvoiceStartEditing(startEditing);
     setSelectedInvoice(invoice);
+    try {
+      const { apiClient } = await import('@/lib/api-client');
+      // Use backend path (/api/sales/invoices/:id) — Next rewrite. The local
+      // /api/sales-invoices/[id] BFF was proxied away and returned HTML 404.
+      const result = await apiClient.get(`/api/sales/invoices/${invoice.id}`);
+      const data = result.data?.data || result.data;
+      let detailed = result.success && data?.id ? data : invoice;
+
+      const needsSchedule =
+        Boolean(detailed.isInstallmentSale || invoice.isInstallmentSale) &&
+        !(detailed.installmentSchedules || []).length;
+      if (needsSchedule) {
+        try {
+          const sched = await apiClient.get(
+            `/api/installments/sales-invoices/${invoice.id}/schedule`
+          );
+          const payload = sched.data?.data || sched.data;
+          if (payload?.lines?.length) {
+            detailed = { ...detailed, installmentSchedules: payload.lines };
+          }
+        } catch {
+          /* schedule optional */
+        }
+      }
+
+      setSelectedInvoice(detailed);
+    } catch {
+      /* keep list row data */
+    }
   };
 
   const handlePostInvoice = async (id: string) => {
@@ -669,11 +699,32 @@ function SalesInvoiceDetailModal({
             <div className="flex justify-between text-gray-700"><span>Subtotal</span><span>{formatCurrency(editing ? previewTotals.subtotal : invoice.subtotal)}</span></div>
             <div className="flex justify-between text-red-600"><span>Discount</span><span>-{formatCurrency(editing ? previewTotals.discount : invoice.discountTotal)}</span></div>
             <div className="flex justify-between text-blue-600"><span>Tax</span><span>{formatCurrency(editing ? previewTotals.tax : invoice.taxTotal)}</span></div>
+            <div className="flex justify-between text-gray-700"><span>Paid</span><span>{formatCurrency(invoice.paidAmount || 0)}</span></div>
+            <div className="flex justify-between text-gray-700"><span>Outstanding</span><span>{formatCurrency(invoice.outstanding || 0)}</span></div>
             <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-gray-900">
               <span>Grand Total</span>
               <span className="text-[#014582]">{formatCurrency(editing ? previewGrand : invoice.grandTotal)}</span>
             </div>
           </div>
+
+          <InstallmentSchedulePanel
+            isInstallment={Boolean(invoice.isInstallmentSale)}
+            downPaymentAmount={invoice.downPaymentAmount}
+            installmentCount={invoice.installmentCount}
+            installmentFrequency={invoice.installmentFrequency}
+            installmentAmount={invoice.installmentAmount}
+            lines={invoice.installmentSchedules || []}
+            invoiceOutstanding={invoice.outstanding}
+            formatCurrency={formatCurrency}
+            scheduleHref={`/sales/installments/${encodeURIComponent(invoice.id)}`}
+            collectHref={
+              invoice.outstanding > 0 && invoice.invoiceStatus !== 'Cancelled'
+                ? `/sales/installments/${encodeURIComponent(invoice.id)}/collect`
+                : undefined
+            }
+            collectLabel="Collect installment"
+            side="sales"
+          />
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50">
           {canEdit && !editing && (

@@ -25,6 +25,7 @@ import ProfileDropdown, { type CompanyProfile } from '../../../components/Profil
 import CompanySwitcher from '../../../components/CompanySwitcher';
 import { useCompanyOptional } from '../../../lib/company-context';
 import { fetchProfileCached, invalidateProfileCache } from '../../../lib/profile-cache';
+import BusinessConfigSection from '../../../components/BusinessConfigSection';
 
 function fmtDate(iso?: string | null) {
   if (!iso) return '—';
@@ -247,7 +248,7 @@ export default function CompanyProfilePage() {
                       />
                       <Field
                         icon={<Building2 className="h-4 w-4" />}
-                        label="Business type"
+                        label="Legal structure"
                         value={businessType}
                       />
                       <Field
@@ -267,6 +268,12 @@ export default function CompanyProfilePage() {
                       />
                     </div>
                   </Section>
+
+                  <div className="lg:col-span-2">
+                    <Section title="Business Configuration">
+                      <BusinessConfigSection canEdit />
+                    </Section>
+                  </div>
 
                   <Section title="Subscription">
                     <div className="space-y-4">

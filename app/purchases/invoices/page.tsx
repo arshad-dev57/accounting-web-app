@@ -33,6 +33,9 @@ import {
   lookupRate,
   type CurrencyMaster,
 } from '../../../lib/multi-currency';
+import InstallmentSchedulePanel from '../../../components/installments/InstallmentSchedulePanel';
+import { useCompanyBusinessConfig } from '../../../lib/company-business-config';
+import { INSTALLMENT_FREQUENCIES } from '../../../lib/business-options';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 
@@ -51,6 +54,10 @@ interface WizardState {
   currencyId: string;
   exchangeRate: string;
   exchangeRateDate: string;
+  isInstallmentPurchase: boolean;
+  downPaymentAmount: string;
+  installmentCount: string;
+  installmentFrequency: string;
 }
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
@@ -111,7 +118,12 @@ export default function PurchaseInvoicesPage() {
     currencyId: '',
     exchangeRate: '1',
     exchangeRateDate: new Date().toISOString().split('T')[0],
+    isInstallmentPurchase: false,
+    downPaymentAmount: '',
+    installmentCount: '6',
+    installmentFrequency: 'monthly',
   });
+  const { showInstallmentPurchaseUi } = useCompanyBusinessConfig();
   const [currencies, setCurrencies] = useState<CurrencyMaster[]>([]);
   const [baseCurrency, setBaseCurrency] = useState<CurrencyMaster | null>(null);
 
@@ -306,6 +318,10 @@ export default function PurchaseInvoicesPage() {
       currencyId: baseCurrency?.id || '',
       exchangeRate: '1',
       exchangeRateDate: new Date().toISOString().split('T')[0],
+      isInstallmentPurchase: false,
+      downPaymentAmount: '',
+      installmentCount: '6',
+      installmentFrequency: 'monthly',
     });
   };
 
@@ -528,6 +544,13 @@ export default function PurchaseInvoicesPage() {
         })),
       };
 
+      if (wizardState.isInstallmentPurchase) {
+        payload.isInstallmentPurchase = true;
+        payload.downPaymentAmount = Number(wizardState.downPaymentAmount) || 0;
+        payload.installmentCount = parseInt(wizardState.installmentCount, 10) || 1;
+        payload.installmentFrequency = wizardState.installmentFrequency || 'monthly';
+      }
+
       if (wizardState.sourceType === 'grn') {
         payload.goodsReceivingIds = wizardState.selectedSources.flatMap((s) =>
           (s as GRNSource).goodsReceivingIds?.length
@@ -609,9 +632,15 @@ export default function PurchaseInvoicesPage() {
 
   // ─── View Invoice Detail ─────────────────────────────────────
 
-  const viewInvoiceDetail = (invoice: PurchaseInvoiceModel, startEditing = false) => {
+  const viewInvoiceDetail = async (invoice: PurchaseInvoiceModel, startEditing = false) => {
     setDetailStartEditing(startEditing);
     setViewingInvoice(invoice);
+    try {
+      const full = await purchaseInvoiceService.getById(invoice.id);
+      if (full) setViewingInvoice(full as PurchaseInvoiceModel);
+    } catch {
+      /* keep list row */
+    }
   };
 
   // ─── Download Invoice PDF ──────────────────────────────────────
@@ -695,6 +724,7 @@ export default function PurchaseInvoicesPage() {
           totalItems={totalItems}
           formatCurrency={formatCurrency}
           formatDate={formatDate}
+          showInstallmentPurchaseUi={showInstallmentPurchaseUi}
         />
       ) : (
         <>
@@ -1344,6 +1374,25 @@ function InvoiceDetailModal({
               </div>
             </div>
           </div>
+
+          <InstallmentSchedulePanel
+            isInstallment={Boolean(invoice.isInstallmentPurchase)}
+            downPaymentAmount={invoice.downPaymentAmount}
+            installmentCount={invoice.installmentCount}
+            installmentFrequency={invoice.installmentFrequency}
+            installmentAmount={invoice.installmentAmount}
+            lines={invoice.installmentSchedules || []}
+            invoiceOutstanding={invoice.outstanding}
+            formatCurrency={formatCurrency}
+            scheduleHref={`/purchases/installments/${encodeURIComponent(invoice.id)}`}
+            collectHref={
+              invoice.outstanding > 0 && invoice.invoiceStatus !== 'Cancelled'
+                ? `/purchases/installments/${encodeURIComponent(invoice.id)}/pay`
+                : undefined
+            }
+            collectLabel="Pay installment"
+            side="purchase"
+          />
 
           {/* Items */}
           {((editing ? form.items : invoice.items) || []).length > 0 && (

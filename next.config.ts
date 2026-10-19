@@ -38,8 +38,10 @@ const nextConfig: NextConfig = {
     return [
       {
         // Multipart preview + JSON confirm use App Router proxies (see app/api/bank-reconciliation/import/*).
+        // Keep App Router handlers for sales-invoices/* (dynamic [id] was wrongly
+        // proxied to Express /api/sales-invoices/:id which does not exist → HTML 404).
         source:
-          '/api/:path((?!pos/|download/|hr/holidays|hr/shifts|warehouse/inventory/import|bank-reconciliation/import).*)',
+          '/api/:path((?!pos/|download/|hr/holidays|hr/shifts|warehouse/inventory/import|bank-reconciliation/import|sales-invoices).*)',
         destination: `${backendUrl}/api/:path*`,
       },
     ];

@@ -2,20 +2,22 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  Users,
-  Plus,
+  ArrowLeft,
   Search,
-  Building2,
-  TrendingUp,
-  DollarSign,
-  UserCheck,
-  CheckCircle,
+  Plus,
   Eye,
-  Edit2,
-  X
+  Users,
+  Phone,
+  Building2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  X,
+  RefreshCw,
 } from 'lucide-react';
 import { browserCompanyAuthHeaders } from '@/lib/company-api-headers';
 
@@ -39,36 +41,60 @@ interface Salesperson {
   user?: { id: string; firstName: string; lastName: string };
 }
 
+const PAGE_SIZE = 20;
+const statusOptions = ['All', 'Active', 'Inactive'];
+
+const emptyForm = {
+  name: '',
+  phone: '',
+  email: '',
+  employeeCode: '',
+  territory: '',
+  monthlyTarget: '0',
+  commissionRate: '0',
+  status: 'Active',
+  locationId: '',
+};
+
+const inputClass =
+  'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none';
+const labelClass = 'block text-xs font-semibold text-gray-500 mb-1';
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'Active':
+      return 'bg-green-100 text-green-700';
+    case 'Inactive':
+      return 'bg-gray-100 text-gray-700';
+    case 'Blocked':
+      return 'bg-red-100 text-red-700';
+    case 'Pending':
+      return 'bg-yellow-100 text-yellow-700';
+    default:
+      return 'bg-gray-100 text-gray-700';
+  }
+};
+
 export default function SalespersonsPage() {
   const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
 
   // Form State
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    employeeCode: '',
-    territory: '',
-    monthlyTarget: '0',
-    commissionRate: '0',
-    status: 'Active',
-    locationId: '',
-  });
-
+  const [formData, setFormData] = useState(emptyForm);
   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const fetchSalespersons = async () => {
+  const fetchSalespersons = useCallback(async () => {
     try {
       setLoading(true);
       const headers = browserCompanyAuthHeaders();
       const query = new URLSearchParams();
       if (search) query.append('search', search);
-      if (statusFilter) query.append('status', statusFilter);
+      if (statusFilter !== 'All') query.append('status', statusFilter);
 
       const res = await fetch(`/api/distributor/salespersons?${query.toString()}`, { headers });
       if (res.ok) {
@@ -80,12 +106,14 @@ export default function SalespersonsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, statusFilter]);
 
   useEffect(() => {
     fetchSalespersons();
+  }, [fetchSalespersons]);
 
-    // Fetch locations for modal
+  // Locations for the modal (sirf ek baar)
+  useEffect(() => {
     const fetchLocations = async () => {
       try {
         const headers = browserCompanyAuthHeaders();
@@ -99,7 +127,7 @@ export default function SalespersonsPage() {
       }
     };
     fetchLocations();
-  }, [search, statusFilter]);
+  }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,17 +142,7 @@ export default function SalespersonsPage() {
 
       if (res.ok) {
         setShowModal(false);
-        setFormData({
-          name: '',
-          phone: '',
-          email: '',
-          employeeCode: '',
-          territory: '',
-          monthlyTarget: '0',
-          commissionRate: '0',
-          status: 'Active',
-          locationId: '',
-        });
+        setFormData(emptyForm);
         fetchSalespersons();
       } else {
         const err = await res.json();
@@ -137,206 +155,180 @@ export default function SalespersonsPage() {
     }
   };
 
-  // Aggregated Stats
-  const totalSalespersons = salespersons.length;
-  const activeCount = salespersons.filter((sp) => sp.status === 'Active').length;
-  const aggregateSales = salespersons.reduce((sum, sp) => sum + (sp.totalSales || 0), 0);
-  const aggregateRecovery = salespersons.reduce((sum, sp) => sum + (sp.totalRecovery || 0), 0);
+  const handleSearch = (val: string) => {
+    setSearch(val);
+    setPage(1);
+  };
+
+  const handleStatusChange = (val: string) => {
+    setStatusFilter(val);
+    setPage(1);
+  };
+
+  // Client-side pagination (customers page jaisa pager)
+  const total = salespersons.length;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.min(page, pages);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const pageItems = salespersons.slice(startIndex, startIndex + PAGE_SIZE);
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Users className="w-7 h-7 text-emerald-600" />
-            Salesperson Management
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Manage field sales representatives, territories, customer assignments, and targets.
-          </p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/sales/dashboard" className="p-2 hover:bg-gray-100 rounded-lg transition-all">
+            <ArrowLeft className="w-5 h-5 text-gray-500" />
+          </Link>
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <Users className="w-6 h-6 text-[#014582]" />
+            Salespersons
+            <span className="text-sm font-normal text-gray-400 ml-2">({total} salespersons)</span>
+          </h2>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm transition-all shadow-sm"
-        >
-          <Plus className="w-4 h-4" /> Add Salesperson
-        </button>
-      </div>
-
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Total Representatives
-            </span>
-            <div className="p-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 rounded-xl">
-              <Users className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">{totalSalespersons}</div>
-          <div className="text-xs text-emerald-600 font-medium mt-1">{activeCount} Active Status</div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Total Sales Volume
-            </span>
-            <div className="p-2 bg-blue-50 dark:bg-blue-950/50 text-blue-600 rounded-xl">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
-            PKR {aggregateSales.toLocaleString()}
-          </div>
-          <div className="text-xs text-slate-500 mt-1">Generated by Sales Force</div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Total Recoveries
-            </span>
-            <div className="p-2 bg-teal-50 dark:bg-teal-950/50 text-teal-600 rounded-xl">
-              <DollarSign className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
-            PKR {aggregateRecovery.toLocaleString()}
-          </div>
-          <div className="text-xs text-teal-600 font-medium mt-1">Collected Payments</div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Active Coverage
-            </span>
-            <div className="p-2 bg-purple-50 dark:bg-purple-950/50 text-purple-600 rounded-xl">
-              <UserCheck className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
-            {salespersons.reduce((acc, s) => acc + (s.customerCount || 0), 0)} Customers
-          </div>
-          <div className="text-xs text-purple-600 font-medium mt-1">Assigned & Serviced</div>
-        </div>
-      </div>
-
-      {/* Filters Bar */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm flex flex-wrap gap-3 items-center justify-between">
-        <div className="relative flex-1 min-w-[240px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search by name, code, phone, or territory..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white outline-none"
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchSalespersons}
+            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
+            title="Refresh"
           >
-            <option value="">All Statuses</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
+            <RefreshCw className="w-4 h-4 text-gray-500" />
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25"
+          >
+            <Plus className="w-4 h-4" />
+            Add Salesperson
+          </button>
+        </div>
+      </div>
+
+      {/* Search & Filters */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex-1 min-w-[200px] relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by name, code, phone, or territory..."
+              value={search}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
+            />
+          </div>
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className="appearance-none px-4 py-2 pr-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+            >
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs uppercase font-semibold">
-                <th className="px-5 py-3.5">Code & Name</th>
-                <th className="px-5 py-3.5">Territory & Branch</th>
-                <th className="px-5 py-3.5 text-center">Customers</th>
-                <th className="px-5 py-3.5 text-right">Monthly Target</th>
-                <th className="px-5 py-3.5 text-right">Total Sales</th>
-                <th className="px-5 py-3.5 text-right">Recovery</th>
-                <th className="px-5 py-3.5 text-center">Target %</th>
-                <th className="px-5 py-3.5 text-center">Status</th>
-                <th className="px-5 py-3.5 text-right">Actions</th>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Salesperson</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Territory &amp; Branch</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Customers</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Monthly Target</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Sales</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Recovery</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Target %</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
+            <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-5 py-8 text-center text-slate-500">
-                    Loading salespersons...
+                  <td colSpan={9} className="text-center py-12">
+                    <Loader2 className="w-8 h-8 mx-auto text-[#014582] animate-spin" />
+                    <p className="mt-2 text-gray-500">Loading salespersons...</p>
                   </td>
                 </tr>
-              ) : salespersons.length === 0 ? (
+              ) : pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-5 py-8 text-center text-slate-500">
-                    No salespersons found.
+                  <td colSpan={9} className="text-center py-12 text-gray-400">
+                    <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-lg font-medium text-gray-500">No salespersons found</p>
+                    <p className="text-sm text-gray-400">Try adjusting your search or filters</p>
                   </td>
                 </tr>
               ) : (
-                salespersons.map((sp) => (
-                  <tr key={sp.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className="font-semibold text-slate-900 dark:text-white">{sp.name}</div>
-                      <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
-                        <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300">
-                          {sp.salespersonNumber}
-                        </span>
-                        {sp.phone && <span>{sp.phone}</span>}
+                pageItems.map((sp) => (
+                  <tr key={sp.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-3">
+                      <div>
+                        <p className="font-medium text-gray-800">{sp.name}</p>
+                        <p className="text-xs text-gray-400">{sp.salespersonNumber}</p>
                       </div>
                     </td>
-                    <td className="px-5 py-4">
-                      <div className="font-medium text-slate-800 dark:text-slate-200">{sp.territory || 'Unassigned'}</div>
-                      <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                        <Building2 className="w-3 h-3 text-slate-400" />
-                        {sp.location?.name || 'Main Branch'}
+                    <td className="px-6 py-3">
+                      <div className="space-y-0.5">
+                        <p className="text-sm text-gray-700">{sp.territory || 'Unassigned'}</p>
+                        <p className="text-xs text-gray-600 flex items-center gap-1">
+                          <Building2 className="w-3 h-3 text-gray-400" />
+                          {sp.location?.name || 'Main Branch'}
+                        </p>
+                        {sp.phone && (
+                          <p className="text-xs text-gray-600 flex items-center gap-1">
+                            <Phone className="w-3 h-3 text-gray-400" />
+                            {sp.phone}
+                          </p>
+                        )}
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-center font-bold text-slate-700 dark:text-slate-300">
-                      {sp.customerCount}
+                    <td className="px-6 py-3 text-center">
+                      <span className="text-sm font-semibold text-gray-700">{sp.customerCount || 0}</span>
                     </td>
-                    <td className="px-5 py-4 text-right font-medium text-slate-700 dark:text-slate-300">
-                      PKR {(sp.monthlyTarget || 0).toLocaleString()}
+                    <td className="px-6 py-3">
+                      <span className="text-sm font-semibold text-gray-700">
+                        Rs. {(sp.monthlyTarget || 0).toLocaleString()}
+                      </span>
                     </td>
-                    <td className="px-5 py-4 text-right font-semibold text-emerald-600">
-                      PKR {(sp.totalSales || 0).toLocaleString()}
+                    <td className="px-6 py-3">
+                      <span className="text-sm font-semibold text-gray-700">
+                        Rs. {(sp.totalSales || 0).toLocaleString()}
+                      </span>
                     </td>
-                    <td className="px-5 py-4 text-right font-medium text-blue-600">
-                      PKR {(sp.totalRecovery || 0).toLocaleString()}
+                    <td className="px-6 py-3">
+                      <span className="text-sm font-semibold text-gray-700">
+                        Rs. {(sp.totalRecovery || 0).toLocaleString()}
+                      </span>
                     </td>
-                    <td className="px-5 py-4 text-center">
-                      <div className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-                        {sp.targetAchievement}%
-                      </div>
+                    <td className="px-6 py-3">
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#014582]/10 text-[#014582]">
+                        {sp.targetAchievement || 0}%
+                      </span>
                     </td>
-                    <td className="px-5 py-4 text-center">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium ${
-                          sp.status === 'Active'
-                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
-                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                        }`}
-                      >
-                        <CheckCircle className="w-3 h-3" />
+                    <td className="px-6 py-3">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${getStatusColor(sp.status)}`}>
                         {sp.status}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-right space-x-2">
-                      <Link
-                        href={`/sales/salespersons/${sp.id}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium transition-colors"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        Salesperson 360
-                      </Link>
+                    <td className="px-6 py-3">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/sales/salespersons/${sp.id}`}
+                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                          title="Salesperson 360"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -346,131 +338,160 @@ export default function SalespersonsPage() {
         </div>
       </div>
 
+      {/* Pagination */}
+      {pages > 1 && (
+        <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <p className="text-sm text-gray-500">
+            Showing {startIndex + 1} – {Math.min(startIndex + PAGE_SIZE, total)} of {total} salespersons
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(currentPage - 1)}
+              disabled={currentPage <= 1}
+              className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="px-4 py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg">
+              {currentPage} / {pages}
+            </span>
+            <button
+              onClick={() => setPage(currentPage + 1)}
+              disabled={currentPage >= pages}
+              className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Add Salesperson Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-xl relative">
-            <div className="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-slate-800 pb-3">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-emerald-600" />
-                Add New Salesperson
-              </h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-lg my-4 shadow-2xl overflow-hidden">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#014582]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Users className="w-5 h-5 text-[#014582]" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">Add New Salesperson</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-all"
+              >
+                <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
 
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Tariq Mehmood"
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleCreate}>
+              <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Phone Number
-                  </label>
+                  <label className={labelClass}>Full Name *</label>
                   <input
                     type="text"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="0300-1234567"
-                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="e.g. Tariq Mehmood"
+                    className={inputClass}
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="tariq@example.com"
-                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none"
-                  />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Phone Number</label>
+                    <input
+                      type="text"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="0300-1234567"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Email</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="tariq@example.com"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Territory / Area</label>
+                    <input
+                      type="text"
+                      value={formData.territory}
+                      onChange={(e) => setFormData({ ...formData, territory: e.target.value })}
+                      placeholder="e.g. Lahore North Zone"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Warehouse / Branch</label>
+                    <div className="relative">
+                      <select
+                        value={formData.locationId}
+                        onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
+                        className={`${inputClass} appearance-none pr-9 bg-gray-50`}
+                      >
+                        <option value="">Select Branch</option>
+                        {locations.map((loc) => (
+                          <option key={loc.id} value={loc.id}>
+                            {loc.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Monthly Sales Target (Rs.)</label>
+                    <input
+                      type="number"
+                      value={formData.monthlyTarget}
+                      onChange={(e) => setFormData({ ...formData, monthlyTarget: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Commission Rate (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={formData.commissionRate}
+                      onChange={(e) => setFormData({ ...formData, commissionRate: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Territory / Area
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.territory}
-                    onChange={(e) => setFormData({ ...formData, territory: e.target.value })}
-                    placeholder="e.g. Lahore North Zone"
-                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Warehouse / Branch
-                  </label>
-                  <select
-                    value={formData.locationId}
-                    onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
-                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none"
-                  >
-                    <option value="">Select Branch</option>
-                    {locations.map((loc) => (
-                      <option key={loc.id} value={loc.id}>
-                        {loc.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Monthly Sales Target (PKR)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.monthlyTarget}
-                    onChange={(e) => setFormData({ ...formData, monthlyTarget: e.target.value })}
-                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Commission Rate (%)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.commissionRate}
-                    onChange={(e) => setFormData({ ...formData, commissionRate: e.target.value })}
-                    className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-lg border border-slate-300 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100"
+                  className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-white hover:border-[#014582] transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-xs font-medium text-white transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-all shadow-lg shadow-[#014582]/25 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
+                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                   {saving ? 'Saving...' : 'Create Salesperson'}
                 </button>
               </div>

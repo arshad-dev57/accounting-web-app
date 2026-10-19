@@ -6,10 +6,16 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const token = request.headers.get('authorization');
+    const companyId =
+      request.headers.get('x-company-id') ||
+      request.headers.get('x-active-company-id');
 
     const headers = { 'Content-Type': 'application/json' };
     if (token) {
       headers['Authorization'] = token;
+    }
+    if (companyId) {
+      headers['X-Company-Id'] = companyId;
     }
 
     const response = await axios.post(`${BACKEND_URL}/api/sales/invoices/create-multi`, body, {

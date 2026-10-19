@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useMemo, type ComponentType } from 'react';
+import { useEffect, useRef, useState, useMemo, type ComponentType } from 'react';
 import Image from 'next/image';
 import { ChevronRight } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
@@ -185,6 +185,23 @@ const modules: ModuleItem[] = [
   },
 ];
 
+const TILE_OFFSETS_KEY = 'dashboard-tile-offsets-v1';
+
+/* Header ke andar ke components (search, profile, brand) ka text white karne ke liye.
+   Dropdown / popup panels (role=menu/listbox/dialog) ko chhod diya hai taake wo white bg par readable rahein. */
+const headerCss = `
+.dash-header :is(p, span, h1, h2, h3, a, label, svg, button, input):not(:is([role="menu"], [role="listbox"], [role="dialog"]) *) {
+  color: #ffffff !important;
+}
+.dash-header input {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+.dash-header input::placeholder {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+`;
+
 function openHeaderAction(action: ModuleItem['action']) {
   if (!action || typeof window === 'undefined') return;
 
@@ -208,6 +225,91 @@ function openHeaderAction(action: ModuleItem['action']) {
 export default function DashboardPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const { canAccessDashboardModule, isAdmin, ready: permsReady } = usePermissions();
+
+  /* ── Draggable tiles: har tile ka offset (x, y) save hota hai, refresh ke baad bhi rehta hai ── */
+  const [offsets, setOffsets] = useState<Record<string, { x: number; y: number }>>({});
+  const [draggingTitle, setDraggingTitle] = useState<string | null>(null);
+  const offsetsLoaded = useRef(false);
+  const dragRef = useRef<{
+    title: string;
+    startX: number;
+    startY: number;
+    baseX: number;
+    baseY: number;
+    moved: boolean;
+  } | null>(null);
+  const justDragged = useRef(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(TILE_OFFSETS_KEY);
+      if (raw) setOffsets(JSON.parse(raw));
+    } catch {
+      /* ignore corrupt storage */
+    }
+    offsetsLoaded.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!offsetsLoaded.current || draggingTitle) return;
+    try {
+      localStorage.setItem(TILE_OFFSETS_KEY, JSON.stringify(offsets));
+    } catch {
+      /* storage full / blocked */
+    }
+  }, [offsets, draggingTitle]);
+
+  const handleTilePointerDown = (e: React.PointerEvent<HTMLButtonElement>, title: string) => {
+    if (e.button !== 0) return;
+    const base = offsets[title] ?? { x: 0, y: 0 };
+    dragRef.current = {
+      title,
+      startX: e.clientX,
+      startY: e.clientY,
+      baseX: base.x,
+      baseY: base.y,
+      moved: false,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleTilePointerMove = (e: React.PointerEvent<HTMLButtonElement>, title: string) => {
+    const d = dragRef.current;
+    if (!d || d.title !== title) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    if (!d.moved && Math.hypot(dx, dy) < 5) return; // chhota hilna = click
+    if (!d.moved) {
+      d.moved = true;
+      setDraggingTitle(title);
+    }
+    setOffsets((prev) => ({ ...prev, [title]: { x: d.baseX + dx, y: d.baseY + dy } }));
+  };
+
+  const endTileDrag = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    if (d?.moved) {
+      // is drag ke baad aane wala click ignore karo
+      justDragged.current = true;
+      window.setTimeout(() => {
+        justDragged.current = false;
+      }, 0);
+    }
+    dragRef.current = null;
+    setDraggingTitle(null);
+  };
+
+  const resetTileLayout = () => {
+    setOffsets({});
+    try {
+      localStorage.removeItem(TILE_OFFSETS_KEY);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const visibleModules = useMemo(() => {
     if (isAdmin) return modules;
@@ -234,7 +336,8 @@ export default function DashboardPage() {
     <div className="flex min-h-screen bg-[#f3f4f6]">
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        <header className="bg-white border-b border-[#e5e7eb] px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-3 flex-shrink-0">
+        <header className="dash-header bg-[#014582] text-white border-b border-white/15 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-3 flex-shrink-0">
+          <style>{headerCss}</style>
           <div className="min-w-0 shrink">
             <TopBarBrand title="Main Dashboard" />
           </div>
@@ -242,9 +345,9 @@ export default function DashboardPage() {
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 min-w-0 shrink-0">
             <GlobalSearch />
 
-            <div className="w-px h-6 bg-[#e5e7eb]" />
+            <div className="w-px h-6 bg-white/30" />
 
-            <ProfileDropdown accentClassName="bg-[#014582]" />
+            <ProfileDropdown accentClassName="bg-white/20" />
           </div>
         </header>
 
@@ -252,7 +355,11 @@ export default function DashboardPage() {
 
         <SubscriptionStatusBanner />
 
-        <div data-dashboard-scroll className="flex-1 px-4 py-6 sm:px-6 sm:py-8 md:px-10 md:py-12 overflow-auto">
+        {/* Grid via shared .app-square-grid (same as SidebarMain / rest of app) */}
+        <div
+          data-dashboard-scroll
+          className="app-square-grid flex-1 px-4 py-6 sm:px-6 sm:py-8 md:px-10 md:py-12 overflow-auto"
+        >
           <div className="w-full max-w-6xl mx-auto space-y-8 sm:space-y-10">
 
             {/* Banner */}
@@ -305,6 +412,18 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {Object.keys(offsets).length > 0 && (
+              <div className="flex justify-end -mb-4">
+                <button
+                  type="button"
+                  onClick={resetTileLayout}
+                  className="px-3 py-1.5 rounded-lg bg-white border border-[#e5e7eb] text-xs font-semibold text-[#014582] hover:bg-[#f3f4f6] transition-colors"
+                >
+                  Reset layout
+                </button>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8 lg:gap-10 pb-28 sm:pb-32">
               {!isAdmin && !permsReady
                 ? Array.from({ length: 4 }).map((_, i) => (
@@ -318,18 +437,31 @@ export default function DashboardPage() {
                   ))
                 : visibleModules.map((mod) => {
                     const Icon = mod.Icon;
+                    const off = offsets[mod.title];
+                    const isDragging = draggingTitle === mod.title;
                     return (
                       <button
                         key={mod.title}
                         type="button"
+                        onPointerDown={(e) => handleTilePointerDown(e, mod.title)}
+                        onPointerMove={(e) => handleTilePointerMove(e, mod.title)}
+                        onPointerUp={endTileDrag}
+                        onPointerCancel={endTileDrag}
+                        style={{
+                          transform: off || isDragging
+                            ? `translate(${off?.x ?? 0}px, ${off?.y ?? 0}px)${isDragging ? ' scale(1.04)' : ''}`
+                            : undefined,
+                          zIndex: isDragging ? 50 : undefined,
+                        }}
                         onClick={() => {
+                          if (justDragged.current) return;
                           if (mod.action) {
                             openHeaderAction(mod.action);
                             return;
                           }
                           if (mod.href) window.location.href = mod.href;
                         }}
-                        className="group relative z-0 hover:z-40 focus-within:z-40 flex flex-col items-center justify-center gap-3 sm:gap-4 md:gap-5 py-8 sm:py-10 md:py-12 px-3 sm:px-4 md:px-5 rounded-2xl sm:rounded-3xl bg-white hover:bg-[#f3f4f6] transition-colors duration-200 shadow-sm border border-[#e5e7eb]"
+                        className={`select-none md:touch-none ${isDragging ? 'cursor-grabbing shadow-2xl' : 'cursor-grab'} group relative z-0 hover:z-40 focus-within:z-40 flex flex-col items-center justify-center gap-3 sm:gap-4 md:gap-5 py-8 sm:py-10 md:py-12 px-3 sm:px-4 md:px-5 rounded-2xl sm:rounded-3xl bg-white hover:bg-[#f3f4f6] transition-colors duration-200 shadow-sm border border-[#e5e7eb]`}
                       >
                         <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-[96px] md:h-[96px] rounded-xl sm:rounded-2xl md:rounded-[22px] bg-[#f3f4f6] border border-gray-200 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.06)] group-hover:shadow-[0_4px_20px_rgba(0,0,0,0.10)] transition-shadow duration-300">
                           <Icon className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16" />
@@ -338,6 +470,7 @@ export default function DashboardPage() {
                           {mod.title}
                         </span>
 
+                        {!isDragging && (
                         <div
                           className="pointer-events-none absolute left-1/2 top-[calc(100%-0.35rem)] w-[min(440px,calc(100vw-1.5rem))] max-w-[440px] -translate-x-1/2 opacity-0 translate-y-1 scale-95 group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:scale-100 transition-all duration-200 ease-out"
                           role="tooltip"
@@ -352,6 +485,7 @@ export default function DashboardPage() {
                             </p>
                           </div>
                         </div>
+                        )}
                       </button>
                     );
                   })}

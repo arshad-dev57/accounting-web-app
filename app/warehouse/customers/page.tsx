@@ -633,7 +633,7 @@ export default function CustomersPage() {
         loading={loading}
         searchTerm={searchTerm}
         setSearchTerm={handleSearch}
-        onAdd={handleAddClick}
+        onAdd={handleAddClick} 
         onEdit={handleEditClick}
         onDelete={handleDeleteClick}
         onView={handleViewClick}

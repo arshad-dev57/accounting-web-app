@@ -159,6 +159,9 @@
       invoiceId: string;
       invoiceNumber: string;
       amountPaid: number;
+      /** Apply collection to these schedule lines first, then FIFO */
+      preferredInstallmentIds?: string[];
+      installmentIds?: string[];
     }>;
   }
 

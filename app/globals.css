@@ -6,6 +6,15 @@
   --app-sidebar-width: 16rem;
 }
 
+/* App-wide square grid (dashboard / login-style). Applied via SidebarMain — not auth screens. */
+.app-square-grid {
+  background-color: #f3f4f6;
+  background-image:
+    linear-gradient(rgba(1, 69, 130, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(1, 69, 130, 0.07) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
 /* Custom Scrollbar for Accounting Sidebar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
