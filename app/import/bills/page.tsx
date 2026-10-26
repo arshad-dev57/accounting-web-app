@@ -42,7 +42,17 @@ import importApi, {
 } from '../../../lib/import-api';
 import { useCurrency } from '../../../lib/currency-context';
 import { formatImportMoney } from '../../../lib/import-format';
+import { bankAccountService, type BankAccount } from '@/lib/bank-accounts-service';
 import { CurrencySelect, FormSection, FieldLabel } from '@/components/import/ImportSelectors';
+
+function isCashAccount(ba: Pick<BankAccount, 'bankName' | 'accountName' | 'accountType'>) {
+  const name = `${ba.bankName || ''} ${ba.accountName || ''} ${ba.accountType || ''}`.toLowerCase();
+  return (
+    String(ba.bankName || '').toLowerCase() === 'cash' ||
+    String(ba.accountType || '').toLowerCase() === 'cash' ||
+    /\bcash\b/.test(name)
+  );
+}
 
 function billCurrency(b: ImportSupplierBill) {
   return b.currency || b.invoiceCurrency || 'USD';
@@ -83,7 +93,55 @@ export default function ImportBillsPage() {
   const [selectedBill, setSelectedBill] = useState<ImportSupplierBill | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isPayOpen, setIsPayOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState('');
+  const [payMethod, setPayMethod] = useState<'Cash' | 'Bank' | 'Cheque'>('Bank');
+  const [payAccountId, setPayAccountId] = useState('');
+  const [payAccounts, setPayAccounts] = useState<
+    Array<{
+      id: string;
+      accountName: string;
+      bankName: string;
+      currentBalance: number;
+      chartOfAccountId?: string;
+      isCash?: boolean;
+    }>
+  >([]);
+  const [payAccountsLoading, setPayAccountsLoading] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [paySuccess, setPaySuccess] = useState<string | null>(null);
+  const [payReference, setPayReference] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const BILL_PAY_METHODS = ['Cash', 'Bank', 'Cheque'] as const;
+
+  const loadPayAccounts = useCallback(async (method: 'Cash' | 'Bank' | 'Cheque') => {
+    setPayAccountsLoading(true);
+    try {
+      const response = await bankAccountService.getAccounts({ limit: 100, status: 'Active' });
+      const all = Array.isArray(response?.data) ? response.data : [];
+      // Only accounts linked to Chart of Accounts can post GL
+      const filtered = all.filter(
+        (a) =>
+          Boolean(a.chartOfAccountId) &&
+          (method === 'Cash' ? isCashAccount(a) : !isCashAccount(a))
+      );
+      setPayAccounts(
+        filtered.map((a) => ({
+          id: a.id,
+          accountName: a.accountName,
+          bankName: a.bankName,
+          currentBalance: Number(a.currentBalance) || 0,
+          chartOfAccountId: a.chartOfAccountId,
+          isCash: isCashAccount(a),
+        }))
+      );
+    } catch {
+      setPayAccounts([]);
+    } finally {
+      setPayAccountsLoading(false);
+    }
+  }, []);
   const [poOptions, setPoOptions] = useState<ImportPurchaseOrder[]>([]);
   const [grnOptions, setGrnOptions] = useState<ImportGrn[]>([]);
   const [createPoId, setCreatePoId] = useState('');
@@ -144,14 +202,27 @@ export default function ImportBillsPage() {
           const poLine = po?.items?.find(
             (p) => p.id === (it as any).importPoItemId || p.productId === it.productId
           );
+          const receivedGood =
+            Number((it as any).acceptedQty != null ? (it as any).acceptedQty : it.receivedQty) || 0;
+          const unit =
+            Number(poLine?.unitPrice) ||
+            Number((it as any).unitCostFinal) ||
+            Number((it as any).unitCostProvisional) ||
+            Number(it.unitCostUsd) ||
+            0;
           return {
             key: it.id,
             importPoItemId: (it as any).importPoItemId,
             productId: it.productId,
             productName: it.productName,
             sku: it.sku,
-            invoicedQty: Number(it.receivedQty) || 0,
-            unitPrice: Number(poLine?.unitPrice) || Number(it.unitCostUsd) || 0,
+            /** 3-way match: GRN good received qty (not short/damaged/rejected) */
+            invoicedQty: receivedGood,
+            receivedQty: receivedGood,
+            receivedValue: Math.round(receivedGood * unit * 10000) / 10000,
+            poOrderedQty: Number(poLine?.quantity) || Number((it as any).orderedQty) || 0,
+            poUnitPrice: Number(poLine?.unitPrice) || 0,
+            unitPrice: unit,
           };
         })
       );
@@ -230,9 +301,11 @@ export default function ImportBillsPage() {
   const handlePostBill = async (billId: string) => {
     try {
       setActionLoading(true);
+      setError(null);
       const updated = await importApi.postBill(billId);
       if (!updated?.id && !updated?.billNumber) {
         await fetchData();
+        setError('Bill post completed but response was empty — refreshed list');
         return;
       }
       setItems((prev) =>
@@ -240,32 +313,115 @@ export default function ImportBillsPage() {
       );
       if (selectedBill?.id === billId) setSelectedBill((prev) => (prev ? { ...prev, ...updated } : null));
     } catch (err: any) {
-      alert(err?.response?.data?.message || err.message || 'Failed to post bill');
+      setError(err?.response?.data?.message || err.message || 'Failed to post bill');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handlePayBill = async (billId: string, amount: number) => {
+  const openPayModal = (bill: ImportSupplierBill) => {
+    const balance = billBalance(bill);
+    const status = String(bill.status || '');
+    if (['Draft', 'Pending Approval', 'Submitted'].includes(status)) {
+      setError('Post the bill before recording payments');
+      setPayError('Post the bill before recording payments');
+      return;
+    }
+    if (!(balance > 0)) {
+      setError('This bill has no outstanding balance');
+      return;
+    }
+    setPayAmount(String(Math.round(balance * 100) / 100));
+    setPayMethod('Bank');
+    setPayAccountId('');
+    setPayReference('');
+    setPayError(null);
+    setPaySuccess(null);
+    setIsPayOpen(true);
+    void loadPayAccounts('Bank');
+  };
+
+  const handleConfirmPayBill = async () => {
+    if (!selectedBill) return;
+    const amount = Number(payAmount);
+    if (!(amount > 0)) {
+      setPayError('Payment amount must be greater than zero');
+      return;
+    }
+    const balance = billBalance(selectedBill);
+    if (amount > balance + 0.01) {
+      setPayError(`Amount exceeds outstanding balance (${formatImportMoney(balance, baseCurrencyCode)})`);
+      return;
+    }
+    if (!payMethod || !BILL_PAY_METHODS.includes(payMethod)) {
+      setPayError('Select Cash, Bank, or Cheque');
+      return;
+    }
+    if (!payAccountId) {
+      setPayError(
+        payMethod === 'Cash'
+          ? 'Select a Cash account from Accounting'
+          : 'Select a Bank account from Accounting'
+      );
+      return;
+    }
+    const selectedAccount = payAccounts.find((a) => a.id === payAccountId);
+    if (!selectedAccount) {
+      setPayError('Selected account is not available. Refresh and try again.');
+      return;
+    }
+    if (!selectedAccount.chartOfAccountId) {
+      setPayError(
+        'Selected account is not linked to Chart of Accounts. Link it under Accounting → Bank Accounts.'
+      );
+      return;
+    }
+    if (Number(selectedAccount.currentBalance || 0) + 0.01 < amount) {
+      setPayError(
+        `Insufficient balance on ${selectedAccount.accountName}. Available ${formatImportMoney(
+          Number(selectedAccount.currentBalance || 0),
+          baseCurrencyCode
+        )}.`
+      );
+      return;
+    }
+
     try {
       setActionLoading(true);
-      const updated = await importApi.recordBillPayment(billId, {
+      setPayError(null);
+      setPaySuccess(null);
+      setError(null);
+      const updated = await importApi.recordBillPayment(selectedBill.id, {
         amountUsd: amount,
-        paymentMethod: 'WIRE_TRANSFER',
+        paymentMethod: payMethod,
+        bankAccountId: payAccountId,
+        reference: payReference.trim() || undefined,
       });
       if (!updated?.id && !updated?.billNumber) {
         await fetchData();
+        setPayError('Payment may have failed — refreshed list. Try again if balance is unchanged.');
         return;
       }
       setItems((prev) =>
-        prev.map((b) => (b?.id === billId ? updated : b)).filter(Boolean) as ImportSupplierBill[]
+        prev.map((b) => (b?.id === selectedBill.id ? { ...b, ...updated } : b)).filter(Boolean) as ImportSupplierBill[]
       );
-      if (selectedBill && selectedBill.id === billId) {
-        setSelectedBill(updated);
-      }
-      alert('Payment successfully recorded against supplier bill and posted to AP!');
+      setSelectedBill((prev) => (prev ? { ...prev, ...updated } : updated));
+      setIsPayOpen(false);
+      const jeNo = updated.lastPaymentJournalEntryNumber;
+      setPaySuccess(
+        jeNo
+          ? `Payment posted to Accounting. Journal ${jeNo} (Dr AP / Cr ${payMethod}). Bank balance updated.`
+          : 'Payment recorded and posted to Accounting GL.'
+      );
+      await fetchData();
     } catch (err: any) {
-      alert(err?.response?.data?.error || err.message || 'Failed to record bill payment');
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err.message ||
+        'Failed to record bill payment';
+      setPayError(msg);
+      setError(msg);
     } finally {
       setActionLoading(false);
     }
@@ -322,6 +478,27 @@ export default function ImportBillsPage() {
         erpHrefLabel="Open Purchase Invoices"
         description="Import finance view of supplier bills. Post invoices in Purchase Invoices and settle via Accounting Bills (/accounting/bills) so AP postings are not duplicated."
       />
+
+      {paySuccess && (
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between text-xs mb-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>
+              {paySuccess}{' '}
+              <Link href="/accounting/journal-entries" className="font-bold underline hover:no-underline">
+                Open Journal Entries
+              </Link>
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPaySuccess(null)}
+            className="font-bold underline hover:no-underline ml-4"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-center justify-between text-xs">
@@ -458,7 +635,7 @@ export default function ImportBillsPage() {
                 <button
                   type="button"
                   disabled={actionLoading}
-                  onClick={() => handlePayBill(selectedBill.id, billBalance(selectedBill))}
+                  onClick={() => openPayModal(selectedBill)}
                   className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <CreditCard className="w-4 h-4" /> Record Payment ({formatImportMoney(billBalance(selectedBill), baseCurrencyCode)})
@@ -693,6 +870,136 @@ export default function ImportBillsPage() {
               </table>
             </div>
           </FormSection>
+        </div>
+      </TradeModal>
+
+      <TradeModal
+        isOpen={isPayOpen}
+        onClose={() => !actionLoading && setIsPayOpen(false)}
+        title="Record Bill Payment"
+        maxWidth="max-w-md"
+        actions={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => setIsPayOpen(false)}
+              className="px-3 py-2 rounded-xl border text-xs font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => void handleConfirmPayBill()}
+              className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
+            >
+              {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+              {actionLoading ? 'Recording…' : 'Confirm Payment'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3 text-xs">
+          {payError ? (
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-700">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{payError}</span>
+            </div>
+          ) : null}
+          {selectedBill ? (
+            <p className="text-gray-600">
+              Paying against <strong>{selectedBill.billNumber}</strong>
+              {' · '}
+              Outstanding{' '}
+              <strong className="text-rose-700">
+                {formatImportMoney(billBalance(selectedBill), baseCurrencyCode)}
+              </strong>
+            </p>
+          ) : null}
+          <div>
+            <FieldLabel required>{`Amount (${baseCurrencyCode})`}</FieldLabel>
+            <input
+              type="number"
+              min={0}
+              step="any"
+              value={payAmount}
+              onChange={(e) => setPayAmount(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 font-mono"
+            />
+          </div>
+          <div>
+            <FieldLabel required>Payment method</FieldLabel>
+            <select
+              value={payMethod}
+              onChange={(e) => {
+                const next = e.target.value as 'Cash' | 'Bank' | 'Cheque';
+                setPayMethod(next);
+                setPayAccountId('');
+                setPayError(null);
+                void loadPayAccounts(next);
+              }}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2"
+            >
+              {BILL_PAY_METHODS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <FieldLabel required>
+              {payMethod === 'Cash' ? 'Cash account' : 'Bank account'}
+            </FieldLabel>
+            <select
+              value={payAccountId}
+              onChange={(e) => setPayAccountId(e.target.value)}
+              disabled={payAccountsLoading}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2"
+            >
+              <option value="">
+                {payAccountsLoading
+                  ? 'Loading accounts…'
+                  : payAccounts.length
+                    ? 'Select account…'
+                    : `No ${payMethod === 'Cash' ? 'cash' : 'bank'} accounts in Accounting`}
+              </option>
+              {payAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.accountName}
+                  {a.bankName ? ` (${a.bankName})` : ''} · bal{' '}
+                  {Number(a.currentBalance || 0).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                  })}
+                </option>
+              ))}
+            </select>
+            {!payAccountsLoading && payAccounts.length === 0 ? (
+              <p className="text-[11px] text-amber-800 mt-1">
+                No COA-linked {payMethod === 'Cash' ? 'Cash' : 'Bank'} accounts found. Create/link an
+                account under Accounting → Bank Accounts (must have Chart of Accounts mapping).
+              </p>
+            ) : (
+              <p className="text-[11px] text-gray-500 mt-1">
+                Only active, COA-linked {payMethod.toLowerCase()} accounts from Accounting are listed.
+              </p>
+            )}
+          </div>
+          <div>
+            <FieldLabel>Payment reference</FieldLabel>
+            <input
+              type="text"
+              value={payReference}
+              onChange={(e) => setPayReference(e.target.value)}
+              placeholder="Optional cheque / transfer ref"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2"
+            />
+          </div>
+          <p className="text-[11px] text-gray-500">
+            Posts Accounting journal: Dr Accounts Payable / Cr selected Cash-Bank, and updates bank
+            balance. Bill must already be Posted.
+          </p>
         </div>
       </TradeModal>
     </TradePage>

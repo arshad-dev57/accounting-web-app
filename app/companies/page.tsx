@@ -21,6 +21,7 @@ import { MainHubSidebar } from '../../components/MainHubSidebar';
 import { TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import ProfileDropdown from '../../components/ProfileDropdown';
+import NotificationDropdown from '../../components/NotificationDropdown';
 import CompanySwitcher from '../../components/CompanySwitcher';
 import {
   useCompanyOptional,
@@ -147,6 +148,7 @@ export default function CompaniesPage() {
           <TopBarBrand title="Companies" icon={<Building2 className="h-5 w-5 text-[#014582]" />} />
           <div className="flex items-center gap-3">
             <CompanySwitcher />
+            <NotificationDropdown />
             <ProfileDropdown />
           </div>
         </header>

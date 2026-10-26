@@ -48,6 +48,8 @@ export default function ImportSettingsPage() {
   const [glAccounts, setGlAccounts] = useState<Array<{ id: string; code: string; name: string }>>([]);
   const [defaultAllocationMethod, setDefaultAllocationMethod] = useState<'By Item Value' | 'By Weight / Volume'>('By Item Value');
   const [requireOriginalBL, setRequireOriginalBL] = useState(true);
+  const [allowGrnBeforeCustomsRelease, setAllowGrnBeforeCustomsRelease] = useState(false);
+  const [requireSeparateGrnPoster, setRequireSeparateGrnPoster] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -74,6 +76,12 @@ export default function ImportSettingsPage() {
           }
           if (data.requirePhysicalOriginalBl !== undefined) {
             setRequireOriginalBL(Boolean(data.requirePhysicalOriginalBl));
+          }
+          if (data.allowGrnBeforeCustomsRelease !== undefined) {
+            setAllowGrnBeforeCustomsRelease(Boolean(data.allowGrnBeforeCustomsRelease));
+          }
+          if (data.requireSeparateGrnPoster !== undefined) {
+            setRequireSeparateGrnPoster(Boolean(data.requireSeparateGrnPoster));
           }
           if (data.requireSeparateCustomsAssessor !== undefined) {
             setRequireSeparateCustomsAssessor(Boolean(data.requireSeparateCustomsAssessor));
@@ -145,6 +153,8 @@ export default function ImportSettingsPage() {
         handlingAccountId: handlingAccountId || null,
         clearingBrokerAccountId: clearingBrokerAccountId || null,
         requirePhysicalOriginalBl: requireOriginalBL,
+        allowGrnBeforeCustomsRelease,
+        requireSeparateGrnPoster,
         defaultCustomsDutyRatePct: customsDutyDefaultPct,
         defaultImportVatRatePct: defaultImportVatRatePct,
       } as any);
@@ -285,7 +295,8 @@ export default function ImportSettingsPage() {
                 <div>
                   <p className="font-bold text-gray-900">Award and approval must be done by different users</p>
                   <p className="text-gray-500 text-[11px]">
-                    When enabled (default), the user who awards a quotation cannot approve the same RFQ.
+                    When enabled (default), the user who awards a quotation cannot approve after Send for Approval.
+                    Approvers need Import RFQs → Approve on Roles &amp; Permissions.
                   </p>
                 </div>
                 <input
@@ -322,6 +333,36 @@ export default function ImportSettingsPage() {
                   type="checkbox"
                   checked={requireOriginalBL}
                   onChange={(e) => setRequireOriginalBL(e.target.checked)}
+                  className="w-4 h-4 text-[#014582] rounded"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gray-50/50">
+                <div>
+                  <p className="font-bold text-gray-900">Allow GRN before customs release</p>
+                  <p className="text-gray-500 text-[11px]">
+                    Default off. When on, receiving before Released/Cleared requires a reason and marks stock Bonded / under customs (not sellable).
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={allowGrnBeforeCustomsRelease}
+                  onChange={(e) => setAllowGrnBeforeCustomsRelease(e.target.checked)}
+                  className="w-4 h-4 text-[#014582] rounded"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gray-50/50">
+                <div>
+                  <p className="font-bold text-gray-900">GRN must be posted by a user different from its creator</p>
+                  <p className="text-gray-500 text-[11px]">
+                    When enabled (default), the creator cannot post the same Import GRN.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={requireSeparateGrnPoster}
+                  onChange={(e) => setRequireSeparateGrnPoster(e.target.checked)}
                   className="w-4 h-4 text-[#014582] rounded"
                 />
               </div>
@@ -387,8 +428,8 @@ export default function ImportSettingsPage() {
               <div className="space-y-3 p-3 rounded-xl border border-gray-200 bg-blue-50/30">
                 <p className="font-bold text-gray-900">Customs duty GL account mapping</p>
                 <p className="text-gray-500 text-[11px]">
-                  Debit accounts used when recording a duty payment. Configure roles under Users → Roles for
-                  import.customs.* permissions (record_payment defaults to Accountant / Finance Manager / Admin).
+                  Debit accounts used when recording a duty payment. Accountants can pay with
+                  import.customs.record_payment or accounting / purchases payment permissions.
                 </p>
                 {[
                   ['Customs duty', customsDutyAccountId, setCustomsDutyAccountId],

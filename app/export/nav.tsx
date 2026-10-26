@@ -15,6 +15,7 @@ import {
   Truck,
   Landmark,
   BadgeDollarSign,
+  Receipt,
   BarChart4,
   Settings,
   Home,
@@ -53,6 +54,7 @@ export const EXPORT_SECTIONS = [
     items: [
       { href: '/export/finance', label: 'Finance & LC Tracking', icon: Landmark },
       { href: '/export/receipts', label: 'Receipts & Settlement', icon: BadgeDollarSign },
+      { href: '/export/expenses', label: 'Expenses & Duties', icon: Receipt },
     ],
   },
   {

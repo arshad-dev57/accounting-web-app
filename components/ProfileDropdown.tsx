@@ -410,7 +410,7 @@ export default function ProfileDropdown({
       </button>
 
       {open && (
-        <div className={panelCls}>
+        <div className={panelCls} role="dialog" aria-label="Profile menu" data-header-panel>
           <div className={`px-4 py-4 border-b ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-gray-50'}`}>
             <div className="flex items-start gap-3">
               <div className="relative">

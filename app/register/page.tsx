@@ -251,6 +251,7 @@ export default function RegisterPage() {
       fd.append('email', form.email.trim());
       fd.append('password', form.password);
       fd.append('country', form.country);
+      fd.append('currencyCode', form.currencyCode);
       fd.append('phone', phone);
       fd.append('address', form.address.trim());
       fd.append('organizationName', form.organizationName.trim());

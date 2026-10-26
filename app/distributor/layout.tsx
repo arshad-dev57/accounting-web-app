@@ -26,6 +26,7 @@ import { performLogout } from '@/lib/auth-logout';
 import ProfileDropdown from '@/components/ProfileDropdown';
 import AppBreadcrumbs from '@/components/AppBreadcrumbs';
 import GlobalSearch from '@/components/GlobalSearch';
+import NotificationDropdown from '@/components/NotificationDropdown';
 import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
 import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
 
@@ -136,6 +137,7 @@ export default function DistributorLayout({ children }: { children: React.ReactN
           </div>
           <div className="flex items-center gap-4">
             <GlobalSearch />
+            <NotificationDropdown />
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-[#014582] border border-blue-200">
               <span className="w-2 h-2 rounded-full bg-[#014582] animate-pulse"></span>
               Distribution Layer Active

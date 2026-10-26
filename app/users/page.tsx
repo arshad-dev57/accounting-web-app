@@ -21,6 +21,7 @@ import {
   Loader2,
   CreditCard,
   ArrowRight,
+  KeyRound,
 } from 'lucide-react';
 import { usersService } from './service';
 import { User, Role } from './types';
@@ -34,6 +35,7 @@ import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
+import NotificationDropdown from '../../components/NotificationDropdown';
 import { performLogout } from '../../lib/auth-logout';
 import { useRouter } from 'next/navigation';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
@@ -192,6 +194,16 @@ export default function UsersDashboard() {
             <span className="text-sm font-medium sidebar-expanded-only">Roles & Permissions</span>
           </button>
 
+          <button
+            type="button"
+            title="Approval Permissions"
+            onClick={() => router.push('/users/approvals-permissions')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <KeyRound className="w-4 h-4" />
+            <span className="text-sm font-medium sidebar-expanded-only">Approval Permissions</span>
+          </button>
+
           {SUBSCRIPTION_PURCHASE_UI_ENABLED && (
             <button
               type="button"
@@ -238,6 +250,7 @@ export default function UsersDashboard() {
             </div>
             <div className="flex items-center gap-3">
               <GlobalSearch />
+              <NotificationDropdown />
               <CompanySwitcher />
               <ProfileDropdown />
               <button
@@ -255,23 +268,41 @@ export default function UsersDashboard() {
         <AppBreadcrumbs extra={[]} />
 
         <div className="flex-1 p-6 overflow-auto space-y-5">
-          {/* Role Assignment hint */}
-          <button
-            type="button"
-            onClick={() => router.push('/users/roles')}
-            className="w-full text-left bg-gradient-to-r from-[#014582]/5 to-blue-50 border border-[#014582]/20 rounded-xl px-5 py-3.5 flex items-center justify-between gap-3 hover:border-[#014582]/40 transition-colors group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[#014582]/10">
-                <Shield className="w-4 h-4 text-[#014582]" />
+          {/* Role / approval shortcuts */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => router.push('/users/roles')}
+              className="w-full text-left bg-gradient-to-r from-[#014582]/5 to-blue-50 border border-[#014582]/20 rounded-xl px-5 py-3.5 flex items-center justify-between gap-3 hover:border-[#014582]/40 transition-colors group"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 rounded-lg bg-[#014582]/10 shrink-0">
+                  <Shield className="w-4 h-4 text-[#014582]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#014582]">Roles & Permissions</p>
+                  <p className="text-xs text-gray-500">Full access matrix for each role</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-[#014582]">Manage Roles & Permissions</p>
-                <p className="text-xs text-gray-500">Configure what each role can access, then assign roles to users below via Edit</p>
+              <ArrowRight className="w-4 h-4 text-[#014582] group-hover:translate-x-1 transition-transform shrink-0" />
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push('/users/approvals-permissions')}
+              className="w-full text-left bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-xl px-5 py-3.5 flex items-center justify-between gap-3 hover:border-amber-300 transition-colors group"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 rounded-lg bg-amber-100 shrink-0">
+                  <KeyRound className="w-4 h-4 text-amber-700" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-amber-900">Approval Permissions</p>
+                  <p className="text-xs text-gray-500">Short role-wise RFQ & customs approve</p>
+                </div>
               </div>
-            </div>
-            <ArrowRight className="w-4 h-4 text-[#014582] group-hover:translate-x-1 transition-transform shrink-0" />
-          </button>
+              <ArrowRight className="w-4 h-4 text-amber-700 group-hover:translate-x-1 transition-transform shrink-0" />
+            </button>
+          </div>
 
           {loading ? (
             <div className="flex items-center justify-center min-h-[400px]">

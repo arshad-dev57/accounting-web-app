@@ -9,6 +9,7 @@ import { SidebarMain } from '../../components/CollapsibleSidebar';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
+import NotificationDropdown from '../../components/NotificationDropdown';
 import LocationSelect from '../../components/LocationSelect';
 import { LocationProvider } from '@/lib/location-context';
 import { FiscalYearProvider } from '@/lib/fiscal-year-context';
@@ -53,6 +54,7 @@ export default function ManufacturingLayout({ children }: { children: React.Reac
               <LocationSelect entityLabel="Warehouse" />
               <div className="w-px h-6 bg-gray-200" />
               <GlobalSearch />
+              <NotificationDropdown />
               <div className="w-px h-6 bg-gray-200" />
               <ProfileDropdown accentClassName="bg-[#014582]" />
             </div>

@@ -84,7 +84,7 @@ export function formatImportMoney(
   currencyCode?: string | null,
   opts: FormatImportMoneyOpts = {}
 ): string {
-  const code = String(currencyCode || 'PKR').toUpperCase();
+  const code = String(currencyCode || '').toUpperCase() || 'CUR';
   const emptyAsDash = opts.emptyAsDash !== false;
   const decimals = opts.decimals ?? 2;
 
@@ -125,7 +125,7 @@ export function formatImportFxRate(opts: {
   label?: string;
 }): string {
   const foreign = String(opts.foreignCurrency || 'USD').toUpperCase();
-  const base = String(opts.baseCurrency || 'PKR').toUpperCase();
+  const base = String(opts.baseCurrency || '').toUpperCase() || 'BASE';
   const rate = Number(opts.rate);
   const rateStr = Number.isFinite(rate)
     ? rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })

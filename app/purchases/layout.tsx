@@ -36,6 +36,7 @@ import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
+import NotificationDropdown from '../../components/NotificationDropdown';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 import ModuleViewHost from '../../components/ModuleViewHost';
@@ -103,9 +104,7 @@ function PurchasesSidebar() {
       ? [{ path: '/plans', label: 'Subscription Plans', permission: '*' as const }]
       : []),
     { path: '/tax', label: 'Tax Compliance', permission: 'settings' },
-    { path: '/purchases/currency', label: 'Display Currency', permission: 'currency' },
-    { path: '/accounting/settings/currencies', label: 'Currency Master', permission: 'settings' },
-    { path: '/accounting/settings/exchange-rates', label: 'Exchange Rates', permission: 'settings' },
+    { path: '/purchases/currency', label: 'Currency', permission: 'currency' },
     { path: '/accounting/pdf-reports', label: 'PDF Reports', permission: 'settings' },
     { path: '/purchases/settings', label: 'Purchases Settings', permission: 'settings' },
   ];
@@ -402,6 +401,7 @@ export default function PurchasesLayout({
 
           <div className="flex items-center gap-4">
             <GlobalSearch />
+            <NotificationDropdown />
 
             <div className="w-px h-6 bg-gray-200" />
 

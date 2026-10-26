@@ -28,6 +28,18 @@ function lineBalance(line: InstallmentLine) {
 }
 
 export default function CollectInstallmentPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="p-10 text-center text-xs text-gray-400">Loading…</div>
+      }
+    >
+      <CollectInstallmentPageContent />
+    </React.Suspense>
+  );
+}
+
+function CollectInstallmentPageContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();

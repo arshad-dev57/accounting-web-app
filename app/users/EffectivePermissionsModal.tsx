@@ -363,12 +363,14 @@ export default function EffectivePermissionsModal({ open, user, onClose, onUpdat
               <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
               <span>{error}</span>
             </div>
-          ) : grouped.length === 0 ? (
-            <div className="py-16 text-center text-gray-500 text-sm">
-              No permissions match this filter.
-            </div>
           ) : (
             <div className="space-y-4">
+              {grouped.length === 0 ? (
+                <div className="py-16 text-center text-gray-500 text-sm">
+                  No permissions match this filter.
+                </div>
+              ) : null}
+
               {grouped.map(([mod, rows]) => {
                 const openMod = expandedModules[mod] ?? true;
                 return (

@@ -20,8 +20,94 @@ export type ExchangeRateRow = {
   effectiveDate: string;
   isActive: boolean;
   notes?: string | null;
+  source?: string | null;
+  fetchedAt?: string | null;
   fromCurrency?: CurrencyMaster | null;
   toCurrency?: CurrencyMaster | null;
+};
+
+export type ProviderStatus = {
+  configured: boolean;
+  provider?: string;
+  name?: string;
+  host?: string;
+  timeoutMs?: number;
+  cacheTtlMs?: number;
+  hasApiKey?: boolean;
+  cachedBases?: number;
+};
+
+export type CurrencyOverviewRow = {
+  id: string;
+  code: string;
+  name: string;
+  symbol: string;
+  decimalPlaces: number;
+  isActive: boolean;
+  isBase: boolean;
+  rateId: string | null;
+  rate: string | null;
+  effectiveDate: string | null;
+  source: string | null;
+  fetchedAt: string | null;
+  lastUpdated: string | null;
+  notes: string | null;
+  isMissing: boolean;
+  isStale: boolean;
+  ageDays: number | null;
+};
+
+export type CompanyCurrencyOverview = {
+  companyId: string;
+  baseCurrency: CurrencyMaster;
+  asOfDate: string;
+  staleDays: number;
+  provider: ProviderStatus;
+  counts: {
+    currencies: number;
+    rateAvailable: number;
+    missing: number;
+    stale: number;
+  };
+  currencies: CurrencyOverviewRow[];
+};
+
+export type CurrencyRateInitializationReport = {
+  companyId: string;
+  baseCurrency: CurrencyMaster;
+  supportedCurrencyCount: number;
+  created: string[];
+  updated: string[];
+  preserved: string[];
+  missing: string[];
+  provider: ProviderStatus & {
+    asOfDate?: string | null;
+    fetchedAt?: string | null;
+    error?: string | null;
+    unsupported?: string[];
+    cached?: boolean;
+  };
+  errors: string[];
+};
+
+export type CurrencyRateRefreshReport = {
+  companyId: string;
+  baseCurrencyCode: string;
+  provider: ProviderStatus & {
+    asOfDate?: string | null;
+    fetchedAt?: string | null;
+    error?: string | null;
+    unsupported?: string[];
+    cached?: boolean;
+  };
+  updated: Array<{
+    code: string;
+    oldRate: number | null;
+    newRate: number;
+    action: string;
+  }>;
+  skipped: string[];
+  missing: string[];
 };
 
 export type RateLookupResult = {
@@ -87,6 +173,22 @@ export async function fetchCurrencies(activeOnly = true): Promise<CurrencyMaster
   return unwrapList<CurrencyMaster>(response.data);
 }
 
+export async function updateCurrency(
+  id: string,
+  payload: {
+    name?: string;
+    symbol?: string;
+    decimalPlaces?: number;
+    isActive?: boolean;
+  }
+): Promise<CurrencyMaster> {
+  const response = await apiClient.put(`/api/currencies/${id}`, payload);
+  assertOk(response, 'Failed to update currency');
+  const updated = unwrapOne<CurrencyMaster>(response.data);
+  if (!updated) throw new Error('Invalid update currency response');
+  return updated;
+}
+
 export async function fetchBaseCurrency(): Promise<CurrencyMaster | null> {
   const response = await apiClient.get('/api/currencies/base');
   assertOk(response, 'Failed to fetch base currency');
@@ -115,12 +217,90 @@ export async function setBaseCurrency(currencyId: string): Promise<CurrencyMaste
   return updated;
 }
 
+/**
+ * Ensure company base currency matches the app display currency code.
+ * Creates the currency master row if missing, then sets it as company base.
+ * Import / FX conversion uses company base — without this, rates stay on PKR default.
+ */
+export async function ensureCompanyBaseMatchesAppCurrency(
+  currencyCode: string,
+  opts?: { name?: string; symbol?: string }
+): Promise<CurrencyMaster | null> {
+  const code = String(currencyCode || '').trim().toUpperCase();
+  if (!code) return null;
+
+  try {
+    const current = await fetchBaseCurrency();
+    if (current && String(current.code).toUpperCase() === code) {
+      return current;
+    }
+
+    let list = await fetchCurrencies(false);
+    let found = list.find((c) => c.code.toUpperCase() === code);
+
+    if (!found) {
+      found = await createCurrency({
+        code,
+        name: opts?.name || code,
+        symbol: opts?.symbol || code,
+        decimalPlaces: 2,
+        isActive: true,
+      });
+    } else if (!found.isActive) {
+      // Inactive masters cannot be set as base via API — create path already requires active.
+      // Fall through: try set anyway and let API reject if needed.
+    }
+
+    const response = await apiClient.put('/api/currencies/base', {
+      currencyId: found.id,
+      currencyCode: code,
+    });
+    assertOk(response, 'Failed to set company base currency');
+    return unwrapOne<CurrencyMaster>(response.data) || found;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchCurrencyOverview(
+  includeInactive = false
+): Promise<CompanyCurrencyOverview | null> {
+  const qs = includeInactive ? '?includeInactive=true' : '';
+  const response = await apiClient.get(`/api/currencies/overview${qs}`);
+  assertOk(response, 'Failed to load company currency overview');
+  return unwrapOne<CompanyCurrencyOverview>(response.data);
+}
+
+export async function fetchProviderStatus(): Promise<ProviderStatus | null> {
+  const response = await apiClient.get('/api/currencies/provider');
+  assertOk(response, 'Failed to read exchange-rate provider status');
+  return unwrapOne<ProviderStatus>(response.data);
+}
+
+export async function initializeCompanyCurrencies(payload: {
+  baseCurrencyCode?: string;
+  baseCurrencyId?: string;
+  fetchRates?: boolean;
+  overwrite?: boolean;
+} = {}): Promise<CurrencyRateInitializationReport | null> {
+  const response = await apiClient.post('/api/currencies/initialize', payload);
+  assertOk(response, 'Failed to initialize company currencies');
+  return unwrapOne<CurrencyRateInitializationReport>(response.data);
+}
+
+export async function refreshRatesFromProvider(payload: {
+  overwrite?: boolean;
+} = {}): Promise<CurrencyRateRefreshReport | null> {
+  const response = await apiClient.post('/api/currencies/rates/refresh', payload);
+  assertOk(response, 'Failed to refresh exchange rates');
+  return unwrapOne<CurrencyRateRefreshReport>(response.data);
+}
+
 export async function fetchExchangeRates(params: {
   fromCurrencyId?: string;
   toCurrencyId?: string;
   activeOnly?: boolean;
 } = {}): Promise<ExchangeRateRow[]> {
-  const qs = new URLSearchParams();
   if (params.fromCurrencyId) qs.set('fromCurrencyId', params.fromCurrencyId);
   if (params.toCurrencyId) qs.set('toCurrencyId', params.toCurrencyId);
   if (params.activeOnly) qs.set('activeOnly', 'true');
@@ -193,4 +373,147 @@ export async function lookupRate(params: {
     return null;
   }
   return unwrapOne<RateLookupResult>(response.data);
+}
+
+export type ConvertAmountResult = {
+  amount: number;
+  rate: number;
+  fromCode: string;
+  toCode: string;
+  converted: boolean;
+  /** True when no company rate was found and original amount was kept. */
+  missingRate?: boolean;
+  via?: 'IDENTITY' | 'DIRECT' | 'INVERSE' | 'BASE_CROSS' | string;
+  effectiveDate?: string;
+  rateSource?: string;
+  baseCurrencyCode?: string;
+};
+
+/**
+ * Convert an amount between currency codes using company rates.
+ * Tries direct, inverse, then via company base currency.
+ * Convention: stored rates are typically 1 from = rate to (foreign → base).
+ */
+export async function convertAmountBetweenCodes(params: {
+  amount: number;
+  fromCode: string;
+  toCode: string;
+  currencies?: CurrencyMaster[];
+  date?: string;
+}): Promise<ConvertAmountResult> {
+  const amount = Number(params.amount) || 0;
+  const fromCode = String(params.fromCode || '').trim().toUpperCase();
+  const toCode = String(params.toCode || '').trim().toUpperCase();
+
+  if (!fromCode || !toCode || fromCode === toCode || !(amount > 0)) {
+    return {
+      amount,
+      rate: 1,
+      fromCode: fromCode || toCode,
+      toCode: toCode || fromCode,
+      converted: false,
+    };
+  }
+
+  const list =
+    params.currencies && params.currencies.length > 0
+      ? params.currencies
+      : await fetchCurrencies(true);
+  const from = list.find((c) => c.code.toUpperCase() === fromCode);
+  const to = list.find((c) => c.code.toUpperCase() === toCode);
+
+  if (!from || !to) {
+    return {
+      amount,
+      rate: 1,
+      fromCode,
+      toCode,
+      converted: false,
+      missingRate: true,
+    };
+  }
+
+  const round = (n: number) => Math.round(n * 10000) / 10000;
+
+  const direct = await lookupRate({
+    fromCurrencyId: from.id,
+    toCurrencyId: to.id,
+    date: params.date,
+  });
+  if (direct && Number(direct.rate) > 0) {
+    const rate = Number(direct.rate);
+    return {
+      amount: round(amount * rate),
+      rate,
+      fromCode,
+      toCode,
+      converted: true,
+    };
+  }
+
+  const inverse = await lookupRate({
+    fromCurrencyId: to.id,
+    toCurrencyId: from.id,
+    date: params.date,
+  });
+  if (inverse && Number(inverse.rate) > 0) {
+    const inv = Number(inverse.rate);
+    const rate = 1 / inv;
+    return {
+      amount: round(amount * rate),
+      rate,
+      fromCode,
+      toCode,
+      converted: true,
+    };
+  }
+
+  const base = await fetchBaseCurrency();
+  if (base) {
+    const fromToBase =
+      from.id === base.id
+        ? 1
+        : Number(
+            (
+              await lookupRate({
+                fromCurrencyId: from.id,
+                toCurrencyId: base.id,
+                date: params.date,
+              })
+            )?.rate || 0
+          );
+    const toToBase =
+      to.id === base.id
+        ? 1
+        : Number(
+            (
+              await lookupRate({
+                fromCurrencyId: to.id,
+                toCurrencyId: base.id,
+                date: params.date,
+              })
+            )?.rate || 0
+          );
+
+    if (fromToBase > 0 && toToBase > 0) {
+      // amount_base = amount × from→base; amount_to = amount_base / (to→base)
+      const rate = fromToBase / toToBase;
+      return {
+        amount: round(amount * rate),
+        rate,
+        fromCode,
+        toCode,
+        converted: true,
+      };
+    }
+  }
+
+  return {
+    amount,
+    rate: 1,
+    fromCode,
+    toCode,
+    converted: false,
+    missingRate: true,
+  };
 }

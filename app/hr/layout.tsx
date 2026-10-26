@@ -46,6 +46,7 @@ import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSid
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
+import NotificationDropdown from '../../components/NotificationDropdown';
 import { performLogout } from '../../lib/auth-logout';
 import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
 
@@ -243,6 +244,7 @@ export default function HRLayout({
 
           <div className="flex items-center gap-4">
             <GlobalSearch />
+            <NotificationDropdown />
 
             <div className="w-px h-6 bg-gray-200" />
 

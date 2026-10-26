@@ -29,6 +29,7 @@ import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
+import NotificationDropdown from '../../components/NotificationDropdown';
 import { performLogout } from '../../lib/auth-logout';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 import ModuleViewHost from '../../components/ModuleViewHost';
@@ -158,6 +159,7 @@ export default function TaxLayout({ children }: { children: React.ReactNode }) {
           />
           <div className="flex items-center gap-4">
             <GlobalSearch />
+            <NotificationDropdown />
             <div className="w-px h-6 bg-gray-200" />
             <ProfileDropdown accentClassName="bg-[#091746]" />
           </div>

@@ -27,6 +27,7 @@ import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import GlobalSearch from '../../components/GlobalSearch';
+import NotificationDropdown from '../../components/NotificationDropdown';
 
 function statusColor(status: string) {
   switch (status) {
@@ -206,6 +207,7 @@ export default function SupportTicketsPage() {
               <RefreshCw className="w-4 h-4" />
             </button>
             <GlobalSearch />
+            <NotificationDropdown />
             <div className="w-px h-6 bg-gray-200" />
             <ProfileDropdown accentClassName="bg-[#014582]" />
           </div>

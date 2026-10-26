@@ -415,11 +415,17 @@ export function TradeTableRow({
 export function TradeTableCell({
   children,
   className = '',
+  colSpan,
 }: {
   children: React.ReactNode;
   className?: string;
+  colSpan?: number;
 }) {
-  return <td className={`px-4 py-3 text-gray-700 align-middle ${className}`}>{children}</td>;
+  return (
+    <td colSpan={colSpan} className={`px-4 py-3 text-gray-700 align-middle ${className}`}>
+      {children}
+    </td>
+  );
 }
 
 export function TradeDetailDrawer({

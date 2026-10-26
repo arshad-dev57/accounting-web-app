@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   FileQuestion,
   Plus,
@@ -41,9 +42,15 @@ import importApi, {
   type ImportRfqItem,
   type ImportSupplierQuotation,
 } from '@/lib/import-api';
-import type { Supplier } from '@/api/supplier/route';
+import { supplierService, type Supplier } from '@/api/supplier/route';
 import type { Product } from '@/api/product/route';
 import { GEO_COUNTRIES } from '@/lib/geo-data';
+import { loadCurrencyLocal } from '@/lib/currency-service';
+import {
+  convertAmountBetweenCodes,
+  fetchCurrencies,
+  type CurrencyMaster,
+} from '@/lib/multi-currency';
 import {
   SupplierSelectField,
   ProductSelectButton,
@@ -53,6 +60,7 @@ import {
   FormSection,
   FieldLabel,
 } from '@/components/import/ImportSelectors';
+import { usePermissions } from '@/lib/usePermissions';
 
 const IMPORT_WORKFLOW_STEPS = [
   'Import RFQ',
@@ -74,6 +82,7 @@ const RFQ_STATUS_FILTERS = [
   'Quotes Received',
   'Under Comparison',
   'Awarded',
+  'Pending Approval',
   'Approved',
   'Converted to PO',
   'Cancelled',
@@ -183,6 +192,7 @@ const RFQ_HS_REFRESH_STATUSES = [
   'Quotes Received',
   'Under Comparison',
   'Awarded',
+  'Pending Approval',
   'Approved',
 ];
 
@@ -266,12 +276,24 @@ type RfqLineDraft = {
   sku?: string;
   quantity: number;
   uom: string;
+  /** Target unit price in the RFQ (supplier) currency. */
   targetPrice: number;
+  /** Original product unit price in the app display currency. */
+  sourcePriceApp: number;
   hsCode: string;
 };
 
-function newLineFromProduct(p: Product): RfqLineDraft {
+function productUnitPriceApp(p: Product): number {
+  const cost = Number((p as { costPrice?: number }).costPrice);
+  if (cost > 0) return cost;
+  const sell = Number((p as { sellingPrice?: number }).sellingPrice);
+  if (sell > 0) return sell;
+  return 0;
+}
+
+function newLineFromProduct(p: Product, targetPrice?: number): RfqLineDraft {
   const id = p.id || (p as { _id?: string })._id;
+  const sourcePriceApp = productUnitPriceApp(p);
   return {
     key: id || `line-${Date.now()}-${Math.random()}`,
     productId: id,
@@ -279,18 +301,29 @@ function newLineFromProduct(p: Product): RfqLineDraft {
     sku: p.sku || undefined,
     quantity: 1,
     uom: (p as { stockUnitName?: string }).stockUnitName || (p as { stockUnit?: string }).stockUnit || 'PCS',
-    targetPrice:
-      Number((p as { costPrice?: number }).costPrice) > 0
-        ? Number((p as { costPrice?: number }).costPrice)
-        : Number((p as { sellingPrice?: number }).sellingPrice) > 0
-          ? Number((p as { sellingPrice?: number }).sellingPrice)
-          : 0,
+    targetPrice: targetPrice != null ? targetPrice : sourcePriceApp,
+    sourcePriceApp,
     hsCode: hsFromProduct(p),
   };
 }
 
 export default function ImportRfqsPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="p-10 text-center text-xs text-gray-400">Loading…</div>
+      }
+    >
+      <ImportRfqsPageContent />
+    </React.Suspense>
+  );
+}
+
+function ImportRfqsPageContent() {
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const searchParams = useSearchParams();
+  const { can } = usePermissions();
+  const canApproveRfq = can('import.rfqs.approve');
 
   const [rfqs, setRfqs] = useState<ImportRfq[]>([]);
   const [total, setTotal] = useState(0);
@@ -316,6 +349,10 @@ export default function ImportRfqsPage() {
   const [createNotes, setCreateNotes] = useState('');
   const [createLines, setCreateLines] = useState<RfqLineDraft[]>([]);
   const [productPickOpen, setProductPickOpen] = useState(false);
+  const [currencyMasters, setCurrencyMasters] = useState<CurrencyMaster[]>([]);
+  const [appCurrencyCode, setAppCurrencyCode] = useState(() => loadCurrencyLocal().code);
+  const [fxConverting, setFxConverting] = useState(false);
+  const [fxHint, setFxHint] = useState<string | null>(null);
 
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quoteSupplier, setQuoteSupplier] = useState<Supplier | null>(null);
@@ -327,6 +364,8 @@ export default function ImportRfqsPage() {
   const [quotePaymentTerms, setQuotePaymentTerms] = useState('');
   const [quoteNotes, setQuoteNotes] = useState('');
   const [quoteExchangeRate, setQuoteExchangeRate] = useState('');
+  const [quoteModalError, setQuoteModalError] = useState<string | null>(null);
+  const [quoteFxHint, setQuoteFxHint] = useState<string | null>(null);
 
   const [awardOpen, setAwardOpen] = useState(false);
   const [awardQuotationId, setAwardQuotationId] = useState<string | null>(null);
@@ -365,6 +404,44 @@ export default function ImportRfqsPage() {
   }, [fetchRfqs]);
 
   useEffect(() => {
+    const openId = searchParams?.get('id');
+    if (!openId) return;
+    let cancelled = false;
+    importApi
+      .getRfq(openId)
+      .then((rfq) => {
+        if (!cancelled) setSelectedRfq(rfq);
+      })
+      .catch(() => {
+        /* ignore — user may lack access or id invalid */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
+
+  useEffect(() => {
+    setAppCurrencyCode(loadCurrencyLocal().code);
+    const onCurrency = () => setAppCurrencyCode(loadCurrencyLocal().code);
+    window.addEventListener('app-currency-changed', onCurrency);
+    return () => window.removeEventListener('app-currency-changed', onCurrency);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchCurrencies(true)
+      .then((list) => {
+        if (!cancelled) setCurrencyMasters(list);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrencyMasters([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     Promise.all([
       importApi.getSettings().catch(() => null),
@@ -384,6 +461,127 @@ export default function ImportRfqsPage() {
       cancelled = true;
     };
   }, []);
+
+  const convertAppPriceToRfq = useCallback(
+    async (amountInApp: number, toCurrency: string) => {
+      return convertAmountBetweenCodes({
+        amount: amountInApp,
+        fromCode: appCurrencyCode,
+        toCode: toCurrency,
+        currencies: currencyMasters,
+      });
+    },
+    [appCurrencyCode, currencyMasters]
+  );
+
+  const addProductsWithConversion = useCallback(
+    async (products: Product[]) => {
+      if (!products.length) return;
+      setFxConverting(true);
+      setFxHint(null);
+      try {
+        const lines: RfqLineDraft[] = [];
+        let missingRate = false;
+        let lastRate = 1;
+        for (const p of products) {
+          const source = productUnitPriceApp(p);
+          const converted = await convertAppPriceToRfq(source, createCurrency);
+          if (converted.missingRate) missingRate = true;
+          if (converted.converted) lastRate = converted.rate;
+          lines.push(newLineFromProduct(p, converted.amount));
+        }
+        setCreateLines((prev) => [...prev, ...lines]);
+        if (
+          createCurrency &&
+          appCurrencyCode &&
+          createCurrency.toUpperCase() !== appCurrencyCode.toUpperCase()
+        ) {
+          if (missingRate) {
+            setFxHint(
+              `No conversion rate for ${appCurrencyCode} → ${createCurrency}. Showing app currency prices — add a rate under Currency → Conversion Rates.`
+            );
+          } else {
+            setFxHint(
+              `Prices converted ${appCurrencyCode} → ${createCurrency} using company rate (${lastRate.toLocaleString(
+                undefined,
+                { maximumFractionDigits: 6 }
+              )}).`
+            );
+          }
+        } else {
+          setFxHint(null);
+        }
+      } finally {
+        setFxConverting(false);
+      }
+    },
+    [appCurrencyCode, convertAppPriceToRfq, createCurrency]
+  );
+
+  const handleCreateCurrencyChange = useCallback(
+    async (code: string) => {
+      const next = String(code || '').toUpperCase();
+      const prev = createCurrency;
+      setCreateCurrency(next);
+      if (!next || next === prev || createLines.length === 0) {
+        if (!next || next === appCurrencyCode.toUpperCase()) setFxHint(null);
+        return;
+      }
+
+      setFxConverting(true);
+      setFxHint(null);
+      try {
+        let missingRate = false;
+        let lastRate = 1;
+        let anyConverted = false;
+        const appCode = appCurrencyCode.toUpperCase();
+        const updated: RfqLineDraft[] = [];
+        for (const line of createLines) {
+          const source =
+            line.sourcePriceApp > 0 ? line.sourcePriceApp : line.targetPrice;
+
+          if (next === appCode) {
+            updated.push({ ...line, targetPrice: source });
+            anyConverted = true;
+            lastRate = 1;
+            continue;
+          }
+
+          const converted = await convertAppPriceToRfq(source, next);
+          if (converted.converted) {
+            anyConverted = true;
+            lastRate = converted.rate;
+            updated.push({ ...line, targetPrice: converted.amount });
+          } else {
+            missingRate = true;
+            updated.push(line);
+          }
+        }
+        setCreateLines(updated);
+        if (next === appCode) {
+          setFxHint(`Line prices reset to app currency (${appCurrencyCode}).`);
+        } else if (missingRate && !anyConverted) {
+          setFxHint(
+            `No conversion rate for ${appCurrencyCode} → ${next}. Line prices kept as-is — add a rate under Currency → Conversion Rates.`
+          );
+        } else if (missingRate) {
+          setFxHint(
+            `Some lines could not convert ${appCurrencyCode} → ${next}. Add missing rates under Currency → Conversion Rates.`
+          );
+        } else {
+          setFxHint(
+            `Line prices re-converted ${appCurrencyCode} → ${next} @ ${lastRate.toLocaleString(
+              undefined,
+              { maximumFractionDigits: 6 }
+            )}.`
+          );
+        }
+      } finally {
+        setFxConverting(false);
+      }
+    },
+    [appCurrencyCode, convertAppPriceToRfq, createCurrency, createLines]
+  );
 
   const refreshRfqDetail = async (id: string) => {
     const full = await importApi.getRfq(id);
@@ -416,6 +614,7 @@ export default function ImportRfqsPage() {
     setCreateExpectedDelivery('');
     setCreateNotes('');
     setCreateLines([]);
+    setFxHint(null);
   };
 
   const handleCreateRfq = async (e: React.FormEvent) => {
@@ -503,6 +702,52 @@ export default function ImportRfqsPage() {
     }
   };
 
+  const handleSubmitForApproval = async (rfqId: string) => {
+    setSaving(true);
+    setError(null);
+    try {
+      await importApi.submitRfqForApproval(rfqId);
+      await refreshRfqDetail(rfqId);
+      fetchRfqs();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(e?.response?.data?.message || e.message || 'Submit for approval failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleApproveRfq = async (rfqId: string) => {
+    setSaving(true);
+    setError(null);
+    try {
+      await importApi.approveRfq(rfqId);
+      await refreshRfqDetail(rfqId);
+      fetchRfqs();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(e?.response?.data?.message || e.message || 'Approve RFQ failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRejectApproval = async (rfqId: string) => {
+    const reason = window.prompt('Optional reason for rejecting approval (sent back to Awarded):') || undefined;
+    setSaving(true);
+    setError(null);
+    try {
+      await importApi.rejectRfqApproval(rfqId, reason ? { reason } : {});
+      await refreshRfqDetail(rfqId);
+      fetchRfqs();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(e?.response?.data?.message || e.message || 'Reject approval failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleConvertToPo = async (rfq: ImportRfq) => {
     if (rfq.status !== 'Approved' || !rfq.selectedQuotationId) {
       setError('Approve the RFQ and select a quotation before converting to PO');
@@ -544,10 +789,57 @@ export default function ImportRfqsPage() {
     }
   };
 
-  const openQuoteModal = (rfq: ImportRfq) => {
+  const applySupplierToQuoteForm = (
+    supplier: Supplier | null,
+    fallbackCurrency?: string,
+    opts?: { fillPaymentTerms?: boolean }
+  ) => {
+    setQuoteSupplier(supplier);
+    const supplierCurrency = supplier?.currency?.code
+      ? String(supplier.currency.code).toUpperCase()
+      : '';
+    setQuoteCurrency(supplierCurrency || fallbackCurrency || 'USD');
+    if (opts?.fillPaymentTerms && supplier?.paymentTerms) {
+      setQuotePaymentTerms(String(supplier.paymentTerms));
+    }
+  };
+
+  const resolveQuoteFxRate = useCallback(
+    async (currency: string, amountForeign: number) => {
+      const code = String(currency || '').trim().toUpperCase();
+      if (!code) {
+        setQuoteFxHint(null);
+        return;
+      }
+      try {
+        const preview = await importApi.previewFx({
+          currency: code,
+          foreignAmount: amountForeign > 0 ? amountForeign : 1,
+          exchangeRateDate: todayIso,
+        });
+        if (preview?.exchangeRate != null && Number(preview.exchangeRate) > 0) {
+          setQuoteExchangeRate(String(preview.exchangeRate));
+          setQuoteFxHint(
+            `1 ${preview.currencyCode || code} = ${preview.exchangeRate} ${
+              preview.baseCurrencyCode || appCurrencyCode
+            }`
+          );
+          return;
+        }
+      } catch (err: unknown) {
+        const e = err as { message?: string };
+        setQuoteFxHint(
+          e?.message ||
+            `No company rate for ${code} → ${appCurrencyCode}. Enter exchange rate manually or add it under Currency → Conversion Rates.`
+        );
+      }
+    },
+    [appCurrencyCode, todayIso]
+  );
+
+  const openQuoteModal = async (rfq: ImportRfq) => {
     const first = rfq.items?.[0];
-    setQuoteSupplier(null);
-    setQuoteCurrency(rfq.currency || 'USD');
+    const rfqCurrency = (rfq.currency || 'USD').toUpperCase();
     setQuoteUnitPrice('');
     setQuoteQty(first ? String(first.quantity) : '1');
     setQuoteValidUntil('');
@@ -555,38 +847,66 @@ export default function ImportRfqsPage() {
     setQuotePaymentTerms('');
     setQuoteNotes('');
     setQuoteExchangeRate('');
+    setQuoteModalError(null);
+    setQuoteFxHint(null);
     setQuoteOpen(true);
+
+    // Prefill RFQ supplier immediately, then enrich currency from supplier master.
+    const seed: Supplier | null = rfq.supplierName
+      ? {
+          id: rfq.supplierId,
+          name: rfq.supplierName,
+          country: rfq.supplierCountry || rfq.countryOfDispatch || undefined,
+        }
+      : null;
+    applySupplierToQuoteForm(seed, rfqCurrency);
+
+    let currencyForFx = rfqCurrency;
+    if (rfq.supplierId) {
+      try {
+        const full = await supplierService.getSupplierById(rfq.supplierId);
+        applySupplierToQuoteForm(full, rfqCurrency, { fillPaymentTerms: true });
+        if (full?.currency?.code) {
+          currencyForFx = String(full.currency.code).toUpperCase();
+        }
+      } catch {
+        // Keep RFQ seed + currency if supplier fetch fails
+      }
+    }
+    void resolveQuoteFxRate(currencyForFx, Number(first?.quantity || 1));
   };
 
   const handleCreateQuotation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRfq) return;
+    setQuoteModalError(null);
+
     const supplierName =
       quoteSupplier?.name || (quoteSupplier as { companyName?: string })?.companyName || '';
     if (!supplierName.trim()) {
-      setError('Quotation supplier is required');
+      setQuoteModalError('Quotation supplier is required');
       return;
     }
     if (!quoteCurrency) {
-      setError('Quotation currency is required');
+      setQuoteModalError('Quotation currency is required');
       return;
     }
     const unitPrice = Number(quoteUnitPrice);
     const quantity = Number(quoteQty);
     if (!(unitPrice > 0) || !(quantity > 0)) {
-      setError('Unit price and quantity must be greater than zero');
+      setQuoteModalError('Unit price and quantity must be greater than zero');
       return;
     }
     if (quoteLeadDays === '' || Number(quoteLeadDays) < 0 || Number.isNaN(Number(quoteLeadDays))) {
-      setError('Lead time (days) is required');
+      setQuoteModalError('Lead time (days) is required');
       return;
     }
     if (!quotePaymentTerms.trim()) {
-      setError('Payment terms are required');
+      setQuoteModalError('Payment terms are required');
       return;
     }
     if (!quoteValidUntil || quoteValidUntil < todayIso) {
-      setError('Validity date is required and must be today or later');
+      setQuoteModalError('Validity date is required and must be today or later');
       return;
     }
 
@@ -618,17 +938,16 @@ export default function ImportRfqsPage() {
               },
             ]
           : undefined,
-      } as Partial<ImportSupplierQuotation> & {
-        unitPrice?: number;
-        quantity?: number;
-        exchangeRate?: number;
       });
       setQuoteOpen(false);
+      setQuoteModalError(null);
       await refreshRfqDetail(selectedRfq.id);
       fetchRfqs();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } }; message?: string };
-      setError(e?.response?.data?.message || e.message || 'Failed to save quotation');
+      const msg = e?.response?.data?.message || e.message || 'Failed to save quotation';
+      setQuoteModalError(msg);
+      setError(msg);
     } finally {
       setSaving(false);
     }
@@ -754,24 +1073,48 @@ export default function ImportRfqsPage() {
       );
     }
     if (st === 'Awarded') {
+      actions.push(
+        <button
+          key="submit-approval"
+          type="button"
+          disabled={saving || !rfq.selectedQuotationId}
+          onClick={() => handleSubmitForApproval(rfq.id)}
+          className="px-3.5 py-2 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 disabled:opacity-50 flex items-center gap-1.5"
+        >
+          <Send className="w-4 h-4" /> Send for Approval
+        </button>
+      );
+    }
+    if (st === 'Pending Approval') {
       const cannotApprove =
         requireSeparateApprover &&
         Boolean(currentUserId) &&
         Boolean(rfq.awardedBy) &&
         currentUserId === rfq.awardedBy;
-      if (!cannotApprove) {
+      if (canApproveRfq && !cannotApprove) {
         actions.push(
           <button
             key="approve"
             type="button"
             disabled={saving}
-            onClick={() => handleStatusUpdate(rfq.id, 'Approved')}
+            onClick={() => handleApproveRfq(rfq.id)}
             className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5"
           >
             <CheckCircle2 className="w-4 h-4" /> Approve
           </button>
         );
-      } else {
+        actions.push(
+          <button
+            key="reject-approval"
+            type="button"
+            disabled={saving}
+            onClick={() => handleRejectApproval(rfq.id)}
+            className="px-3.5 py-2 rounded-xl border border-rose-300 text-rose-700 text-xs font-bold hover:bg-rose-50 disabled:opacity-50"
+          >
+            Reject
+          </button>
+        );
+      } else if (cannotApprove && canApproveRfq) {
         actions.push(
           <span
             key="approve-blocked"
@@ -779,6 +1122,15 @@ export default function ImportRfqsPage() {
             title="Award and approval must be done by different users"
           >
             Approve locked (you awarded this RFQ)
+          </span>
+        );
+      } else {
+        actions.push(
+          <span
+            key="awaiting-approval"
+            className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-semibold"
+          >
+            Awaiting approval
           </span>
         );
       }
@@ -1245,10 +1597,12 @@ export default function ImportRfqsPage() {
                     <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
                       Quotations are locked while this RFQ is {selectedRfq.status}.
                       {selectedRfq.status === 'Awarded'
-                        ? ' You can Change Award to another active quote before approval.'
-                        : selectedRfq.status === 'Approved'
-                          ? ' Reopen the RFQ to change the award.'
-                          : ''}
+                        ? ' You can Change Award to another active quote, then Send for Approval.'
+                        : selectedRfq.status === 'Pending Approval'
+                          ? ' Waiting for an approver. Reject returns the RFQ to Awarded.'
+                          : selectedRfq.status === 'Approved'
+                            ? ' Reopen the RFQ to change the award.'
+                            : ''}
                     </p>
                   ) : null}
                   {(() => {
@@ -1478,7 +1832,16 @@ export default function ImportRfqsPage() {
               </div>
               <div>
                 <FieldLabel required>Currency</FieldLabel>
-                <CurrencySelect value={createCurrency} onChange={(code) => setCreateCurrency(code)} />
+                <CurrencySelect
+                  value={createCurrency}
+                  onChange={(code) => {
+                    void handleCreateCurrencyChange(code);
+                  }}
+                />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  Supplier / RFQ currency. Product prices convert from app currency (
+                  {appCurrencyCode}).
+                </p>
               </div>
               <div>
                 <FieldLabel required>Incoterms 2020</FieldLabel>
@@ -1538,28 +1901,50 @@ export default function ImportRfqsPage() {
             </div>
           </FormSection>
 
-          <FormSection title="Product lines" subtitle="Pick from inventory; target price is in RFQ currency">
+          <FormSection
+            title="Product lines"
+            subtitle={`Pick from inventory; target price shows in RFQ currency (${createCurrency || '—'})`}
+          >
             <div className="flex flex-wrap items-center gap-2">
               <ProductSelectButton
                 label="Add product"
                 onSelect={(products) => {
-                  setCreateLines((prev) => [...prev, ...products.map(newLineFromProduct)]);
+                  void addProductsWithConversion(products);
                 }}
               />
               <button
                 type="button"
                 onClick={() => setProductPickOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                disabled={fxConverting}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
                 <Package className="w-3.5 h-3.5" /> Single pick…
               </button>
+              {fxConverting ? (
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-[#014582]">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Converting prices…
+                </span>
+              ) : null}
             </div>
+            {fxHint ? (
+              <div
+                className={`flex items-start gap-2 p-2.5 rounded-xl text-[11px] border ${
+                  fxHint.startsWith('No conversion')
+                    ? 'bg-amber-50 border-amber-200 text-amber-900'
+                    : 'bg-sky-50 border-sky-200 text-sky-900'
+                }`}
+              >
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>{fxHint}</span>
+              </div>
+            ) : null}
             <ProductPickerModal
               isOpen={productPickOpen}
               onClose={() => setProductPickOpen(false)}
               multi={false}
               onSelect={(products) => {
-                if (products[0]) setCreateLines((prev) => [...prev, newLineFromProduct(products[0])]);
+                void addProductsWithConversion(products);
                 setProductPickOpen(false);
               }}
             />
@@ -1576,6 +1961,14 @@ export default function ImportRfqsPage() {
                       <div>
                         <p className="font-bold text-gray-900">{line.productName}</p>
                         {line.sku ? <p className="font-mono text-[10px] text-gray-500">{line.sku}</p> : null}
+                        {line.sourcePriceApp > 0 &&
+                        createCurrency &&
+                        appCurrencyCode &&
+                        createCurrency.toUpperCase() !== appCurrencyCode.toUpperCase() ? (
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            App price: {formatMoney(line.sourcePriceApp, appCurrencyCode)}
+                          </p>
+                        ) : null}
                       </div>
                       <button
                         type="button"
@@ -1603,7 +1996,9 @@ export default function ImportRfqsPage() {
                         />
                       </div>
                       <div>
-                        <FieldLabel required>Target price</FieldLabel>
+                        <FieldLabel required>
+                          Target price ({createCurrency || '—'})
+                        </FieldLabel>
                         <input
                           type="number"
                           min={0}
@@ -1707,11 +2102,20 @@ export default function ImportRfqsPage() {
 
       <TradeModal
         isOpen={quoteOpen}
-        onClose={() => setQuoteOpen(false)}
+        onClose={() => {
+          setQuoteOpen(false);
+          setQuoteModalError(null);
+        }}
         title="Add Supplier Quotation"
         maxWidth="max-w-lg"
       >
         <form onSubmit={handleCreateQuotation} className="space-y-3 text-xs">
+          {quoteModalError ? (
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-700">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{quoteModalError}</span>
+            </div>
+          ) : null}
           <div>
             <FieldLabel required>Supplier</FieldLabel>
             <SupplierSelectField
@@ -1724,13 +2128,42 @@ export default function ImportRfqsPage() {
                     }
                   : null
               }
-              onSelect={setQuoteSupplier}
+              onSelect={(supplier) => {
+                applySupplierToQuoteForm(supplier, selectedRfq?.currency || quoteCurrency, {
+                  fillPaymentTerms: true,
+                });
+                const code =
+                  supplier?.currency?.code ||
+                  selectedRfq?.currency ||
+                  quoteCurrency;
+                void resolveQuoteFxRate(
+                  String(code),
+                  Number(quoteUnitPrice || 0) * Number(quoteQty || 1) || 1
+                );
+              }}
             />
+            <p className="text-[10px] text-gray-400 mt-1">
+              Prefills from this RFQ&apos;s supplier; currency comes from the supplier master when set.
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <FieldLabel required>Currency</FieldLabel>
-              <CurrencySelect value={quoteCurrency} onChange={(c) => setQuoteCurrency(c)} />
+              <CurrencySelect
+                value={quoteCurrency}
+                onChange={(c) => {
+                  setQuoteCurrency(c);
+                  void resolveQuoteFxRate(
+                    c,
+                    Number(quoteUnitPrice || 0) * Number(quoteQty || 1) || 1
+                  );
+                }}
+              />
+              {quoteSupplier?.currency?.code ? (
+                <p className="text-[10px] text-gray-400 mt-1">
+                  Supplier default: {quoteSupplier.currency.code}
+                </p>
+              ) : null}
             </div>
             <div>
               <FieldLabel required>Unit price</FieldLabel>
@@ -1783,7 +2216,7 @@ export default function ImportRfqsPage() {
               />
             </div>
             <div>
-              <FieldLabel>Exchange rate (if foreign)</FieldLabel>
+              <FieldLabel>Exchange rate → {appCurrencyCode}</FieldLabel>
               <input
                 type="number"
                 min={0}
@@ -1791,11 +2224,22 @@ export default function ImportRfqsPage() {
                 inputMode="decimal"
                 value={quoteExchangeRate}
                 onChange={(e) => setQuoteExchangeRate(e.target.value)}
-                placeholder="Optional override"
+                placeholder={`1 ${quoteCurrency || 'foreign'} = ? ${appCurrencyCode}`}
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs"
               />
             </div>
           </div>
+          {quoteFxHint ? (
+            <p
+              className={`text-[11px] rounded-xl px-3 py-2 border ${
+                quoteFxHint.startsWith('No company') || quoteFxHint.startsWith('No exchange')
+                  ? 'bg-amber-50 border-amber-100 text-amber-900'
+                  : 'bg-sky-50 border-sky-100 text-sky-900'
+              }`}
+            >
+              {quoteFxHint}
+            </p>
+          ) : null}
           <div>
             <FieldLabel required>Payment terms</FieldLabel>
             <input

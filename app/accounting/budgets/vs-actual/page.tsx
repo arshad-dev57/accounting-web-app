@@ -23,6 +23,18 @@ import {
 } from '@/lib/budget-service';
 
 export default function BudgetVsActualPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="p-10 text-center text-xs text-gray-400">Loading…</div>
+      }
+    >
+      <BudgetVsActualPageContent />
+    </React.Suspense>
+  );
+}
+
+function BudgetVsActualPageContent() {
   const searchParams = useSearchParams();
   const { symbol } = useCurrency();
   const { fiscalYears, selectedFiscalYearId } = useFiscalYear();

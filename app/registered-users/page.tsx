@@ -15,6 +15,7 @@ import { TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import GlobalSearch from '../../components/GlobalSearch';
+import NotificationDropdown from '../../components/NotificationDropdown';
 import { usePermissions } from '../../lib/usePermissions';
 import { usersService } from '../users/service';
 import type { User } from '../users/types';
@@ -112,6 +113,7 @@ export default function RegisteredUsersPage() {
           <TopBarBrand title="Registered Users" />
           <div className="flex items-center gap-4">
             <GlobalSearch />
+            <NotificationDropdown />
             <div className="w-px h-6 bg-gray-200" />
             <ProfileDropdown accentClassName="bg-[#014582]" />
           </div>

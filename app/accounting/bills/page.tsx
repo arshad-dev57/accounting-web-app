@@ -34,6 +34,7 @@ import {
 import { billsService, Bill, Summary, Supplier, BankAccount, BillItem } from '../../api/bills/route';
 import TaxRateSelect from '../../../components/TaxRateSelect';
 import { toast } from 'react-hot-toast';
+import { useCurrency } from '../../../lib/currency-context';
 
 // ─── TYPES ─────────────────────────────────────────────────────
 

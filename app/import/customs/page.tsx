@@ -52,6 +52,16 @@ export default function ImportCustomsPage() {
   const { code: baseCurrencyCode } = useCurrency();
   const { can } = usePermissions();
 
+  /** Accountant / Finance: dedicated customs payment OR AP / purchases / JE payment perms */
+  const canRecordDutyPayment =
+    can('import.customs.record_payment') ||
+    can('purchases.payments.create') ||
+    can('purchases.payments.edit') ||
+    can('accounting.accounts_payable.create') ||
+    can('accounting.accounts_payable.edit') ||
+    can('accounting.journal_entries.create') ||
+    can('accounting.journal_entries.post');
+
   const [customs, setCustoms] = useState<ImportCustomsClearance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -714,63 +724,185 @@ export default function ImportCustomsPage() {
         actions={
           selectedCustoms && (
             <div className="flex flex-wrap items-center gap-2">
-              {status === 'Draft' && can('import.customs.assess') && (
+              {status === 'Draft' &&
+                (can('import.customs.create') ||
+                  can('import.customs.edit') ||
+                  can('import.customs.assess')) && (
                 <button
                   type="button"
                   disabled={actionLoading}
                   onClick={() => setStatusModal({ status: 'Under Assessment' })}
                   className="px-3.5 py-2 rounded-xl bg-[#014582] text-white text-xs font-bold"
                 >
-                  Submit for Assessment
+                  Send for Assessment
                 </button>
               )}
               {status === 'Under Assessment' && can('import.customs.assess') && (
+                <>
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() =>
+                      setStatusModal({
+                        status: 'Assessed',
+                        assessmentDate: importTodayInputValue(),
+                        billOfEntryNo:
+                          selectedCustoms.declarationNumber ||
+                          (selectedCustoms.billOfEntryNo !== selectedCustoms.entryNumber
+                            ? selectedCustoms.billOfEntryNo || ''
+                            : ''),
+                      })
+                    }
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold inline-flex items-center gap-1"
+                  >
+                    <CheckCircle2 className="w-4 h-4" /> Confirm Assessment
+                  </button>
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() =>
+                      setStatusModal({
+                        status: 'Draft',
+                        note: '',
+                      })
+                    }
+                    className="px-3.5 py-2 rounded-xl border border-rose-300 text-rose-700 text-xs font-bold inline-flex items-center gap-1"
+                  >
+                    <XCircle className="w-4 h-4" /> Send Back
+                  </button>
+                </>
+              )}
+              {status === 'Under Assessment' && !can('import.customs.assess') && (
+                <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                  Waiting for an assessor (Customs Assessment → Approve permission).
+                </span>
+              )}
+              {status === 'Assessed' &&
+                (can('import.customs.create') ||
+                  can('import.customs.edit') ||
+                  can('import.customs.assess') ||
+                  canRecordDutyPayment) && (
                 <button
                   type="button"
                   disabled={actionLoading}
-                  onClick={() =>
-                    setStatusModal({
-                      status: 'Assessed',
-                      assessmentDate: importTodayInputValue(),
-                      billOfEntryNo:
-                        selectedCustoms.declarationNumber ||
-                        (selectedCustoms.billOfEntryNo !== selectedCustoms.entryNumber
-                          ? selectedCustoms.billOfEntryNo || ''
-                          : ''),
-                    })
-                  }
-                  className="px-3.5 py-2 rounded-xl bg-[#014582] text-white text-xs font-bold"
+                  onClick={async () => {
+                    setActionLoading(true);
+                    setError(null);
+                    try {
+                      const updated = await importApi.updateCustomsStatus(
+                        selectedCustoms.id,
+                        'Pending Payment'
+                      );
+                      setSelectedCustoms(updated);
+                      setCustoms((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                    } catch (err: any) {
+                      setError(
+                        err?.response?.data?.message ||
+                          err.message ||
+                          'Failed to send for duty payment'
+                      );
+                    } finally {
+                      setActionLoading(false);
+                    }
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-amber-600 text-white text-xs font-bold inline-flex items-center gap-1"
                 >
-                  Confirm Assessment
+                  <CreditCard className="w-4 h-4" /> Send for Duty Payment
                 </button>
               )}
-              {(status === 'Assessed' || status === 'Partially Paid') &&
-                can('import.customs.record_payment') && (
-                <button
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={() => {
-                    const bal = Number(
-                      selectedCustoms.balanceDue != null
-                        ? selectedCustoms.balanceDue
-                        : selectedCustoms.totalCustomsPayableUsd || 0
-                    );
-                    setApproveDifference(false);
-                    setStatusModal({
-                      status: 'Duty Paid',
-                      dutyPaymentAmount: String(bal || ''),
-                      dutyPaymentDate: importTodayInputValue(),
-                      dutyPaymentMethod: 'Bank Transfer',
-                      bankAccountId: '',
-                    });
-                    loadPaymentAccounts('Bank Transfer');
-                  }}
+              {(status === 'Pending Payment' || status === 'Partially Paid') &&
+                canRecordDutyPayment && (
+                <Link
+                  href="/import/approvals"
                   className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold inline-flex items-center gap-1"
                 >
-                  <CreditCard className="w-4 h-4" /> Record Duty Payment
+                  <CreditCard className="w-4 h-4" /> Record on Approvals
+                </Link>
+              )}
+              {(status === 'Pending Payment' || status === 'Partially Paid') &&
+                !canRecordDutyPayment && (
+                <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                  Waiting for a payer with Customs Duty Payment permission (Import Approvals).
+                </span>
+              )}
+              {status === 'Duty Paid' && (
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={async () => {
+                    setActionLoading(true);
+                    setError(null);
+                    try {
+                      const updated = await importApi.submitCustomsForApproval(selectedCustoms.id);
+                      setSelectedCustoms(updated);
+                      setCustoms((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                    } catch (err: any) {
+                      setError(err?.response?.data?.message || err.message || 'Failed to submit for approval');
+                    } finally {
+                      setActionLoading(false);
+                    }
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-amber-600 text-white text-xs font-bold inline-flex items-center gap-1"
+                >
+                  <ShieldCheck className="w-4 h-4" /> Send for Approval
                 </button>
               )}
-              {status === 'Duty Paid' && can('import.customs.release') && (
+              {status === 'Pending Approval' && can('import.customs.approve') && (
+                <>
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={async () => {
+                      setActionLoading(true);
+                      setError(null);
+                      try {
+                        const updated = await importApi.approveCustomsClearance(selectedCustoms.id);
+                        setSelectedCustoms(updated);
+                        setCustoms((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                      } catch (err: any) {
+                        setError(err?.response?.data?.message || err.message || 'Approve failed');
+                      } finally {
+                        setActionLoading(false);
+                      }
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold inline-flex items-center gap-1"
+                  >
+                    <CheckCircle2 className="w-4 h-4" /> Approve
+                  </button>
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={async () => {
+                      const reason =
+                        window.prompt('Optional reason for rejecting (sent back to Duty Paid):') ||
+                        undefined;
+                      setActionLoading(true);
+                      setError(null);
+                      try {
+                        const updated = await importApi.rejectCustomsApproval(
+                          selectedCustoms.id,
+                          reason ? { reason } : {}
+                        );
+                        setSelectedCustoms(updated);
+                        setCustoms((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                      } catch (err: any) {
+                        setError(err?.response?.data?.message || err.message || 'Reject failed');
+                      } finally {
+                        setActionLoading(false);
+                      }
+                    }}
+                    className="px-3.5 py-2 rounded-xl border border-rose-300 text-rose-700 text-xs font-bold inline-flex items-center gap-1"
+                  >
+                    <XCircle className="w-4 h-4" /> Reject
+                  </button>
+                </>
+              )}
+              {status === 'Pending Approval' && !can('import.customs.approve') && (
+                <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                  Waiting for an approver (Customs Clearance → Approve permission).
+                </span>
+              )}
+              {status === 'Approved' && can('import.customs.release') && (
                 <button
                   type="button"
                   disabled={actionLoading}
@@ -1468,9 +1600,13 @@ export default function ImportCustomsPage() {
                 </div>
               </>
             )}
-            {(statusModal.status === 'On Hold/Examination' || statusModal.status === 'Cancelled') && (
+            {(statusModal.status === 'On Hold/Examination' ||
+              statusModal.status === 'Cancelled' ||
+              statusModal.status === 'Draft') && (
               <div>
-                <FieldLabel required={statusModal.status === 'On Hold/Examination'}>Reason</FieldLabel>
+                <FieldLabel required={statusModal.status === 'On Hold/Examination'}>
+                  {statusModal.status === 'Draft' ? 'Reason for sending back (optional)' : 'Reason'}
+                </FieldLabel>
                 <textarea
                   value={statusModal.holdReason || statusModal.note || ''}
                   onChange={(e) =>

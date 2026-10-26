@@ -2434,7 +2434,7 @@ function CreateOrderWizard({
               </div>
               {isForeign && Number(wizardState.exchangeRate) <= 0 && (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                  No exchange rate found for this date. Add a rate under Settings → Exchange Rates, or enter one above.
+                  No exchange rate found for this date. Add a rate under Currency → Conversion Rates, or enter one above.
                 </p>
               )}
             </div>

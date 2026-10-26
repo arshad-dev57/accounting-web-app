@@ -153,7 +153,7 @@ export const GLOBAL_SEARCH_PAGES: GlobalSearchPage[] = [
   { path: '/accounting/cash-flow', label: 'Cash Flow', group: 'accounting', module: 'accounting', permission: 'cash-flow', keywords: ['cash flow statement', 'liquidity'] },
   { path: '/accounting/aged-recievables', label: 'Aged Receivables', group: 'accounting', module: 'accounting', permission: 'aged-receivables', keywords: ['aging', 'overdue'] },
   { path: '/accounting/fiscal-years', label: 'Fiscal Years', group: 'accounting', module: 'accounting', permission: 'settings', keywords: ['period', 'year close'] },
-  { path: '/accounting/currency', label: 'Accounting Currency', group: 'accounting', module: 'accounting', permission: 'currency', keywords: ['exchange rate', 'forex'] },
+  { path: '/accounting/currency', label: 'Currency Settings', group: 'accounting', module: 'accounting', permission: 'currency', keywords: ['exchange rate', 'forex', 'display currency', 'conversion', 'currency master'] },
   { path: '/accounting/pdf-reports', label: 'PDF Reports', group: 'accounting', module: 'accounting', permission: 'settings', keywords: ['download reports', 'print'] },
   // ============================== Sales ==============================
   { path: '/sales/dashboard', label: 'Sales Dashboard', group: 'sales', module: 'sales', permission: 'dashboard', keywords: ['overview'] },
@@ -167,7 +167,7 @@ export const GLOBAL_SEARCH_PAGES: GlobalSearchPage[] = [
   { path: '/sales/sales-payment', label: 'Sales Payments', group: 'sales', module: 'sales', permission: 'sales-payments', keywords: ['receipts', 'cash in'] },
   { path: '/sales/returns', label: 'Sales Returns', group: 'sales', module: 'sales', permission: 'sales-returns', keywords: ['rma', 'returned goods'] },
   { path: '/sales/refunds', label: 'Sales Refunds', group: 'sales', module: 'sales', permission: 'refunds', keywords: ['money back'] },
-  { path: '/sales/currency', label: 'Sales Currency', group: 'sales', module: 'sales', permission: 'currency', keywords: ['exchange rate', 'forex'] },
+  { path: '/sales/currency', label: 'Currency Settings', group: 'sales', module: 'sales', permission: 'currency', keywords: ['exchange rate', 'forex', 'display currency', 'conversion'] },
 
   // ============================ Purchases ============================
   { path: '/purchases/dashboard', label: 'Purchases Dashboard', group: 'purchases', module: 'purchases', permission: 'dashboard', keywords: ['overview'] },
@@ -182,7 +182,7 @@ export const GLOBAL_SEARCH_PAGES: GlobalSearchPage[] = [
   { path: '/purchases/payments', label: 'Purchase Payments', group: 'purchases', module: 'purchases', permission: 'purchase-payments', keywords: ['vendor payment', 'cash out'] },
   { path: '/purchases/returns', label: 'Purchase Returns', group: 'purchases', module: 'purchases', permission: 'purchase-returns', keywords: ['return to supplier'] },
   { path: '/purchases/refunds', label: 'Purchase Refunds', group: 'purchases', module: 'purchases', permission: 'refunds', keywords: ['money back'] },
-  { path: '/purchases/currency', label: 'Purchases Currency', group: 'purchases', module: 'purchases', permission: 'currency', keywords: ['exchange rate', 'forex'] },
+  { path: '/purchases/currency', label: 'Currency Settings', group: 'purchases', module: 'purchases', permission: 'currency', keywords: ['exchange rate', 'forex', 'display currency', 'conversion'] },
   // ============================ Inventory ============================
   { path: '/warehouse/dashboard', label: 'Inventory Dashboard', group: 'warehouse', module: 'warehouse', permission: 'dashboard', keywords: ['overview', 'stock', 'warehouse'] },
   { path: '/warehouse/products', label: 'Inventory Products', group: 'warehouse', module: 'warehouse', permission: 'products', keywords: ['items', 'stock items'] },

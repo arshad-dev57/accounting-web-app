@@ -20,6 +20,7 @@ import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
+import NotificationDropdown from '../../components/NotificationDropdown';
 import { usePermissions } from '../../lib/usePermissions';
 import { getDesktopDownloadUrl, hasDesktopDownload } from '../../lib/desktop-app-download';
 import { fetchPosSettings } from '../../lib/pos-settings-service';
@@ -127,6 +128,7 @@ export default function POSLandingPage() {
           <TopBarBrand title="Point of Sale" />
           <div className="flex items-center gap-3">
             <GlobalSearch />
+            <NotificationDropdown />
             <ProfileDropdown />
           </div>
         </header>

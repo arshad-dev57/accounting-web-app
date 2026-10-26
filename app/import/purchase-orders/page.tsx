@@ -36,6 +36,7 @@ import importApi from '../../../lib/import-api';
 import type { ImportPurchaseOrder } from '../../../lib/import-api';
 import { useCurrency } from '../../../lib/currency-context';
 import { formatImportMoney, parseImportDateOnly } from '../../../lib/import-format';
+import { ensureCompanyBaseMatchesAppCurrency } from '../../../lib/multi-currency';
 import type { Supplier } from '@/api/supplier/route';
 import type { Product } from '@/api/product/route';
 import {
@@ -60,12 +61,20 @@ const IMPORT_WORKFLOW_STEPS = [
 ];
 
 export default function ImportPurchaseOrdersPage() {
-  const { code: baseCurrencyCode } = useCurrency();
+  const { code: appCurrencyCode, currency: appCurrency } = useCurrency();
+  /** Company FX / conversion target — kept in sync with selected app currency. */
+  const baseCurrencyCode = appCurrencyCode;
 
   const [pos, setPos] = React.useState<ImportPurchaseOrder[]>([]);
   const [total, setTotal] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [fxPreview, setFxPreview] = React.useState<{
+    exchangeRate: number;
+    baseAmount: number;
+    baseCurrencyCode: string;
+    currencyCode: string;
+  } | null>(null);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -129,6 +138,59 @@ export default function ImportPurchaseOrdersPage() {
   }, [search, statusFilter, page]);
 
   React.useEffect(() => { fetchPos(); }, [fetchPos]);
+
+  // Heal mismatch: company base was defaulting to PKR while app currency is SAR/etc.
+  React.useEffect(() => {
+    if (!appCurrencyCode) return;
+    void ensureCompanyBaseMatchesAppCurrency(appCurrencyCode, {
+      name: appCurrency?.name,
+      symbol: appCurrency?.symbol,
+    });
+  }, [appCurrencyCode, appCurrency?.name, appCurrency?.symbol]);
+
+  // Live FX preview in app/base currency while creating a PO
+  React.useEffect(() => {
+    if (!isCreateOpen || !form.currency || !(lineSubtotal > 0)) {
+      setFxPreview(null);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(() => {
+      importApi
+        .previewFx({
+          currency: form.currency,
+          foreignAmount: lineSubtotal,
+          exchangeRateToUsd: form.exchangeRateToUsd.trim()
+            ? Number(form.exchangeRateToUsd)
+            : undefined,
+          exchangeRateDate: form.exchangeRateDate || form.orderDate,
+        })
+        .then((preview) => {
+          if (cancelled || !preview) return;
+          setFxPreview({
+            exchangeRate: Number(preview.exchangeRate),
+            baseAmount: Number(preview.baseAmount),
+            baseCurrencyCode: String(preview.baseCurrencyCode || baseCurrencyCode),
+            currencyCode: String(preview.currencyCode || form.currency),
+          });
+        })
+        .catch(() => {
+          if (!cancelled) setFxPreview(null);
+        });
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [
+    isCreateOpen,
+    form.currency,
+    form.exchangeRateToUsd,
+    form.exchangeRateDate,
+    form.orderDate,
+    lineSubtotal,
+    baseCurrencyCode,
+  ]);
 
   const totalPages = Math.ceil(total / pageSize) || 1;
   const paginatedPOs = pos;
@@ -644,18 +706,21 @@ export default function ImportPurchaseOrdersPage() {
             />
           </FormSection>
 
-          <FormSection title="Currency and Pricing" subtitle="Uses company-enabled currencies; rate is snapshotted on confirm">
+          <FormSection
+            title="Currency and Pricing"
+            subtitle={`Converts into app currency (${baseCurrencyCode}); rate is snapshotted on confirm`}
+          >
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
                 <FieldLabel required>Transaction currency</FieldLabel>
                 <CurrencySelect value={form.currency} onChange={(code) => setField('currency', code)} />
               </div>
               <div>
-                <FieldLabel>Exchange rate → USD / base</FieldLabel>
+                <FieldLabel>{`Exchange rate → ${baseCurrencyCode}`}</FieldLabel>
                 <input
                   value={form.exchangeRateToUsd}
                   onChange={(e) => setField('exchangeRateToUsd', e.target.value)}
-                  placeholder="Leave blank to resolve from FX table"
+                  placeholder={`1 foreign = ? ${baseCurrencyCode}`}
                   className="w-full rounded-xl border border-gray-200 px-3 py-2"
                 />
               </div>
@@ -680,6 +745,22 @@ export default function ImportPurchaseOrdersPage() {
                 <input value={form.paymentTerms} onChange={(e) => setField('paymentTerms', e.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2" />
               </div>
             </div>
+            {fxPreview ? (
+              <div className="mt-3 rounded-xl border border-sky-100 bg-sky-50/70 px-3 py-2 text-[11px] text-sky-900">
+                1 {fxPreview.currencyCode} = {Number(fxPreview.exchangeRate).toLocaleString(undefined, { maximumFractionDigits: 6 })}{' '}
+                {fxPreview.baseCurrencyCode || baseCurrencyCode}
+                {' · '}
+                Converted total:{' '}
+                <strong>
+                  {formatImportMoney(fxPreview.baseAmount, fxPreview.baseCurrencyCode || baseCurrencyCode)}
+                </strong>
+              </div>
+            ) : lineSubtotal > 0 && form.currency.toUpperCase() !== baseCurrencyCode.toUpperCase() ? (
+              <p className="mt-3 text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                No FX preview yet. Add a {form.currency} → {baseCurrencyCode} rate under Currency → Conversion Rates,
+                or enter the rate above.
+              </p>
+            ) : null}
           </FormSection>
 
           <FormSection title="Products and Quantities" subtitle="Searchable product modal — duplicates blocked">

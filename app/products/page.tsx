@@ -23,6 +23,7 @@ import { ProductTaxFields } from '../../components/TaxRateSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
 import GlobalSearch from '../../components/GlobalSearch';
+import NotificationDropdown from '../../components/NotificationDropdown';
 import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
@@ -1953,6 +1954,7 @@ const fetchDropdowns = async () => {
 
           <div className="flex items-center gap-4">
             <GlobalSearch />
+            <NotificationDropdown />
 
             <div className="w-px h-6 bg-gray-200" />
 

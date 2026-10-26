@@ -8,6 +8,7 @@ import { ChevronRight } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
 import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
+import NotificationDropdown from '../../components/NotificationDropdown';
 import SubscriptionStatusBanner from '../../components/SubscriptionStatusBanner';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
@@ -188,19 +189,19 @@ const modules: ModuleItem[] = [
 const TILE_OFFSETS_KEY = 'dashboard-tile-offsets-v1';
 
 /* Header ke andar ke components (search, profile, brand) ka text white karne ke liye.
-   Dropdown / popup panels (role=menu/listbox/dialog) ko chhod diya hai taake wo white bg par readable rahein. */
+   Dropdown / popup panels (role=menu/listbox/dialog ya data-header-panel) ko chhod diya hai
+   taake wo white bg par readable rahein. */
 const headerCss = `
-.dash-header :is(p, span, h1, h2, h3, a, label, svg, button, input):not(:is([role="menu"], [role="listbox"], [role="dialog"]) *) {
+.dash-header :is(p, span, h1, h2, h3, a, label, svg, button, input):not(:is([role="menu"], [role="listbox"], [role="dialog"], [data-header-panel]) *) {
   color: #ffffff !important;
 }
-.dash-header input {
+.dash-header input:not([data-header-panel] input) {
   background-color: rgba(255, 255, 255, 0.12) !important;
   border-color: rgba(255, 255, 255, 0.3) !important;
 }
-.dash-header input::placeholder {
+.dash-header input:not([data-header-panel] input)::placeholder {
   color: rgba(255, 255, 255, 0.7) !important;
-}
-`;
+}`;
 
 function openHeaderAction(action: ModuleItem['action']) {
   if (!action || typeof window === 'undefined') return;
@@ -255,7 +256,7 @@ export default function DashboardPage() {
     try {
       localStorage.setItem(TILE_OFFSETS_KEY, JSON.stringify(offsets));
     } catch {
-      /* storage full / blocked */
+    
     }
   }, [offsets, draggingTitle]);
 
@@ -344,6 +345,7 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 min-w-0 shrink-0">
             <GlobalSearch />
+            <NotificationDropdown />
 
             <div className="w-px h-6 bg-white/30" />
 

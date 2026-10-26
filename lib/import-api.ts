@@ -716,31 +716,64 @@ export interface ImportGrn {
   companyId: string;
   grnNumber: string;
   importPoId?: string;
+  poRef?: string;
   shipmentId?: string;
+  shipmentRef?: string;
+  customsClearanceId?: string;
+  customsRef?: string;
+  boeNumber?: string;
   warehouseId?: string;
+  warehouseName?: string;
+  locationId?: string;
   receivedDate: string;
+  receiptDate?: string;
   receivedBy?: string;
   status: string;
   isPosted: boolean;
+  isLegacy?: boolean;
+  isBonded?: boolean;
+  legacyBanner?: string | null;
+  costStatus?: string;
   journalEntryId?: string;
   goodsReceivingId?: string;
   notes?: string;
   items: ImportGrnItem[];
+  supplierClaims?: Array<{
+    id: string;
+    claimNumber: string;
+    claimType: string;
+    quantity: number;
+    reason: string;
+    status: string;
+  }>;
   createdAt: string;
 }
 
 export interface ImportGrnItem {
   id: string;
-  grnId: string;
+  grnId?: string;
+  importGrnId?: string;
+  shipmentItemId?: string;
+  importPoItemId?: string;
   productId?: string;
   productName: string;
   sku?: string;
   orderedQty: number;
+  shippedQty?: number;
   receivedQty: number;
+  acceptedQty?: number;
+  shortQty?: number;
+  damagedQty?: number;
   rejectedQty: number;
+  shortReason?: string;
+  damagedReason?: string;
+  rejectedReason?: string;
   uom: string;
-  unitCostUsd: number;
-  totalCostUsd: number;
+  unitCostUsd?: number;
+  unitCostProvisional?: number;
+  unitCostFinal?: number;
+  costStatus?: string;
+  totalCostUsd?: number;
   locationId?: string;
 }
 
@@ -955,6 +988,9 @@ export interface ImportSupplierBill {
   items?: ImportSupplierBillItem[];
   notes?: string;
   createdAt: string;
+  /** Returned after recording a payment that posts to GL */
+  lastPaymentJournalEntryId?: string;
+  lastPaymentJournalEntryNumber?: string;
 }
 
 export interface ImportSettings {
@@ -972,6 +1008,10 @@ export interface ImportSettings {
   requireSeparateLcApprover?: boolean;
   /** When true, prefer Original B/L for release */
   requirePhysicalOriginalBl?: boolean;
+  /** When true, GRN allowed before customs Released/Cleared (bonded stock) */
+  allowGrnBeforeCustomsRelease?: boolean;
+  /** When true, GRN poster must differ from creator */
+  requireSeparateGrnPoster?: boolean;
   requireSeparateCustomsAssessor?: boolean;
   defaultCustomsDutyRatePct?: number;
   defaultImportVatRatePct?: number;
@@ -1009,12 +1049,12 @@ export const importApi = {
 
   createRfq: async (data: Partial<ImportRfq> & { portId?: string; specialNotes?: string }): Promise<ImportRfq> => {
     const res = await apiClient.post('/api/import/rfqs', data);
-    return res.data.data;
+    return unwrapImport<ImportRfq>(res, 'Failed to create RFQ');
   },
 
   updateRfq: async (id: string, data: Partial<ImportRfq>): Promise<ImportRfq> => {
     const res = await apiClient.put(`/api/import/rfqs/${id}`, data);
-    return res.data.data;
+    return unwrapImport<ImportRfq>(res, 'Failed to update RFQ');
   },
 
   deleteRfq: async (id: string): Promise<{ success: boolean }> => {
@@ -1027,9 +1067,16 @@ export const importApi = {
     return res.data.data;
   },
 
-  createQuotation: async (rfqId: string, data: Partial<ImportSupplierQuotation>): Promise<ImportSupplierQuotation> => {
+  createQuotation: async (
+    rfqId: string,
+    data: Partial<ImportSupplierQuotation> & {
+      unitPrice?: number;
+      quantity?: number;
+      exchangeRate?: number;
+    }
+  ): Promise<ImportSupplierQuotation> => {
     const res = await apiClient.post(`/api/import/rfqs/${rfqId}/quotations`, data);
-    return res.data.data;
+    return unwrapImport<ImportSupplierQuotation>(res, 'Failed to save quotation');
   },
 
   selectQuotation: async (
@@ -1041,7 +1088,66 @@ export const importApi = {
     } = {}
   ): Promise<ImportSupplierQuotation> => {
     const res = await apiClient.post(`/api/import/quotations/${quotationId}/select`, body);
-    return res.data.data;
+    return unwrapImport<ImportSupplierQuotation>(res, 'Failed to award quotation');
+  },
+
+  submitRfqForApproval: async (rfqId: string): Promise<ImportRfq> => {
+    const res = await apiClient.post(`/api/import/rfqs/${rfqId}/submit-for-approval`, {});
+    return unwrapImport<ImportRfq>(res, 'Failed to submit RFQ for approval');
+  },
+
+  approveRfq: async (rfqId: string): Promise<ImportRfq> => {
+    const res = await apiClient.post(`/api/import/rfqs/${rfqId}/approve`, {});
+    return unwrapImport<ImportRfq>(res, 'Failed to approve RFQ');
+  },
+
+  rejectRfqApproval: async (
+    rfqId: string,
+    body: { reason?: string } = {}
+  ): Promise<ImportRfq> => {
+    const res = await apiClient.post(`/api/import/rfqs/${rfqId}/reject-approval`, body);
+    return unwrapImport<ImportRfq>(res, 'Failed to reject RFQ approval');
+  },
+
+  listImportApprovals: async (
+    params: { includeRecent?: boolean; limit?: number } = {}
+  ): Promise<{
+    pending: ImportRfq[];
+    recent: ImportRfq[];
+    pendingCustoms: ImportCustomsClearance[];
+    recentCustoms: ImportCustomsClearance[];
+    pendingAssessments: ImportCustomsClearance[];
+    recentAssessments: ImportCustomsClearance[];
+    pendingPayments: ImportCustomsClearance[];
+  }> => {
+    const res = await apiClient.get(`/api/import/approvals${buildQuery(params)}`);
+    return unwrapImport<{
+      pending: ImportRfq[];
+      recent: ImportRfq[];
+      pendingCustoms: ImportCustomsClearance[];
+      recentCustoms: ImportCustomsClearance[];
+      pendingAssessments: ImportCustomsClearance[];
+      recentAssessments: ImportCustomsClearance[];
+      pendingPayments: ImportCustomsClearance[];
+    }>(res, 'Failed to load import approvals');
+  },
+
+  submitCustomsForApproval: async (id: string): Promise<ImportCustomsClearance> => {
+    const res = await apiClient.post(`/api/import/customs/${id}/submit-for-approval`, {});
+    return unwrapImport<ImportCustomsClearance>(res, 'Failed to submit customs for approval');
+  },
+
+  approveCustomsClearance: async (id: string): Promise<ImportCustomsClearance> => {
+    const res = await apiClient.post(`/api/import/customs/${id}/approve`, {});
+    return unwrapImport<ImportCustomsClearance>(res, 'Failed to approve customs clearance');
+  },
+
+  rejectCustomsApproval: async (
+    id: string,
+    body: { reason?: string } = {}
+  ): Promise<ImportCustomsClearance> => {
+    const res = await apiClient.post(`/api/import/customs/${id}/reject-approval`, body);
+    return unwrapImport<ImportCustomsClearance>(res, 'Failed to reject customs approval');
   },
 
   reopenRfq: async (
@@ -1049,12 +1155,12 @@ export const importApi = {
     body: { reason: string }
   ): Promise<ImportRfq> => {
     const res = await apiClient.post(`/api/import/rfqs/${rfqId}/reopen`, body);
-    return res.data.data;
+    return unwrapImport<ImportRfq>(res, 'Failed to reopen RFQ');
   },
 
   refreshRfqItemHsCode: async (rfqId: string, itemId: string): Promise<ImportRfq> => {
     const res = await apiClient.post(`/api/import/rfqs/${rfqId}/items/${itemId}/refresh-hs-code`, {});
-    return res.data.data;
+    return unwrapImport<ImportRfq>(res, 'Failed to refresh HS code');
   },
 
   convertRfqToPo: async (
@@ -1062,7 +1168,10 @@ export const importApi = {
     body: Record<string, unknown> = {}
   ): Promise<{ purchaseOrder: ImportPurchaseOrder; rfq: ImportRfq }> => {
     const res = await apiClient.post(`/api/import/rfqs/${rfqId}/convert-to-po`, body);
-    return res.data.data;
+    return unwrapImport<{ purchaseOrder: ImportPurchaseOrder; rfq: ImportRfq }>(
+      res,
+      'Failed to convert RFQ to PO'
+    );
   },
 
   listPurchaseOrders: async (params: Record<string, any> = {}): Promise<PaginatedResponse<ImportPurchaseOrder>> => {
@@ -1110,7 +1219,7 @@ export const importApi = {
     allowExplicitRate?: boolean;
   }): Promise<ImportFxPreview> => {
     const res = await apiClient.post('/api/import/fx/preview', body);
-    return res.data.data;
+    return unwrapImport<ImportFxPreview>(res, 'Failed to preview exchange rate');
   },
 
   // ─── 4. Proforma Invoices ──────────────────────────────────────────────────
@@ -1330,26 +1439,84 @@ export const importApi = {
     return res.data.data;
   },
 
-  getReceivingPreview: async (importPoId: string): Promise<{
-    importPoId: string;
-    poNumber: string;
-    supplierName: string;
-    status: string;
-    purchaseOrderId?: string | null;
-    lines: Array<{
+  /** @deprecated Import GRN must use shipment preview — PO-direct is rejected by API */
+  getReceivingPreview: async (importPoId: string): Promise<any> => {
+    const res = await apiClient.get(`/api/import/purchase-orders/${importPoId}/receiving-preview`);
+    return res.data.data;
+  },
+
+  listReceivableShipments: async (
+    params: Record<string, any> = {}
+  ): Promise<
+    Array<{
       id: string;
-      importPoItemId: string;
-      productId: string;
+      shipmentNumber: string;
+      shipmentStatus: string;
+      remainingTotal: number;
+      label: string;
+      poRef?: string | null;
+      customs?: any;
+      canReceive?: boolean;
+    }>
+  > => {
+    const res = await apiClient.get(`/api/import/grns/receivable-shipments${buildQuery(params)}`);
+    return res.data.data;
+  },
+
+  getShipmentReceivingPreview: async (shipmentId: string): Promise<{
+    shipmentId: string;
+    shipmentNumber: string;
+    shipmentStatus: string;
+    importPoId?: string | null;
+    poNumber?: string | null;
+    piRef?: string | null;
+    lcRef?: string | null;
+    blNumber?: string | null;
+    blType?: string | null;
+    originalBlReceived?: boolean;
+    containerNo?: string | null;
+    vesselName?: string | null;
+    actualArrival?: string | null;
+    customs?: {
+      id: string;
+      entryNumber: string;
+      billOfEntryNo?: string;
+      clearanceStatus: string;
+      isReleased?: boolean;
+      link?: string;
+      releaseDate?: string | null;
+      exchangeRateToUsd?: number;
+    } | null;
+    settings?: {
+      allowGrnBeforeCustomsRelease?: boolean;
+      requirePhysicalOriginalBl?: boolean;
+      requireSeparateGrnPoster?: boolean;
+      defaultReceivingLocationId?: string | null;
+    };
+    lines: Array<{
+      shipmentItemId: string;
+      importPoItemId?: string | null;
+      productId: string | null;
       productName: string;
       sku?: string | null;
       uom: string;
       orderedQty: number;
+      shippedQty: number;
       previouslyReceivedQty: number;
       remainingQty: number;
       unitPrice: number;
+      receivedOfLabel?: string;
     }>;
   }> => {
-    const res = await apiClient.get(`/api/import/purchase-orders/${importPoId}/receiving-preview`);
+    const res = await apiClient.get(`/api/import/shipments/${shipmentId}/receiving-preview`);
+    return res.data.data;
+  },
+
+  verifyShipmentOriginalBl: async (
+    shipmentId: string,
+    data: { receivedAt?: string } = {}
+  ): Promise<any> => {
+    const res = await apiClient.post(`/api/import/shipments/${shipmentId}/verify-original-bl`, data);
     return res.data.data;
   },
 
@@ -1364,9 +1531,21 @@ export const importApi = {
       confirmNow?: boolean;
       idempotencyKey?: string;
       locationId?: string;
+      earlyReceiveReason?: string;
+      receivedBy?: string;
     }
   ): Promise<ImportGrn> => {
     const res = await apiClient.post('/api/import/grns', data);
+    return res.data.data;
+  },
+
+  postGrn: async (id: string): Promise<ImportGrn> => {
+    const res = await apiClient.post(`/api/import/grns/${id}/post`);
+    return res.data.data;
+  },
+
+  cancelGrn: async (id: string, data: { reason: string }): Promise<ImportGrn> => {
+    const res = await apiClient.post(`/api/import/grns/${id}/cancel`, data);
     return res.data.data;
   },
 
@@ -1446,28 +1625,28 @@ export const importApi = {
 
   listBills: async (params: Record<string, any> = {}): Promise<PaginatedResponse<ImportSupplierBill>> => {
     const res = await apiClient.get(`/api/import/bills${buildQuery(params)}`);
-    return res.data.data;
+    return unwrapImport<PaginatedResponse<ImportSupplierBill>>(res, 'Failed to load supplier bills');
   },
 
   getBill: async (id: string): Promise<ImportSupplierBill> => {
     const res = await apiClient.get(`/api/import/bills/${id}`);
-    return res.data.data;
+    return unwrapImport<ImportSupplierBill>(res, 'Failed to load supplier bill');
   },
 
   createBill: async (data: Partial<ImportSupplierBill> & Record<string, unknown>): Promise<ImportSupplierBill> => {
     const res = await apiClient.post('/api/import/bills', data);
-    return res.data.data;
+    return unwrapImport<ImportSupplierBill>(res, 'Failed to create supplier bill');
   },
 
   postBill: async (id: string): Promise<ImportSupplierBill> => {
     const res = await apiClient.post(`/api/import/bills/${id}/post`, {});
-    const data = res.data.data;
-    return data?.bill || data;
+    const data = unwrapImport<any>(res, 'Failed to post supplier bill');
+    return (data?.bill || data) as ImportSupplierBill;
   },
 
   recordBillPayment: async (id: string, paymentData: Record<string, any>): Promise<ImportSupplierBill> => {
     const res = await apiClient.post(`/api/import/bills/${id}/payment`, paymentData);
-    return res.data.data;
+    return unwrapImport<ImportSupplierBill>(res, 'Failed to record bill payment');
   },
 
   // ─── 12. Settings ──────────────────────────────────────────────────────────

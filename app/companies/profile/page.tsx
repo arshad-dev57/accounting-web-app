@@ -22,6 +22,7 @@ import { MainHubSidebar } from '../../../components/MainHubSidebar';
 import { TopBarBrand, notifyCompanyBrandingUpdated } from '../../../components/BrandHeader';
 import AppBreadcrumbs from '../../../components/AppBreadcrumbs';
 import ProfileDropdown, { type CompanyProfile } from '../../../components/ProfileDropdown';
+import NotificationDropdown from '../../../components/NotificationDropdown';
 import CompanySwitcher from '../../../components/CompanySwitcher';
 import { useCompanyOptional } from '../../../lib/company-context';
 import { fetchProfileCached, invalidateProfileCache } from '../../../lib/profile-cache';
@@ -141,6 +142,7 @@ export default function CompanyProfilePage() {
           <TopBarBrand title="Company Profile" icon={<Building2 className="h-5 w-5 text-[#014582]" />} />
           <div className="flex items-center gap-3">
             <CompanySwitcher />
+            <NotificationDropdown />
             <ProfileDropdown />
           </div>
         </header>

@@ -22,11 +22,13 @@ import {
   X,
   AlertTriangle,
   CheckCircle2,
+  KeyRound,
 } from 'lucide-react';
 import { BrandHeader, TopBarBrand } from '@/components/BrandHeader';
 import { CollapsibleSidebar, SidebarMain } from '@/components/CollapsibleSidebar';
 import AppBreadcrumbs from '@/components/AppBreadcrumbs';
 import GlobalSearch from '@/components/GlobalSearch';
+import NotificationDropdown from '@/components/NotificationDropdown';
 import CompanySwitcher from '@/components/CompanySwitcher';
 import ProfileDropdown from '@/components/ProfileDropdown';
 import { performLogout } from '@/lib/auth-logout';
@@ -168,6 +170,16 @@ export default function RolesManagementPage() {
             <span className="text-sm font-medium sidebar-expanded-only">Roles & Permissions</span>
           </button>
 
+          <button
+            type="button"
+            title="Approval Permissions"
+            onClick={() => router.push('/users/approvals-permissions')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <KeyRound className="w-4 h-4" />
+            <span className="text-sm font-medium sidebar-expanded-only">Approval Permissions</span>
+          </button>
+
           {SUBSCRIPTION_PURCHASE_UI_ENABLED && (
             <button
               type="button"
@@ -216,6 +228,7 @@ export default function RolesManagementPage() {
 
             <div className="flex items-center gap-3">
               <GlobalSearch />
+              <NotificationDropdown />
               <CompanySwitcher />
               <ProfileDropdown />
 

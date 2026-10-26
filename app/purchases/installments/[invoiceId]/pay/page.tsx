@@ -22,6 +22,18 @@ function lineBalance(line: InstallmentLine) {
 }
 
 export default function PayPurchaseInstallmentPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="p-10 text-center text-xs text-gray-400">Loading…</div>
+      }
+    >
+      <PayPurchaseInstallmentPageContent />
+    </React.Suspense>
+  );
+}
+
+function PayPurchaseInstallmentPageContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();

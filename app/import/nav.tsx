@@ -21,13 +21,23 @@ import {
   Home,
   LogOut,
   Boxes,
+  Inbox,
 } from 'lucide-react';
+import { usePermissions } from '../../lib/usePermissions';
 import { BrandHeader } from '../../components/BrandHeader';
 import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
 import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
 import { performLogout } from '../../lib/auth-logout';
 
-export const IMPORT_SECTIONS = [
+type ImportNavItem = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  /** When set, item is shown only if user has this permission (admins always see it). */
+  requirePermission?: string;
+};
+
+export const IMPORT_SECTIONS: Array<{ label: string; items: ImportNavItem[] }> = [
   {
     label: 'OVERVIEW',
     items: [
@@ -38,6 +48,12 @@ export const IMPORT_SECTIONS = [
     label: 'IMPORT OPERATIONS',
     items: [
       { href: '/import/rfqs', label: 'RFQs & Quotations', icon: FileQuestion },
+      {
+        href: '/import/approvals',
+        label: 'Approvals',
+        icon: Inbox,
+        requirePermission: 'import.rfqs.approve',
+      },
       { href: '/import/purchase-orders', label: 'Purchase Orders', icon: ShoppingCart },
       { href: '/import/proforma-invoices', label: 'Proforma Invoices', icon: FileCheck },
       { href: '/import/shipments', label: 'Shipments & Tracking', icon: Ship },
@@ -67,6 +83,7 @@ export const IMPORT_SECTIONS = [
 export function ImportSidebar() {
   const pathname = usePathname();
   const { collapsed } = useSidebarCollapsed();
+  const { can, isAdmin } = usePermissions();
   const isActive = (path: string): boolean =>
     pathname === path || pathname.startsWith(`${path}/`);
 
@@ -84,6 +101,9 @@ export function ImportSidebar() {
             )}
             <div className="space-y-0.5">
               {section.items.map((item) => {
+                if (item.requirePermission && !isAdmin && !can(item.requirePermission)) {
+                  return null;
+                }
                 const active = isActive(item.href);
                 const Icon = item.icon;
                 return (

@@ -241,6 +241,18 @@ export async function setCurrency(currency: {
       };
     }
 
+    // Keep company FX base in sync so Import POs / rates convert into this currency
+    // (not the default PKR company base).
+    try {
+      const { ensureCompanyBaseMatchesAppCurrency } = await import('./multi-currency');
+      await ensureCompanyBaseMatchesAppCurrency(currency.code, {
+        name: currency.name,
+        symbol: resolvedSymbol,
+      });
+    } catch {
+      /* non-fatal — local + user currency already saved */
+    }
+
     return { success: true, message: result.message || 'Currency updated' };
   } catch (e) {
     return {

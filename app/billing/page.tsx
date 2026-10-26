@@ -18,6 +18,7 @@ import { MainHubSidebar } from '../../components/MainHubSidebar';
 import { TopBarBrand } from '../../components/BrandHeader';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
+import NotificationDropdown from '../../components/NotificationDropdown';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import CurrentSubscriptionPanel from '../../components/CurrentSubscriptionPanel';
 import BillingInvoiceModal from '../../components/BillingInvoiceModal';
@@ -105,6 +106,7 @@ export default function BillingPage() {
           <TopBarBrand title="Billing" />
           <div className="flex items-center gap-3">
             <GlobalSearch />
+            <NotificationDropdown />
             <ProfileDropdown />
           </div>
         </header>

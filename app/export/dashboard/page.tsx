@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   Send,
@@ -11,7 +11,6 @@ import {
   DollarSign,
   Receipt,
   FolderArchive,
-  Truck,
   ArrowRight,
   Plus,
   ExternalLink,
@@ -19,6 +18,11 @@ import {
   BadgeDollarSign,
   Landmark,
   Coins,
+  RefreshCw,
+  AlertTriangle,
+  Search,
+  FileText,
+  CircleDollarSign,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -44,63 +48,125 @@ import {
   TradeTableBody,
   TradeTableRow,
   TradeTableCell,
-  MockBookBanner,
   TRADE_COLORS,
 } from '../../../components/trade/TradeUI';
-import { useTradeStore, getExportKpis } from '../../../lib/mock/trade-store';
-import { useCurrency } from '../../../lib/currency-context';
+import exportApi, {
+  errorMessage,
+  formatDate,
+  formatMoney,
+  type ExportDashboard,
+} from '../../../lib/export-api';
+import { useFiscalYear } from '../../../lib/fiscal-year-context';
 
-// Mathematically consistent monthly performance series in USD
-// Target: $210,000 | Actual Bookings: $233,500 (+11.19% ~ +11.2% above target)
-// Recognized Revenue: $84,000 (shipped/invoiced orders) | Realized Receipts: $25,200
-const MONTHLY_EXPORT_PERFORMANCE = [
-  { month: 'May 2026', target: 80000, bookings: 95000, recognizedRevenue: 95000 },
-  { month: 'Jun 2026', target: 100000, bookings: 110000, recognizedRevenue: 110000 },
-  { month: 'Jul 2026', target: 120000, bookings: 135000, recognizedRevenue: 135000 },
-  { month: 'Aug 2026', target: 150000, bookings: 168000, recognizedRevenue: 168000 },
-  { month: 'Sep 2026', target: 175000, bookings: 182000, recognizedRevenue: 182000 },
-  { month: 'Oct 2026 (MTD)', target: 210000, bookings: 233500, recognizedRevenue: 84000 },
-];
+const PIE_COLORS = ['#014582', '#0FA3E0', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'];
 
-// Breakdown of confirmed export contracts:
-// Total Confirmed = $149,500 (Saudi Arabia, 64.0%) + $84,000 (Singapore, 36.0%) = $233,500 (100.0%)
-const CONFIRMED_DESTINATIONS = [
-  { country: 'Saudi Arabia', revenue: 149500, percentage: 64.0, flag: '🇸🇦', port: 'Riyadh Dry Port', terms: 'LC 60 Days Usance' },
-  { country: 'Singapore', revenue: 84000, percentage: 36.0, flag: '🇸🇬', port: 'Port of Singapore', terms: '30% Adv, 70% vs BL' },
-];
+const EMPTY_DASHBOARD: ExportDashboard = {
+  reportingCurrency: 'USD',
+  range: { start: '', end: '' },
+  kpis: {
+    openInquiries: 0,
+    openQuotations: 0,
+    openOrders: 0,
+    pendingApprovals: 0,
+    contractedValue: 0,
+    invoicedValue: 0,
+    receiptsValue: 0,
+    advanceValue: 0,
+    receivableValue: 0,
+    invoiceCount: 0,
+    shipmentsInTransit: 0,
+    documentsCount: 0,
+  },
+  conversionWarnings: [],
+  byCountry: [],
+  monthly: [],
+  shipmentStatus: {},
+  recentOrders: [],
+  liveShipments: [],
+  recentReceipts: [],
+};
 
-// Active quotation pipeline (uncontracted inquiries / quotes)
-const PIPELINE_DESTINATIONS = [
-  { country: 'Australia', value: 91500, stage: 'Quotation Sent (EQT-2026-0082)', flag: '🇦🇺' },
-  { country: 'United Kingdom', value: 65000, stage: 'Technical Review (EINQ-2026-0061)', flag: '🇬🇧' },
-];
-
-const PIE_COLORS = ['#014582', '#0FA3E0'];
+function monthLabel(key: string) {
+  const [year, month] = key.split('-').map(Number);
+  if (!year || !month) return key;
+  return new Date(year, month - 1, 1).toLocaleDateString('en-GB', {
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
 export default function ExportDashboardPage() {
-  const { state } = useTradeStore();
-  const { code: systemCurrencyCode } = useCurrency();
-  const kpis = getExportKpis(state);
+  const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
+  const [data, setData] = useState<ExportDashboard>(EMPTY_DASHBOARD);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [useCustomRange, setUseCustomRange] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
-  // Exchange rate basis indicator for dual-currency reporting
-  const fxUsdToPkr = 278.50;
-  const formatDual = (usdVal: number) => {
-    const usdStr = `$${usdVal.toLocaleString()}`;
-    if (systemCurrencyCode === 'PKR') {
-      const pkrVal = Math.round(usdVal * fxUsdToPkr);
-      return `${usdStr} (PKR ${pkrVal.toLocaleString()})`;
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const query: Record<string, unknown> = {};
+      if (useCustomRange && startDate && endDate) {
+        query.startDate = startDate;
+        query.endDate = endDate;
+      } else if (selectedFiscalYearId) {
+        query.fiscalYearId = selectedFiscalYearId;
+      }
+      const res = await exportApi.getDashboard(query);
+      setData(res && res.kpis ? res : EMPTY_DASHBOARD);
+    } catch (e) {
+      setError(errorMessage(e, 'Failed to load export dashboard'));
+      setData(EMPTY_DASHBOARD);
+    } finally {
+      setLoading(false);
     }
-    return usdStr;
-  };
+  }, [selectedFiscalYearId, useCustomRange, startDate, endDate]);
 
-  const destinationChartData = CONFIRMED_DESTINATIONS.map((c) => ({
-    name: c.country,
-    value: c.revenue,
-  }));
+  useEffect(() => {
+    void load();
+  }, [load, reloadKey]);
 
-  const recentOrders = state.exportOrders.slice(0, 5);
-  const liveShipments = state.exportShipments.slice(0, 4);
-  const dispatches = state.exportDispatches.slice(0, 3);
+  const currency = data.reportingCurrency || 'USD';
+  const money = (value: number) => formatMoney(value, currency);
+
+  const destinationChartData = useMemo(
+    () => (data.byCountry || []).map((c) => ({ name: c.country, value: c.value })),
+    [data.byCountry]
+  );
+  const destinationTotal = destinationChartData.reduce((s, c) => s + Number(c.value || 0), 0);
+
+  const monthlyData = useMemo(
+    () =>
+      (data.monthly || []).map((m) => ({
+        month: monthLabel(m.month),
+        contracted: Number(m.contracted || 0),
+        invoiced: Number(m.invoiced || 0),
+      })),
+    [data.monthly]
+  );
+
+  const shipmentStatusRows = useMemo(
+    () =>
+      Object.entries(data.shipmentStatus || {})
+        .map(([status, count]) => ({ status, count }))
+        .sort((a, b) => b.count - a.count),
+    [data.shipmentStatus]
+  );
+
+  const kpis = data.kpis;
+  const recentOrders = (data.recentOrders || []).slice(0, 5);
+  const liveShipments = (data.liveShipments || []).slice(0, 4);
+  const recentReceipts = (data.recentReceipts || []).slice(0, 5);
+
+  const rangeLabel = useCustomRange
+    ? `${startDate || '…'} → ${endDate || '…'}`
+    : selectedFiscalYear?.name || (data.range?.start && data.range?.end
+        ? `${formatDate(data.range.start)} → ${formatDate(data.range.end)}`
+        : 'Current fiscal year');
 
   return (
     <TradePage>
@@ -112,10 +178,10 @@ export default function ExportDashboardPage() {
         actions={
           <div className="flex items-center gap-2">
             <Link
-              href="/sales/orders"
+              href="/export/inquiries"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white text-[#014582] text-xs font-bold hover:bg-white/90 transition-all shadow-sm"
             >
-              <Plus className="w-4 h-4" /> New Sales Order (ERP)
+              <Plus className="w-4 h-4" /> New Export Inquiry
             </Link>
             <Link
               href="/export/reports"
@@ -127,210 +193,269 @@ export default function ExportDashboardPage() {
         }
       />
 
-      <MockBookBanner
-        moduleName="Export Management"
-        ownershipNote="International export book only (ESO-* / ESHP-* / EREC-*). Domestic trading orders (TSO-*) are owned by Trading and are not included here."
-      />
-
-      {/* Explicit Currency and Valuation Basis Banner */}
-      <div className="mb-4 p-3 rounded-xl bg-[#014582]/5 border border-[#014582]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+      {/* Reporting basis + period filter */}
+      <div className="mb-4 p-3 rounded-xl bg-[#014582]/5 border border-[#014582]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2 text-slate-800">
           <Coins className="w-4 h-4 text-[#014582] shrink-0" />
           <span className="font-semibold">Reporting currency:</span>
           <span className="text-slate-600">
-            Contract amounts in <strong>USD</strong>. ERP display currency:{' '}
-            <strong>{systemCurrencyCode}</strong>. Dual labels use illustrative FX{' '}
-            <strong>1 USD = {fxUsdToPkr.toFixed(2)} PKR</strong> (demo rate — not live Accounting FX).
+            Consolidated in <strong>{currency}</strong> · Period: <strong>{rangeLabel}</strong>
           </span>
         </div>
-        <Link
-          href="/sales/orders"
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white text-[#014582] border border-[#014582]/20 hover:bg-[#014582]/5"
-        >
-          <ExternalLink className="w-3 h-3" /> Sales Orders (ERP)
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex items-center gap-1 text-[11px] text-slate-600">
+            <input
+              type="checkbox"
+              checked={useCustomRange}
+              onChange={(e) => setUseCustomRange(e.target.checked)}
+              className="w-3.5 h-3.5"
+            />
+            Custom dates
+          </label>
+          {useCustomRange ? (
+            <>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="rounded-lg border border-[#014582]/20 bg-white px-2 py-1 text-[11px] text-slate-700"
+              />
+              <span className="text-slate-400">→</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="rounded-lg border border-[#014582]/20 bg-white px-2 py-1 text-[11px] text-slate-700"
+              />
+            </>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white text-[#014582] border border-[#014582]/20">
+              Fiscal year: {selectedFiscalYear?.name || 'Auto'}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setReloadKey((v) => v + 1)}
+            disabled={loading}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white text-[#014582] border border-[#014582]/20 hover:bg-[#014582]/5 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+        </div>
       </div>
 
-      {/* Primary Financial Distinction Cards: Bookings vs Recognized Revenue vs Collected Receipts */}
+      {error && (
+        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" /> {error}
+          </span>
+          <button
+            type="button"
+            onClick={() => setReloadKey((v) => v + 1)}
+            className="text-xs font-bold underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {(data.conversionWarnings || []).length > 0 && (
+        <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 space-y-1">
+          <p className="font-bold flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5" /> Currency consolidation warnings
+          </p>
+          {data.conversionWarnings.map((w) => (
+            <p key={w}>• {w}</p>
+          ))}
+        </div>
+      )}
+
+      {loading && (
+        <div className="mb-4 flex items-center gap-2 text-sm text-gray-500 animate-pulse">
+          <RefreshCw className="w-4 h-4 animate-spin" /> Loading export book…
+        </div>
+      )}
+
+      {/* Primary financial cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
         <TradeStatCard
-          label="Contracted Export Order Value (USD)"
-          value={formatDual(kpis.contractedExportOrderValueUsd)}
+          label={`Contracted Export Order Value (${currency})`}
+          value={money(kpis.contractedValue)}
           icon={FileCheck2}
           color={TRADE_COLORS.primary}
-          hint={`Backlog $${kpis.unfulfilledBacklogUsd.toLocaleString()} + recognized $${kpis.recognizedExportRevenueUsd.toLocaleString()}`}
+          hint={`${kpis.openOrders} open order(s) · invoiced ${money(kpis.invoicedValue)}`}
           href="/export/orders"
         />
         <TradeStatCard
-          label="Recognized Export Revenue (USD)"
-          value={formatDual(kpis.recognizedExportRevenueUsd)}
+          label={`Recognized Export Revenue (${currency})`}
+          value={money(kpis.invoicedValue)}
           icon={DollarSign}
           color={TRADE_COLORS.accent}
-          hint="Shipped / on-board / dispatched orders with commercial invoice"
+          hint={`${kpis.invoiceCount} order(s) with commercial invoice posted`}
           href="/export/shipments"
         />
         <TradeStatCard
-          label="Collected Receipts — Net Realized (USD)"
-          value={formatDual(kpis.realizedReceiptsUsd)}
+          label={`Collected Receipts — Gross Realized (${currency})`}
+          value={money(kpis.receiptsValue)}
           icon={BadgeDollarSign}
           color={TRADE_COLORS.success}
-          hint={`Gross remittance $${kpis.grossRemittanceUsd.toLocaleString()} less bank charges`}
+          hint={`Advances ${money(kpis.advanceValue)} · settled through export receipts`}
           href="/export/receipts"
         />
       </div>
 
-      {/* Secondary Operational & Balance Breakdown Cards */}
+      {/* Operational cards */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
         <TradeStatCard
-          label="Outstanding Invoiced A/R (USD)"
-          value={formatDual(kpis.outstandingInvoicedReceivablesUsd)}
+          label={`Outstanding Export A/R (${currency})`}
+          value={money(kpis.receivableValue)}
           icon={Receipt}
           color={TRADE_COLORS.danger}
-          hint="Open invoice balances after allocated receipts (not LC-backed)"
+          hint="Open balances after allocated advances and receipts"
           href="/export/receipts"
         />
         <TradeStatCard
-          label="LC-Secured Unshipped (USD)"
-          value={formatDual(kpis.lcSecuredReceivablesUsd)}
+          label="Open Export Orders"
+          value={kpis.openOrders}
           icon={Landmark}
           color={TRADE_COLORS.purple}
-          hint={`Only confirmed LC cover (${kpis.lcCoverPct.toFixed(0)}% of bookings) — Al-Noor`}
-          href="/export/finance"
+          hint={`${kpis.pendingApprovals} quotation(s) awaiting approval`}
+          href="/export/orders"
         />
         <TradeStatCard
           label="Ocean Shipments in Transit"
-          value={kpis.inTransit}
+          value={kpis.shipmentsInTransit}
           icon={Send}
           color={TRADE_COLORS.accent}
-          hint={`${kpis.shipmentCount} shipment record(s) in mock book`}
+          hint={`${shipmentStatusRows.length} shipment stage(s) recorded`}
           href="/export/shipments"
         />
         <TradeStatCard
-          label="Customs LEO Granted"
-          value={kpis.customsCleared}
-          icon={ShieldCheck}
+          label="Open Inquiry Pipeline"
+          value={kpis.openInquiries}
+          icon={Search}
           color={TRADE_COLORS.primary}
-          hint={`${kpis.customsPending} declaration(s) still pending`}
-          href="/export/customs"
+          hint={`${kpis.openQuotations} open quotation(s) in negotiation`}
+          href="/export/inquiries"
         />
         <TradeStatCard
           label="Export Shipping Documents"
-          value={kpis.totalExportDocuments}
+          value={kpis.documentsCount}
           icon={FolderArchive}
           color={TRADE_COLORS.warning}
-          hint={`${kpis.pendingExportDocuments} pending, ${kpis.legalizedOrDispatchedDocuments} legalized/dispatched`}
+          hint="Document centre records for export orders"
           href="/export/documents"
         />
       </div>
 
-      {/* Charts Section */}
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Monthly Export Revenue Chart */}
         <div className="lg:col-span-2">
           <TradeCard
-            title="Monthly Export Performance (USD)"
-            subtitle="Contracted Bookings & Recognized Revenue vs Target (All amounts in USD)"
+            title={`Monthly Export Performance (${currency})`}
+            subtitle="Contracted bookings and recognized invoiced revenue by order month"
             action={
-              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                Bookings: +11.2% Above Target
+              <span className="text-xs font-semibold text-[#014582] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+                {monthlyData.length} month(s) in range
               </span>
             }
           >
             <div className="h-[280px] w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={MONTHLY_EXPORT_PERFORMANCE} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(val) => `$${val / 1000}k`} />
-                  <Tooltip
-                    formatter={(val, name) => [`$${Number(val ?? 0).toLocaleString()} USD`, String(name ?? '')]}
-                    contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: '10px' }} />
-                  <Bar dataKey="bookings" name="Contracted Bookings ($)" fill="#014582" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="recognizedRevenue" name="Recognized Shipped Revenue ($)" fill="#0FA3E0" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="target" name="Monthly Target ($)" fill="#10B981" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {monthlyData.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-xs text-gray-400">
+                  No export orders in the selected period.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(val) => `${currency} ${val / 1000}k`} />
+                    <Tooltip
+                      formatter={(val, name) => [formatMoney(Number(val ?? 0), currency), String(name ?? '')]}
+                      contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12, paddingTop: '10px' }} />
+                    <Bar dataKey="contracted" name="Contracted Bookings" fill="#014582" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="invoiced" name="Recognized Invoiced Revenue" fill="#0FA3E0" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </TradeCard>
         </div>
 
-        {/* Destination Countries */}
         <div>
           <TradeCard
             title="Export Sales by Destination"
-            subtitle="Confirmed Contracts & Pipeline (USD)"
+            subtitle="Contracted value by buyer country"
           >
             <div className="h-[280px] w-full flex flex-col justify-between">
               <div className="h-[150px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={destinationChartData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={65}
-                      innerRadius={40}
-                      paddingAngle={3}
-                    >
-                      {destinationChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(val) => [`$${Number(val ?? 0).toLocaleString()} USD`, 'Confirmed']}
-                      contentStyle={{ borderRadius: '10px', fontSize: '11px' }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                {destinationChartData.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-xs text-gray-400">
+                    No destination data in range.
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={destinationChartData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={65}
+                        innerRadius={40}
+                        paddingAngle={3}
+                      >
+                        {destinationChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(val) => [formatMoney(Number(val ?? 0), currency), 'Contracted']}
+                        contentStyle={{ borderRadius: '10px', fontSize: '11px' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
               </div>
 
-              {/* Confirmed Contracts Breakdown */}
-              <div className="space-y-1.5 text-xs pt-2 border-t border-gray-100">
+              <div className="space-y-1.5 text-xs pt-2 border-t border-gray-100 overflow-y-auto max-h-[120px]">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Confirmed Contracts ($233.5K Total)
+                  Contracted {money(destinationTotal)}
                 </p>
-                {CONFIRMED_DESTINATIONS.map((c) => (
-                  <div key={c.country} className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 font-medium text-gray-700">
-                      <span>{c.flag}</span>
+                {data.byCountry.map((c) => (
+                  <div key={c.country} className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 font-medium text-gray-700 min-w-0">
+                      <span className="w-2 h-2 rounded-full bg-[#014582] shrink-0" />
                       <span className="truncate max-w-[120px]">{c.country}</span>
-                      <span className="text-[10px] text-slate-400">({c.percentage}%)</span>
+                      <span className="text-[10px] text-slate-400">({c.orders})</span>
                     </span>
-                    <span className="font-bold text-gray-900">${c.revenue.toLocaleString()}</span>
+                    <span className="font-bold text-gray-900 whitespace-nowrap">{money(c.value)}</span>
                   </div>
                 ))}
               </div>
 
-              {/* Active Pipeline Preview */}
               <div className="pt-2 border-t border-dashed border-gray-200">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                  Active Pipeline (Inquiries & Quotes)
-                </p>
-                {PIPELINE_DESTINATIONS.map((p) => (
-                  <div key={p.country} className="flex items-center justify-between text-[11px] text-slate-600">
-                    <span className="flex items-center gap-1">
-                      <span>{p.flag}</span>
-                      <span className="truncate max-w-[130px]">{p.country}: {p.stage}</span>
-                    </span>
-                    <span className="font-semibold text-slate-800">${p.value.toLocaleString()}</span>
-                  </div>
-                ))}
+                <Link
+                  href="/export/reports"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#014582] hover:underline"
+                >
+                  Open territorial report <ArrowRight className="w-3 h-3" />
+                </Link>
               </div>
             </div>
           </TradeCard>
         </div>
       </div>
 
-      {/* Shipment Tracking & Recent Orders */}
+      {/* Shipments + orders */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Shipment Tracking */}
         <TradeCard
           title="Outbound Shipment Tracking"
-          subtitle="Live vessel voyages, carrier status and ports of discharge"
+          subtitle="Vessel voyages, carrier status and ports of discharge"
           action={
             <Link
               href="/export/shipments"
@@ -341,47 +466,52 @@ export default function ExportDashboardPage() {
           }
         >
           <div className="space-y-4">
-            {liveShipments.map((shp) => (
-              <div
-                key={shp.id}
-                className="p-3.5 rounded-xl border border-gray-200 bg-gray-50/60 hover:bg-white hover:border-[#014582]/40 transition-all shadow-2xs space-y-2.5"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Send className="w-4 h-4 text-[#014582]" />
-                    <span className="text-xs font-bold text-gray-900">{shp.shipmentNumber}</span>
-                    <span className="text-xs text-gray-400">•</span>
-                    <span className="text-xs text-gray-600">{shp.blNumber}</span>
+            {liveShipments.length === 0 ? (
+              <p className="text-xs text-gray-400 py-6 text-center">No live export shipments.</p>
+            ) : (
+              liveShipments.map((shp) => (
+                <div
+                  key={shp.id}
+                  className="p-3.5 rounded-xl border border-gray-200 bg-gray-50/60 hover:bg-white hover:border-[#014582]/40 transition-all shadow-2xs space-y-2.5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Send className="w-4 h-4 text-[#014582] shrink-0" />
+                      <span className="text-xs font-bold text-gray-900">{shp.shipmentNumber}</span>
+                      <span className="text-xs text-gray-400">•</span>
+                      <span className="text-xs text-gray-600 truncate">{shp.blNumber || 'B/L pending'}</span>
+                    </div>
+                    <TradeStatusBadge status={shp.shipmentStatus} />
                   </div>
-                  <TradeStatusBadge status={shp.shipmentStatus} />
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-gray-400 block text-[10px] uppercase">Route</span>
-                    <span className="font-medium text-gray-800 truncate block">
-                      {shp.portOfLoading} → {shp.portOfDischarge}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-gray-400 block text-[10px] uppercase">Route</span>
+                      <span className="font-medium text-gray-800 truncate block">
+                        {shp.portOfLoading || '—'} → {shp.portOfDischarge || '—'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block text-[10px] uppercase">Shipping Line & Vessel</span>
+                      <span className="font-medium text-gray-800 truncate block">
+                        {shp.shippingLine || '—'} ({shp.vesselName || '—'})
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-emerald-50/70 border border-emerald-100 flex items-start gap-2 text-xs text-emerald-900">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+                    <span className="text-[11px] leading-tight font-medium">
+                      {shp.currentPosition || 'Position not updated'}
+                    </span>
+                    <span className="ml-auto text-[11px] font-bold text-emerald-700 whitespace-nowrap">
+                      ETA: {formatDate(shp.eta)}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-gray-400 block text-[10px] uppercase">Shipping Line & Vessel</span>
-                    <span className="font-medium text-gray-800 truncate block">
-                      {shp.shippingLine} ({shp.vesselName})
-                    </span>
-                  </div>
                 </div>
-                <div className="p-2 rounded-lg bg-emerald-50/70 border border-emerald-100 flex items-start gap-2 text-xs text-emerald-900">
-                  <MapPin className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
-                  <span className="text-[11px] leading-tight font-medium">{shp.currentPosition}</span>
-                  <span className="ml-auto text-[11px] font-bold text-emerald-700 whitespace-nowrap">
-                    ETA: {shp.eta}
-                  </span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </TradeCard>
 
-        {/* Recent Export Orders */}
         <TradeCard
           title="Recent Export Sales Orders"
           subtitle="Overseas contracts confirmed and in fulfillment"
@@ -394,111 +524,143 @@ export default function ExportDashboardPage() {
             </Link>
           }
         >
-          <TradeTable>
-            <TradeTableHeader columns={['Order No', 'Customer', 'Destination', 'Contract Value', 'Payment Term', 'Status']} />
-            <TradeTableBody>
-              {recentOrders.map((ord) => (
-                <TradeTableRow key={ord.id}>
-                  <TradeTableCell className="font-bold text-[#014582]">
-                    <Link href={`/export/orders?order=${ord.orderNumber}`} className="hover:underline">
-                      {ord.orderNumber}
-                    </Link>
-                  </TradeTableCell>
-                  <TradeTableCell>
-                    <span className="font-medium text-gray-800 block truncate max-w-[130px]">{ord.customerName}</span>
-                    <span className="text-[10px] text-gray-400">{ord.customerCountry}</span>
-                  </TradeTableCell>
-                  <TradeTableCell>
-                    <span className="text-xs text-gray-700 truncate max-w-[120px] block">{ord.destinationPort}</span>
-                  </TradeTableCell>
-                  <TradeTableCell className="font-bold text-gray-900">
-                    {formatDual(ord.totalOrderUsd)}
-                  </TradeTableCell>
-                  <TradeTableCell>
-                    <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded truncate max-w-[130px] block">
-                      {ord.paymentTerms}
-                    </span>
-                  </TradeTableCell>
-                  <TradeTableCell>
-                    <TradeStatusBadge status={ord.status} />
-                  </TradeTableCell>
-                </TradeTableRow>
-              ))}
-            </TradeTableBody>
-          </TradeTable>
+          {recentOrders.length === 0 ? (
+            <p className="text-xs text-gray-400 py-6 text-center">No export orders yet.</p>
+          ) : (
+            <TradeTable>
+              <TradeTableHeader columns={['Order No', 'Customer', 'Destination', 'Contract Value', 'Payment Term', 'Status']} />
+              <TradeTableBody>
+                {recentOrders.map((ord) => (
+                  <TradeTableRow key={ord.id}>
+                    <TradeTableCell className="font-bold text-[#014582]">
+                      <Link href={`/export/orders?order=${ord.orderNumber}`} className="hover:underline">
+                        {ord.orderNumber}
+                      </Link>
+                    </TradeTableCell>
+                    <TradeTableCell>
+                      <span className="font-medium text-gray-800 block truncate max-w-[130px]">{ord.customerName}</span>
+                      <span className="text-[10px] text-gray-400">{ord.customerCountry || '—'}</span>
+                    </TradeTableCell>
+                    <TradeTableCell>
+                      <span className="text-xs text-gray-700 truncate max-w-[120px] block">
+                        {ord.destinationPort || '—'}
+                      </span>
+                    </TradeTableCell>
+                    <TradeTableCell className="font-bold text-gray-900">
+                      {formatMoney(ord.totalForeign, ord.currency)}
+                      {ord.currency !== currency ? (
+                        <span className="block text-[10px] font-normal text-gray-400">
+                          ≈ {formatMoney(ord.totalBase, currency)}
+                        </span>
+                      ) : null}
+                    </TradeTableCell>
+                    <TradeTableCell>
+                      <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded truncate max-w-[130px] block">
+                        {ord.paymentTerms || '—'}
+                      </span>
+                    </TradeTableCell>
+                    <TradeTableCell>
+                      <TradeStatusBadge status={ord.status} />
+                    </TradeTableCell>
+                  </TradeTableRow>
+                ))}
+              </TradeTableBody>
+            </TradeTable>
+          )}
         </TradeCard>
       </div>
 
-      {/* Dispatches & Activities */}
+      {/* Receipts + workflow snapshot */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <TradeCard
-            title="Upcoming & Live Port Dispatches"
-            subtitle="Factory gate-out to container terminal gate-in status"
+            title="Recent Export Receipts"
+            subtitle="Advances and settlement remittances recorded against export orders"
             action={
               <Link
-                href="/export/dispatch"
+                href="/export/receipts"
                 className="text-xs font-semibold text-[#014582] hover:underline flex items-center gap-1"
               >
-                Dispatch Hub <ArrowRight className="w-3.5 h-3.5" />
+                Receipt Ledger <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             }
           >
-            <div className="space-y-3">
-              {dispatches.map((disp) => (
-                <div
-                  key={disp.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50/70 transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#014582] flex items-center justify-center shrink-0">
-                      <Truck className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-gray-900">{disp.dispatchNumber} ({disp.orderRef})</p>
-                      <p className="text-[11px] text-gray-500">
-                        {disp.transporterName} • Vehicle: {disp.truckNo} • Driver: {disp.driverName}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
-                      Seal: {disp.sealNo}
-                    </span>
-                    <TradeStatusBadge status={disp.status} />
-                  </div>
-                </div>
-              ))}
-            </div>
+            {recentReceipts.length === 0 ? (
+              <p className="text-xs text-gray-400 py-6 text-center">No export receipts recorded yet.</p>
+            ) : (
+              <TradeTable>
+                <TradeTableHeader columns={['Receipt No', 'Buyer', 'Type', 'Date', 'Foreign Amount', 'Net (base)', 'Status']} />
+                <TradeTableBody>
+                  {recentReceipts.map((r) => (
+                    <TradeTableRow key={r.id}>
+                      <TradeTableCell className="font-bold text-[#014582]">{r.receiptNumber}</TradeTableCell>
+                      <TradeTableCell className="text-gray-800 font-medium truncate max-w-[150px]">
+                        {r.customerName}
+                      </TradeTableCell>
+                      <TradeTableCell>
+                        <span className="text-[11px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                          {r.receiptType}
+                        </span>
+                      </TradeTableCell>
+                      <TradeTableCell className="text-gray-600 text-xs">{formatDate(r.receiptDate)}</TradeTableCell>
+                      <TradeTableCell className="font-semibold text-gray-900">
+                        {formatMoney(r.foreignAmount, r.currency)}
+                      </TradeTableCell>
+                      <TradeTableCell className="font-bold text-emerald-700">
+                        {formatMoney(r.netBase, currency)}
+                      </TradeTableCell>
+                      <TradeTableCell>
+                        <TradeStatusBadge status={r.status} />
+                      </TradeTableCell>
+                    </TradeTableRow>
+                  ))}
+                </TradeTableBody>
+              </TradeTable>
+            )}
           </TradeCard>
         </div>
 
         <div>
-          <TradeCard title="Export Operations Stream" subtitle="Live milestones & alerts">
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-                <div className="text-xs">
-                  <p className="font-semibold text-gray-900">Let Export Order (LEO) Granted</p>
-                  <p className="text-gray-500 text-[11px]">Shipping Bill EXP-SB-2026-9921 cleared by Dubai Customs.</p>
-                  <span className="text-[10px] text-gray-400">Oct 7, 2026 • Port Jebel Ali</span>
-                </div>
+          <TradeCard title="Export Workflow Snapshot" subtitle="Live pipeline and shipment milestones">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                <span className="text-xs text-gray-600 flex items-center gap-2">
+                  <Search className="w-3.5 h-3.5 text-[#014582]" /> Open inquiries
+                </span>
+                <strong className="text-sm text-gray-900">{kpis.openInquiries}</strong>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                <div className="text-xs">
-                  <p className="font-semibold text-gray-900">Container Stuffed & Sealed</p>
-                  <p className="text-gray-500 text-[11px]">CMAU7719280 passed SGS pre-shipment inspection.</p>
-                  <span className="text-[10px] text-gray-400">Oct 12, 2026 • Certificate SGS-CERT-AE-8819</span>
-                </div>
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                <span className="text-xs text-gray-600 flex items-center gap-2">
+                  <FileText className="w-3.5 h-3.5 text-[#014582]" /> Open quotations
+                </span>
+                <strong className="text-sm text-gray-900">{kpis.openQuotations}</strong>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 rounded-full bg-purple-500 mt-1.5 shrink-0" />
-                <div className="text-xs">
-                  <p className="font-semibold text-gray-900">Forex Advance Remittance Realized</p>
-                  <p className="text-gray-500 text-[11px]">USD 25,165 credited to Nostro account from SingaTrade.</p>
-                  <span className="text-[10px] text-gray-400">Aug 25, 2026 • Ref EREC-2026-0019</span>
-                </div>
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                <span className="text-xs text-gray-600 flex items-center gap-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" /> Pending approvals
+                </span>
+                <strong className="text-sm text-gray-900">{kpis.pendingApprovals}</strong>
+              </div>
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                <span className="text-xs text-gray-600 flex items-center gap-2">
+                  <FolderArchive className="w-3.5 h-3.5 text-purple-600" /> Shipping documents
+                </span>
+                <strong className="text-sm text-gray-900">{kpis.documentsCount}</strong>
+              </div>
+              <div className="pt-2 border-t border-gray-100">
+                <p className="text-[10px] font-bold uppercase text-gray-400 mb-1.5">Shipment stages</p>
+                {shipmentStatusRows.length === 0 ? (
+                  <p className="text-xs text-gray-400">No shipment records in this company.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {shipmentStatusRows.map((row) => (
+                      <div key={row.status} className="flex items-center justify-between text-[11px]">
+                        <span className="text-gray-600 truncate max-w-[150px]">{row.status}</span>
+                        <strong className="text-gray-900">{row.count}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </TradeCard>
