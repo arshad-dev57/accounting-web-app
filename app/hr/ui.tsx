@@ -1,21 +1,19 @@
 'use client';
 
+/**
+ * HR chrome aligned to Bisonstechs app brand (#014582), dense desk layout,
+ * hairline borders, and full-width content (no centered max-width gutters).
+ */
+
 import React from 'react';
 import Link from 'next/link';
-import {
-  ArrowLeft,
-  Search,
-  type LucideIcon,
-} from 'lucide-react';
+import { Search, type LucideIcon } from 'lucide-react';
 
-// ============================================================
-// PAGE HEADER — mirrors the mobile app's blue top header
-// ============================================================
 export function HRPageHeader({
   title,
   subtitle,
   backHref,
-  actions,
+  actions
 }: {
   title: string;
   subtitle?: string;
@@ -23,44 +21,27 @@ export function HRPageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="relative overflow-hidden bg-gradient-to-r from-[#00274d] via-[#014582] to-blue-700 rounded-2xl px-6 py-5 flex items-center justify-between mb-6 shadow-xl">
-      <div className="absolute -right-10 -top-14 w-48 h-48 rounded-full bg-white/10 pointer-events-none" />
-      <div className="flex items-center gap-3 relative min-w-0">
-        {backHref && (
-          <Link
-            href={backHref}
-            className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center hover:bg-white/25 transition-all flex-shrink-0"
-          >
-            <ArrowLeft className="w-4 h-4 text-white" />
+    <div className="mb-5 flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        {backHref ? (
+          <Link href={backHref} className="mb-1 inline-block text-xs font-semibold text-[#7A8FA6] hover:text-[#014582]">
+            ← Back
           </Link>
-        )}
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/20 uppercase tracking-wider">
-              HR Layer
-            </span>
-            <span className="text-xs text-white/70">Real-time ERP Sync</span>
-          </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">{title}</h1>
-          {subtitle && (
-            <p className="text-xs text-white/80 font-medium mt-1">{subtitle}</p>
-          )}
-        </div>
+        ) : null}
+        <h1 className="text-2xl font-extrabold leading-tight text-[#1A1A2E]">{title}</h1>
+        {subtitle ? <p className="mt-1 text-sm text-[#52677E]">{subtitle}</p> : null}
       </div>
-      {actions && <div className="relative flex items-center gap-2 flex-shrink-0">{actions}</div>}
+      {actions ? <div className="flex flex-shrink-0 items-center gap-2">{actions}</div> : null}
     </div>
   );
 }
 
-// ============================================================
-// STAT CARD — mirrors the mobile dashboard stats grid
-// ============================================================
 export function HRStatCard({
   label,
   value,
   icon: Icon,
   color,
-  hint,
+  hint
 }: {
   label: string;
   value: string | number;
@@ -69,30 +50,26 @@ export function HRStatCard({
   hint?: string;
 }) {
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-[#DDE4EE]">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-[#7A8FA6]">{label}</span>
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center"
-          style={{ backgroundColor: `${color}1A` }}
-        >
-          <Icon className="w-4 h-4" style={{ color }} />
-        </div>
+    <div className="rounded-2xl border border-[#DDE4EE] bg-white px-4 py-3.5 shadow-sm">
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-[#7A8FA6]">{label}</span>
+        <Icon className="h-4 w-4" style={{ color }} />
       </div>
-      <p className="text-2xl font-extrabold text-[#1A1A2E]">{value}</p>
-      {hint && <p className="text-[10px] font-medium mt-1" style={{ color }}>{hint}</p>}
+      <p className="text-[22px] font-extrabold text-[#1A1A2E]">{value}</p>
+      {hint ? (
+        <p className="mt-0.5 text-[11px]" style={{ color }}>
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }
 
-// ============================================================
-// CARD — white rounded card like the mobile kCardBg
-// ============================================================
 export function HRCard({
   title,
   action,
   children,
-  className = '',
+  className = ''
 }: {
   title?: string;
   action?: React.ReactNode;
@@ -100,16 +77,14 @@ export function HRCard({
   className?: string;
 }) {
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-[#DDE4EE] ${className}`}>
+    <div className={`rounded-2xl border border-[#DDE4EE] bg-white shadow-sm ${className}`}>
       {(title || action) && (
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#DDE4EE]">
-          {title && (
-            <h2 className="text-sm font-bold text-[#1A1A2E]">{title}</h2>
-          )}
+        <div className="flex items-center justify-between border-b border-[#DDE4EE] px-4 py-3">
+          {title ? <h2 className="text-sm font-bold text-[#1A1A2E]">{title}</h2> : <span />}
           {action}
         </div>
       )}
-      <div className="p-5">{children}</div>
+      <div className="p-4">{children}</div>
     </div>
   );
 }
@@ -121,22 +96,43 @@ export function HRActionButton({
   variant = 'primary',
   icon: Icon,
   className = '',
+  disabled = false,
+  type = 'button'
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   href?: string;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   icon?: LucideIcon;
   className?: string;
+  disabled?: boolean;
+  type?: 'button' | 'submit';
 }) {
   const styles = {
-    primary: 'bg-[#014582] text-white hover:bg-[#013a6b] shadow-sm',
-    secondary: 'bg-white text-[#014582] border border-[#DDE4EE] hover:border-[#014582]/40 hover:bg-[#F7FAFC]',
+    primary: 'bg-[#014582] text-white hover:bg-[#01366a]',
+    secondary: 'bg-white text-[#1A1A2E] border border-[#DDE4EE] hover:bg-[#F0F4F8]',
     ghost: 'text-[#52677E] hover:bg-[#F0F4F8] hover:text-[#014582]',
+    danger: 'bg-white text-[#e24c4c] border border-[#f5c2c2] hover:bg-[#fff5f5]'
   };
-  const content = <>{Icon && <Icon className="w-4 h-4" />}{children}</>;
-  const cls = `inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${styles[variant]} ${className}`;
-  return href ? <Link href={href} className={cls}>{content}</Link> : <button type="button" onClick={onClick} className={cls}>{content}</button>;
+  const content = (
+    <>
+      {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+      {children}
+    </>
+  );
+  const cls = `inline-flex h-9 items-center justify-center gap-1.5 rounded-xl px-3.5 text-[12px] font-bold transition-all disabled:opacity-40 ${styles[variant]} ${className}`;
+  if (href) {
+    return (
+      <Link href={href} className={cls} aria-disabled={disabled}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <button type={type} onClick={onClick} className={cls} disabled={disabled}>
+      {content}
+    </button>
+  );
 }
 
 export function HRToolbar({
@@ -144,7 +140,7 @@ export function HRToolbar({
   setSearch,
   placeholder = 'Search records...',
   filters,
-  right,
+  right
 }: {
   search?: string;
   setSearch?: (value: string) => void;
@@ -153,10 +149,14 @@ export function HRToolbar({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-[#DDE4EE] bg-white p-3.5 mb-4 md:flex-row md:items-center">
-      {setSearch && <div className="w-full md:max-w-sm"><HRSearchInput value={search || ''} onChange={setSearch} placeholder={placeholder} /></div>}
-      {filters && <div className="flex items-center gap-2 overflow-x-auto">{filters}</div>}
-      {right && <div className="flex items-center gap-2 md:ml-auto">{right}</div>}
+    <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-[#DDE4EE] bg-white px-3 py-2.5 shadow-sm md:flex-row md:items-center">
+      {setSearch ? (
+        <div className="w-full md:max-w-xs">
+          <HRSearchInput value={search || ''} onChange={setSearch} placeholder={placeholder} />
+        </div>
+      ) : null}
+      {filters ? <div className="flex items-center gap-2 overflow-x-auto">{filters}</div> : null}
+      {right ? <div className="flex items-center gap-2 md:ml-auto">{right}</div> : null}
     </div>
   );
 }
@@ -165,7 +165,7 @@ export function HRWorkflowNotice({
   title,
   detail,
   tone = 'blue',
-  action,
+  action
 }: {
   title: string;
   detail: string;
@@ -173,34 +173,49 @@ export function HRWorkflowNotice({
   action?: React.ReactNode;
 }) {
   const tones = {
-    blue: 'bg-[#014582]/[0.06] border-[#014582]/15 text-[#014582]',
-    amber: 'bg-[#F39C12]/[0.08] border-[#F39C12]/20 text-[#925B00]',
-    green: 'bg-[#2ECC71]/[0.08] border-[#2ECC71]/20 text-[#187A42]',
+    blue: 'bg-[#f0f4ff] border-[#d0daf8] text-[#2d3a8c]',
+    amber: 'bg-[#fff8eb] border-[#f5dfb3] text-[#8a5b00]',
+    green: 'bg-[#edfaf0] border-[#c6ebd1] text-[#1b6b3a]'
   };
-  return <div className={`mb-5 flex flex-col gap-2 rounded-2xl border px-4 py-3 md:flex-row md:items-center ${tones[tone]}`}>
-    <div className="min-w-0 flex-1"><p className="text-xs font-extrabold">{title}</p><p className="mt-0.5 text-[11px] font-medium opacity-80">{detail}</p></div>{action}
-  </div>;
+  return (
+    <div className={`mb-3 flex flex-col gap-2 rounded border px-3 py-2.5 md:flex-row md:items-center ${tones[tone]}`}>
+      <div className="min-w-0 flex-1">
+        <p className="text-[12px] font-semibold">{title}</p>
+        <p className="mt-0.5 text-[11px] opacity-80">{detail}</p>
+      </div>
+      {action}
+    </div>
+  );
 }
 
 export function HRAvatar({ name, size = 'sm' }: { name: string; size?: 'sm' | 'md' }) {
-  const initials = name.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
-  return <span className={`${size === 'md' ? 'w-9 h-9 text-xs' : 'w-7 h-7 text-[10px]'} shrink-0 rounded-full bg-[#014582]/10 text-[#014582] inline-flex items-center justify-center font-extrabold`}>{initials || '—'}</span>;
+  const initials = name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+  return (
+    <span
+      className={`${size === 'md' ? 'h-8 w-8 text-[11px]' : 'h-6 w-6 text-[10px]'} inline-flex shrink-0 items-center justify-center rounded-full bg-[#f3f3f3] font-semibold text-[#525252]`}
+    >
+      {initials || '—'}
+    </span>
+  );
 }
 
-// ============================================================
-// FILTER CHIPS — mirrors the mobile filter chip row
-// ============================================================
 export function HRFilterChips({
   options,
   value,
-  onChange,
+  onChange
 }: {
   options: string[];
   value: string;
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-1.5">
       {options.map((opt) => {
         const selected = value === opt;
         return (
@@ -208,10 +223,10 @@ export function HRFilterChips({
             key={opt}
             type="button"
             onClick={() => onChange(opt)}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+            className={`rounded px-2.5 py-1 text-[11px] font-medium transition-colors ${
               selected
                 ? 'bg-[#014582] text-white'
-                : 'bg-white text-[#7A8FA6] border border-[#DDE4EE] hover:border-[#014582]/40'
+                : 'border border-[#DDE4EE] bg-white text-[#52677E] hover:bg-[#F0F4F8]'
             }`}
           >
             {opt}
@@ -222,13 +237,10 @@ export function HRFilterChips({
   );
 }
 
-// ============================================================
-// SEARCH INPUT
-// ============================================================
 export function HRSearchInput({
   value,
   onChange,
-  placeholder = 'Search...',
+  placeholder = 'Search...'
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -236,58 +248,51 @@ export function HRSearchInput({
 }) {
   return (
     <div className="relative">
-      <Search className="w-4 h-4 text-[#7A8FA6] absolute left-3.5 top-1/2 -translate-y-1/2" />
+      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#7c7c7c]" />
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-white rounded-xl py-2.5 pl-10 pr-4 text-sm text-[#1A1A2E] placeholder-[#7A8FA6] border border-[#DDE4EE] focus:outline-none focus:ring-2 focus:ring-[#014582]/20 focus:border-[#014582]/50 transition-all"
+        className="h-9 w-full rounded-xl border border-[#DDE4EE] bg-white py-1 pl-8 pr-2.5 text-sm text-[#1A1A2E] placeholder-[#9c9c9c] outline-none focus:border-[#014582] focus:ring-2 focus:ring-[#014582]/20"
       />
     </div>
   );
 }
 
-// ============================================================
-// STATUS BADGE & PAYROLL STATUS BADGE
-// ============================================================
 export function HRStatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    Active: '#2ECC71',
-    Approved: '#2ECC71',
-    APPROVED: '#2ECC71',
-    Present: '#2ECC71',
-    CheckedIn: '#2ECC71',
-    'On Leave': '#F39C12',
-    Pending: '#F39C12',
-    Late: '#F39C12',
-    Inactive: '#7A8FA6',
-    Absent: '#E74C3C',
-    Rejected: '#E74C3C',
-    Paid: '#2ECC71',
-    PAID: '#2ECC71',
-    Draft: '#7A8FA6',
-    Scheduled: '#0FA3E0',
-    Review: '#8E44AD',
-    REVIEW: '#8E44AD',
-    Open: '#0FA3E0',
-    OPEN: '#0FA3E0',
-    CALCULATING: '#F39C12',
-    CALCULATED: '#3498DB',
-    FINALIZED: '#E67E22',
-    Closed: '#7A8FA6',
-    CLOSED: '#7A8FA6',
-    'Needs action': '#E74C3C',
+    Active: '#249144',
+    Approved: '#249144',
+    APPROVED: '#249144',
+    Present: '#249144',
+    CheckedIn: '#249144',
+    'On Leave': '#c58000',
+    Pending: '#c58000',
+    Late: '#c58000',
+    Inactive: '#7c7c7c',
+    Absent: '#e24c4c',
+    Rejected: '#e24c4c',
+    Paid: '#249144',
+    PAID: '#249144',
+    Draft: '#7c7c7c',
+    Scheduled: '#0289f7',
+    Submitted: '#0289f7',
+    Open: '#0289f7',
+    OPEN: '#0289f7',
+    Cancelled: '#7c7c7c',
+    Withheld: '#c58000',
+    Released: '#249144',
+    Unpaid: '#c58000',
+    Completed: '#249144'
   };
-  const norm = String(status || '').toUpperCase();
-  const displayStatus = status || 'OPEN';
-  const color = map[status] || map[norm] || '#7A8FA6';
+  const color = map[status] || map[String(status || '').toUpperCase()] || '#7c7c7c';
   return (
     <span
-      className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border"
-      style={{ backgroundColor: `${color}15`, color, borderColor: `${color}30` }}
+      className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+      style={{ backgroundColor: `${color}18`, color }}
     >
-      {displayStatus}
+      {status || '—'}
     </span>
   );
 }
@@ -299,7 +304,7 @@ export function HRPayrollNextActionCard({
   onAction,
   href,
   disabled = false,
-  hint,
+  hint
 }: {
   title: string;
   subtitle: string;
@@ -310,102 +315,57 @@ export function HRPayrollNextActionCard({
   hint?: string;
 }) {
   return (
-    <div className="bg-gradient-to-r from-[#014582] to-[#015db2] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden">
-      <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full pointer-events-none" />
-      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <span className="inline-block text-[10px] font-extrabold uppercase tracking-widest text-white/70 bg-white/15 px-2.5 py-0.5 rounded-md mb-1.5">
-            Recommended Next Step
-          </span>
-          <h3 className="text-base font-extrabold">{title}</h3>
-          <p className="text-xs text-white/80 mt-1 max-w-xl">{subtitle}</p>
-          {hint && <p className="text-[11px] text-amber-200 mt-1.5 font-medium">{hint}</p>}
-        </div>
-        <div>
-          {href ? (
-            <Link
-              href={href}
-              className={`inline-flex items-center justify-center px-5 py-3 rounded-xl font-extrabold text-xs bg-white text-[#014582] shadow-md hover:bg-white/90 transition-all shrink-0 ${
-                disabled ? 'opacity-50 pointer-events-none' : ''
-              }`}
-            >
-              {actionLabel}
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={onAction}
-              disabled={disabled}
-              className={`inline-flex items-center justify-center px-5 py-3 rounded-xl font-extrabold text-xs bg-white text-[#014582] shadow-md hover:bg-white/90 transition-all shrink-0 ${
-                disabled ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {actionLabel}
-            </button>
-          )}
-        </div>
+    <div className="relative overflow-hidden rounded border border-[#014582]/20 bg-[#014582] p-4 text-white">
+      <p className="text-[14px] font-semibold">{title}</p>
+      <p className="mt-1 text-[12px] text-white/70">{subtitle}</p>
+      {hint ? <p className="mt-2 text-[11px] text-white/50">{hint}</p> : null}
+      <div className="mt-3">
+        <HRActionButton
+          href={href}
+          onClick={onAction}
+          disabled={disabled}
+          className="!bg-white !text-[#014582] hover:!bg-[#F0F4F8]"
+        >
+          {actionLabel}
+        </HRActionButton>
       </div>
     </div>
   );
 }
 
+export function HRPage({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <div className={`w-full ${className}`}>{children}</div>;
+}
 
-// ============================================================
-// SIMPLE TABLE
-// ============================================================
 export function HRTable({
   columns,
-  children,
+  children
 }: {
   columns: string[];
   children: React.ReactNode;
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="min-w-full border-collapse text-left text-sm">
         <thead>
-          <tr className="text-left">
-            {columns.map((c) => (
-              <th
-                key={c}
-                className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-[#7A8FA6] border-b border-[#DDE4EE] whitespace-nowrap"
-              >
-                {c}
+          <tr className="border-b border-[#DDE4EE] bg-[#F0F4F8] text-[11px] font-bold uppercase tracking-wider text-[#7A8FA6]">
+            {columns.map((column) => (
+              <th key={column} className="whitespace-nowrap px-4 py-2.5 font-bold">
+                {column}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody>{children}</tbody>
+        <tbody className="bg-white">{children}</tbody>
       </table>
     </div>
   );
 }
 
 export function HRTableRow({ children }: { children: React.ReactNode }) {
-  return (
-    <tr className="hover:bg-[#F0F4F8]/60 transition-colors border-b border-[#DDE4EE]/60 last:border-0">
-      {children}
-    </tr>
-  );
+  return <tr className="border-b border-[#F0F4F8] hover:bg-[#F0F4F8]/60">{children}</tr>;
 }
 
-export function HRTableCell({
-  children,
-  className = '',
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <td className={`px-4 py-3 text-[#1A1A2E] whitespace-nowrap ${className}`}>
-      {children}
-    </td>
-  );
-}
-
-// ============================================================
-// PAGE SHELL — max width used by every HR page
-// ============================================================
-export function HRPage({ children }: { children: React.ReactNode }) {
-  return <div className="max-w-7xl">{children}</div>;
+export function HRTableCell({ children }: { children: React.ReactNode }) {
+  return <td className="whitespace-nowrap px-4 py-2.5 align-middle text-[#1A1A2E]">{children}</td>;
 }

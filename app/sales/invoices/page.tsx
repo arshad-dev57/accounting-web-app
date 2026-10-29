@@ -2,9 +2,9 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, RefreshCw, Plus, Eye, X, Download, Edit3, Save, Loader2, Trash2 } from 'lucide-react';
+import { Search, RefreshCw, Plus, Eye, X, Download, Edit3, Save, Loader2, Trash2, FileText } from 'lucide-react';
 import { SalesInvoice, InvoiceStats } from '@/types/sales-invoice';
 import CreateInvoiceWizard from '@/components/sales-invoices/CreateInvoiceWizard';
 import PDFService from '@/lib/pdf-service';
@@ -12,6 +12,15 @@ import { ProductPicker, type PickedProduct } from '@/manufacturing/_components/P
 import { productService } from '../../api/product/route';
 import { useCurrency } from '@/lib/currency-context';
 import InstallmentSchedulePanel from '@/components/installments/InstallmentSchedulePanel';
+import {
+  PeriodFilter,
+  makePeriodValue,
+  resolvePeriod,
+  type PeriodValue,
+} from '@/components/common/PeriodFilter';
+import { CustomerFilter, type CustomerFilterValue } from '@/components/common/CustomerFilter';
+import { SalesDocumentModal } from '@/components/sales-documents/SalesDocumentModal';
+import { mapInvoiceToDocument } from '@/lib/sales-document';
 
 const STATUS_COLORS: Record<string, string> = {
   'Draft': 'bg-orange-100 text-orange-700',
@@ -46,6 +55,11 @@ export function SalesInvoicesPage() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [draftPeriod, setDraftPeriod] = useState<PeriodValue>(makePeriodValue);
+  const [period, setPeriod] = useState<PeriodValue>(makePeriodValue);
+  const [customerFilter, setCustomerFilter] = useState<CustomerFilterValue | null>(null);
+  const [reportInvoice, setReportInvoice] = useState<SalesInvoice | null>(null);
+  const periodRange = useMemo(() => resolvePeriod(period), [period]);
 
   const fetchInvoices = useCallback(async () => {
     try {
@@ -59,6 +73,9 @@ export function SalesInvoicesPage() {
       const params = new URLSearchParams();
       if (statusFilter !== 'all') params.append('status', statusFilter);
       if (searchTerm) params.append('search', searchTerm);
+      if (customerFilter?.id) params.append('customerId', customerFilter.id);
+      if (periodRange.fromDate) params.append('fromDate', periodRange.fromDate);
+      if (periodRange.toDate) params.append('toDate', periodRange.toDate);
 
       const response = await fetch(`/api/sales-invoices?${params.toString()}`, {
         headers,
@@ -76,11 +93,11 @@ export function SalesInvoicesPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchTerm]);
+  }, [statusFilter, searchTerm, customerFilter?.id, periodRange.fromDate, periodRange.toDate]);
 
   useEffect(() => {
     fetchInvoices();
-  }, []);
+  }, [fetchInvoices]);
 
   const handleCreateSuccess = () => {
     setShowCreateWizard(false);
@@ -262,6 +279,21 @@ export function SalesInvoicesPage() {
         </div>
       )}
 
+      <div className="mb-6">
+        <PeriodFilter
+          value={draftPeriod}
+          onChange={setDraftPeriod}
+          onApply={() => setPeriod({ ...draftPeriod })}
+          onReset={() => {
+            const empty = makePeriodValue();
+            setDraftPeriod(empty);
+            setPeriod(empty);
+            setCustomerFilter(null);
+          }}
+          appliedLabel={periodRange.label}
+        />
+      </div>
+
       {/* Search and Filters */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-6">
         <div className="flex items-center gap-4">
@@ -294,6 +326,10 @@ export function SalesInvoicesPage() {
               </option>
             ))}
           </select>
+          <CustomerFilter
+            value={customerFilter}
+            onChange={(next) => setCustomerFilter(next)}
+          />
           <button
             onClick={fetchInvoices}
             className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -385,6 +421,13 @@ export function SalesInvoicesPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
+                        onClick={() => setReportInvoice(invoice)}
+                        className="p-1.5 text-gray-600 hover:text-[#014582] hover:bg-blue-50 rounded transition-colors"
+                        title="Invoice Report"
+                      >
+                        <FileText size={16} />
+                      </button>
+                      <button
                         onClick={() => handleDownloadInvoicePDF(invoice)}
                         disabled={actionLoading === `pdf-${invoice.id}`}
                         className="p-1.5 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors disabled:opacity-50"
@@ -455,6 +498,13 @@ export function SalesInvoicesPage() {
           actionLoading={actionLoading}
           formatCurrency={formatCurrency}
           pill={pill}
+        />
+      )}
+
+      {reportInvoice && (
+        <SalesDocumentModal
+          document={mapInvoiceToDocument(reportInvoice)}
+          onClose={() => setReportInvoice(null)}
         />
       )}
     </div>

@@ -1,13 +1,7 @@
 export const dynamic = 'force-dynamic';
 
-import React from 'react';
-import { ProcessGuide } from './ProcessGuide';
+import { redirect } from 'next/navigation';
 
-export const metadata = {
-  title: 'Manufacturing Process Guide | Bisonstechs ERP',
-  description: 'Enterprise-level manufacturing module process guide and visual process diagram for Bisonstechs ERP.',
-};
-
-export default function ManufacturingGuidePage() {
-  return <ProcessGuide />;
+export default function LegacyManufacturingRedirect() {
+  redirect('/manufacturing/manufacturing');
 }

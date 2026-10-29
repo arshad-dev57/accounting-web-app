@@ -301,6 +301,7 @@ export async function fetchExchangeRates(params: {
   toCurrencyId?: string;
   activeOnly?: boolean;
 } = {}): Promise<ExchangeRateRow[]> {
+  const qs = new URLSearchParams();
   if (params.fromCurrencyId) qs.set('fromCurrencyId', params.fromCurrencyId);
   if (params.toCurrencyId) qs.set('toCurrencyId', params.toCurrencyId);
   if (params.activeOnly) qs.set('activeOnly', 'true');
@@ -390,9 +391,8 @@ export type ConvertAmountResult = {
 };
 
 /**
- * Convert an amount between currency codes using company rates.
- * Tries direct, inverse, then via company base currency.
- * Convention: stored rates are typically 1 from = rate to (foreign → base).
+ * Convert an amount using the backend's shared effective-dated rate service
+ * (direct → inverse → cross via company base). No client-side FX formula.
  */
 export async function convertAmountBetweenCodes(params: {
   amount: number;
@@ -405,24 +405,7 @@ export async function convertAmountBetweenCodes(params: {
   const fromCode = String(params.fromCode || '').trim().toUpperCase();
   const toCode = String(params.toCode || '').trim().toUpperCase();
 
-  if (!fromCode || !toCode || fromCode === toCode || !(amount > 0)) {
-    return {
-      amount,
-      rate: 1,
-      fromCode: fromCode || toCode,
-      toCode: toCode || fromCode,
-      converted: false,
-    };
-  }
-
-  const list =
-    params.currencies && params.currencies.length > 0
-      ? params.currencies
-      : await fetchCurrencies(true);
-  const from = list.find((c) => c.code.toUpperCase() === fromCode);
-  const to = list.find((c) => c.code.toUpperCase() === toCode);
-
-  if (!from || !to) {
+  if (!fromCode || !toCode) {
     return {
       amount,
       rate: 1,
@@ -433,87 +416,57 @@ export async function convertAmountBetweenCodes(params: {
     };
   }
 
-  const round = (n: number) => Math.round(n * 10000) / 10000;
-
-  const direct = await lookupRate({
-    fromCurrencyId: from.id,
-    toCurrencyId: to.id,
-    date: params.date,
+  const qs = new URLSearchParams({
+    amount: String(amount),
+    from: fromCode,
+    to: toCode,
   });
-  if (direct && Number(direct.rate) > 0) {
-    const rate = Number(direct.rate);
+  if (params.date) qs.set('date', params.date);
+
+  const response = await apiClient.get(`/api/currencies/convert?${qs.toString()}`);
+  if (!response.success || response.data?.success === false) {
     return {
-      amount: round(amount * rate),
-      rate,
+      amount,
+      rate: 1,
       fromCode,
       toCode,
-      converted: true,
+      converted: false,
+      missingRate: true,
     };
   }
 
-  const inverse = await lookupRate({
-    fromCurrencyId: to.id,
-    toCurrencyId: from.id,
-    date: params.date,
-  });
-  if (inverse && Number(inverse.rate) > 0) {
-    const inv = Number(inverse.rate);
-    const rate = 1 / inv;
+  const data = unwrapOne<{
+    amount: number;
+    rate: number;
+    fromCode: string;
+    toCode: string;
+    converted: boolean;
+    via?: string;
+    effectiveDate?: string;
+    rateSource?: string;
+    baseCurrencyCode?: string;
+  }>(response.data);
+
+  if (!data || data.converted === false) {
     return {
-      amount: round(amount * rate),
-      rate,
+      amount,
+      rate: 1,
       fromCode,
       toCode,
-      converted: true,
+      converted: false,
+      missingRate: true,
     };
-  }
-
-  const base = await fetchBaseCurrency();
-  if (base) {
-    const fromToBase =
-      from.id === base.id
-        ? 1
-        : Number(
-            (
-              await lookupRate({
-                fromCurrencyId: from.id,
-                toCurrencyId: base.id,
-                date: params.date,
-              })
-            )?.rate || 0
-          );
-    const toToBase =
-      to.id === base.id
-        ? 1
-        : Number(
-            (
-              await lookupRate({
-                fromCurrencyId: to.id,
-                toCurrencyId: base.id,
-                date: params.date,
-              })
-            )?.rate || 0
-          );
-
-    if (fromToBase > 0 && toToBase > 0) {
-      // amount_base = amount × from→base; amount_to = amount_base / (to→base)
-      const rate = fromToBase / toToBase;
-      return {
-        amount: round(amount * rate),
-        rate,
-        fromCode,
-        toCode,
-        converted: true,
-      };
-    }
   }
 
   return {
-    amount,
-    rate: 1,
-    fromCode,
-    toCode,
-    converted: false,
-    missingRate: true,
+    amount: data.amount,
+    rate: data.rate,
+    fromCode: data.fromCode,
+    toCode: data.toCode,
+    converted: true,
+    via: data.via,
+    effectiveDate: data.effectiveDate,
+    rateSource: data.rateSource,
+    baseCurrencyCode: data.baseCurrencyCode,
   };
 }

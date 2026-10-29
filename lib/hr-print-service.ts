@@ -171,7 +171,8 @@ export const hrPrintService = {
     const params: any = {};
     if (templateType) params.templateType = templateType;
     if (status) params.status = status;
-    const res = await apiClient.get('/api/hr/templates', { params });
+    const qs = new URLSearchParams(params).toString();
+    const res = await apiClient.get(`/api/hr/templates${qs ? `?${qs}` : ''}`);
     const data = res.data?.data || res.data || [];
     return Array.isArray(data) ? data : [];
   },

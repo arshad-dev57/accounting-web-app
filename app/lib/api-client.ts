@@ -169,7 +169,7 @@ class ApiClient {
     if (typeof window !== 'undefined') {
       localStorage.setItem('auth_token', this.token || '');
       localStorage.setItem('refresh_token', this.refreshToken || '');
-      console.log('🔵 Tokens saved:', this.token);
+      console.log('🔵 Tokens saved');
     }
   }
 
@@ -189,7 +189,7 @@ class ApiClient {
     if (typeof window !== 'undefined') {
       this.token = this.cleanToken(localStorage.getItem('auth_token'));
       this.refreshToken = this.cleanToken(localStorage.getItem('refresh_token'));
-      console.log('🔵 Tokens loaded from localStorage:', this.token);
+      console.log('🔵 Tokens loaded from localStorage');
     }
   }
 

@@ -1,4 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
-export default function Page() { redirect('/manufacturing/master/routings'); }
+
+export default function LegacyManufacturingRedirect() {
+  redirect('/manufacturing/manufacturing/operation');
+}

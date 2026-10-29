@@ -24,7 +24,7 @@ export const HRDocumentRenderer: React.FC<HRDocumentRendererProps> = ({
   children,
   showSignatures = true
 }) => {
-  const brand = settings || {
+  const brand: Partial<HRPrintSettingItem> = settings || {
     companyName: 'Bisonstechs ERP',
     primaryColor: '#014582',
     fontFamily: 'Inter',

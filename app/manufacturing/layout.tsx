@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Factory } from 'lucide-react';
 import { TopBarBrand } from '../../components/BrandHeader';
 import { SidebarMain } from '../../components/CollapsibleSidebar';
@@ -14,7 +14,52 @@ import LocationSelect from '../../components/LocationSelect';
 import { LocationProvider } from '@/lib/location-context';
 import { FiscalYearProvider } from '@/lib/fiscal-year-context';
 import { usePermissions } from '@/lib/usePermissions';
+import { usePathname } from 'next/navigation';
+import { MfgNavProvider, useMfgNav } from '@/lib/mfg-nav-context';
 import { MfgSidebar } from './nav';
+
+const LAST_WORKSPACE_KEY = 'bisonstechs_mfg_last_workspace';
+
+function ManufacturingShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const { nav } = useMfgNav();
+
+  const workspaceSlug = useMemo(() => {
+    const segment = pathname.split('/')[2] || '';
+    const known = (nav?.workspaces || []).some((ws) => ws.slug === segment);
+    if (known) return segment;
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(LAST_WORKSPACE_KEY) || '';
+      if ((nav?.workspaces || []).some((ws) => ws.slug === stored)) return stored;
+    }
+    return nav?.workspaces?.[0]?.slug || 'manufacturing';
+  }, [pathname, nav]);
+
+  useEffect(() => {
+    if (workspaceSlug) window.localStorage.setItem(LAST_WORKSPACE_KEY, workspaceSlug);
+  }, [workspaceSlug]);
+
+  return (
+    <>
+      <MfgSidebar workspaceSlug={workspaceSlug} />
+      <SidebarMain className="bg-gray-50">
+        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
+          <TopBarBrand title="Manufacturing" icon={<Factory className="w-5 h-5 text-[#014582]" />} />
+          <div className="flex items-center gap-4">
+            <LocationSelect entityLabel="Warehouse" />
+            <div className="w-px h-6 bg-gray-200" />
+            <GlobalSearch />
+            <NotificationDropdown />
+            <div className="w-px h-6 bg-gray-200" />
+            <ProfileDropdown accentClassName="bg-[#014582]" />
+          </div>
+        </header>
+        <AppBreadcrumbs />
+        <div className="flex-1 p-6">{children}</div>
+      </SidebarMain>
+    </>
+  );
+}
 
 export default function ManufacturingLayout({ children }: { children: React.ReactNode }) {
   const { isAdmin, hasModuleAccess, loading } = usePermissions();
@@ -35,8 +80,8 @@ export default function ManufacturingLayout({ children }: { children: React.Reac
           <Factory className="w-10 h-10 text-[#014582] mx-auto mb-4" />
           <h1 className="text-lg font-bold text-[#1A1A2E]">Manufacturing</h1>
           <p className="text-sm text-[#7A8FA6] mt-2">
-            You do not have permission to access the Manufacturing module. Contact your
-            administrator to request access.
+            You do not have permission to access the Manufacturing module. Contact your administrator to
+            request access.
           </p>
         </div>
       </div>
@@ -46,22 +91,9 @@ export default function ManufacturingLayout({ children }: { children: React.Reac
   return (
     <FiscalYearProvider>
       <LocationProvider allowAll allowAllUsers>
-        <MfgSidebar />
-        <SidebarMain className="bg-gray-50">
-          <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
-            <TopBarBrand title="Manufacturing" icon={<Factory className="w-5 h-5 text-[#014582]" />} />
-            <div className="flex items-center gap-4">
-              <LocationSelect entityLabel="Warehouse" />
-              <div className="w-px h-6 bg-gray-200" />
-              <GlobalSearch />
-              <NotificationDropdown />
-              <div className="w-px h-6 bg-gray-200" />
-              <ProfileDropdown accentClassName="bg-[#014582]" />
-            </div>
-          </header>
-          <AppBreadcrumbs />
-          <div className="flex-1 p-6">{children}</div>
-        </SidebarMain>
+        <MfgNavProvider>
+          <ManufacturingShell>{children}</ManufacturingShell>
+        </MfgNavProvider>
       </LocationProvider>
     </FiscalYearProvider>
   );

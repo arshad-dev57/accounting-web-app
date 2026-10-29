@@ -135,31 +135,24 @@ export function resolveReceiptCompany(
   const company = profile?.company || {};
   const tpl = template || loadReceiptTemplate();
   const local = readLocalCompanyFallback();
+  // Store title can fall back to company name. Logo / address / contact come ONLY
+  // from the receipt template so clearing them in POS admin actually clears print.
   const name =
     tpl.storeName ||
     profile?.organizationName ||
     company.name ||
     local.name ||
     'Bisonstechs';
-  const logo =
-    tpl.storeLogo ||
-    bd.logo ||
-    company.logo ||
-    profile?.logo ||
-    local.logo ||
-    '/bisontechs.png';
+  const logo = tpl.showLogo === false ? '' : String(tpl.storeLogo || '');
 
   return {
     name,
-    logo: resolveAssetUrl(logo),
-    address:
-      tpl.storeAddress ||
-      [profile?.address || company.address, profile?.country].filter(Boolean).join(', ') ||
-      local.address,
-    phone: tpl.phone || profile?.contactNo || company.phone || profile?.phone || '',
-    email: tpl.email || company.email || '',
-    website: tpl.website || profile?.websiteLink || company.website || '',
-    taxId: tpl.taxId || bd.taxRegistrationNumber || company.taxRegistrationNumber || '',
+    logo: logo ? resolveAssetUrl(logo) : '',
+    address: tpl.showAddress === false ? '' : String(tpl.storeAddress || ''),
+    phone: tpl.showPhone === false ? '' : String(tpl.phone || ''),
+    email: tpl.showEmail === false ? '' : String(tpl.email || ''),
+    website: tpl.showWebsite === false ? '' : String(tpl.website || ''),
+    taxId: tpl.showTaxId === false ? '' : String(tpl.taxId || ''),
     country: profile?.country || '',
   };
 }

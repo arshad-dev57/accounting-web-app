@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { posTerminalService, posShiftService, posSaleService, asPosArray, asPosTotal } from '../../../lib/pos-service';
@@ -12,7 +12,23 @@ import { useLocation } from '../../../lib/location-context';
 import { locationService, type Location } from '../../../lib/location-service';
 import LocationSelect from '../../../components/LocationSelect';
 import AppBreadcrumbs from '../../../components/AppBreadcrumbs';
-import { Download, Printer, Mail, Loader2, FileSpreadsheet, Calendar, X } from 'lucide-react';
+import {
+  Download,
+  Printer,
+  Mail,
+  Loader2,
+  FileSpreadsheet,
+  Calendar,
+  X,
+  Monitor,
+  Clock,
+  ShoppingCart,
+  Undo2,
+  Receipt,
+  Scale,
+  ScrollText,
+  ArrowLeft,
+} from 'lucide-react';
 import * as XLSX from 'xlsx';
 import POSReceipt from '../components/POSReceipt';
 import {
@@ -24,9 +40,6 @@ import {
 } from '../../../lib/pos-receipt';
 import { printPosReceipt } from '../../../lib/pos-thermal-printer';
 import ReceiptEditorTab from '../components/ReceiptEditorTab';
-import ScannerSettingsTab from '../components/ScannerSettingsTab';
-import ThermalPrinterTab from '../components/ThermalPrinterTab';
-import PaymentTerminalTab from '../components/PaymentTerminalTab';
 import { taxService } from '../../../lib/tax-service';
 import TaxUseToggle from '../../../components/TaxUseToggle';
 import { usersService } from '../../users/service';
@@ -90,9 +103,29 @@ function ConfirmModal({ message, onConfirm, onCancel }: { message:string; onConf
   );
 }
 
-// ─── TABS ────────────────────────────────────────────────────────────────────
-const TABS = ['Terminals','Shifts','Sales','Returns','Receipt','Printer','Scanner','Payments','Tax','Audit Log'] as const;
+// ─── SIDEBAR NAV ─────────────────────────────────────────────────────────────
+const TABS = ['Terminals', 'Shifts', 'Sales', 'Returns', 'Receipt', 'Tax', 'Audit Log'] as const;
 type Tab = typeof TABS[number];
+
+const NAV_SECTIONS: { title: string; items: { id: Tab; label: string; hint: string; icon: ComponentType<{ size?: number }> }[] }[] = [
+  {
+    title: 'Operations',
+    items: [
+      { id: 'Terminals', label: 'Terminals', hint: 'Counters & assignments', icon: Monitor },
+      { id: 'Shifts', label: 'Shifts', hint: 'Open / close drawers', icon: Clock },
+      { id: 'Sales', label: 'Sales', hint: 'Receipts & history', icon: ShoppingCart },
+      { id: 'Returns', label: 'Returns', hint: 'Refunds & voids', icon: Undo2 },
+    ],
+  },
+  {
+    title: 'Settings',
+    items: [
+      { id: 'Receipt', label: 'Receipt', hint: 'Logo, header & footer', icon: Receipt },
+      { id: 'Tax', label: 'Tax', hint: 'POS tax context', icon: Scale },
+      { id: 'Audit Log', label: 'Audit log', hint: 'Admin activity', icon: ScrollText },
+    ],
+  },
+];
 
 // ─── Terminals Tab ───────────────────────────────────────────────────────────
 function TerminalsTab({
@@ -1255,48 +1288,163 @@ export default function POSManagementPage() {
       : companyCtx?.activeCompany?.name || '';
 
   return (
-    <div style={{ minHeight:'100vh', background:'#f3f6fa', fontFamily:"'Inter',sans-serif", color:'#0f172a' }}>
-      <AppBreadcrumbs extra={[{ label: activeTab }]} />
-      {/* Header */}
-      <div style={{ padding:'24px 32px', borderBottom:'1px solid #e5e7eb', background:'#ffffff', display:'flex', justifyContent:'space-between', alignItems:'center', gap:16, flexWrap:'wrap' as const }}>
-        <div>
-          <h1 style={{ margin:0, fontSize:'26px', fontWeight:800 }}>🏪 Point of Sale Management</h1>
-          <p style={{ color:'#64748b', margin:'6px 0 0', fontSize:'14px' }}>
-            {companyLabel ? `${companyLabel} · ` : ''}
-            {isAllLocations
-              ? 'All locations · Terminals · Shifts · Sales · Returns'
-              : `${selectedLocation?.name || 'Location'} · Terminals · Shifts · Sales · Returns`}
-          </p>
-        </div>
-        <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' as const }}>
-          <LocationSelect allowAll showManageLink={false} />
-          <Link href="/pos" style={{ ...btn('#f1f5f9','#475569'), textDecoration:'none', display:'inline-block' }}>
-            ← Back to POS
-          </Link>
-        </div>
-      </div>
+    <div style={{ minHeight: '100vh', background: '#f3f6fa', fontFamily: "'Inter',sans-serif", color: '#0f172a' }}>
+      <AppBreadcrumbs extra={[{ label: 'POS admin' }, { label: activeTab }]} />
 
-      {/* Tabs */}
-      <div style={{ padding:'0 32px', borderBottom:'1px solid #e5e7eb', background:'#ffffff', display:'flex', gap:'4px' }}>
-        {TABS.map(t => (
-          <button key={t} onClick={()=>setActiveTab(t)} style={{ padding:'14px 20px', background:'transparent', border:'none', borderBottom:`2px solid ${activeTab===t?'#014582':'transparent'}`, color:activeTab===t?'#014582':'#64748b', cursor:'pointer', fontSize:'14px', fontWeight:activeTab===t?700:400, transition:'all 0.2s' }}>
-            {t}
-          </button>
-        ))}
-      </div>
+      <div style={{ display: 'flex', minHeight: 'calc(100vh - 48px)' }}>
+        {/* POS admin sidebar */}
+        <aside
+          style={{
+            width: 248,
+            flexShrink: 0,
+            background: '#ffffff',
+            borderRight: '1px solid #e5e7eb',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'sticky',
+            top: 0,
+            alignSelf: 'flex-start',
+            height: 'calc(100vh - 48px)',
+          }}
+        >
+          <div style={{ padding: '20px 18px 12px', borderBottom: '1px solid #e5e7eb' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#94a3b8' }}>
+              POS Admin
+            </div>
+            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Bisonstechs</div>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b', lineHeight: 1.4 }}>
+              Company-wide terminals, sales history, and receipt template for desktop POS.
+            </p>
+          </div>
 
-      {/* Content — remount on company switch so terminals/sales/etc reload for active company */}
-      <div key={companyScopeKey} style={{ padding:'28px 32px', maxWidth: activeTab==='Receipt' ? '1400px' : '1300px' }}>
-        {activeTab==='Terminals'  && <TerminalsTab isAdmin={isAdmin} locationIdForApi={locationIdForApi} />}
-        {activeTab==='Shifts'     && <ShiftsTab isAdmin={isAdmin} locationIdForApi={locationIdForApi} />}
-        {activeTab==='Sales'      && <SalesTab locationIdForApi={locationIdForApi} />}
-        {activeTab==='Returns'    && <ReturnsTab locationIdForApi={locationIdForApi} />}
-        {activeTab==='Receipt'    && <ReceiptEditorTab isAdmin={isAdmin} />}
-        {activeTab==='Printer'    && <ThermalPrinterTab isAdmin={isAdmin} />}
-        {activeTab==='Scanner'    && <ScannerSettingsTab isAdmin={isAdmin} />}
-        {activeTab==='Payments'   && <PaymentTerminalTab isAdmin={isAdmin} />}
-        {activeTab==='Tax'        && <TaxTab />}
-        {activeTab==='Audit Log'  && <AuditLogTab />}
+          <nav style={{ padding: '12px 10px', overflowY: 'auto', flex: 1 }}>
+            {NAV_SECTIONS.map((section) => (
+              <div key={section.title} style={{ marginBottom: 14 }}>
+                <div
+                  style={{
+                    padding: '6px 10px 8px',
+                    fontSize: 10,
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: '#94a3b8',
+                  }}
+                >
+                  {section.title}
+                </div>
+                <div style={{ display: 'grid', gap: 4 }}>
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setActiveTab(item.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 10,
+                          width: '100%',
+                          textAlign: 'left',
+                          border: 'none',
+                          borderRadius: 12,
+                          padding: '10px 12px',
+                          cursor: 'pointer',
+                          background: active ? '#eaf2fc' : 'transparent',
+                          color: active ? '#014582' : '#475569',
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 8,
+                            background: active ? '#014582' : '#f1f5f9',
+                            color: active ? '#fff' : '#64748b',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            marginTop: 1,
+                          }}
+                        >
+                          <Icon size={14} />
+                        </span>
+                        <span style={{ minWidth: 0 }}>
+                          <span style={{ display: 'block', fontSize: 13, fontWeight: 700 }}>{item.label}</span>
+                          <span style={{ display: 'block', fontSize: 11, color: active ? '#0369a1' : '#94a3b8', marginTop: 2 }}>
+                            {item.hint}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
+
+          <div style={{ padding: 12, borderTop: '1px solid #e5e7eb' }}>
+            <Link
+              href="/pos"
+              style={{
+                ...btn('#f8fafc', '#475569'),
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                width: '100%',
+                border: '1px solid #e5e7eb',
+              }}
+            >
+              <ArrowLeft size={14} /> Back to POS
+            </Link>
+          </div>
+        </aside>
+
+        {/* Main column */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              padding: '20px 28px',
+              borderBottom: '1px solid #e5e7eb',
+              background: '#ffffff',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 16,
+              flexWrap: 'wrap' as const,
+            }}
+          >
+            <div>
+              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>{activeTab}</h1>
+              <p style={{ color: '#64748b', margin: '6px 0 0', fontSize: 13 }}>
+                {companyLabel ? `${companyLabel} · ` : ''}
+                {isAllLocations ? 'All locations' : selectedLocation?.name || 'Location'}
+                {activeTab === 'Receipt' ? ' · Used by every desktop POS terminal' : ''}
+              </p>
+            </div>
+            <LocationSelect allowAll showManageLink={false} />
+          </div>
+
+          <div
+            key={companyScopeKey}
+            style={{
+              padding: '24px 28px',
+              maxWidth: activeTab === 'Receipt' ? 1400 : 1200,
+            }}
+          >
+            {activeTab === 'Terminals' && <TerminalsTab isAdmin={isAdmin} locationIdForApi={locationIdForApi} />}
+            {activeTab === 'Shifts' && <ShiftsTab isAdmin={isAdmin} locationIdForApi={locationIdForApi} />}
+            {activeTab === 'Sales' && <SalesTab locationIdForApi={locationIdForApi} />}
+            {activeTab === 'Returns' && <ReturnsTab locationIdForApi={locationIdForApi} />}
+            {activeTab === 'Receipt' && <ReceiptEditorTab isAdmin={isAdmin} />}
+            {activeTab === 'Tax' && <TaxTab />}
+            {activeTab === 'Audit Log' && <AuditLogTab />}
+          </div>
+        </div>
       </div>
     </div>
   );

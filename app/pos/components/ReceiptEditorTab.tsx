@@ -92,7 +92,7 @@ export default function ReceiptEditorTab({ isAdmin }: { isAdmin: boolean }) {
       const res: any = await posReceiptService.save(template);
       const next = saveReceiptTemplate(res.data || template);
       setTemplate(next);
-      setMessage('Receipt template saved. All POS terminals will use this layout.');
+      setMessage('Receipt template saved. Desktop POS will use this on the next sync / print.');
     } catch (e: any) {
       setError(e.message || 'Failed to save receipt template');
     } finally {
@@ -137,9 +137,9 @@ export default function ReceiptEditorTab({ isAdmin }: { isAdmin: boolean }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
         <div>
-          <h2 style={{ color: '#0f172a', margin: 0, fontSize: 18, fontWeight: 700 }}>🧾 Receipt template</h2>
+          <h2 style={{ color: '#0f172a', margin: 0, fontSize: 18, fontWeight: 700 }}>Receipt template</h2>
           <p style={{ color: '#64748b', fontSize: 13, margin: '6px 0 0' }}>
-            Edit the POS receipt once here. Printed, emailed and downloaded receipts all use this layout.
+            Company-wide logo, store details, and receipt text. Desktop POS terminals sync this template for printing — print size and format stay the same on the sell screen.
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -188,7 +188,7 @@ export default function ReceiptEditorTab({ isAdmin }: { isAdmin: boolean }) {
             <div>
               <label style={labelStyle}>Receipt logo</label>
               <p style={{ margin: '0 0 8px', fontSize: 12, color: '#64748b' }}>
-                Upload a logo for POS receipts. If empty, company profile logo is used.
+                Upload a logo for POS receipts. Remove clears it on print — company profile logo is not used as a fallback.
               </p>
               {template.storeLogo ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
@@ -200,7 +200,7 @@ export default function ReceiptEditorTab({ isAdmin }: { isAdmin: boolean }) {
                   {isAdmin ? (
                     <button
                       type="button"
-                      onClick={() => patch({ storeLogo: '' })}
+                      onClick={() => patch({ storeLogo: '', showLogo: false })}
                       style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#b91c1c', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                     >
                       Remove

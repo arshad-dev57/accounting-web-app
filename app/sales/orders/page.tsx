@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Plus, Search, RefreshCw, ShoppingCart, Package, User,
   Truck, DollarSign, Clock, X, ChevronDown,
@@ -27,6 +27,15 @@ import {
 import { ProductPicker, type PickedProduct } from '@/manufacturing/_components/ProductPicker';
 import { SalesNumberInput } from '@/components/sales/sales-number-input';
 import { CustomerFormModal } from '@/components/customers/CustomerFormModal';
+import {
+  PeriodFilter,
+  makePeriodValue,
+  resolvePeriod,
+  type PeriodValue,
+} from '@/components/common/PeriodFilter';
+import { CustomerFilter, type CustomerFilterValue } from '@/components/common/CustomerFilter';
+import { SalesDocumentModal } from '@/components/sales-documents/SalesDocumentModal';
+import { mapOrderToDocument } from '@/lib/sales-document';
 import { useLocationOptional } from '@/lib/location-context';
 import {
   tradingService,
@@ -437,6 +446,11 @@ export function SalesOrdersPage() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [draftPeriod, setDraftPeriod] = useState<PeriodValue>(makePeriodValue);
+  const [period, setPeriod] = useState<PeriodValue>(makePeriodValue);
+  const [customerFilter, setCustomerFilter] = useState<CustomerFilterValue | null>(null);
+  const [reportOrder, setReportOrder] = useState<Order | null>(null);
+  const periodRange = useMemo(() => resolvePeriod(period), [period]);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -451,6 +465,9 @@ export function SalesOrdersPage() {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         paymentStatus: paymentStatusFilter !== 'all' ? paymentStatusFilter : undefined,
         priority: priorityFilter !== 'all' ? priorityFilter : undefined,
+        customerId: customerFilter?.id,
+        fromDate: periodRange.fromDate || undefined,
+        toDate: periodRange.toDate || undefined,
       });
 
       setOrders(
@@ -468,7 +485,16 @@ export function SalesOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchTerm, statusFilter, paymentStatusFilter, priorityFilter]);
+  }, [
+    currentPage,
+    searchTerm,
+    statusFilter,
+    paymentStatusFilter,
+    priorityFilter,
+    customerFilter?.id,
+    periodRange.fromDate,
+    periodRange.toDate,
+  ]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
@@ -565,6 +591,23 @@ export function SalesOrdersPage() {
         ))}
       </div>
 
+      <PeriodFilter
+        value={draftPeriod}
+        onChange={setDraftPeriod}
+        onApply={() => {
+          setPeriod({ ...draftPeriod });
+          setCurrentPage(1);
+        }}
+        onReset={() => {
+          const empty = makePeriodValue();
+          setDraftPeriod(empty);
+          setPeriod(empty);
+          setCustomerFilter(null);
+          setCurrentPage(1);
+        }}
+        appliedLabel={periodRange.label}
+      />
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex-1 min-w-[200px] relative">
@@ -600,6 +643,13 @@ export function SalesOrdersPage() {
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
           ))}
+          <CustomerFilter
+            value={customerFilter}
+            onChange={(next) => {
+              setCustomerFilter(next);
+              setCurrentPage(1);
+            }}
+          />
         </div>
       </div>
 
@@ -643,6 +693,13 @@ export function SalesOrdersPage() {
                     <td className="px-6 py-3 text-gray-600">{new Date(order.orderDate).toLocaleDateString()}</td>
                     <td className="px-6 py-3">
                       <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setReportOrder(order)}
+                          className="p-1.5 text-gray-400 hover:text-[#014582] hover:bg-blue-50 rounded-lg transition-all"
+                          title="Order Report"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => { setSelectedOrder(order); setShowDetailModal(true); }}
                           className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
@@ -726,6 +783,13 @@ export function SalesOrdersPage() {
               }
               : undefined
           }
+        />
+      )}
+
+      {reportOrder && (
+        <SalesDocumentModal
+          document={mapOrderToDocument(reportOrder)}
+          onClose={() => setReportOrder(null)}
         />
       )}
     </div>

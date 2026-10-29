@@ -1,8 +1,12 @@
 // lib/hr-holidays-service.ts
-// Client-side service for the HR Holidays module.
-// Talks to the local Next.js API (same-origin, cookie auth).
+// Client for the Holiday List documents held by the HR backend
+// (/api/hr/docs/holiday-list, Prisma model HrHoliday). Each row is one dated
+// holiday of a list, which is the shape the leave balance and calendar screens
+// need; the type vocabulary comes from the backend descriptor.
 
-export type HRHolidayType = 'National' | 'Religious' | 'Company';
+import { apiClient } from '@/lib/api-client';
+
+export type HRHolidayType = 'Public' | 'Private' | 'Optional' | 'Weekly Off';
 
 export interface HRHoliday {
   id: string;
@@ -10,6 +14,9 @@ export interface HRHoliday {
   date: string; // YYYY-MM-DD
   day: string; // derived weekday name
   type: HRHolidayType;
+  officeId: string;
+  office: string;
+  optional: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -17,56 +24,62 @@ export interface HRHoliday {
 export interface CreateHolidayInput {
   name: string;
   date: string;
-  type: HRHolidayType;
+  type?: HRHolidayType;
+  officeId?: string;
+  optional?: boolean;
 }
 
-async function request<T = any>(
-  url: string,
-  options?: RequestInit
-): Promise<T> {
-  const res = await fetch(url, {
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body?.success === false) {
-    throw new Error(body?.message || `Request failed (${res.status})`);
+const RESOURCE = 'holiday-list';
+
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function unwrap(res: { success: boolean; data: any; message: string; statusCode: number }) {
+  const body = res.data ?? {};
+  if (!res.success || body.success === false) {
+    throw new Error(body.message || res.message || `Holiday request failed (${res.statusCode})`);
   }
-  return body as T;
+  return body;
+}
+
+function toHoliday(row: any): HRHoliday {
+  const date = String(row.date || '').slice(0, 10);
+  const parsed = new Date(`${date}T00:00:00`);
+  return {
+    id: String(row.id),
+    name: String(row.name || ''),
+    date,
+    day: Number.isNaN(parsed.getTime()) ? '' : WEEKDAY_NAMES[parsed.getDay()],
+    type: (row.type || 'Public') as HRHolidayType,
+    officeId: String(row.officeId || ''),
+    office: String(row.officeIdLabel || ''),
+    optional: Boolean(row.optional),
+    createdAt: String(row.createdAt || ''),
+    updatedAt: String(row.updatedAt || '')
+  };
 }
 
 export const hrHolidaysService = {
   list: async (): Promise<HRHoliday[]> => {
-    const res = await request<{ data: HRHoliday[] }>('/api/hr/holidays');
-    return res.data || [];
+    const body = unwrap(await apiClient.get(`/api/hr/docs/${RESOURCE}?limit=500&sort=date&dir=asc`));
+    return (body.data?.rows || []).map(toHoliday);
   },
 
   get: async (id: string): Promise<HRHoliday> => {
-    const res = await request<{ data: HRHoliday }>(`/api/hr/holidays/${id}`);
-    return res.data;
+    const body = unwrap(await apiClient.get(`/api/hr/docs/${RESOURCE}/${id}`));
+    return toHoliday(body.data?.row);
   },
 
   create: async (input: CreateHolidayInput): Promise<HRHoliday> => {
-    const res = await request<{ data: HRHoliday }>('/api/hr/holidays', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
-    return res.data;
+    const body = unwrap(await apiClient.post(`/api/hr/docs/${RESOURCE}`, input));
+    return toHoliday(body.data);
   },
 
-  update: async (
-    id: string,
-    input: Partial<CreateHolidayInput>
-  ): Promise<HRHoliday> => {
-    const res = await request<{ data: HRHoliday }>(`/api/hr/holidays/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(input),
-    });
-    return res.data;
+  update: async (id: string, input: Partial<CreateHolidayInput>): Promise<HRHoliday> => {
+    const body = unwrap(await apiClient.put(`/api/hr/docs/${RESOURCE}/${id}`, input));
+    return toHoliday(body.data);
   },
 
   delete: async (id: string): Promise<void> => {
-    await request(`/api/hr/holidays/${id}`, { method: 'DELETE' });
-  },
+    unwrap(await apiClient.delete(`/api/hr/docs/${RESOURCE}/${id}`));
+  }
 };

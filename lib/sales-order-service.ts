@@ -22,6 +22,7 @@ export interface Order {
   _id?: string;
   id?: string;
   orderNumber: string;
+  customerId?: string;
   customerName: string;
   customerEmail?: string;
   customerPhone?: string;
@@ -100,6 +101,7 @@ export const salesOrderService = {
     paymentStatus?: string;
     orderType?: string;
     priority?: string;
+    customerId?: string;
     fromDate?: string;
     toDate?: string;
     sortBy?: string;
@@ -205,5 +207,33 @@ export const salesOrderService = {
       throw new Error(response.message || 'Failed to search sales orders');
     }
     return response.data.data || [];
+  },
+
+  sendWhatsApp: async (
+    id: string,
+    payload: {
+      to: string;
+      format: 'pdf' | 'jpeg';
+      fileBase64: string;
+      filename: string;
+      mimeType: string;
+      caption?: string;
+    }
+  ): Promise<{
+    ok: boolean;
+    statusCode: number;
+    whatsappConfigured: boolean;
+    message: string;
+  }> => {
+    const response = await apiClient.post(`/api/orders/sales/${id}/whatsapp`, payload);
+    return {
+      ok: response.success,
+      statusCode: response.statusCode,
+      whatsappConfigured: !!response.data?.whatsappConfigured,
+      message:
+        response.message ||
+        (typeof response.data?.message === 'string' ? response.data.message : '') ||
+        (response.success ? 'Sent' : 'WhatsApp delivery failed'),
+    };
   },
 };

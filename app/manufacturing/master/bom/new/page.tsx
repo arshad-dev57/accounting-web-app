@@ -1,9 +1,7 @@
-'use client';
-
 export const dynamic = 'force-dynamic';
 
-import { MfgBomEditor } from '../../../_components/MfgBomEditor';
+import { redirect } from 'next/navigation';
 
-export default function NewBomPage() {
-  return <MfgBomEditor />;
+export default function LegacyManufacturingRedirect() {
+  redirect('/manufacturing/manufacturing/bom/new');
 }

@@ -17,6 +17,7 @@
     "country-to-currency": "^3.0.1",
     "currency-codes": "^2.2.0",
     "currency-list": "^1.0.8",
+    "html2canvas": "^1.4.1",
     "jsbarcode": "^3.12.3",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",

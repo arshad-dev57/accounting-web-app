@@ -2,13 +2,22 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Plus, Search, RefreshCw, Truck, Clock, 
-  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, Edit3, Save
+  CheckCircle, Loader2, X, ChevronDown, Eye, Trash2, Edit3, Save, FileText
 } from 'lucide-react';
 import { Delivery, DeliveryStats } from '@/types/delivery';
+import {
+  PeriodFilter,
+  makePeriodValue,
+  resolvePeriod,
+  type PeriodValue,
+} from '@/components/common/PeriodFilter';
+import { CustomerFilter, type CustomerFilterValue } from '@/components/common/CustomerFilter';
+import { SalesDocumentModal } from '@/components/sales-documents/SalesDocumentModal';
+import { mapDeliveryToDocument } from '@/lib/sales-document';
 
 const STATUS_COLORS: Record<string, string> = {
   'Pending': 'bg-orange-100 text-orange-700',
@@ -46,6 +55,11 @@ export function DeliveriesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [draftPeriod, setDraftPeriod] = useState<PeriodValue>(makePeriodValue);
+  const [period, setPeriod] = useState<PeriodValue>(makePeriodValue);
+  const [customerFilter, setCustomerFilter] = useState<CustomerFilterValue | null>(null);
+  const [reportDelivery, setReportDelivery] = useState<Delivery | null>(null);
+  const periodRange = useMemo(() => resolvePeriod(period), [period]);
   const [stats, setStats] = useState<DeliveryStats>({
     total: 0,
     pending: 0,
@@ -63,6 +77,9 @@ export function DeliveriesPage() {
 
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (customerFilter?.id) params.append('customerId', customerFilter.id);
+      if (periodRange.fromDate) params.append('fromDate', periodRange.fromDate);
+      if (periodRange.toDate) params.append('toDate', periodRange.toDate);
 
       const token = localStorage.getItem('auth_token');
       const headers: HeadersInit = {
@@ -114,7 +131,7 @@ export function DeliveriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchTerm, statusFilter]);
+  }, [currentPage, searchTerm, statusFilter, customerFilter?.id, periodRange.fromDate, periodRange.toDate]);
 
   const handleDeliveryClick = (delivery: Delivery, startEditing = false) => {
     setDeliveryStartEditing(startEditing);
@@ -287,6 +304,25 @@ export function DeliveriesPage() {
           </div>
         </div>
 
+        <div className="mb-4">
+          <PeriodFilter
+            value={draftPeriod}
+            onChange={setDraftPeriod}
+            onApply={() => {
+              setPeriod({ ...draftPeriod });
+              setCurrentPage(1);
+            }}
+            onReset={() => {
+              const empty = makePeriodValue();
+              setDraftPeriod(empty);
+              setPeriod(empty);
+              setCustomerFilter(null);
+              setCurrentPage(1);
+            }}
+            appliedLabel={periodRange.label}
+          />
+        </div>
+
         {/* Search and Filters */}
         <div className="flex items-center gap-4 mb-4">
           <div className="flex-1 relative">
@@ -318,6 +354,13 @@ export function DeliveriesPage() {
               </option>
             ))}
           </select>
+          <CustomerFilter
+            value={customerFilter}
+            onChange={(next) => {
+              setCustomerFilter(next);
+              setCurrentPage(1);
+            }}
+          />
           <button
             onClick={fetchDeliveries}
             className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -420,6 +463,13 @@ export function DeliveriesPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
+                          onClick={() => setReportDelivery(delivery)}
+                          className="p-1.5 text-gray-600 hover:text-[#014582] hover:bg-blue-50 rounded transition-colors"
+                          title="Delivery Report"
+                        >
+                          <FileText size={16} />
+                        </button>
+                        <button
                           onClick={() => handleDeliveryClick(delivery)}
                           className="p-1.5 text-gray-600 hover:text-[#014582] hover:bg-gray-100 rounded transition-colors"
                           title="View Details"
@@ -515,6 +565,12 @@ export function DeliveriesPage() {
         />
       )}
 
+      {reportDelivery && (
+        <SalesDocumentModal
+          document={mapDeliveryToDocument(reportDelivery)}
+          onClose={() => setReportDelivery(null)}
+        />
+      )}
 
     </div>
   );

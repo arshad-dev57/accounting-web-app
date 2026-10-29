@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { API_BASE_URL } from '@/lib/constants';
+import { backendProxyHeaders } from '@/lib/company-api-headers';
 
 export function getHrAuthToken(request: NextRequest) {
   return (
@@ -24,10 +25,7 @@ export async function proxyToHrBackend(
   const url = new URL(request.url);
   const target = `${API_BASE_URL}/api/hr${backendPath}${url.search}`;
   const method = request.method.toUpperCase();
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
+  const headers = backendProxyHeaders(request).headers;
 
   const init: RequestInit = { method, headers };
   if (method !== 'GET' && method !== 'HEAD') {
