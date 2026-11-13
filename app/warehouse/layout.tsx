@@ -78,6 +78,7 @@ function WarehouseSidebar() {
   const mainMenuItems = [
     { icon: <Home className="w-5 h-5" />, label: 'Main Dashboard', path: '/dashboard' },
     { icon: <Building2 className="w-5 h-5" />, label: 'Accounting', path: '/accounting/dashboard' },
+    { icon: <Users className="w-5 h-5 text-emerald-400" />, label: 'CRM & Leads', path: '/crm/dashboard' },
   ];
 
   const isActive = (path: string) =>
@@ -94,6 +95,7 @@ function WarehouseSidebar() {
   const filteredMainMenuItems = mainMenuItems.filter(item => {
     if (item.path === '/dashboard') return true;
     if (item.path === '/accounting/dashboard') return isAdmin || hasModuleAccess('accounting');
+    if (item.path === '/crm/dashboard') return isAdmin || hasModuleAccess('crm') || hasModuleAccess('sales');
     return true;
   });
 

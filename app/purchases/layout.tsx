@@ -299,6 +299,17 @@ function PurchasesSidebar() {
           <span className="text-sm font-medium sidebar-expanded-only">Main Dashboard</span>
         </Link>
 
+        {(isAdmin || hasModuleAccess('crm') || hasModuleAccess('sales')) && (
+          <Link
+            href="/crm/dashboard"
+            title="CRM & Leads"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <Users className="w-5 h-5 text-emerald-400" />
+            <span className="text-sm font-medium sidebar-expanded-only">CRM & Leads</span>
+          </Link>
+        )}
+
         {isAdmin || hasModuleAccess('warehouse') && (
           <Link
             href="/warehouse/dashboard"

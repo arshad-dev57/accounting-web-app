@@ -28,6 +28,7 @@ import {
   Ship,
   Send,
   ArrowLeftRight,
+  UserCheck,
   X,
 } from 'lucide-react';
 import { usePermissions } from '../lib/usePermissions';
@@ -46,6 +47,7 @@ const GROUP_ICONS: Record<GlobalSearchGroupKey, ElementType> = {
   home: Home,
   accounting: Calculator,
   sales: ShoppingCart,
+  crm: UserCheck,
   purchases: Package,
   warehouse: Warehouse,
   manufacturing: Factory,

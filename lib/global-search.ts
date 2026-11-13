@@ -15,6 +15,7 @@ export type GlobalSearchGroupKey =
   | 'home'
   | 'accounting'
   | 'sales'
+  | 'crm'
   | 'purchases'
   | 'warehouse'
   | 'manufacturing'
@@ -51,6 +52,7 @@ export const SEARCH_GROUPS: Record<
   home: { label: 'Main Menu', href: '/dashboard' },
   accounting: { label: 'Accounting', href: '/accounting/dashboard' },
   sales: { label: 'Sales', href: '/sales/dashboard' },
+  crm: { label: 'CRM & Leads', href: '/crm/dashboard' },
   purchases: { label: 'Purchases', href: '/purchases/dashboard' },
   warehouse: { label: 'Inventory', href: '/warehouse/dashboard' },
   manufacturing: { label: 'Manufacturing', href: '/manufacturing/manufacturing' },
@@ -157,6 +159,28 @@ export const GLOBAL_SEARCH_PAGES: GlobalSearchPage[] = [
   { path: '/accounting/pdf-reports', label: 'PDF Reports', group: 'accounting', module: 'accounting', permission: 'settings', keywords: ['download reports', 'print'] },
   // ============================== Sales ==============================
   { path: '/sales/dashboard', label: 'Sales Dashboard', group: 'sales', module: 'sales', permission: 'dashboard', keywords: ['overview'] },
+  { path: '/crm/dashboard', label: 'CRM Dashboard', group: 'crm', module: 'crm', permission: 'dashboard', keywords: ['crm', 'leads', 'pipeline', 'opportunities'] },
+  { path: '/crm/leads', label: 'Leads', group: 'crm', module: 'crm', permission: 'leads', keywords: ['lead', 'prospect'] },
+  { path: '/crm/opportunities', label: 'Opportunities', group: 'crm', module: 'crm', permission: 'opportunities', keywords: ['deal', 'pipeline'] },
+  { path: '/crm/accounts', label: 'CRM Customers', group: 'crm', module: 'crm', permission: 'accounts', keywords: ['account', 'customer'] },
+  { path: '/crm/contacts', label: 'CRM Contacts', group: 'crm', module: 'crm', permission: 'contacts', keywords: ['contact', 'person'] },
+  { path: '/crm/pipeline', label: 'Sales Pipeline', group: 'crm', module: 'crm', permission: 'pipeline', keywords: ['kanban', 'stages'] },
+  { path: '/crm/tasks', label: 'CRM Tasks', group: 'crm', module: 'crm', permission: 'tasks', keywords: ['todo', 'task'] },
+  { path: '/crm/follow-ups', label: 'CRM Follow-ups', group: 'crm', module: 'crm', permission: 'follow_ups', keywords: ['followup', 'reminder'] },
+  { path: '/crm/calendar', label: 'CRM Calendar', group: 'crm', module: 'crm', permission: 'calendar', keywords: ['schedule', 'appointments'] },
+  { path: '/crm/campaigns', label: 'Campaigns', group: 'crm', module: 'crm', permission: 'campaigns', keywords: ['marketing', 'campaign'] },
+  { path: '/crm/activities', label: 'Communications', group: 'crm', module: 'crm', permission: 'activities', keywords: ['activity', 'call', 'email', 'meeting'] },
+  { path: '/crm/reports', label: 'CRM Reports', group: 'crm', module: 'crm', permission: 'reports', keywords: ['analytics', 'query report'] },
+  { path: '/crm/reports/lead-details', label: 'Lead Details', group: 'crm', module: 'crm', permission: 'reports', keywords: ['lead report'] },
+  { path: '/crm/reports/sales-pipeline-analytics', label: 'Sales Pipeline Analytics', group: 'crm', module: 'crm', permission: 'reports', keywords: ['pipeline report'] },
+  { path: '/crm/reports/opportunity-summary-by-sales-stage', label: 'Opportunity Summary by Sales Stage', group: 'crm', module: 'crm', permission: 'reports', keywords: ['stage report'] },
+  { path: '/crm/reports/sales-funnel', label: 'Sales Funnel', group: 'crm', module: 'crm', permission: 'reports', keywords: ['funnel'] },
+  { path: '/crm/reports/prospects-engaged-but-not-converted', label: 'Prospects Engaged But Not Converted', group: 'crm', module: 'crm', permission: 'reports', keywords: ['prospect report'] },
+  { path: '/crm/reports/first-response-time-for-opportunity', label: 'First Response Time for Opportunity', group: 'crm', module: 'crm', permission: 'reports', keywords: ['response time'] },
+  { path: '/crm/reports/inactive-customers', label: 'Inactive Customers', group: 'crm', module: 'crm', permission: 'reports', keywords: ['inactive'] },
+  { path: '/crm/reports/campaign-efficiency', label: 'Campaign Efficiency', group: 'crm', module: 'crm', permission: 'reports', keywords: ['campaign report'] },
+  { path: '/crm/reports/lead-owner-efficiency', label: 'Lead Owner Efficiency', group: 'crm', module: 'crm', permission: 'reports', keywords: ['owner report'] },
+  { path: '/crm/settings', label: 'CRM Settings', group: 'crm', module: 'crm', permission: 'settings', keywords: ['config'] },
   { path: '/sales/reports', label: 'Sales Reports', group: 'sales', module: 'sales', permission: 'dashboard', keywords: ['analytics'] },
   { path: '/sales/products', label: 'Sales Products', group: 'sales', module: 'sales', permission: 'products', keywords: ['catalog', 'items'] },
   { path: '/sales/quotations', label: 'Quotations', group: 'sales', module: 'sales', permission: 'orders', keywords: ['quotes', 'estimate'] },

@@ -51,7 +51,6 @@ export default function ApprovalsPermissionsPage() {
   const router = useRouter();
   const companyCtx = useCompanyOptional();
   const { collapsed } = useSidebarCollapsed();
-
   const [roles, setRoles] = useState<RoleRecord[]>([]);
   const [permByRole, setPermByRole] = useState<RolePermState>({});
   const [fullPermNamesByRole, setFullPermNamesByRole] = useState<Record<string, string[]>>({});

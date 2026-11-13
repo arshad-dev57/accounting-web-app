@@ -27,6 +27,7 @@ import CompanySwitcher from '../../../components/CompanySwitcher';
 import { useCompanyOptional } from '../../../lib/company-context';
 import { fetchProfileCached, invalidateProfileCache } from '../../../lib/profile-cache';
 import BusinessConfigSection from '../../../components/BusinessConfigSection';
+import ManufacturingWorkflowSection from '../../../components/ManufacturingWorkflowSection';
 
 function fmtDate(iso?: string | null) {
   if (!iso) return '—';
@@ -274,6 +275,12 @@ export default function CompanyProfilePage() {
                   <div className="lg:col-span-2">
                     <Section title="Business Configuration">
                       <BusinessConfigSection canEdit />
+                    </Section>
+                  </div>
+
+                  <div className="lg:col-span-2">
+                    <Section title="Manufacturing Workflow">
+                      <ManufacturingWorkflowSection />
                     </Section>
                   </div>
 

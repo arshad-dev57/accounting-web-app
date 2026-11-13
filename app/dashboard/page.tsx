@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useMemo, type ComponentType } from 'react'
 import Image from 'next/image';
 import { ChevronRight } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
+import { isTextileWeavingCompany, useCompanyOptional } from '../../lib/company-context';
 import { TopBarBrand } from '../../components/BrandHeader';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
@@ -29,6 +30,7 @@ import {
   ImportAppIcon,
   ExportAppIcon,
   TradingAppIcon,
+  CrmAppIcon,
 } from '../../components/dashboard/ModuleAppIcons';
 
 const banners = [
@@ -87,6 +89,13 @@ const modules: ModuleItem[] = [
     Icon: SalesAppIcon,
     detail: 'Create quotations, manage orders, and track customer invoices in one place.',
     permModule: 'sales',
+  },
+  {
+    title: 'CRM & Leads',
+    href: '/crm/dashboard',
+    Icon: CrmAppIcon,
+    detail: 'Manage leads, pipeline stages, Kanban boards, follow-ups and Google Sheets sync.',
+    permModule: 'crm',
   },
   {
     title: 'Purchases',
@@ -226,6 +235,8 @@ function openHeaderAction(action: ModuleItem['action']) {
 export default function DashboardPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const { canAccessDashboardModule, isAdmin, ready: permsReady } = usePermissions();
+  const companyCtx = useCompanyOptional();
+  const textileWeaving = isTextileWeavingCompany(companyCtx?.activeCompany);
 
   /* ── Draggable tiles: har tile ka offset (x, y) save hota hai, refresh ke baad bhi rehta hai ── */
   const [offsets, setOffsets] = useState<Record<string, { x: number; y: number }>>({});
@@ -313,16 +324,28 @@ export default function DashboardPage() {
   };
 
   const visibleModules = useMemo(() => {
-    if (isAdmin) return modules;
-    // Wait until permissions are ready — no flash of wrong tiles
-    if (!permsReady) return [];
+    const base = isAdmin
+      ? modules
+      : !permsReady
+        ? []
+        : modules.filter((m) => {
+            if (m.adminOnly) return false;
+            if (!m.permModule) return true; // Search, Support, Profile
+            return canAccessDashboardModule(m.permModule);
+          });
 
-    return modules.filter((m) => {
-      if (m.adminOnly) return false;
-      if (!m.permModule) return true; // Search, Support, Profile
-      return canAccessDashboardModule(m.permModule);
+    return base.map((m) => {
+      if (m.permModule !== 'manufacturing') return m;
+      if (!textileWeaving) return m;
+      return {
+        ...m,
+        title: 'Textile Weaving',
+        href: '/manufacturing/weaving',
+        detail:
+          'Yarn godown, twisting wastage, warping beams, looms and daily greige production.',
+      };
     });
-  }, [isAdmin, permsReady, canAccessDashboardModule]);
+  }, [isAdmin, permsReady, canAccessDashboardModule, textileWeaving]);
 
   useEffect(() => {
     const interval = setInterval(() => {

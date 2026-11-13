@@ -14,6 +14,8 @@ export const ALL_COMPANIES_VALUE = '__all__';
 export const COMPANY_STORAGE_KEY = 'bisonstechs_active_company_id';
 export const COMPANIES_CACHE_KEY = 'bisonstechs_companies_cache';
 
+export type ManufacturingWorkflow = 'STANDARD' | 'TEXTILE_WEAVING';
+
 export type CompanySummary = {
   id: string;
   name: string;
@@ -33,8 +35,17 @@ export type CompanySummary = {
   productTier?: string | null;
   trialEndDate?: string | null;
   subscriptionEndDate?: string | null;
+  /** STANDARD = ERPNext manufacturing; TEXTILE_WEAVING = Yadgar weaving module */
+  manufacturingWorkflow?: ManufacturingWorkflow | string | null;
+  isSandbox?: boolean;
   createdAt?: string | null;
 };
+
+export function isTextileWeavingCompany(
+  company?: Pick<CompanySummary, 'manufacturingWorkflow'> | null
+): boolean {
+  return String(company?.manufacturingWorkflow || 'STANDARD') === 'TEXTILE_WEAVING';
+}
 
 type CompaniesCachePayload = {
   companies: CompanySummary[];

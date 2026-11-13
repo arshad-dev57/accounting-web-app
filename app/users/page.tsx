@@ -22,6 +22,7 @@ import {
   CreditCard,
   ArrowRight,
   KeyRound,
+  HardDrive,
 } from 'lucide-react';
 import { usersService } from './service';
 import { User, Role } from './types';
@@ -202,6 +203,16 @@ export default function UsersDashboard() {
           >
             <KeyRound className="w-4 h-4" />
             <span className="text-sm font-medium sidebar-expanded-only">Approval Permissions</span>
+          </button>
+
+          <button
+            type="button"
+            title="Backup & Restore"
+            onClick={() => router.push('/users/backup-restore')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <HardDrive className="w-4 h-4" />
+            <span className="text-sm font-medium sidebar-expanded-only">Backup & Restore</span>
           </button>
 
           {SUBSCRIPTION_PURCHASE_UI_ENABLED && (

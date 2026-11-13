@@ -144,6 +144,14 @@ export function TradingSidebar() {
 
         <div className="my-2 border-t border-white/10" />
         <Link
+          href="/crm/dashboard"
+          title="CRM & Leads"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-white/60 hover:text-white hover:bg-white/5 transition-all text-xs"
+        >
+          <Users className="w-4 h-4 shrink-0 text-emerald-400" />
+          <span className="sidebar-expanded-only">CRM & Leads</span>
+        </Link>
+        <Link
           href="/dashboard"
           title="Main Dashboard"
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all text-xs"

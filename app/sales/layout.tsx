@@ -26,6 +26,13 @@ import {
   CreditCard,
   Scale,
   CalendarClock,
+  UserCheck,
+  Kanban,
+  Phone,
+  Upload,
+  Star,
+  TrendingUp,
+  LayoutDashboard,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
@@ -54,6 +61,7 @@ function SalesSidebar() {
   const { showInstallmentSalesUi } = useCompanyBusinessConfig();
   
   const [expandedSections, setExpandedSections] = React.useState({
+    crm: true,
     salesCore: true,
     returnsRefunds: false,
     settings: false,
@@ -66,12 +74,24 @@ function SalesSidebar() {
     }));
   };
 
+  const crmPages = [
+    { path: '/crm/dashboard', label: 'Leads Overview', icon: LayoutDashboard },
+    { path: '/crm/leads', label: 'All Leads', icon: Users },
+    { path: '/crm/boards', label: 'Lead Boards', icon: Kanban },
+    { path: '/crm/leads?status=Interested', label: 'Interested Leads', icon: Star },
+    { path: '/crm/follow-ups', label: 'Follow-ups', icon: Phone },
+    { path: '/crm/leads?status=Converted', label: 'Converted Leads', icon: TrendingUp },
+    { path: '/crm/import', label: 'Import & Integrations', icon: Upload },
+    { path: '/crm/settings', label: 'CRM Settings', icon: Settings },
+  ];
+
   const isActive = (path: string) =>
     pathname === path || Boolean(pathname?.startsWith(path + '/'));
 
   // Permission mapping for sales sub-pages
   const salesPages = [
     { path: '/sales/dashboard', label: 'Sales Dashboard', permission: 'dashboard' },
+    { path: '/crm/dashboard', label: 'CRM & Leads', permission: 'dashboard' },
     { path: '/sales/reports', label: 'Sales Reports', permission: 'dashboard' },
     { path: '/sales/products', label: 'Products', permission: 'products' },
     { path: '/sales/salespersons', label: 'Salespersons', permission: 'customers' },
@@ -308,6 +328,17 @@ function SalesSidebar() {
           <Home className="w-5 h-5" />
           <span className="text-sm font-medium sidebar-expanded-only">Main Dashboard</span>
         </Link>
+
+        {(isAdmin || hasModuleAccess('crm') || hasModuleAccess('sales')) && (
+          <Link
+            href="/crm/dashboard"
+            title="CRM & Leads"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <Users className="w-5 h-5 text-emerald-400" />
+            <span className="text-sm font-medium sidebar-expanded-only">CRM & Leads</span>
+          </Link>
+        )}
 
         {isAdmin || hasModuleAccess('warehouse') && (
           <Link

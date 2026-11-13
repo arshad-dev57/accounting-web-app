@@ -21,6 +21,7 @@ import {
   ArrowLeftRight,
   Ship,
   Send,
+  UserCheck,
 } from 'lucide-react';
 import { usePermissions } from '../lib/usePermissions';
 import { BrandHeader } from './BrandHeader';
@@ -34,10 +35,15 @@ import {
 } from '../lib/subscription-service';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../lib/subscription-ui';
 import { useSidebarCollapsed } from '../lib/sidebar-collapse';
+import { isTextileWeavingCompany, useCompanyOptional } from '../lib/company-context';
 
 export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: string }) {
   const { hasModuleAccess, isAdmin, canViewRegisteredUsers } = usePermissions();
   const { collapsed } = useSidebarCollapsed();
+  const companyCtx = useCompanyOptional();
+  const manufacturingPath = isTextileWeavingCompany(companyCtx?.activeCompany)
+    ? '/manufacturing/weaving'
+    : '/manufacturing/dashboard';
   const cached = readCachedSubscription();
   const [posOnly, setPosOnly] = useState(() =>
     isPosOnlyTier(
@@ -115,6 +121,12 @@ export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: str
           show: isAdmin || hasModuleAccess('sales'),
         },
         {
+          icon: <UserCheck className="w-5 h-5 text-emerald-400" />,
+          label: 'CRM & Leads',
+          path: '/crm/dashboard',
+          show: true,
+        },
+        {
           icon: <Package className="w-5 h-5" />,
           label: 'Purchases',
           path: '/purchases',
@@ -122,8 +134,10 @@ export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: str
         },
         {
           icon: <Factory className="w-5 h-5" />,
-          label: 'Manufacturing',
-          path: '/manufacturing/dashboard',
+          label: isTextileWeavingCompany(companyCtx?.activeCompany)
+            ? 'Textile Weaving'
+            : 'Manufacturing',
+          path: manufacturingPath,
           show: isAdmin || hasModuleAccess('manufacturing'),
         },
         {

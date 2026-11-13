@@ -31,12 +31,14 @@ export interface StoredUser {
 export const USER_STORAGE_KEY = 'user';
 
 export function isAdminRole(role?: string | null): boolean {
-  const r = (role || '').toLowerCase().trim();
+  const r = (role || '').toLowerCase().trim().replace(/[\s-]+/g, '_');
   return (
     r === 'admin' ||
     r === 'owner' ||
     r === 'superadmin' ||
-    r === 'company_admin'
+    r === 'super_admin' ||
+    r === 'company_admin' ||
+    r === 'company_owner'
   );
 }
 

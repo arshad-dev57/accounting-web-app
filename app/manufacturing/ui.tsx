@@ -175,7 +175,10 @@ export function MfgStatusBadge({ status }: { status?: string }) {
     Idle: '#7A8FA6', Maintenance: '#8E44AD', Breakdown: '#E74C3C', Offline: '#7A8FA6',
     Delayed: '#E74C3C', Active: '#2ECC71', Inactive: '#7A8FA6', Approved: '#2ECC71',
     Submitted: '#0FA3E0', Open: '#0FA3E0', Scheduled: '#0FA3E0', Overdue: '#E74C3C',
-    Shortage: '#E74C3C', Reserved: '#0FA3E0', Issued: '#2ECC71', Consumed: '#2ECC71',
+    Posted: '#2ECC71', Available: '#2ECC71',
+    Shortage: '#E74C3C', Reserved: '#0FA3E0', Issued: '#2ECC71', ISSUED: '#0FA3E0',
+    PARTIAL: '#F39C12', COMPLETED: '#2ECC71', CANCELLED: '#E74C3C',
+    Consumed: '#2ECC71',
     'In Inspection': '#F39C12', New: '#0FA3E0', High: '#E74C3C', Medium: '#F39C12',
     Low: '#7A8FA6', Urgent: '#E74C3C',
   };

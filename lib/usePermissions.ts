@@ -312,6 +312,13 @@ export function usePermissions() {
         );
       }
 
+      if (key === 'crm') {
+        return (
+          hasModuleAccess('crm') ||
+          hasModuleAccess('sales')
+        );
+      }
+
       return hasModuleAccess(key);
     },
     [user, admin, effectiveMap, hasModuleAccess]

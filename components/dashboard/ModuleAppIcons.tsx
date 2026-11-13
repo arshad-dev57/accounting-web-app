@@ -395,6 +395,35 @@ export function ExportAppIcon({ className }: IconProps) {
   );
 }
 
+export function CrmAppIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden>
+      <g className="crm-funnel">
+        <path d="M12 14 L52 14 L36 34 L36 48 L28 52 L28 34 Z" fill="#014582" />
+        <ellipse cx="32" cy="14" rx="20" ry="5" fill="#00C2FF" />
+        <circle className="crm-dot crm-d1" cx="24" cy="22" r="3" fill="#F7CD1F" />
+        <circle className="crm-dot crm-d2" cx="40" cy="22" r="3" fill="#10B981" />
+        <circle className="crm-dot crm-d3" cx="32" cy="30" r="3" fill="#F06050" />
+      </g>
+      <style>{`
+        .crm-funnel { transform-box: fill-box; transform-origin: center; animation: crmBob 1.5s ease-in-out infinite alternate; }
+        .crm-dot { animation: crmPulse 1.2s ease-in-out infinite; }
+        .crm-d1 { animation-delay: 0s; }
+        .crm-d2 { animation-delay: 0.2s; }
+        .crm-d3 { animation-delay: 0.4s; }
+        @keyframes crmBob {
+          from { transform: translateY(0); }
+          to { transform: translateY(-2px); }
+        }
+        @keyframes crmPulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.3); opacity: 0.7; }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
 export function TradingAppIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden>
