@@ -36,6 +36,7 @@ import {
 } from '../../../components/trade/TradeUI';
 import {
   OrderSelect,
+  ShipmentSelect,
   OrderFilterBanner,
   PortSelect,
   FormSection,
@@ -46,7 +47,6 @@ import exportApi, {
   formatDate,
   type ExportDispatch,
   type ExportOrder,
-  type ExportShipment,
 } from '../../../lib/export-api';
 import { useExportList } from '../../../lib/use-export-list';
 import { usePermissions } from '../../../lib/usePermissions';
@@ -129,32 +129,17 @@ function ExportDispatchPageContent() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState<DispatchForm>(EMPTY_FORM);
-  const [shipments, setShipments] = useState<ExportShipment[]>([]);
 
   const updateForm = (patch: Partial<DispatchForm>) =>
     setForm((prev) => ({ ...prev, ...patch }));
 
-  const loadShipments = async (orderId: string) => {
-    if (!orderId) {
-      setShipments([]);
-      return;
-    }
-    try {
-      const res = await exportApi.listShipments({ orderId, limit: 100 });
-      setShipments((res.items || []).filter((s) => s.shipmentStatus !== 'Cancelled'));
-    } catch {
-      setShipments([]);
-    }
-  };
-
-  const handleOrderChange = async (id: string, selectedOrder?: ExportOrder | null) => {
+  const handleOrderChange = (id: string, selectedOrder?: ExportOrder | null) => {
     updateForm({
       orderId: id,
       shipmentId: '',
       destinationPort: selectedOrder?.destinationPort || form.destinationPort,
       locationId: selectedOrder?.locationId || form.locationId,
     });
-    await loadShipments(id);
   };
 
   const openCreate = async () => {
@@ -164,7 +149,6 @@ function ExportDispatchPageContent() {
       orderId: orderIdFilter || '',
       locationId: locationIdForApi || '',
     });
-    setShipments([]);
     setFormError(null);
     setModalOpen(true);
     if (orderIdFilter) {
@@ -174,14 +158,13 @@ function ExportDispatchPageContent() {
           destinationPort: order.destinationPort || '',
           locationId: order.locationId || locationIdForApi || '',
         });
-        await loadShipments(orderIdFilter);
       } catch {
         // order selector surfaces the error if selected manually
       }
     }
   };
 
-  const openEdit = async (dispatch: ExportDispatch) => {
+  const openEdit = (dispatch: ExportDispatch) => {
     setEditing(dispatch);
     setForm({
       orderId: dispatch.orderId,
@@ -199,7 +182,6 @@ function ExportDispatchPageContent() {
     });
     setFormError(null);
     setModalOpen(true);
-    await loadShipments(dispatch.orderId);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -603,20 +585,13 @@ function ExportDispatchPageContent() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <FieldLabel required={!editing}>Shipment</FieldLabel>
-                <select
+                <ShipmentSelect
                   value={form.shipmentId}
-                  onChange={(e) => updateForm({ shipmentId: e.target.value })}
-                  disabled={Boolean(editing) || saving}
+                  orderId={form.orderId || undefined}
+                  onChange={(shipmentId) => updateForm({ shipmentId })}
+                  disabled={Boolean(editing) || saving || !form.orderId}
                   required={!editing}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs disabled:bg-gray-50"
-                >
-                  <option value="">Select shipment…</option>
-                  {shipments.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.shipmentNumber} — {s.shipmentStatus}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <FieldLabel>Dispatch date</FieldLabel>

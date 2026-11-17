@@ -76,7 +76,7 @@ export default function AccountsReceivablePage() {
   const { symbol: currencySymbol } = useCurrency();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const statusOptions = ['All', 'Active', 'Overdue', 'Paid'];
+  const statusOptions = ['All', 'Active', 'Overdue'];
 
   // ─── Get Currency Symbol from Local Storage ──────────────────
 
@@ -325,11 +325,17 @@ export default function AccountsReceivablePage() {
                 <Users className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
                 Accounts Receivable
                 <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
-                  ({pagination.total} customers)
+                  ({customers.length} customers)
                 </span>
               </h2>
             </div>
             <div className="flex items-center gap-2 md:gap-3">
+              <Link
+                href="/sales/invoices"
+                className="px-3 py-1.5 text-xs md:text-sm font-semibold text-[#014582] border border-[#014582]/30 rounded-lg hover:bg-[#014582]/5"
+              >
+                Sales Invoices
+              </Link>
               <button
                 onClick={handleRefresh}
                 className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
@@ -348,6 +354,10 @@ export default function AccountsReceivablePage() {
               </button>
             </div>
           </div>
+
+          <p className="text-xs md:text-sm text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+            Customer-wise outstanding from the <strong>Sales</strong> module (sales invoices). Collect payments here against open customer balances.
+          </p>
 
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 md:gap-4">
@@ -753,21 +763,32 @@ function PaymentForm({
               value={formData.invoiceId}
               onChange={(e) => {
                 const invoice = customer?.invoices?.find((inv: Invoice) => inv.id === e.target.value);
+                const open =
+                  invoice?.outstanding != null
+                    ? Number(invoice.outstanding)
+                    : Math.max(0, Number(invoice?.amount || invoice?.totalAmount || 0) - Number(invoice?.paidAmount || 0));
                 setFormData(prev => ({
                   ...prev,
                   invoiceId: e.target.value,
-                  amount: invoice ? (invoice.amount || 0) - (invoice.paidAmount || 0) : 0
+                  amount: open
                 }));
               }}
               className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               required
             >
-              <option value="">Select an invoice...</option>
-              {availableInvoices.map((inv: Invoice) => (
-                <option key={inv.id} value={inv.id}>
-                  {inv.invoiceNumber} - {formatCurrency((inv.amount || 0) - (inv.paidAmount || 0))}
-                </option>
-              ))}
+              <option value="">Select sales invoice...</option>
+              {availableInvoices.map((inv: Invoice) => {
+                const open =
+                  inv.outstanding != null
+                    ? Number(inv.outstanding)
+                    : Math.max(0, Number(inv.amount || inv.totalAmount || 0) - Number(inv.paidAmount || 0));
+                const label = inv.source === 'warehouse' ? 'Warehouse' : 'Sales';
+                return (
+                  <option key={inv.id} value={inv.id}>
+                    {inv.invoiceNumber} ({label}) — {formatCurrency(open)}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -975,23 +996,23 @@ function CustomerDetailModal({
               </div>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {invoices.map((invoice: Invoice) => {
-                  const statusColors = {
-                    Paid: 'green',
-                    Overdue: 'red',
-                    Unpaid: 'orange'
-                  };
-                  const color = statusColors[invoice?.status as keyof typeof statusColors] || 'gray';
-                  const outstanding = (invoice?.amount || 0) - (invoice?.paidAmount || 0);
+                  const outstanding =
+                    invoice?.outstanding != null
+                      ? Number(invoice.outstanding)
+                      : Math.max(0, Number(invoice?.amount || 0) - Number(invoice?.paidAmount || 0));
+                  const sourceLabel = invoice.source === 'warehouse' ? 'Warehouse' : 'Sales';
 
                   return (
                     <div key={invoice.id} className="flex items-center justify-between py-2 border-b border-gray-50">
                       <div>
                         <p className="text-sm font-medium text-gray-800">{invoice.invoiceNumber}</p>
-                        <p className="text-xs text-gray-400">{formatDate(invoice.date)}</p>
+                        <p className="text-xs text-gray-400">
+                          {sourceLabel} · {formatDate(invoice.date)}
+                        </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-semibold text-purple-600">{formatCurrency(outstanding)}</p>
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 bg-${color}-100 text-${color}-600 rounded`}>
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
                           {invoice.status}
                         </span>
                       </div>

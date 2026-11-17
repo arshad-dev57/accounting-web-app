@@ -51,18 +51,20 @@ import { useCurrency } from '../../../lib/currency-context';
 
 const CUSTOMS_STATUSES = [
   'Draft',
-  'Submitted',
-  'Goods Inspected',
+  'Submitted to Customs',
+  'Goods Inspected at Port',
   'Let Export Order (LEO) Granted',
   'Sailed & Completed',
+  'Cancelled',
 ];
 
 const NEXT_STATUS: Record<string, string[]> = {
-  Draft: ['Submitted'],
-  Submitted: ['Goods Inspected', 'Let Export Order (LEO) Granted'],
-  'Goods Inspected': ['Let Export Order (LEO) Granted'],
+  Draft: ['Submitted to Customs', 'Cancelled'],
+  'Submitted to Customs': ['Goods Inspected at Port', 'Cancelled'],
+  'Goods Inspected at Port': ['Let Export Order (LEO) Granted', 'Cancelled'],
   'Let Export Order (LEO) Granted': ['Sailed & Completed'],
   'Sailed & Completed': [],
+  Cancelled: [],
 };
 
 export default function ExportCustomsPage() {

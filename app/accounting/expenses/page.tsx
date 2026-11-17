@@ -817,35 +817,22 @@ function CreateExpenseForm({
   const isEdit = Boolean(initialData?.id);
   const [formData, setFormData] = useState({
     date: toInputDate(initialData?.date),
-    expenseType: initialData?.expenseType || 'Rent',
+    expenseType: initialData?.expenseType || 'Utilities',
     expenseAccountId: initialData?.expenseAccountId || initialData?.expenseAccount?.id || '',
     vendorId: initialData?.vendorId || '',
     description: initialData?.description || '',
     reference: initialData?.reference || '',
-    paymentMethod: initialData?.paymentMethod || 'Cash',
+    paymentMethod: initialData?.paymentMethod || 'Bank Transfer',
     bankAccountId: initialData?.bankAccountId || '',
-    taxRate: Number(initialData?.taxRate) || 0,
+    taxRate: 0,
     departmentId: initialData?.departmentId || initialData?.department?.id || '',
     costCenterId: initialData?.costCenterId || initialData?.costCenter?.id || '',
   });
 
-  const [items, setItems] = useState<ExpenseItem[]>(() => {
-    if (Array.isArray(initialData?.items) && initialData.items.length > 0) {
-      return initialData.items.map((item: any) => ({
-        description: item.description || '',
-        quantity: Number(item.quantity) || 1,
-        unitPrice: Number(item.unitPrice) || 0,
-        amount: Number(item.amount) || (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0),
-      }));
-    }
-    return [{ description: '', quantity: 1, unitPrice: 0, amount: 0 }];
-  });
-
   const [simpleAmount, setSimpleAmount] = useState(
     Number(initialData?.amount) ||
-      (Array.isArray(initialData?.items) && initialData.items.length === 0
-        ? Number(initialData?.totalAmount) || 0
-        : 0)
+      Number(initialData?.totalAmount) ||
+      0
   );
   const [attachments, setAttachments] = useState<ExpenseAttachment[]>(
     Array.isArray(initialData?.attachments) ? initialData.attachments : []
@@ -853,37 +840,8 @@ function CreateExpenseForm({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
-  const requiresItems = formData.expenseType === 'Rent' || formData.expenseType === 'Office Supplies' || formData.expenseType === 'Software';
-
-  const calculateTotal = () => {
-    if (requiresItems) {
-      const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-      return subtotal + (subtotal * (formData.taxRate / 100));
-    }
-    return simpleAmount;
-  };
-
-  const total = calculateTotal();
-
-  const addItem = () => {
-    setItems([...items, { description: '', quantity: 1, unitPrice: 0, amount: 0 }]);
-  };
-
-  const removeItem = (index: number) => {
-    if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateItem = (index: number, field: keyof ExpenseItem, value: any) => {
-    const newItems = [...items];
-    const item = { ...newItems[index], [field]: value };
-    if (field === 'quantity' || field === 'unitPrice') {
-      item.amount = item.quantity * item.unitPrice;
-    }
-    newItems[index] = item;
-    setItems(newItems);
-  };
+  // Standard payment voucher: single amount + GL account (not product line-items)
+  const total = simpleAmount;
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -915,13 +873,11 @@ function CreateExpenseForm({
       setError('Please select an expense account');
       return;
     }
-    if (requiresItems) {
-      const hasInvalidItem = items.some(item => !item.description.trim() || item.unitPrice <= 0);
-      if (hasInvalidItem) {
-        setError('Please fill all item details');
-        return;
-      }
-    } else if (simpleAmount <= 0) {
+    if (!formData.description.trim()) {
+      setError('Description is required');
+      return;
+    }
+    if (simpleAmount <= 0) {
       setError('Please enter a valid amount');
       return;
     }
@@ -936,10 +892,10 @@ function CreateExpenseForm({
       expenseType: formData.expenseType,
       expenseAccountId: formData.expenseAccountId,
       vendorId: formData.vendorId || undefined,
-      items: requiresItems ? items : [],
-      amount: requiresItems ? undefined : simpleAmount,
-      taxRate: requiresItems ? formData.taxRate : 0,
-      description: formData.description,
+      items: [],
+      amount: simpleAmount,
+      taxRate: 0,
+      description: formData.description.trim(),
       reference: formData.reference,
       paymentMethod: formData.paymentMethod,
       bankAccountId: formData.paymentMethod !== 'Cash' ? formData.bankAccountId : undefined,
@@ -1066,119 +1022,41 @@ function CreateExpenseForm({
             </div>
           </div>
 
-          {/* Items or Simple Amount */}
-          {requiresItems ? (
-            <div>
-              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Items</label>
-              <div className="space-y-3">
-                {items.map((item, index) => (
-                  <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-gray-500">Item {index + 1}</span>
-                      {items.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeItem(index)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <MinusCircle className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <input
-                        type="text"
-                        placeholder="Description *"
-                        value={item.description}
-                        onChange={(e) => updateItem(index, 'description', e.target.value)}
-                        className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white"
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="number"
-                          min="1"
-                          placeholder="Qty"
-                          value={item.quantity}
-                          onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                          className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white"
-                        />
-                        <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">{currencySymbol}</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="Unit Price *"
-                            value={item.unitPrice}
-                            onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                            className="w-full pl-8 pr-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-white"
-                          />
-                        </div>
-                      </div>
-                      {item.amount > 0 && (
-                        <p className="text-xs font-semibold text-[#014582] text-right">Amount: {formatCurrency(item.amount)}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addItem}
-                  className="flex items-center gap-1 text-xs text-[#014582] font-semibold hover:text-[#01366a]"
-                >
-                  <PlusCircle className="w-3.5 h-3.5" />
-                  Add Item
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Amount *</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-xs md:text-sm">{currencySymbol}</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={simpleAmount}
-                  onChange={(e) => setSimpleAmount(parseFloat(e.target.value) || 0)}
-                  className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
-                  required
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Tax Rate (for items) */}
-          {requiresItems && (
-            <div>
-              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Tax Rate</label>
-              <TaxRateSelect
-                value={formData.taxRate}
-                onChange={(rate) => setFormData(prev => ({ ...prev, taxRate: rate }))}
-                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+          <div>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Amount *</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-xs md:text-sm">{currencySymbol}</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={simpleAmount || ''}
+                onChange={(e) => setSimpleAmount(parseFloat(e.target.value) || 0)}
+                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+                required
               />
             </div>
-          )}
+          </div>
 
           {/* Total Amount */}
           <div className="p-3 bg-[#014582]/5 border border-[#014582]/20 rounded-lg">
             <div className="flex justify-between text-sm font-bold">
-              <span>Total Amount</span>
+              <span>Payment Total</span>
               <span className="text-[#014582]">{formatCurrency(total)}</span>
             </div>
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Description</label>
+            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Description *</label>
             <textarea
               rows={2}
-              placeholder="Enter description"
+              placeholder="e.g., Electricity bill — Nov 2026"
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 resize-none"
+              required
             />
           </div>
 
@@ -1211,16 +1089,17 @@ function CreateExpenseForm({
           {/* Bank Account */}
           {formData.paymentMethod !== 'Cash' && (
             <div>
-              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Bank Account</label>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Bank Account *</label>
               <select
                 value={formData.bankAccountId}
                 onChange={(e) => setFormData(prev => ({ ...prev, bankAccountId: e.target.value }))}
                 className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+                required
               >
                 <option value="">Select bank account...</option>
                 {bankAccounts.map((acc: any) => (
                   <option key={acc.id || acc._id} value={acc.id || acc._id}>
-                    {acc.accountName}
+                    {acc.accountName}{acc.iban ? ` · ${acc.iban}` : ''}
                   </option>
                 ))}
               </select>

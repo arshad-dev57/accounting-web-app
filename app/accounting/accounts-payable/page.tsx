@@ -45,19 +45,10 @@ interface FilterState {
 // ─── MAIN PAGE ──────────────────────────────────────────────────
 
 export default function AccountsPayablePage() {
-  const [bills, setBills] = useState<Bill[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    pages: 0,
-    hasNext: false,
-    hasPrev: false
-  });
   const [summary, setSummary] = useState<Summary>({
     totalOutstanding: 0,
     overdue: 0,
@@ -69,59 +60,38 @@ export default function AccountsPayablePage() {
     status: 'All',
     search: ''
   });
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [showAddBillForm, setShowAddBillForm] = useState(false);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
 
   const { symbol: currencySymbol } = useCurrency();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const statusOptions = ['All', 'Unpaid', 'Paid', 'Overdue', 'Partial'];
+  const statusOptions = ['All', 'Overdue', 'Active'];
 
-  // ─── Get Currency Symbol from Local Storage ──────────────────
+  // ─── Fetch suppliers with open purchase invoices (AP ledger) ──
 
-  // ─── Fetch Bills ─────────────────────────────────────────────
-
-  const fetchBills = useCallback(async (resetPage = true) => {
+  const fetchSuppliers = useCallback(async () => {
     setLoading(true);
     try {
-      const page = resetPage ? 1 : pagination.page;
-      const response = await accountsPayableService.getBills({
-        page,
-        limit: pagination.limit,
+      const data = await accountsPayableService.getSuppliers({
         search: searchTerm || undefined,
-        status: filter.status !== 'All' ? filter.status : undefined
+        filter:
+          filter.status === 'Overdue'
+            ? 'overdue'
+            : filter.status === 'All'
+              ? 'active'
+              : filter.status.toLowerCase(),
       });
-
-      // Ensure items is always an array
-      const billsWithItems = (response.data || []).map(b => ({
-        ...b,
-        items: b.items || []
-      }));
-
-      setBills(billsWithItems);
-      setPagination(response.pagination);
-      // Summary comes from fetchSummary only — do not overwrite with empty defaults
+      setSuppliers(data || []);
     } catch (error: any) {
-      console.error('Failed to fetch bills:', error);
-      toast.error(error.message || 'Failed to load bills');
+      console.error('Failed to fetch suppliers:', error);
+      toast.error(error.message || 'Failed to load payables');
     } finally {
       setLoading(false);
     }
-  }, [filter, searchTerm, pagination.page, pagination.limit]);
-
-  // ─── Fetch Suppliers ─────────────────────────────────────────
-
-  const fetchSuppliers = useCallback(async () => {
-    try {
-      const data = await accountsPayableService.getSuppliers();
-      setSuppliers(data || []);
-    } catch (error) {
-      console.error('Failed to fetch suppliers:', error);
-    }
-  }, []);
+  }, [filter, searchTerm]);
 
   // ─── Fetch Bank Accounts ─────────────────────────────────────
 
@@ -146,100 +116,48 @@ export default function AccountsPayablePage() {
     }
   }, []);
 
-  // ─── Load More ──────────────────────────────────────────────
-
-  const loadMore = useCallback(async () => {
-    if (!pagination.hasNext || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const nextPage = pagination.page + 1;
-      const response = await accountsPayableService.getBills({
-        page: nextPage,
-        limit: pagination.limit,
-        search: searchTerm || undefined,
-        status: filter.status !== 'All' ? filter.status : undefined
-      });
-
-      const newBills = (response.data || []).map(b => ({
-        ...b,
-        items: b.items || []
-      }));
-
-      setBills(prev => [...prev, ...newBills]);
-      setPagination(response.pagination);
-    } catch (error) {
-      console.error('Failed to load more bills:', error);
-      toast.error('Failed to load more bills');
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [pagination.hasNext, pagination.page, pagination.limit, filter, searchTerm]);
-
-  // ─── Initial Fetch ──────────────────────────────────────────
+  // ─── Initial / filter fetch ─────────────────────────────────
 
   useEffect(() => {
-    fetchSuppliers();
     fetchBankAccounts();
     fetchSummary();
-    fetchBills(true);
-  }, []);
-
-  // ─── Search ──────────────────────────────────────────────────
+  }, [fetchBankAccounts, fetchSummary]);
 
   const handleSearch = (query: string) => {
     setSearchTerm(query);
-    fetchBills(true);
   };
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      fetchSuppliers();
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchTerm, filter.status, fetchSuppliers]);
 
   const clearSearch = () => {
     setSearchTerm('');
-    fetchBills(true);
   };
 
-  // ─── Filter Changes ──────────────────────────────────────────
-
   const handleStatusChange = (status: string) => {
-    setFilter(prev => ({ ...prev, status }));
-    fetchBills(true);
+    setFilter((prev) => ({ ...prev, status }));
   };
 
   const handleRefresh = () => {
     fetchSummary();
-    fetchBills(true);
+    fetchSuppliers();
   };
 
   const openPayForm = (bill: Bill, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setSelectedBill({ ...bill, items: bill.items || [] });
+    setSelectedBill({
+      ...bill,
+      items: bill.items || [],
+      supplierName: bill.supplierName || selectedSupplier?.name || '',
+      supplierId: bill.supplierId || selectedSupplier?.id || '',
+    });
     setShowPaymentForm(true);
-    // Refresh banks when opening pay form (keep-alive/first load can miss them)
     void fetchBankAccounts();
   };
-
-  const handlePageChange = (page: number) => {
-    setPagination(prev => ({ ...prev, page }));
-    fetchBills(false);
-  };
-
-  // ─── Create Bill ─────────────────────────────────────────────
-
-  const handleCreateBill = async (data: any) => {
-    setSubmitting(true);
-    try {
-      await accountsPayableService.createBill(data);
-      toast.success('Bill created successfully!');
-      setShowAddBillForm(false);
-      fetchSummary();
-      fetchBills(true);
-    } catch (error: any) {
-      console.error('Failed to create bill:', error);
-      toast.error(error.message || 'Failed to create bill');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // ─── Record Payment ──────────────────────────────────────────
 
   const handleRecordPayment = async (data: any) => {
     setSubmitting(true);
@@ -248,8 +166,9 @@ export default function AccountsPayablePage() {
       toast.success('Payment recorded successfully!');
       setShowPaymentForm(false);
       setSelectedBill(null);
+      setSelectedSupplier(null);
       fetchSummary();
-      fetchBills(true);
+      fetchSuppliers();
     } catch (error: any) {
       console.error('Failed to record payment:', error);
       toast.error(error.message || 'Failed to record payment');
@@ -258,44 +177,47 @@ export default function AccountsPayablePage() {
     }
   };
 
-  // ─── Get Next Bill Number ────────────────────────────────────
+  const viewSupplierDetail = (supplier: Supplier) => {
+    setSelectedSupplier({
+      ...supplier,
+      invoices: supplier.invoices || supplier.bills || [],
+    });
+  };
 
-  const getNextBillNumber = useCallback(async () => {
-    try {
-      return await accountsPayableService.getNextBillNumber();
-    } catch (error) {
-      console.error('Failed to get next bill number:', error);
-      return `BILL-${Date.now()}`;
-    }
-  }, []);
-
-  // ─── View Bill Detail ────────────────────────────────────────
-
-  const viewBillDetail = (bill: Bill) => {
-    const billWithItems = {
-      ...bill,
-      items: bill.items || []
-    };
-    setSelectedBill(billWithItems);
+  const getSupplierStatusText = (supplier: Supplier) => {
+    const invoices = supplier.invoices || supplier.bills || [];
+    if (invoices.some((inv) => inv.status === 'Overdue')) return 'Overdue';
+    if ((supplier.outstandingAmount || 0) > 0) return 'Open';
+    return 'Clear';
   };
 
   // ─── Helper Functions ──────────────────────────────────────
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Paid': return 'bg-green-100 text-green-700';
-      case 'Overdue': return 'bg-red-100 text-red-700';
-      case 'Partial': return 'bg-yellow-100 text-yellow-700';
-      default: return 'bg-blue-100 text-blue-700';
+      case 'Paid':
+      case 'Clear':
+        return 'bg-green-100 text-green-700';
+      case 'Overdue':
+        return 'bg-red-100 text-red-700';
+      case 'Partial':
+        return 'bg-yellow-100 text-yellow-700';
+      default:
+        return 'bg-blue-100 text-blue-700';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'Paid': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'Overdue': return <AlertTriangle className="w-4 h-4 text-red-600" />;
-      case 'Partial': return <Clock className="w-4 h-4 text-yellow-600" />;
-      default: return <Clock className="w-4 h-4 text-blue-600" />;
+      case 'Paid':
+      case 'Clear':
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'Overdue':
+        return <AlertTriangle className="w-4 h-4 text-red-600" />;
+      case 'Partial':
+        return <Clock className="w-4 h-4 text-yellow-600" />;
+      default:
+        return <Clock className="w-4 h-4 text-blue-600" />;
     }
   };
 
@@ -316,18 +238,7 @@ export default function AccountsPayablePage() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {showAddBillForm ? (
-        <AddBillForm
-          suppliers={suppliers}
-          bankAccounts={bankAccounts}
-          onCancel={() => setShowAddBillForm(false)}
-          onSave={handleCreateBill}
-          submitting={submitting}
-          formatCurrency={formatCurrency}
-          currencySymbol={currencySymbol}
-          getNextBillNumber={getNextBillNumber}
-        />
-      ) : showPaymentForm && selectedBill ? (
+      {showPaymentForm && selectedBill ? (
         <PaymentForm
           bill={selectedBill}
           bankAccounts={bankAccounts}
@@ -349,14 +260,20 @@ export default function AccountsPayablePage() {
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <Receipt className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
+                <Users className="w-5 h-5 md:w-6 md:h-6 text-[#014582]" />
                 Accounts Payable
                 <span className="text-xs md:text-sm font-normal text-gray-400 ml-1 md:ml-2">
-                  ({summary.totalBills || pagination.total} payables)
+                  ({suppliers.length} suppliers)
                 </span>
               </h2>
             </div>
             <div className="flex items-center gap-2 md:gap-3">
+              <Link
+                href="/purchases/invoices"
+                className="px-3 py-1.5 text-xs md:text-sm font-semibold text-[#014582] border border-[#014582]/30 rounded-lg hover:bg-[#014582]/5"
+              >
+                Purchase Invoices
+              </Link>
               <button
                 onClick={handleRefresh}
                 className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-[#014582] transition-all"
@@ -369,7 +286,7 @@ export default function AccountsPayablePage() {
           </div>
 
           <p className="text-xs md:text-sm text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-            Payables from <strong>Supplier Credit stock-in</strong> and purchase invoices appear here. Pay directly — no separate bill entry needed.
+            Supplier-wise outstanding from the <strong>Purchases</strong> module (purchase invoices). Pay here against open supplier balances — same suppliers as Purchases.
           </p>
 
           {/* Stats */}
@@ -400,7 +317,7 @@ export default function AccountsPayablePage() {
                 <input
                   ref={searchInputRef}
                   type="text"
-                  placeholder="Search bills..."
+                  placeholder="Search suppliers..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
                   className="w-full pl-8 md:pl-9 pr-3 md:pr-4 py-1.5 md:py-2 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none"
@@ -429,90 +346,74 @@ export default function AccountsPayablePage() {
             </div>
           </div>
 
-          {/* Bill List */}
+          {/* Supplier List */}
           <div className="space-y-3 md:space-y-4">
-            {loading && bills.length === 0 ? (
+            {loading && suppliers.length === 0 ? (
               <div className="text-center py-8 md:py-12">
                 <Loader2 className="w-6 h-6 md:w-8 md:h-8 mx-auto text-[#014582] animate-spin" />
-                <p className="mt-2 text-xs md:text-sm text-gray-500">Loading bills...</p>
+                <p className="mt-2 text-xs md:text-sm text-gray-500">Loading suppliers...</p>
               </div>
-            ) : bills.length === 0 ? (
+            ) : suppliers.length === 0 ? (
               <div className="text-center py-8 md:py-12 text-gray-400">
-                <Receipt className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-3 text-gray-300" />
-                <p className="text-sm md:text-lg font-medium text-gray-500">No bills found</p>
-                <p className="text-xs md:text-sm text-gray-400">Try adjusting your search or filters</p>
+                <Users className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-3 text-gray-300" />
+                <p className="text-sm md:text-lg font-medium text-gray-500">No open payables</p>
+                <p className="text-xs md:text-sm text-gray-400">
+                  Suppliers with unpaid purchase invoices will appear here
+                </p>
               </div>
             ) : (
-              bills.map((bill) => {
-                const statusColor = getStatusColor(bill.status);
-                const statusIcon = getStatusIcon(bill.status);
-                const overdue = isOverdue(bill.dueDate) && bill.status !== 'Paid';
+              suppliers.map((supplier) => {
+                const statusText = getSupplierStatusText(supplier);
+                const statusColor = getStatusColor(statusText);
+                const statusIcon = getStatusIcon(statusText);
+                const invoices = supplier.invoices || supplier.bills || [];
+                const overdueCount = invoices.filter((inv) => inv.status === 'Overdue').length;
 
                 return (
                   <div
-                    key={bill.id}
+                    key={supplier.id}
                     className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer"
-                    onClick={() => viewBillDetail(bill)}
+                    onClick={() => viewSupplierDetail(supplier)}
                   >
                     <div className="p-3 md:p-4">
                       <div className="flex items-center gap-3 md:gap-4">
-                        <div className="p-2 md:p-2.5 rounded-xl bg-red-100">
-                          <Receipt className="w-4 h-4 md:w-5 md:h-5 text-red-600" />
+                        <div className="p-2 md:p-2.5 rounded-xl bg-orange-100">
+                          <Building2 className="w-4 h-4 md:w-5 md:h-5 text-orange-600" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold text-gray-800 text-sm md:text-base truncate">{bill.billNumber}</p>
+                            <p className="font-semibold text-gray-800 text-sm md:text-base truncate">{supplier.name}</p>
                             <span className={`text-[10px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full flex items-center gap-1 ${statusColor}`}>
                               {statusIcon}
-                              <span className="hidden xs:inline">{bill.status}</span>
+                              <span className="hidden xs:inline">{statusText}</span>
                             </span>
-                            {overdue && (
+                            {overdueCount > 0 && (
                               <span className="text-[10px] md:text-xs font-semibold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full bg-red-100 text-red-700">
-                                Overdue
+                                {overdueCount} OD
                               </span>
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mt-0.5">
-                            <span className="text-[10px] md:text-xs text-gray-500">{bill.supplierName}</span>
-                            <span className="text-[10px] md:text-xs text-gray-300">•</span>
-                            <span className="text-[10px] md:text-xs text-gray-400">Due: {formatDate(bill.dueDate)}</span>
-                            <span className="text-[10px] md:text-xs text-gray-300">•</span>
-                            <span className="text-[10px] md:text-xs text-gray-400">{bill.items?.length || 0} items</span>
-                            {bill.currency?.code && (
+                            {supplier.email && (
                               <>
+                                <span className="text-[10px] md:text-xs text-gray-500">{supplier.email}</span>
                                 <span className="text-[10px] md:text-xs text-gray-300">•</span>
-                                <span className="text-[10px] md:text-xs text-gray-500">
-                                  {bill.currency.code}
-                                  {bill.exchangeRate != null ? ` @ ${bill.exchangeRate}` : ''}
-                                </span>
                               </>
                             )}
+                            {supplier.phone && (
+                              <span className="text-[10px] md:text-xs text-gray-500">{supplier.phone}</span>
+                            )}
+                            <span className="text-[10px] md:text-xs text-gray-300">•</span>
+                            <span className="text-[10px] md:text-xs text-gray-400">
+                              {supplier.totalInvoices || invoices.length} purchase invoice(s)
+                            </span>
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
-                          <div>
-                            <p className="text-sm md:text-base font-bold text-red-600">{formatCurrency(bill.outstanding)}</p>
-                            <p className="text-[10px] md:text-xs text-gray-400">Outstanding</p>
-                            {bill.foreignAmount != null && bill.currency?.code && (
-                              <p className="text-[10px] text-gray-400 mt-0.5">
-                                Foreign: {bill.currency.symbol || bill.currency.code} {Number(bill.foreignAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </p>
-                            )}
-                            {bill.baseAmount != null && (
-                              <p className="text-[10px] text-gray-400">
-                                Local: {Number(bill.baseAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </p>
-                            )}
-                          </div>
-                          {bill.status !== 'Paid' && bill.outstanding > 0 && (
-                            <button
-                              type="button"
-                              onClick={(e) => openPayForm(bill, e)}
-                              className="px-2.5 py-1 text-[10px] md:text-xs font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700"
-                            >
-                              Pay & Clear
-                            </button>
-                          )}
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-sm md:text-base font-bold text-red-600">
+                            {formatCurrency(supplier.outstandingAmount || 0)}
+                          </p>
+                          <p className="text-[10px] md:text-xs text-gray-400">Outstanding</p>
                         </div>
                       </div>
                     </div>
@@ -521,65 +422,20 @@ export default function AccountsPayablePage() {
               })
             )}
           </div>
-
-          {/* Load More */}
-          {pagination.hasNext && bills.length > 0 && (
-            <div className="flex justify-center py-3 md:py-4">
-              <button
-                onClick={loadMore}
-                disabled={loadingMore}
-                className="px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-[#014582] hover:bg-[#014582]/10 rounded-lg transition-all disabled:opacity-50"
-              >
-                {loadingMore ? (
-                  <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-                ) : (
-                  'Load More'
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* Pagination */}
-          {pagination.pages > 1 && (
-            <div className="flex flex-col xs:flex-row items-center justify-between gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4">
-              <p className="text-[10px] md:text-sm text-gray-500 text-center xs:text-left">
-                Showing {(pagination.page - 1) * pagination.limit + 1} –{' '}
-                {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
-              </p>
-              <div className="flex gap-1 md:gap-2">
-                <button
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  disabled={!pagination.hasPrev}
-                  className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                </button>
-                <span className="px-2 md:px-4 py-1 md:py-2 bg-[#014582]/10 text-[#014582] font-semibold rounded-lg text-xs md:text-sm">
-                  {pagination.page} / {pagination.pages}
-                </span>
-                <button
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  disabled={!pagination.hasNext}
-                  className="p-1.5 md:p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                </button>
-              </div>
-            </div>
-          )}
         </>
       )}
 
-      {/* Bill Detail Modal */}
-      {selectedBill && !showPaymentForm && !showAddBillForm && (
-        <BillDetailModal
-          bill={selectedBill}
-          onClose={() => setSelectedBill(null)}
-          onPay={() => setShowPaymentForm(true)}
+      {/* Supplier Detail Modal */}
+      {selectedSupplier && !showPaymentForm && (
+        <SupplierDetailModal
+          supplier={selectedSupplier}
+          onClose={() => setSelectedSupplier(null)}
+          onPayInvoice={(bill: Bill) => openPayForm(bill)}
           formatCurrency={formatCurrency}
           formatDate={formatDate}
           getStatusColor={getStatusColor}
           getStatusIcon={getStatusIcon}
+          getSupplierStatusText={getSupplierStatusText}
         />
       )}
     </div>
@@ -587,7 +443,131 @@ export default function AccountsPayablePage() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ADD BILL FORM
+// SUPPLIER DETAIL MODAL
+// ═══════════════════════════════════════════════════════════════
+
+function SupplierDetailModal({
+  supplier,
+  onClose,
+  onPayInvoice,
+  formatCurrency,
+  formatDate,
+  getStatusColor,
+  getStatusIcon,
+  getSupplierStatusText,
+}: any) {
+  const statusText = getSupplierStatusText(supplier);
+  const statusColor = getStatusColor(statusText);
+  const statusIcon = getStatusIcon(statusText);
+  const invoices: Bill[] = supplier.invoices || supplier.bills || [];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
+        <div className="flex items-start justify-between px-4 md:px-6 py-4 md:py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
+          <div className="flex items-start gap-3 md:gap-4">
+            <div className="p-2 md:p-2.5 rounded-xl bg-orange-100">
+              <Building2 className="w-5 h-5 md:w-6 md:h-6 text-orange-600" />
+            </div>
+            <div>
+              <h2 className="text-lg md:text-xl font-bold text-gray-900">{supplier.name}</h2>
+              <div className="flex flex-wrap items-center gap-1 md:gap-2 mt-1">
+                <span className={`text-[10px] md:text-xs font-semibold px-2 md:px-2.5 py-0.5 md:py-1 rounded-full flex items-center gap-1 ${statusColor}`}>
+                  {statusIcon}
+                  {statusText}
+                </span>
+                <span className="text-[10px] md:text-xs text-gray-500">
+                  {invoices.length} open purchase invoice(s)
+                </span>
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 md:p-2 hover:bg-gray-100 rounded-lg transition-all flex-shrink-0">
+            <X className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-4 md:p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+          <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4">
+            <div className="bg-red-50 rounded-xl p-3 md:p-4">
+              <p className="text-[10px] md:text-xs text-gray-500">Outstanding</p>
+              <p className="text-lg md:text-xl font-bold text-red-600">
+                {formatCurrency(supplier.outstandingAmount || 0)}
+              </p>
+            </div>
+            <div className="bg-orange-50 rounded-xl p-3 md:p-4">
+              <p className="text-[10px] md:text-xs text-gray-500">Open Invoices</p>
+              <p className="text-lg md:text-xl font-bold text-orange-600">{invoices.length}</p>
+            </div>
+          </div>
+
+          <div className="space-y-2 mb-4">
+            {supplier.email && (
+              <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                <span className="text-xs text-gray-400 font-medium">Email</span>
+                <span className="text-sm font-medium text-gray-800">{supplier.email}</span>
+              </div>
+            )}
+            {supplier.phone && (
+              <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                <span className="text-xs text-gray-400 font-medium">Phone</span>
+                <span className="text-sm font-medium text-gray-800">{supplier.phone}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-gray-100 pt-4">
+            <h4 className="text-sm font-bold text-gray-700 mb-3">Open Purchase Invoices</h4>
+            {invoices.length === 0 ? (
+              <p className="text-sm text-gray-400">No open invoices</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {invoices.map((invoice) => (
+                  <div
+                    key={invoice.id}
+                    className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-lg border border-gray-100 hover:bg-gray-50"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">
+                        {invoice.invoiceNumber || invoice.billNumber}
+                      </p>
+                      <p className="text-[11px] text-gray-400">
+                        {invoice.documentLabel || (invoice.source === 'purchaseInvoice' ? 'Purchase Invoice' : 'Vendor Bill')}
+                        {' · '}Due {formatDate(invoice.dueDate)}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0 flex items-center gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-red-600">
+                          {formatCurrency(invoice.outstanding)}
+                        </p>
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getStatusColor(invoice.status)}`}>
+                          {invoice.status}
+                        </span>
+                      </div>
+                      {invoice.outstanding > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => onPayInvoice(invoice)}
+                          className="px-2.5 py-1 text-[10px] font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700"
+                        >
+                          Pay
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADD BILL FORM (legacy — kept for optional manual vendor bills)
 // ═══════════════════════════════════════════════════════════════
 
 function AddBillForm({
@@ -996,8 +976,13 @@ function PaymentForm({
         )}
 
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-          <p className="text-sm font-medium text-gray-700">{bill.billNumber}</p>
-          <p className="text-xs text-gray-500">Supplier: {bill.supplierName}</p>
+          <p className="text-sm font-medium text-gray-700">
+            {bill.invoiceNumber || bill.billNumber}
+          </p>
+          <p className="text-xs text-gray-500">
+            {bill.documentLabel || (bill.source === 'purchaseInvoice' ? 'Purchase Invoice' : 'Vendor Bill')}
+            {' · '}Supplier: {bill.supplierName}
+          </p>
           <p className="text-xs text-gray-500">
             Outstanding: <span className="font-semibold text-red-600">{formatCurrency(bill.outstanding)}</span>
           </p>

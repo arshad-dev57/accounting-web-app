@@ -8,8 +8,11 @@ export interface Invoice {
   date: string;
   dueDate: string;
   amount: number;
+  totalAmount?: number;
   paidAmount: number;
+  outstanding?: number;
   status: string;
+  source?: 'sales' | 'warehouse';
 }
 
 export interface Customer {
@@ -145,11 +148,48 @@ export const accountsReceivableService = {
       }
       
       const rawPayload = response.data || {};
-      const items: Customer[] = Array.isArray(rawPayload.data)
+      const rawItems: any[] = Array.isArray(rawPayload.data)
         ? rawPayload.data
         : Array.isArray(rawPayload)
         ? rawPayload
         : [];
+
+      const items: Customer[] = rawItems.map((c: any) => {
+        const invoices = Array.isArray(c.invoices)
+          ? c.invoices.map((inv: any) => {
+              const totalAmount = Number(inv.totalAmount ?? inv.amount ?? 0);
+              const paidAmount = Number(inv.paidAmount ?? 0);
+              const outstanding =
+                inv.outstanding != null
+                  ? Number(inv.outstanding)
+                  : Math.max(0, totalAmount - paidAmount);
+              return {
+                id: String(inv.id || ''),
+                invoiceNumber: String(inv.invoiceNumber || ''),
+                date: inv.date ? String(inv.date) : '',
+                dueDate: inv.dueDate ? String(inv.dueDate) : '',
+                amount: totalAmount,
+                totalAmount,
+                paidAmount,
+                outstanding,
+                status: String(inv.status || 'Unpaid'),
+                source: inv.source === 'warehouse' ? 'warehouse' : 'sales',
+              } as Invoice;
+            })
+          : [];
+        return {
+          id: String(c.id || ''),
+          name: String(c.name || ''),
+          email: String(c.email || ''),
+          phone: String(c.phone || ''),
+          totalInvoices: Number(c.totalInvoices ?? c.invoiceCount ?? invoices.length),
+          totalAmount: Number(c.totalAmount ?? 0),
+          paidAmount: Number(c.paidAmount ?? 0),
+          outstandingAmount: Number(c.outstandingAmount ?? 0),
+          invoices,
+          lastPaymentDate: c.lastPaymentDate || null,
+        } as Customer;
+      });
 
       const totalCount = typeof rawPayload.total === 'number'
         ? rawPayload.total
@@ -221,22 +261,23 @@ export const accountsReceivableService = {
   // ─── Get bank accounts ─────────────────────────────────────────
   getBankAccounts: async (): Promise<BankAccount[]> => {
     try {
-      console.log('🔍 [Accounts Receivable] Fetching bank accounts...');
-      const response = await apiClient.get('/api/bank-accounts');
-      
-      console.log('📊 [Accounts Receivable] Bank accounts API Response:', JSON.stringify(response, null, 2));
-      
+      const response = await apiClient.get('/api/bank-accounts?limit=100&status=Active');
       if (!response.success) {
-        console.error('❌ [Accounts Receivable] Bank accounts API failure:', response.message);
         throw new Error(response.message || 'Failed to fetch bank accounts');
       }
-      
-      const bankAccounts = response.data?.data || [];
-      console.log('✅ [Accounts Receivable] Bank accounts count:', bankAccounts.length);
-      return bankAccounts;
+      const list = Array.isArray(response.data?.data)
+        ? response.data.data
+        : Array.isArray(response.data)
+          ? response.data
+          : [];
+      return list.map((acc: any) => ({
+        id: String(acc.id || ''),
+        name: String(acc.accountName || acc.name || ''),
+        accountNumber: String(acc.accountNumber || ''),
+        bankName: String(acc.bankName || ''),
+      }));
     } catch (error: any) {
       console.error('❌ [Accounts Receivable] Bank accounts error:', error);
-      console.error('❌ [Accounts Receivable] Bank accounts error message:', error.message);
       return [];
     }
   },

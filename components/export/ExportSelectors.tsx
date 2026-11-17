@@ -3,16 +3,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Search, Building2, Package, Loader2, Check, ChevronDown, Landmark } from 'lucide-react';
+import { Search, Building2, Package, Loader2, Check, Landmark, FileCheck2, Ship } from 'lucide-react';
 import { TradeModal, TradePagination } from '@/components/trade/TradeUI';
 import { customerService, type Customer } from '@/api/customer/route';
 import { productService, type Product } from '@/api/product/route';
 import { bankAccountService, type BankAccount } from '@/lib/bank-accounts-service';
 import { chartOfAccountService, type ChartOfAccount } from '@/lib/chart-of-accounts-service';
 import exportApi, {
+  formatMoney,
   type ExportOrder,
   type ExportPort,
-  type ExportListQuery,
+  type ExportShipment,
 } from '@/lib/export-api';
 import { apiClient } from '@/lib/api-client';
 
@@ -472,6 +473,134 @@ export function ProductPickerModal({
   );
 }
 
+export function OrderPickerModal({
+  isOpen,
+  onClose,
+  onSelect,
+  status,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (order: ExportOrder) => void;
+  status?: string;
+}) {
+  const [search, setSearch] = useState('');
+  const debounced = useDebounced(search);
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState<ExportOrder[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const limit = 8;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await exportApi.listOrders({
+        page,
+        limit,
+        search: debounced.trim() || undefined,
+        status,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
+      setRows(res.items || []);
+      setTotal(res.pagination?.total ?? res.items?.length ?? 0);
+    } catch (e: any) {
+      setError(e.message || 'Failed to load export orders');
+      setRows([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, debounced, status]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setPage(1);
+    }
+  }, [isOpen, debounced, status]);
+
+  useEffect(() => {
+    if (isOpen) void load();
+  }, [isOpen, load]);
+
+  return (
+    <TradeModal isOpen={isOpen} onClose={onClose} title="Select Export Order" maxWidth="max-w-3xl">
+      <div className="space-y-3">
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search order no, buyer or destination…"
+            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200"
+          />
+        </div>
+        {error && <p className="text-xs text-red-600">{error}</p>}
+        <div className="border border-gray-100 rounded-xl overflow-hidden min-h-[220px]">
+          {loading ? (
+            <div className="py-12 text-center text-gray-400 text-xs">
+              <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="py-12 text-center text-gray-400 text-xs">No export orders found</div>
+          ) : (
+            <table className="w-full text-xs">
+              <thead className="bg-gray-50 text-[10px] uppercase text-gray-400">
+                <tr>
+                  <th className="text-left px-3 py-2">Order</th>
+                  <th className="text-left px-3 py-2">Buyer</th>
+                  <th className="text-left px-3 py-2">Destination</th>
+                  <th className="text-right px-3 py-2">Total</th>
+                  <th className="text-left px-3 py-2">Status</th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((o) => (
+                  <tr key={o.id} className="border-t border-gray-50 hover:bg-blue-50/40">
+                    <td className="px-3 py-2 font-bold text-[#014582]">{o.orderNumber}</td>
+                    <td className="px-3 py-2">
+                      <p className="font-semibold text-gray-900">{o.customerName}</p>
+                      <p className="text-[10px] text-gray-400">{o.customerCountry || '—'}</p>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">{o.destinationPort || '—'}</td>
+                    <td className="px-3 py-2 text-right font-semibold">
+                      {formatMoney(o.totalForeign, o.currency || 'USD')}
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">{o.status}</td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => onSelect(o)}
+                        className="px-2.5 py-1 rounded-lg bg-[#014582] text-white text-[11px] font-bold"
+                      >
+                        Select
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <TradePagination
+          currentPage={page}
+          totalPages={Math.ceil(total / limit) || 1}
+          totalItems={total}
+          pageSize={limit}
+          onPageChange={setPage}
+        />
+      </div>
+    </TradeModal>
+  );
+}
+
 export function OrderSelect({
   value,
   onChange,
@@ -487,58 +616,302 @@ export function OrderSelect({
   required?: boolean;
   status?: string;
 }) {
-  const [options, setOptions] = useState<ExportOrder[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<ExportOrder | null>(null);
+  const [loadingSelected, setLoadingSelected] = useState(false);
 
   useEffect(() => {
+    if (!value) {
+      setSelected(null);
+      return;
+    }
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    const query: ExportListQuery = { limit: 200, status };
+    setLoadingSelected(true);
     exportApi
-      .listOrders(query)
-      .then((res) => {
-        if (!cancelled) setOptions(res.items || []);
+      .getOrder(value)
+      .then((order) => {
+        if (!cancelled) setSelected(order);
       })
-      .catch((e: any) => {
-        if (!cancelled) {
-          setOptions([]);
-          setError(e.message || 'Failed to load export orders');
-        }
+      .catch(() => {
+        if (!cancelled) setSelected(null);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoadingSelected(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [status]);
+  }, [value]);
 
   return (
     <div className={`space-y-1 ${className}`}>
-      <div className="relative">
-        <select
-          disabled={disabled || loading}
-          required={required}
-          value={value}
-          onChange={(e) => {
-            const id = e.target.value;
-            onChange(id, options.find((o) => o.id === id) || null);
-          }}
-          className="w-full appearance-none rounded-xl border border-gray-200 px-3 py-2 text-xs bg-white focus:outline-none focus:border-[#014582] disabled:bg-gray-50"
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 rounded-xl border border-gray-200 px-3 py-2 bg-gray-50 text-xs">
+          {selected ? (
+            <div>
+              <p className="font-semibold text-gray-900 truncate">
+                {selected.orderNumber} · {selected.customerName}
+              </p>
+              <p className="text-[10px] text-gray-400">
+                {formatMoney(selected.totalForeign, selected.currency || 'USD')} · {selected.status}
+                {selected.destinationPort ? ` · ${selected.destinationPort}` : ''}
+              </p>
+            </div>
+          ) : loadingSelected ? (
+            <span className="text-gray-400 inline-flex items-center gap-1.5">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading order…
+            </span>
+          ) : (
+            <span className="text-gray-400">
+              {required ? 'No export order selected' : 'Optional — select an export order'}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#014582] text-white text-xs font-bold hover:bg-[#01366a] disabled:opacity-50 shrink-0"
         >
-          <option value="">{loading ? 'Loading export orders…' : 'Select export order…'}</option>
-          {options.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.orderNumber} — {o.customerName} · {o.currency} {Number(o.totalForeign).toLocaleString()} ·{' '}
-              {o.status}
-            </option>
-          ))}
-        </select>
-        <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <FileCheck2 className="w-3.5 h-3.5" /> {selected ? 'Change' : 'Select Order'}
+        </button>
+        {value ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              setSelected(null);
+              onChange('', null);
+            }}
+            className="px-2.5 py-2 rounded-xl border border-gray-200 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          >
+            Clear
+          </button>
+        ) : null}
       </div>
-      {error && <p className="text-[10px] text-red-600">{error}</p>}
+      <OrderPickerModal
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        status={status}
+        onSelect={(order) => {
+          setSelected(order);
+          onChange(order.id, order);
+          setOpen(false);
+        }}
+      />
+    </div>
+  );
+}
+
+export function ShipmentPickerModal({
+  isOpen,
+  onClose,
+  onSelect,
+  orderId,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (shipment: ExportShipment) => void;
+  orderId?: string;
+}) {
+  const [search, setSearch] = useState('');
+  const debounced = useDebounced(search);
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState<ExportShipment[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const limit = 8;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await exportApi.listShipments({
+        page,
+        limit,
+        search: debounced.trim() || undefined,
+        orderId: orderId || undefined,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
+      setRows(res.items || []);
+      setTotal(res.pagination?.total ?? res.items?.length ?? 0);
+    } catch (e: any) {
+      setError(e.message || 'Failed to load shipments');
+      setRows([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, debounced, orderId]);
+
+  useEffect(() => {
+    if (isOpen) setPage(1);
+  }, [isOpen, debounced, orderId]);
+
+  useEffect(() => {
+    if (isOpen) void load();
+  }, [isOpen, load]);
+
+  return (
+    <TradeModal isOpen={isOpen} onClose={onClose} title="Select Shipment" maxWidth="max-w-3xl">
+      <div className="space-y-3">
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search shipment, B/L or vessel…"
+            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200"
+          />
+        </div>
+        {error && <p className="text-xs text-red-600">{error}</p>}
+        <div className="border border-gray-100 rounded-xl overflow-hidden min-h-[220px]">
+          {loading ? (
+            <div className="py-12 text-center text-gray-400 text-xs">
+              <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="py-12 text-center text-gray-400 text-xs">
+              {orderId ? 'No shipments for this order' : 'No shipments found'}
+            </div>
+          ) : (
+            <table className="w-full text-xs">
+              <thead className="bg-gray-50 text-[10px] uppercase text-gray-400">
+                <tr>
+                  <th className="text-left px-3 py-2">Shipment</th>
+                  <th className="text-left px-3 py-2">Route</th>
+                  <th className="text-left px-3 py-2">Vessel / B/L</th>
+                  <th className="text-left px-3 py-2">Status</th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((s) => (
+                  <tr key={s.id} className="border-t border-gray-50 hover:bg-blue-50/40">
+                    <td className="px-3 py-2 font-bold text-[#014582]">{s.shipmentNumber}</td>
+                    <td className="px-3 py-2 text-gray-700">
+                      {[s.portOfLoading, s.portOfDischarge].filter(Boolean).join(' → ') || '—'}
+                    </td>
+                    <td className="px-3 py-2">
+                      <p className="font-semibold text-gray-900">{s.vesselName || s.shippingLine || '—'}</p>
+                      <p className="text-[10px] text-gray-400 font-mono">{s.blNumber || '—'}</p>
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">{s.shipmentStatus}</td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => onSelect(s)}
+                        className="px-2.5 py-1 rounded-lg bg-[#014582] text-white text-[11px] font-bold"
+                      >
+                        Select
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <TradePagination
+          currentPage={page}
+          totalPages={Math.ceil(total / limit) || 1}
+          totalItems={total}
+          pageSize={limit}
+          onPageChange={setPage}
+        />
+      </div>
+    </TradeModal>
+  );
+}
+
+export function ShipmentSelect({
+  value,
+  onChange,
+  orderId,
+  className = '',
+  disabled,
+  required,
+}: {
+  value: string;
+  onChange: (shipmentId: string, shipment?: ExportShipment | null) => void;
+  orderId?: string;
+  className?: string;
+  disabled?: boolean;
+  required?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<ExportShipment | null>(null);
+  const [loadingSelected, setLoadingSelected] = useState(false);
+
+  useEffect(() => {
+    if (!value) {
+      setSelected(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingSelected(true);
+    exportApi
+      .getShipment(value)
+      .then((shipment) => {
+        if (!cancelled) setSelected(shipment);
+      })
+      .catch(() => {
+        if (!cancelled) setSelected(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSelected(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [value]);
+
+  return (
+    <div className={`space-y-1 ${className}`}>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 rounded-xl border border-gray-200 px-3 py-2 bg-gray-50 text-xs">
+          {selected ? (
+            <div>
+              <p className="font-semibold text-gray-900 truncate">{selected.shipmentNumber}</p>
+              <p className="text-[10px] text-gray-400">
+                {selected.shipmentStatus}
+                {selected.portOfDischarge ? ` · ${selected.portOfDischarge}` : ''}
+              </p>
+            </div>
+          ) : loadingSelected ? (
+            <span className="text-gray-400 inline-flex items-center gap-1.5">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading shipment…
+            </span>
+          ) : (
+            <span className="text-gray-400">
+              {required ? 'No shipment selected' : 'Optional — select a shipment'}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          disabled={disabled || (!orderId && !value)}
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#014582] text-white text-xs font-bold hover:bg-[#01366a] disabled:opacity-50 shrink-0"
+        >
+          <Ship className="w-3.5 h-3.5" /> {selected ? 'Change' : 'Select Shipment'}
+        </button>
+      </div>
+      <ShipmentPickerModal
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        orderId={orderId}
+        onSelect={(shipment) => {
+          setSelected(shipment);
+          onChange(shipment.id, shipment);
+          setOpen(false);
+        }}
+      />
     </div>
   );
 }

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Export Management Module — Flow Guide</title>
+  <style>
+    @page { size: A4; margin: 18mm 16mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: #1a1a2e;
+      line-height: 1.45;
+      font-size: 11.5px;
+      margin: 0;
+    }
+    h1 {
+      font-size: 22px;
+      margin: 0 0 6px;
+      color: #014582;
+    }
+    h2 {
+      font-size: 15px;
+      color: #014582;
+      border-bottom: 2px solid #014582;
+      padding-bottom: 4px;
+      margin: 22px 0 10px;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 12.5px;
+      margin: 14px 0 6px;
+      color: #01366a;
+      page-break-after: avoid;
+    }
+    p { margin: 0 0 8px; }
+    .subtitle { color: #5a6a7a; font-size: 12px; margin-bottom: 14px; }
+    .badge {
+      display: inline-block;
+      background: #014582;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      letter-spacing: 0.03em;
+    }
+    .phase {
+      background: #f4f8fc;
+      border: 1px solid #d5e3f2;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin: 10px 0 14px;
+      page-break-inside: avoid;
+    }
+    .step {
+      border-left: 3px solid #0FA3E0;
+      padding: 8px 0 8px 12px;
+      margin: 0 0 10px;
+      page-break-inside: avoid;
+    }
+    .label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #7a8fa6;
+      letter-spacing: 0.04em;
+    }
+    .quote {
+      background: #fff8e8;
+      border: 1px solid #f0d9a0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-style: italic;
+      color: #5a4a20;
+      margin-top: 6px;
+    }
+    .flowbox {
+      background: #014582;
+      color: #fff;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    ul { margin: 6px 0 10px 18px; padding: 0; }
+    li { margin-bottom: 4px; }
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .card {
+      border: 1px solid #dde4ee;
+      border-radius: 8px;
+      padding: 10px;
+      page-break-inside: avoid;
+    }
+    .card strong { color: #014582; }
+    .footer {
+      margin-top: 24px;
+      padding-top: 10px;
+      border-top: 1px solid #dde4ee;
+      color: #7a8fa6;
+      font-size: 10px;
+    }
+    .muted { color: #5a6a7a; }
+  </style>
+</head>
+<body>
+  <div class="badge">BISONSTECHS · EXPORT MANAGEMENT</div>
+  <h1>Export Module Flow Guide</h1>
+  <p class="subtitle">
+    Company presentation / self-study notes — how a real export deal works and how it maps to the ERP module.
+  </p>
+
+  <h2>1. Big Picture (Simple)</h2>
+  <p>
+    Your company sells goods from Pakistan to an overseas buyer (UAE, Europe, etc.).
+    The full job has <strong>3 phases</strong>:
+  </p>
+  <div class="grid2">
+    <div class="card"><strong>1. Make the deal</strong><br/>Inquiry → Quote → Order → Proforma</div>
+    <div class="card"><strong>2. Ship the goods</strong><br/>Pack → Customs → Shipment → Docs → Dispatch</div>
+  </div>
+  <div class="card" style="margin-top:10px"><strong>3. Collect money</strong><br/>Advance / LC → Settlement receipt → Expenses → Complete</div>
+
+  <h2>2. One-Slide Flow</h2>
+  <div class="flowbox">Inquiry → Quotation → Export Order → Proforma
+        ↓
+Packing → Customs (LEO) → Shipment → Documents
+        ↓
+Dispatch (Invoice + Stock + AR) → Receipts / LC → Expenses → Completed</div>
+
+  <h2>3. Phase 1 — Make the Deal</h2>
+
+  <div class="step">
+    <h3>Step 1 — Export Inquiry</h3>
+    <p><span class="label">Real life</span><br/>
+      Buyer from Dubai messages: “We need 1200 meters fabric, CIF Jebel Ali rate please.”
+    </p>
+    <p><span class="label">Module screen</span><br/>
+      <strong>Export Inquiries</strong> — log buyer, product, qty, target price, port, Incoterm.
+    </p>
+    <div class="quote">“First step is lead capture. Every overseas request is recorded so the pipeline is not lost.”</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 2 — Export Quotation</h3>
+    <p><span class="label">Real life</span><br/>
+      You finalize price and send a formal offer (FOB/CIF, freight, validity).
+    </p>
+    <p><span class="label">Module screen</span><br/>
+      <strong>Export Quotations</strong> — generate from inquiry → Approve / Accept.
+    </p>
+    <div class="quote">“Inquiry is interest only. Quotation is the formal offer. Approve before converting to order.”</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 3 — Export Sales Order</h3>
+    <p><span class="label">Real life</span><br/>
+      Buyer says “OK, book the order.”
+    </p>
+    <p><span class="label">Module screen</span><br/>
+      On quotation click <strong>Convert to Export Order</strong> → number like <code>ESO-...</code> (Confirmed).
+    </p>
+    <div class="quote">“From here the commitment starts — packing, shipping and finance planning begin.”</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 4 — Proforma Invoice</h3>
+    <p><span class="label">Real life</span><br/>
+      Buyer needs a PI to send advance TT or to open a Letter of Credit at the bank.
+    </p>
+    <p><span class="label">Module screen</span><br/>
+      <strong>Proforma Invoices</strong>
+    </p>
+    <div class="quote">“Commercial invoice comes later when goods leave. PI comes first for payment arrangement.”</div>
+  </div>
+
+  <h2>4. Phase 2 — Ship the Goods</h2>
+
+  <div class="step">
+    <h3>Step 5 — Packing &amp; Inspection</h3>
+    <p><span class="label">Real life</span><br/>
+      Goods packed in container, sealed; sometimes SGS / third-party inspection.
+    </p>
+    <p><span class="label">Module screen</span><br/>
+      <strong>Packing &amp; Inspection</strong> → Sample Tested → <strong>Passed &amp; Certified</strong>
+      (enter certificate number before certifying).
+    </p>
+  </div>
+
+  <div class="step">
+    <h3>Step 6 — Customs &amp; Declaration (Pakistan)</h3>
+    <p><span class="label">Real life</span><br/>
+      Shipping bill filed, customs inspects, then issues <strong>LEO (Let Export Order)</strong>.
+    </p>
+    <p><span class="label">Module screen</span><br/>
+      <strong>Customs &amp; Declaration</strong>:<br/>
+      Draft → Submitted to Customs → Goods Inspected at Port → <strong>LEO Granted</strong>
+    </p>
+    <div class="quote">“Without LEO the container cannot legally sail. This is Pakistan export clearance.”</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 7 — Shipments &amp; Tracking</h3>
+    <p><span class="label">Real life</span><br/>
+      Book with shipping line (Maersk, etc.): vessel, B/L, Karachi → Jebel Ali.
+    </p>
+    <p><span class="label">Module screen</span><br/>
+      <strong>Shipments &amp; Tracking</strong> — create booking first; later move milestones
+      (Gate-In → Loaded → In Transit → Arrived → Customs Cleared Buyer).
+    </p>
+  </div>
+
+  <div class="step">
+    <h3>Step 8 — Export Documents</h3>
+    <p><span class="label">Real life</span><br/>
+      Set of papers for bank / buyer:
+    </p>
+    <ul>
+      <li>Commercial Invoice</li>
+      <li>Packing List</li>
+      <li>Bill of Lading</li>
+      <li>Certificate of Origin</li>
+      <li>Insurance Certificate (for CIF)</li>
+    </ul>
+    <p><span class="label">Module screen</span><br/>
+      <strong>Export Documents</strong> — create each doc and move status (e.g. Finalized).
+    </p>
+  </div>
+
+  <div class="step">
+    <h3>Step 9 — Export Dispatch (most important accounting step)</h3>
+    <p><span class="label">Real life</span><br/>
+      Warehouse gate-out → truck to port → gate-in → handover to shipping line.
+    </p>
+    <p><span class="label">Module screen</span><br/>
+      <strong>Export Dispatch</strong> → En Route → Gate-In Complete →
+      <strong>Handed Over to Shipping Line</strong>
+    </p>
+    <p>At handover the system automatically:</p>
+    <ul>
+      <li>Posts the commercial invoice</li>
+      <li>Deducts stock</li>
+      <li>Creates Accounts Receivable</li>
+    </ul>
+    <div class="quote">“Earlier steps are planning/ops. Dispatch is where ERP books are updated.”</div>
+  </div>
+
+  <h2>5. Phase 3 — Collect Money</h2>
+
+  <div class="step">
+    <h3>Step 10 — Receipts &amp; Settlement</h3>
+    <p><span class="label">Real life</span><br/>
+      Buyer pays by TT, or LC is negotiated and bank credits your account.
+    </p>
+    <p><span class="label">Module screen</span><br/>
+      <strong>Receipts &amp; Settlement</strong><br/>
+      Optional Advance against PI → Settlement against commercial invoice →
+      <strong>Realized &amp; Credited</strong> (post).
+    </p>
+    <p class="muted">Enter foreign amount in USD (e.g. full order total if no advance).</p>
+  </div>
+
+  <div class="step">
+    <h3>Step 11 — Finance &amp; LC Tracking (if LC deal)</h3>
+    <p><span class="label">Real life</span><br/>
+      Bank advises LC → confirms → negotiates documents → pays.
+    </p>
+    <p><span class="label">Module screen</span><br/>
+      <strong>Finance &amp; LC Tracking</strong>
+    </p>
+    <div class="quote">“Cash/TT deals can live on Receipts alone. LC deals need this bank lifecycle tracker.”</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 12 — Expenses &amp; Duties</h3>
+    <p><span class="label">Real life</span><br/>
+      Ocean freight, inspection, bank charges, duties, haulage.
+    </p>
+    <p><span class="label">Module screen</span><br/>
+      <strong>Expenses &amp; Duties</strong> → create draft → <strong>Post</strong> to ledger.
+    </p>
+  </div>
+
+  <div class="step">
+    <h3>Step 13 — Close the deal</h3>
+    <ul>
+      <li>Shipment → Customs Cleared Buyer</li>
+      <li>Customs → Sailed &amp; Completed</li>
+      <li>Order → <strong>Completed</strong></li>
+    </ul>
+  </div>
+
+  <h2>6. Why this module helps the company</h2>
+  <div class="grid2">
+    <div class="card"><strong>Real export language</strong><br/>Inquiry, PI, LEO, BL, LC — terms exporters already know.</div>
+    <div class="card"><strong>Ops linked to accounts</strong><br/>Dispatch posts invoice, stock and AR automatically.</div>
+    <div class="card"><strong>FX aware</strong><br/>USD contract with PKR books and exchange rates.</div>
+    <div class="card"><strong>Visibility</strong><br/>Dashboard/reports by country, outstanding and receipts.</div>
+  </div>
+
+  <h2>7. 2-Minute Demo Script</h2>
+  <div class="phase">
+    “Buyer in Dubai sends an inquiry. We approve a quotation and convert it to an export order,
+    then issue a proforma so payment can be arranged. After packing and customs LEO, we book the shipment
+    and prepare documents. When dispatch is handed to the shipping line, the system posts the invoice and stock.
+    Foreign remittance is then settled, and the order is completed.”
+  </div>
+
+  <h2>8. Practice Checklist</h2>
+  <ul>
+    <li>☐ Create Inquiry (buyer + product + qty + price + port)</li>
+    <li>☐ Generate Quotation from inquiry → Approve</li>
+    <li>☐ Convert to Export Order</li>
+    <li>☐ Create Proforma</li>
+    <li>☐ Packing → certify (with certificate no.)</li>
+    <li>☐ Customs → LEO Granted</li>
+    <li>☐ Create Shipment</li>
+    <li>☐ Add key Documents</li>
+    <li>☐ Dispatch → Handed Over</li>
+    <li>☐ Settlement Receipt → Realized &amp; Credited</li>
+    <li>☐ Advance shipment statuses → Complete order</li>
+  </ul>
+
+  <div class="footer">
+    Bisonstechs Business Suite · Export Management Module Flow Guide<br/>
+    For internal training / client presentation. Generated for Arshads company demo context.
+  </div>
+</body>
+</html>

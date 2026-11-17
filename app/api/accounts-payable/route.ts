@@ -12,6 +12,8 @@ export interface BillItem {
 export interface Bill {
   id: string;
   billNumber: string;
+  invoiceNumber?: string;
+  documentLabel?: string;
   date: string;
   dueDate: string;
   supplierId: string;
@@ -23,6 +25,7 @@ export interface Bill {
   taxRate: number;
   taxAmount: number;
   discount: number;
+  amount?: number;
   totalAmount: number;
   paidAmount: number;
   outstanding: number;
@@ -58,6 +61,15 @@ export interface Supplier {
   email?: string;
   phone?: string;
   address?: string;
+  companyName?: string;
+  outstandingAmount?: number;
+  totalAmount?: number;
+  paidAmount?: number;
+  invoiceCount?: number;
+  totalInvoices?: number;
+  billCount?: number;
+  invoices?: Bill[];
+  bills?: Bill[];
 }
 
 export interface BankAccount {
@@ -132,9 +144,19 @@ function normalizeBill(raw: any): Bill {
   const outstanding =
     raw?.outstanding != null ? num(raw.outstanding) : totalAmount - paidAmount;
 
+  const source = (raw?.source === 'purchaseInvoice' ? 'purchaseInvoice' : raw?.source === 'bill' ? 'bill' : undefined) as
+    | 'bill'
+    | 'purchaseInvoice'
+    | undefined;
+  const documentLabel =
+    str(raw?.documentLabel) ||
+    (source === 'purchaseInvoice' ? 'Purchase Invoice' : source === 'bill' ? 'Vendor Bill' : 'Payable');
+
   return {
     id: str(raw?.id || raw?._id),
-    billNumber: str(raw?.billNumber),
+    billNumber: str(raw?.billNumber || raw?.invoiceNumber),
+    invoiceNumber: str(raw?.invoiceNumber || raw?.billNumber),
+    documentLabel,
     date: raw?.date ? String(raw.date) : new Date().toISOString(),
     dueDate: raw?.dueDate ? String(raw.dueDate) : new Date().toISOString(),
     supplierId,
@@ -151,12 +173,14 @@ function normalizeBill(raw: any): Bill {
     taxRate: num(raw?.taxRate),
     taxAmount: num(raw?.taxAmount ?? raw?.taxTotal),
     discount: num(raw?.discount),
+    amount: totalAmount,
     totalAmount,
     paidAmount,
     outstanding,
     status: (raw?.status || 'Unpaid') as Bill['status'],
     reference: str(raw?.reference),
     description: str(raw?.description || raw?.notes),
+    source,
     createdAt: str(raw?.createdAt),
     updatedAt: str(raw?.updatedAt),
   };
@@ -249,14 +273,46 @@ export const accountsPayableService = {
     }
   },
 
-  // ─── Get suppliers ─────────────────────────────────────────────
-  getSuppliers: async (): Promise<Supplier[]> => {
+  // ─── Get suppliers (AP ledger: open purchase invoices nested) ───
+  getSuppliers: async (params: {
+    search?: string;
+    filter?: string;
+    status?: string;
+  } = {}): Promise<Supplier[]> => {
     try {
-      const response = await apiClient.get('/api/accounts-payable/suppliers');
+      const query = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          query.append(key, String(value));
+        }
+      });
+      const url = `/api/accounts-payable/suppliers${query.toString() ? `?${query}` : ''}`;
+      const response = await apiClient.get(url);
       if (!response.success) {
         throw new Error(response.message || 'Failed to fetch suppliers');
       }
-      return response.data?.data || [];
+      const rows = response.data?.data || [];
+      return rows.map((raw: any) => {
+        const invoices = Array.isArray(raw.invoices || raw.bills)
+          ? (raw.invoices || raw.bills).map(normalizeBill)
+          : [];
+        return {
+          id: str(raw.id || raw._id),
+          name: str(raw.name),
+          email: str(raw.email),
+          phone: str(raw.phone),
+          address: str(raw.address),
+          companyName: str(raw.companyName),
+          outstandingAmount: num(raw.outstandingAmount),
+          totalAmount: num(raw.totalAmount),
+          paidAmount: num(raw.paidAmount),
+          invoiceCount: num(raw.invoiceCount ?? raw.billCount ?? invoices.length),
+          totalInvoices: num(raw.totalInvoices ?? raw.invoiceCount ?? invoices.length),
+          billCount: num(raw.billCount ?? invoices.length),
+          invoices,
+          bills: invoices,
+        } as Supplier;
+      });
     } catch (error: any) {
       console.error('Get suppliers error:', error);
       return [];

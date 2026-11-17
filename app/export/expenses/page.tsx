@@ -35,6 +35,7 @@ import {
 } from '../../../components/trade/TradeUI';
 import {
   OrderSelect,
+  ShipmentSelect,
   OrderFilterBanner,
   FormSection,
   FieldLabel,
@@ -47,7 +48,6 @@ import exportApi, {
   formatMoney,
   type ExportExpense,
   type ExportOrder,
-  type ExportOrderFull,
 } from '../../../lib/export-api';
 import { useExportList } from '../../../lib/use-export-list';
 import { usePermissions } from '../../../lib/usePermissions';
@@ -135,9 +135,6 @@ function ExportExpensesPageContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ExportExpense | null>(null);
   const [form, setForm] = useState<ExpenseForm>(emptyForm);
-  const [order, setOrder] = useState<ExportOrder | null>(null);
-  const [orderDetail, setOrderDetail] = useState<ExportOrderFull | null>(null);
-  const [orderLoading, setOrderLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [accountNames, setAccountNames] = useState<Record<string, string>>({});
@@ -162,30 +159,6 @@ function ExportExpensesPageContent() {
     };
   }, []);
 
-  const loadOrderDetail = useCallback(async (id: string) => {
-    if (!id) {
-      setOrder(null);
-      setOrderDetail(null);
-      return;
-    }
-    setOrderLoading(true);
-    try {
-      const detail = await exportApi.getOrderFull(id);
-      setOrderDetail(detail);
-      setOrder(detail.order);
-      setForm((prev) =>
-        prev.orderId === id && !prev.currency
-          ? { ...prev, currency: detail.order?.currency || '' }
-          : prev
-      );
-    } catch {
-      setOrderDetail(null);
-      setOrder(null);
-    } finally {
-      setOrderLoading(false);
-    }
-  }, []);
-
   const openCreate = useCallback(() => {
     setEditingExpense(null);
     setForm({
@@ -193,12 +166,20 @@ function ExportExpensesPageContent() {
       orderId: orderIdFilter || '',
       currency: orderIdFilter ? '' : displayCurrency || '',
     });
-    setOrder(null);
-    setOrderDetail(null);
     setFormError(null);
     setIsModalOpen(true);
-    if (orderIdFilter) void loadOrderDetail(orderIdFilter);
-  }, [displayCurrency, orderIdFilter, loadOrderDetail]);
+    if (orderIdFilter) {
+      void exportApi.getOrder(orderIdFilter).then((order) => {
+        setForm((prev) =>
+          prev.orderId === orderIdFilter && !prev.currency
+            ? { ...prev, currency: order.currency || '' }
+            : prev
+        );
+      }).catch(() => {
+        /* ignore — order picker can still be used */
+      });
+    }
+  }, [displayCurrency, orderIdFilter]);
 
   const openEdit = (expense: ExportExpense) => {
     setEditingExpense(expense);
@@ -215,11 +196,8 @@ function ExportExpensesPageContent() {
       bankAccountId: expense.bankAccountId || '',
       notes: expense.notes || '',
     });
-    setOrder(null);
-    setOrderDetail(null);
     setFormError(null);
     setIsModalOpen(true);
-    if (expense.orderId) void loadOrderDetail(expense.orderId);
   };
 
   const handleOrderChange = (id: string, selected?: ExportOrder | null) => {
@@ -230,7 +208,6 @@ function ExportExpensesPageContent() {
       currency: selected?.currency || prev.currency,
       exchangeRate: '',
     }));
-    void loadOrderDetail(id);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -274,8 +251,6 @@ function ExportExpensesPageContent() {
       setIsModalOpen(false);
       setEditingExpense(null);
       setForm(emptyForm);
-      setOrder(null);
-      setOrderDetail(null);
     } catch (err) {
       setFormError(errorMessage(err, 'Failed to save the export expense'));
     } finally {
@@ -684,25 +659,12 @@ function ExportExpensesPageContent() {
               </div>
               <div>
                 <FieldLabel>Shipment (optional)</FieldLabel>
-                <select
+                <ShipmentSelect
                   value={form.shipmentId}
-                  onChange={(e) => setForm((prev) => ({ ...prev, shipmentId: e.target.value }))}
-                  disabled={saving || orderLoading || !orderDetail?.shipments.length}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs bg-white disabled:bg-gray-50"
-                >
-                  <option value="">
-                    {orderLoading
-                      ? 'Loading shipments…'
-                      : orderDetail?.shipments.length
-                        ? 'No shipment allocation'
-                        : 'No shipments for this order'}
-                  </option>
-                  {(orderDetail?.shipments || []).map((shipment) => (
-                    <option key={shipment.id} value={shipment.id}>
-                      {shipment.shipmentNumber} · {shipment.shipmentStatus}
-                    </option>
-                  ))}
-                </select>
+                  orderId={form.orderId || undefined}
+                  onChange={(shipmentId) => setForm((prev) => ({ ...prev, shipmentId }))}
+                  disabled={saving || !form.orderId}
+                />
               </div>
             </div>
 

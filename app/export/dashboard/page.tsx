@@ -96,7 +96,7 @@ function monthLabel(key: string) {
 }
 
 export default function ExportDashboardPage() {
-  const { selectedFiscalYearId, selectedFiscalYear } = useFiscalYear();
+  const { selectedFiscalYearId, selectedFiscalYear, loading: fiscalLoading } = useFiscalYear();
   const [data, setData] = useState<ExportDashboard>(EMPTY_DASHBOARD);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +106,11 @@ export default function ExportDashboardPage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   const load = useCallback(async () => {
+    // Wait for fiscal-year context so we don't flash empty USD defaults / wrong period.
+    if (!useCustomRange && fiscalLoading) {
+      setLoading(true);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -124,7 +129,7 @@ export default function ExportDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedFiscalYearId, useCustomRange, startDate, endDate]);
+  }, [selectedFiscalYearId, useCustomRange, startDate, endDate, fiscalLoading]);
 
   useEffect(() => {
     void load();

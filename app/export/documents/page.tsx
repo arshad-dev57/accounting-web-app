@@ -60,14 +60,22 @@ const DOC_TYPES = [
   'Other',
 ];
 
-const DOCUMENT_STATUSES = ['Draft', 'Finalized', 'Legalized', 'Dispatched via DHL', 'Delivered'];
+const DOCUMENT_STATUSES = [
+  'Draft',
+  'Finalized',
+  'Legalized / Attested',
+  'Dispatched via DHL to Bank',
+  'Delivered to Buyer',
+  'Cancelled',
+];
 
 const NEXT_STATUS: Record<string, string[]> = {
-  Draft: ['Finalized'],
-  Finalized: ['Legalized', 'Dispatched via DHL'],
-  'Dispatched via DHL': ['Delivered'],
-  Legalized: [],
-  Delivered: [],
+  Draft: ['Finalized', 'Cancelled'],
+  Finalized: ['Legalized / Attested', 'Dispatched via DHL to Bank'],
+  'Legalized / Attested': ['Dispatched via DHL to Bank'],
+  'Dispatched via DHL to Bank': ['Delivered to Buyer'],
+  'Delivered to Buyer': [],
+  Cancelled: [],
 };
 
 type InvoiceOption = { id: string; invoiceNumber?: string; invoiceDate?: string; grandTotal?: number; totalAmount?: number };

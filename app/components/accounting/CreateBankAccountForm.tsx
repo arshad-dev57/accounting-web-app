@@ -11,6 +11,18 @@ interface CreateBankAccountFormProps {
   submitting?: boolean;
 }
 
+function normalizeIban(iban: string) {
+  return String(iban || '')
+    .replace(/\s+/g, '')
+    .toUpperCase();
+}
+
+function isValidIban(iban: string) {
+  const value = normalizeIban(iban);
+  if (/^PK\d{2}[A-Z]{4}\d{16}$/.test(value)) return true;
+  return /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(value);
+}
+
 export default function CreateBankAccountForm({
   onCancel,
   onSave,
@@ -20,6 +32,7 @@ export default function CreateBankAccountForm({
   const [formData, setFormData] = useState({
     accountName: '',
     accountNumber: '',
+    iban: '',
     bankName: '',
     branchCode: '',
     accountType: 'Current',
@@ -64,6 +77,15 @@ export default function CreateBankAccountForm({
       setError('Account number is required');
       return;
     }
+    const iban = normalizeIban(formData.iban);
+    if (!iban) {
+      setError('IBAN is required');
+      return;
+    }
+    if (!isValidIban(iban)) {
+      setError('IBAN format is invalid (e.g. PK36MEZN0001234567890123)');
+      return;
+    }
     if (!formData.bankName.trim()) {
       setError('Bank name is required');
       return;
@@ -80,8 +102,9 @@ export default function CreateBankAccountForm({
     const payload: Record<string, unknown> = {
       accountName: formData.accountName.trim(),
       accountNumber: formData.accountNumber.trim(),
+      iban,
       bankName: formData.bankName.trim(),
-      branchCode: formData.branchCode,
+      branchCode: formData.branchCode.trim(),
       accountType: formData.accountType,
       currency: formData.currency,
       openingBalance: formData.openingBalance,
@@ -124,7 +147,7 @@ export default function CreateBankAccountForm({
               <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Account Name *</label>
               <input
                 type="text"
-                placeholder="e.g., HBL Current Account"
+                placeholder="e.g., Meezan Current Account"
                 value={formData.accountName}
                 onChange={(e) => setFormData((prev) => ({ ...prev, accountName: e.target.value }))}
                 className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
@@ -132,12 +155,12 @@ export default function CreateBankAccountForm({
               />
             </div>
             <div>
-              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Account Number *</label>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Bank Name *</label>
               <input
                 type="text"
-                placeholder="e.g., 1234-5678-9012"
-                value={formData.accountNumber}
-                onChange={(e) => setFormData((prev) => ({ ...prev, accountNumber: e.target.value }))}
+                placeholder="e.g., Meezan Bank Limited"
+                value={formData.bankName}
+                onChange={(e) => setFormData((prev) => ({ ...prev, bankName: e.target.value }))}
                 className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               />
@@ -146,16 +169,33 @@ export default function CreateBankAccountForm({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Bank Name *</label>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Account Number *</label>
               <input
                 type="text"
-                placeholder="e.g., Habib Bank Limited"
-                value={formData.bankName}
-                onChange={(e) => setFormData((prev) => ({ ...prev, bankName: e.target.value }))}
+                placeholder="e.g., 01234567890123"
+                value={formData.accountNumber}
+                onChange={(e) => setFormData((prev) => ({ ...prev, accountNumber: e.target.value }))}
                 className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
                 required
               />
             </div>
+            <div>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">IBAN *</label>
+              <input
+                type="text"
+                placeholder="e.g., PK36MEZN0001234567890123"
+                value={formData.iban}
+                onChange={(e) => setFormData((prev) => ({ ...prev, iban: e.target.value.toUpperCase() }))}
+                className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50 font-mono tracking-wide"
+                required
+                minLength={15}
+                maxLength={34}
+              />
+              <p className="mt-1 text-[11px] text-gray-400">Pakistan IBAN is 24 characters (PK + bank + account).</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Branch Code</label>
               <input
@@ -166,53 +206,54 @@ export default function CreateBankAccountForm({
                 className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Account Type</label>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Account Type *</label>
               <select
                 value={formData.accountType}
                 onChange={(e) => setFormData((prev) => ({ ...prev, accountType: e.target.value }))}
                 className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+                required
               >
                 {accountTypes.map((type) => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Currency</label>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Currency *</label>
               <select
                 value={formData.currency}
                 onChange={(e) => setFormData((prev) => ({ ...prev, currency: e.target.value }))}
                 className="w-full px-3 md:px-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+                required
               >
                 {currencies.map((curr) => (
                   <option key={curr} value={curr}>{curr}</option>
                 ))}
               </select>
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Opening Balance</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-xs md:text-sm">{currencySymbol}</span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={formData.openingBalance || ''}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    openingBalance: parseFloat(e.target.value) || 0,
-                  }))
-                }
-                className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
-              />
+            <div>
+              <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5">Opening Balance</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-xs md:text-sm">{currencySymbol}</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={formData.openingBalance || ''}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      openingBalance: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-1.5 md:py-2.5 border border-gray-200 rounded-lg text-xs md:text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50"
+                />
+              </div>
             </div>
           </div>
 

@@ -6,6 +6,7 @@ export interface BankAccount {
   id: string;
   accountName: string;
   accountNumber: string;
+  iban?: string;
   bankName: string;
   branchCode: string;
   accountType: string;
@@ -42,6 +43,7 @@ export interface BankAccountListResponse {
 export interface CreateBankAccountRequest {
   accountName: string;
   accountNumber: string;
+  iban: string;
   bankName: string;
   branchCode?: string;
   accountType: string;

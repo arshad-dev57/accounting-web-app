@@ -51,7 +51,9 @@ export interface ExportListQuery {
   startDate?: string;
   endDate?: string;
   sortBy?: string;
+  /** Preferred client alias — mapped to backend `sortDir`. */
   sortOrder?: 'asc' | 'desc';
+  sortDir?: 'asc' | 'desc';
   orderId?: string;
   [key: string]: unknown;
 }
@@ -530,7 +532,13 @@ export interface ExportReports {
 const BASE = '/api/export';
 
 async function list<T>(path: string, query: ExportListQuery = {}): Promise<Paginated<T>> {
-  return unwrap<Paginated<T>>(await apiClient.get(`${BASE}${path}${buildQuery(query)}`));
+  // Backend expects sortDir; keep sortOrder as a friendly client alias.
+  const { sortOrder, sortDir, ...rest } = query;
+  const normalized: ExportListQuery = {
+    ...rest,
+    sortDir: sortDir || sortOrder || 'desc',
+  };
+  return unwrap<Paginated<T>>(await apiClient.get(`${BASE}${path}${buildQuery(normalized)}`));
 }
 
 async function get<T>(path: string): Promise<T> {

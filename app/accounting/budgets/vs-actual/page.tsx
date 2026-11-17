@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -24,13 +24,13 @@ import {
 
 export default function BudgetVsActualPage() {
   return (
-    <React.Suspense
+    <Suspense
       fallback={
         <div className="p-10 text-center text-xs text-gray-400">Loading…</div>
       }
     >
       <BudgetVsActualPageContent />
-    </React.Suspense>
+    </Suspense>
   );
 }
 
