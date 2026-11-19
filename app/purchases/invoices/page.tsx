@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { purchaseInvoiceService, PurchaseInvoiceModel, PurchaseInvoiceStats, GRNSource, POSource, PurchaseInvoiceLineDraft } from '../../api/purchaseinvoice/route';
 import CreateInvoiceWizard from '../../components/purchases-invoices/CreateInvoiceWizard';
+import PortalActionsMenu from '../../components/purchases/PortalActionsMenu';
+import CreatePaymentFromInvoiceModal from '../../components/purchases/CreatePaymentFromInvoiceModal';
 import PDFService from '../../../lib/pdf-service';
 import EmailService from '../../../lib/email-service';
 import {
@@ -101,6 +103,7 @@ export default function PurchaseInvoicesPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [invoiceToActOn, setInvoiceToActOn] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [createPaymentInvoice, setCreatePaymentInvoice] = useState<PurchaseInvoiceModel | null>(null);
 
   // ─── Wizard State ─────────────────────────────────────────────
   const [wizardState, setWizardState] = useState<WizardState>({
@@ -636,10 +639,44 @@ export default function PurchaseInvoicesPage() {
     setDetailStartEditing(startEditing);
     setViewingInvoice(invoice);
     try {
-      const full = await purchaseInvoiceService.getById(invoice.id);
+      const full = await purchaseInvoiceService.getInvoiceById(invoice.id);
       if (full) setViewingInvoice(full as PurchaseInvoiceModel);
     } catch {
       /* keep list row */
+    }
+  };
+
+  const handleInvoiceAction = (action: string, invoice: PurchaseInvoiceModel) => {
+    switch (action) {
+      case 'view':
+        void viewInvoiceDetail(invoice);
+        break;
+      case 'edit':
+        void viewInvoiceDetail(invoice, true);
+        break;
+      case 'downloadPdf':
+        void handleDownloadInvoicePDF(invoice);
+        break;
+      case 'send':
+        void handleSendInvoiceEmail(invoice);
+        break;
+      case 'post':
+        void handlePostInvoice(invoice.id);
+        break;
+      case 'cancel':
+        setInvoiceToActOn(invoice.id);
+        setShowCancelConfirm(true);
+        break;
+      case 'delete':
+        setInvoiceToActOn(invoice.id);
+        setShowDeleteConfirm(true);
+        break;
+      case 'createPayment':
+        setViewingInvoice(null);
+        setCreatePaymentInvoice(invoice);
+        break;
+      default:
+        break;
     }
   };
 
@@ -955,22 +992,7 @@ export default function PurchaseInvoicesPage() {
                           </div>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
-                          <div className="flex items-center gap-1 md:gap-2">
-                            <button
-                              onClick={() => handleDownloadInvoicePDF(invoice)}
-                              className="p-1 md:p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
-                              title="Download PDF"
-                            >
-                              <Download className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleSendInvoiceEmail(invoice)}
-                              disabled={submitting}
-                              className="p-1 md:p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all disabled:opacity-50"
-                              title="Send Email"
-                            >
-                              <Send className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                            </button>
+                          <div className="flex items-center gap-1">
                             <button
                               onClick={() => viewInvoiceDetail(invoice)}
                               className="p-1 md:p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
@@ -978,48 +1000,60 @@ export default function PurchaseInvoicesPage() {
                             >
                               <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
                             </button>
-                            {(invoice.canEdit || invoice.invoiceStatus === 'Draft') && (
-                              <button
-                                onClick={() => viewInvoiceDetail(invoice, true)}
-                                className="p-1 md:p-1.5 text-gray-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"
-                                title="Edit Draft"
-                              >
-                                <Edit3 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              </button>
-                            )}
-                            {invoice.canPost && (
-                              <button
-                                onClick={() => handlePostInvoice(invoice.id)}
-                                className="p-1 md:p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                title="Post"
-                              >
-                                <Send className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              </button>
-                            )}
-                            {invoice.canCancel && (
-                              <button
-                                onClick={() => {
-                                  setInvoiceToActOn(invoice.id);
-                                  setShowCancelConfirm(true);
-                                }}
-                                className="p-1 md:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                title="Cancel"
-                              >
-                                <Ban className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              </button>
-                            )}
-                            {invoice.canDelete && (
-                              <button
-                                onClick={() => {
-                                  setInvoiceToActOn(invoice.id);
-                                  setShowDeleteConfirm(true);
-                                }}
-                                className="p-1 md:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              </button>
-                            )}
+                            <PortalActionsMenu
+                              items={[
+                                {
+                                  key: 'view',
+                                  label: 'View details',
+                                  icon: <Eye className="w-3.5 h-3.5" />,
+                                },
+                                {
+                                  key: 'edit',
+                                  label: 'Edit draft',
+                                  icon: <Edit3 className="w-3.5 h-3.5" />,
+                                  show: Boolean(invoice.canEdit || invoice.invoiceStatus === 'Draft'),
+                                },
+                                {
+                                  key: 'createPayment',
+                                  label: 'Record payment',
+                                  icon: <Banknote className="w-3.5 h-3.5" />,
+                                  show:
+                                    Number(invoice.outstanding) > 0 &&
+                                    !['Draft', 'Cancelled', 'Paid'].includes(invoice.invoiceStatus),
+                                },
+                                {
+                                  key: 'downloadPdf',
+                                  label: 'Download PDF',
+                                  icon: <Download className="w-3.5 h-3.5" />,
+                                },
+                                {
+                                  key: 'send',
+                                  label: 'Send email',
+                                  icon: <Send className="w-3.5 h-3.5" />,
+                                },
+                                {
+                                  key: 'post',
+                                  label: 'Post invoice',
+                                  icon: <Send className="w-3.5 h-3.5" />,
+                                  show: Boolean(invoice.canPost),
+                                },
+                                {
+                                  key: 'cancel',
+                                  label: 'Cancel',
+                                  icon: <Ban className="w-3.5 h-3.5" />,
+                                  show: Boolean(invoice.canCancel),
+                                  danger: true,
+                                },
+                                {
+                                  key: 'delete',
+                                  label: 'Delete',
+                                  icon: <Trash2 className="w-3.5 h-3.5" />,
+                                  show: Boolean(invoice.canDelete),
+                                  danger: true,
+                                },
+                              ]}
+                              onSelect={(key) => handleInvoiceAction(key, invoice)}
+                            />
                           </div>
                         </td>
                       </tr>
@@ -1115,10 +1149,23 @@ export default function PurchaseInvoicesPage() {
           }}
           onDownloadPDF={handleDownloadInvoicePDF}
           onSendEmail={handleSendInvoiceEmail}
+          onCreatePayment={(inv: PurchaseInvoiceModel) => {
+            setViewingInvoice(null);
+            setCreatePaymentInvoice(inv);
+          }}
           formatCurrency={formatCurrency}
           formatDate={formatDate}
           getStatusColor={getStatusColor}
           submitting={submitting}
+        />
+      )}
+
+      {createPaymentInvoice && (
+        <CreatePaymentFromInvoiceModal
+          invoice={createPaymentInvoice}
+          onClose={() => setCreatePaymentInvoice(null)}
+          onCreated={() => fetchInvoices(true)}
+          formatCurrency={formatCurrency}
         />
       )}
 
@@ -1184,12 +1231,16 @@ function InvoiceDetailModal({
   onDelete,
   onDownloadPDF,
   onSendEmail,
+  onCreatePayment,
   formatCurrency,
   formatDate,
   getStatusColor,
   submitting
 }: any) {
   const canEdit = invoice.invoiceStatus === 'Draft' || invoice.canEdit;
+  const canCreatePayment =
+    Number(invoice.outstanding) > 0 &&
+    !['Draft', 'Cancelled', 'Paid'].includes(invoice.invoiceStatus);
   const [editing, setEditing] = useState(Boolean(initialEditing) && canEdit);
   const [form, setForm] = useState({
     supplierInvoiceNo: invoice.supplierInvoiceNo || '',
@@ -1575,6 +1626,15 @@ function InvoiceDetailModal({
             >
               {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
               Post Invoice
+            </button>
+          )}
+          {canCreatePayment && !editing && onCreatePayment && (
+            <button
+              onClick={() => onCreatePayment(invoice)}
+              className="px-4 md:px-5 py-2 text-xs md:text-sm font-semibold bg-teal-600 text-white hover:bg-teal-700 rounded-lg transition-all flex items-center justify-center gap-2"
+            >
+              <Banknote className="w-3.5 h-3.5" />
+              Record Payment
             </button>
           )}
           {invoice.canCancel && (

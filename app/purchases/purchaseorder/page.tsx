@@ -27,6 +27,11 @@ import EmailService from '../../../lib/email-service';
 import TaxRateSelect from '../../../components/TaxRateSelect';
 import { useLocationOptional } from '@/lib/location-context';
 import { SupplierDetailCard, ProductDetailCard } from '../../components/purchases/EnterpriseDetailCards';
+import PurchaseOrderActionsMenu, {
+  type PurchaseOrderAction,
+} from '../../components/purchases/PurchaseOrderActionsMenu';
+import CreateGRNFromPOModal from '../../components/purchases/CreateGRNFromPOModal';
+import CreateInvoiceFromPOModal from '../../components/purchases/CreateInvoiceFromPOModal';
 import {
   computeBaseAmount,
   fetchBaseCurrency,
@@ -146,6 +151,8 @@ export default function PurchaseOrdersPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [orderToActOn, setOrderToActOn] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [createGrnOrder, setCreateGrnOrder] = useState<PurchaseOrderModel | null>(null);
+  const [createInvoiceOrder, setCreateInvoiceOrder] = useState<PurchaseOrderModel | null>(null);
 
   const [wizardState, setWizardState] = useState<WizardState>({
     step: 0,
@@ -850,6 +857,44 @@ export default function PurchaseOrdersPage() {
     setViewingOrder(order);
   };
 
+  const handleOrderAction = (action: PurchaseOrderAction, order: PurchaseOrderModel) => {
+    switch (action) {
+      case 'view':
+        viewOrderDetail(order);
+        break;
+      case 'edit':
+        openEditOrder(order);
+        break;
+      case 'downloadPdf':
+        void handleGenerateInvoice(order);
+        break;
+      case 'send':
+        void handleSendOrder(order.id);
+        break;
+      case 'approve':
+        void handleApproveOrder(order.id);
+        break;
+      case 'cancel':
+        setOrderToActOn(order.id);
+        setShowCancelConfirm(true);
+        break;
+      case 'delete':
+        setOrderToActOn(order.id);
+        setShowDeleteConfirm(true);
+        break;
+      case 'createGrn':
+        setViewingOrder(null);
+        setCreateGrnOrder(order);
+        break;
+      case 'createInvoice':
+        setViewingOrder(null);
+        setCreateInvoiceOrder(order);
+        break;
+      default:
+        break;
+    }
+  };
+
   const handleGenerateInvoice = async (order: PurchaseOrderModel) => {
     const businessDetails = userProfile?.businessDetails || {};
     const companyName = userProfile?.organizationName || 'Your Company Name';
@@ -1158,7 +1203,7 @@ export default function PurchaseOrdersPage() {
                           </span>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
-                          <div className="flex items-center gap-1 md:gap-2">
+                          <div className="flex items-center gap-1">
                             <button
                               onClick={() => viewOrderDetail(order)}
                               className="p-1 md:p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
@@ -1166,55 +1211,10 @@ export default function PurchaseOrdersPage() {
                             >
                               <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
                             </button>
-                            <button
-                              onClick={() => handleGenerateInvoice(order)}
-                              className="p-1 md:p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
-                              title="Generate Invoice"
-                            >
-                              <Download className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                            </button>
-                            {order.canSend && (
-                              <button
-                                onClick={() => handleSendOrder(order.id)}
-                                className="p-1 md:p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                title="Send"
-                              >
-                                <Send className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              </button>
-                            )}
-                            {order.canApprove && (
-                              <button
-                                onClick={() => handleApproveOrder(order.id)}
-                                className="p-1 md:p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all"
-                                title="Approve"
-                              >
-                                <CheckCircle className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              </button>
-                            )}
-                            {order.canCancel && (
-                              <button
-                                onClick={() => {
-                                  setOrderToActOn(order.id);
-                                  setShowCancelConfirm(true);
-                                }}
-                                className="p-1 md:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                title="Cancel"
-                              >
-                                <Ban className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              </button>
-                            )}
-                            {order.canDelete && (
-                              <button
-                                onClick={() => {
-                                  setOrderToActOn(order.id);
-                                  setShowDeleteConfirm(true);
-                                }}
-                                className="p-1 md:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              </button>
-                            )}
+                            <PurchaseOrderActionsMenu
+                              order={order}
+                              onAction={handleOrderAction}
+                            />
                           </div>
                         </td>
                       </tr>
@@ -1282,6 +1282,14 @@ export default function PurchaseOrdersPage() {
           onApprove={handleApproveOrder}
           onEdit={openEditOrder}
           onGenerateInvoice={handleGenerateInvoice}
+          onCreateGrn={(order: PurchaseOrderModel) => {
+            setViewingOrder(null);
+            setCreateGrnOrder(order);
+          }}
+          onCreateInvoice={(order: PurchaseOrderModel) => {
+            setViewingOrder(null);
+            setCreateInvoiceOrder(order);
+          }}
           onCancel={(id: string) => {
             setOrderToActOn(id);
             setShowCancelConfirm(true);
@@ -1296,6 +1304,25 @@ export default function PurchaseOrdersPage() {
           formatDate={formatDate}
           getStatusColor={getStatusColor}
           submitting={submitting}
+        />
+      )}
+
+      {createGrnOrder && (
+        <CreateGRNFromPOModal
+          order={createGrnOrder}
+          locationId={selectedLocationId}
+          onClose={() => setCreateGrnOrder(null)}
+          onCreated={() => fetchOrders(true)}
+          formatCurrency={formatCurrency}
+        />
+      )}
+
+      {createInvoiceOrder && (
+        <CreateInvoiceFromPOModal
+          order={createInvoiceOrder}
+          onClose={() => setCreateInvoiceOrder(null)}
+          onCreated={() => fetchOrders(true)}
+          formatCurrency={formatCurrency}
         />
       )}
 
@@ -2576,6 +2603,8 @@ function OrderDetailModal({
   onApprove,
   onEdit,
   onGenerateInvoice,
+  onCreateGrn,
+  onCreateInvoice,
   onCancel,
   onDelete,
   formatCurrency,
@@ -2583,6 +2612,13 @@ function OrderDetailModal({
   getStatusColor,
   submitting
 }: any) {
+  const canCreateGrn =
+    order.status !== 'Cancelled' &&
+    order.status !== 'Draft' &&
+    (order.totalRemainingQty == null
+      ? order.receivingStatus !== 'Fully Received'
+      : order.totalRemainingQty > 0);
+  const canCreateInvoice = order.status === 'Approved' || order.status === 'Sent';
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
@@ -2764,12 +2800,30 @@ function OrderDetailModal({
                   Edit Order
                 </button>
               )}
+              {canCreateGrn && onCreateGrn && (
+                <button
+                  onClick={() => onCreateGrn(order)}
+                  className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 bg-teal-600 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-teal-700 transition-all flex items-center justify-center gap-1.5 md:gap-2"
+                >
+                  <Package className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  Create GRN
+                </button>
+              )}
+              {canCreateInvoice && onCreateInvoice && (
+                <button
+                  onClick={() => onCreateInvoice(order)}
+                  className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 bg-indigo-600 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 md:gap-2"
+                >
+                  <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  Create Invoice
+                </button>
+              )}
               <button
                 onClick={() => onGenerateInvoice(order)}
                 className="flex-1 min-w-[100px] px-3 md:px-4 py-2 md:py-2.5 bg-purple-500 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-purple-600 transition-all flex items-center justify-center gap-1.5 md:gap-2"
               >
                 <Download className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                Download Invoice
+                Download PDF
               </button>
               <button
                 onClick={() => onSend(order.id)}

@@ -24,6 +24,8 @@ import PDFService from '../../../lib/pdf-service';
 import EmailService from '../../../lib/email-service';
 import { useLocationOptional } from '@/lib/location-context';
 import { PurchaseOrderDetailCard, SupplierDetailCard } from '../../components/purchases/EnterpriseDetailCards';
+import PortalActionsMenu from '../../components/purchases/PortalActionsMenu';
+import CreateInvoiceFromGRNModal from '../../components/purchases/CreateInvoiceFromGRNModal';
 
 
 interface WizardState {
@@ -72,6 +74,7 @@ export default function GoodsReceivingPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showConfirmConfirm, setShowConfirmConfirm] = useState(false);
   const [grnToActOn, setGrnToActOn] = useState<string | null>(null);
+  const [createInvoiceGrn, setCreateInvoiceGrn] = useState<GoodsReceivingModel | null>(null);
 
   const [wizardState, setWizardState] = useState<WizardState>({
     step: 0,
@@ -455,6 +458,37 @@ export default function GoodsReceivingPage() {
     setViewingGRN(grn);
   };
 
+  const handleGrnAction = (action: string, grn: GoodsReceivingModel) => {
+    switch (action) {
+      case 'view':
+        viewGRNDetail(grn);
+        break;
+      case 'edit':
+        viewGRNDetail(grn, true);
+        break;
+      case 'downloadPdf':
+        void handleDownloadGRNPDF(grn);
+        break;
+      case 'send':
+        void handleSendGRNEmail(grn);
+        break;
+      case 'confirm':
+        setGrnToActOn(grn.id);
+        setShowConfirmConfirm(true);
+        break;
+      case 'delete':
+        setGrnToActOn(grn.id);
+        setShowDeleteConfirm(true);
+        break;
+      case 'createInvoice':
+        setViewingGRN(null);
+        setCreateInvoiceGrn(grn);
+        break;
+      default:
+        break;
+    }
+  };
+
 
   const handleDownloadGRNPDF = async (grn: GoodsReceivingModel) => {
     await PDFService.downloadGoodsReceivingPDF(grn);
@@ -743,22 +777,7 @@ export default function GoodsReceivingPage() {
                           </span>
                         </td>
                         <td className="px-3 md:px-6 py-2 md:py-3">
-                          <div className="flex items-center gap-1 md:gap-2">
-                            <button
-                              onClick={() => handleDownloadGRNPDF(grn)}
-                              className="p-1 md:p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
-                              title="Download PDF"
-                            >
-                              <Download className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleSendGRNEmail(grn)}
-                              disabled={submitting}
-                              className="p-1 md:p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all disabled:opacity-50"
-                              title="Send Email"
-                            >
-                              <Send className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                            </button>
+                          <div className="flex items-center gap-1">
                             <button
                               onClick={() => viewGRNDetail(grn)}
                               className="p-1 md:p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
@@ -766,48 +785,51 @@ export default function GoodsReceivingPage() {
                             >
                               <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
                             </button>
-                            {(grn.canEdit || (!grn.confirmedAt && grn.status !== 'Cancelled')) && (
-                              <button
-                                onClick={() => viewGRNDetail(grn, true)}
-                                className="p-1 md:p-1.5 text-gray-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"
-                                title="Edit Draft"
-                              >
-                                <Edit3 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              </button>
-                            )}
-                            {(grn.canConfirm || (!grn.confirmedAt && grn.status !== 'Cancelled')) && (
-                              <button
-                                onClick={() => {
-                                  setGrnToActOn(grn.id);
-                                  setShowConfirmConfirm(true);
-                                }}
-                                className="p-1 md:p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all"
-                                title="Confirm Receiving"
-                              >
-                                <CheckCircle className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              </button>
-                            )}
-                            {grn.status !== 'Draft' && grn.confirmedAt && (
-                              <button
-                                disabled
-                                className="p-1 md:p-1.5 text-green-600 bg-green-50 rounded-lg transition-all"
-                                title="Confirmed"
-                              >
-                                <PackageCheck className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              </button>
-                            )}
-                            {grn.canDelete && (
-                              <button
-                                onClick={() => {
-                                  setGrnToActOn(grn.id);
-                                  setShowDeleteConfirm(true);
-                                }}
-                                className="p-1 md:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              </button>
-                            )}
+                            <PortalActionsMenu
+                              items={[
+                                {
+                                  key: 'view',
+                                  label: 'View details',
+                                  icon: <Eye className="w-3.5 h-3.5" />,
+                                },
+                                {
+                                  key: 'edit',
+                                  label: 'Edit draft',
+                                  icon: <Edit3 className="w-3.5 h-3.5" />,
+                                  show: Boolean(grn.canEdit || (!grn.confirmedAt && grn.status !== 'Cancelled')),
+                                },
+                                {
+                                  key: 'createInvoice',
+                                  label: 'Create invoice',
+                                  icon: <FileText className="w-3.5 h-3.5" />,
+                                  show: Boolean(grn.confirmedAt),
+                                },
+                                {
+                                  key: 'downloadPdf',
+                                  label: 'Download PDF',
+                                  icon: <Download className="w-3.5 h-3.5" />,
+                                },
+                                {
+                                  key: 'send',
+                                  label: 'Send email',
+                                  icon: <Send className="w-3.5 h-3.5" />,
+                                },
+                                {
+                                  key: 'confirm',
+                                  label: 'Confirm receiving',
+                                  icon: <CheckCircle className="w-3.5 h-3.5" />,
+                                  show: Boolean(grn.canConfirm || (!grn.confirmedAt && grn.status !== 'Cancelled')),
+                                },
+                                {
+                                  key: 'delete',
+                                  label: 'Delete',
+                                  icon: <Trash2 className="w-3.5 h-3.5" />,
+                                  show: Boolean(grn.canDelete),
+                                  danger: true,
+                                },
+                              ]}
+                              onSelect={(key) => handleGrnAction(key, grn)}
+                            />
                           </div>
                         </td>
                       </tr>
@@ -902,10 +924,23 @@ export default function GoodsReceivingPage() {
           }}
           onDownloadPDF={handleDownloadGRNPDF}
           onSendEmail={handleSendGRNEmail}
+          onCreateInvoice={(g: GoodsReceivingModel) => {
+            setViewingGRN(null);
+            setCreateInvoiceGrn(g);
+          }}
           formatDate={formatDate}
           formatCurrency={formatCurrency}
           getStatusColor={getStatusColor}
           submitting={submitting}
+        />
+      )}
+
+      {createInvoiceGrn && (
+        <CreateInvoiceFromGRNModal
+          grn={createInvoiceGrn}
+          onClose={() => setCreateInvoiceGrn(null)}
+          onCreated={() => fetchGRNs(true)}
+          formatCurrency={formatCurrency}
         />
       )}
 
@@ -1286,6 +1321,7 @@ function GRNDetailModal({
   onSaveEdit,
   onDownloadPDF,
   onSendEmail,
+  onCreateInvoice,
   formatDate,
   formatCurrency,
   getStatusColor,
@@ -1293,6 +1329,7 @@ function GRNDetailModal({
 }: any) {
   const canEdit = !grn.confirmedAt && grn.status !== 'Cancelled';
   const canConfirm = !grn.confirmedAt && grn.status !== 'Cancelled';
+  const canCreateInvoice = Boolean(grn.confirmedAt);
   const [editing, setEditing] = useState(Boolean(initialEditing) && canEdit);
   const [form, setForm] = useState({
     receivingDate: grn.receivingDate?.slice?.(0, 10) || '',
@@ -1590,6 +1627,15 @@ function GRNDetailModal({
             >
               <CheckCircle className="w-3.5 h-3.5" />
               Confirm
+            </button>
+          )}
+          {canCreateInvoice && !editing && onCreateInvoice && (
+            <button
+              onClick={() => onCreateInvoice(grn)}
+              className="flex-1 min-w-[100px] px-3 py-2 bg-indigo-600 text-white rounded-lg text-xs md:text-sm font-semibold hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Create Invoice
             </button>
           )}
           {canEdit && !editing && (

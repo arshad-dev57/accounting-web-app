@@ -1,0 +1,348 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { FileText, Loader2, X } from 'lucide-react';
+import {
+  purchaseInvoiceService,
+  type CreateInvoiceRequest,
+  type GRNSource,
+  type PurchaseInvoiceLineDraft,
+} from '../../api/purchaseinvoice/route';
+import type { GoodsReceivingModel } from '../../api/goodsrecieving/route';
+
+interface CreateInvoiceFromGRNModalProps {
+  grn: GoodsReceivingModel;
+  onClose: () => void;
+  onCreated: () => void;
+  formatCurrency: (amount: number) => string;
+}
+
+function recalc(line: PurchaseInvoiceLineDraft): PurchaseInvoiceLineDraft {
+  const qty = Number(line.quantity) || 0;
+  const price = Number(line.unitPrice) || 0;
+  const discount = Number(line.discount) || 0;
+  const taxRate = Number(line.taxRate) || 0;
+  const subtotal = qty * price;
+  const discountAmount = subtotal * (discount / 100);
+  const taxableAmount = subtotal - discountAmount;
+  const taxAmount = taxableAmount * (taxRate / 100);
+  return {
+    ...line,
+    subtotal,
+    discountAmount,
+    taxableAmount,
+    taxAmount,
+    lineTotal: taxableAmount + taxAmount,
+  };
+}
+
+function buildLines(source: GRNSource): PurchaseInvoiceLineDraft[] {
+  return (source.items || []).map((item: any) =>
+    recalc({
+      productId: item.productId || '',
+      productName: item.productName || '',
+      sku: item.sku || '',
+      purchaseOrderItemId: item.purchaseOrderItemId || null,
+      quantity: Number(item.quantity ?? item.receivingQuantity ?? 0),
+      maxQuantity: Number(item.quantity ?? item.receivingQuantity ?? 0),
+      unitPrice: item.unitPrice || item.costPrice || 0,
+      discount: item.discount || 0,
+      taxRate: item.taxRate || 0,
+      previouslyInvoiced: item.previouslyInvoiced,
+      subtotal: 0,
+      discountAmount: 0,
+      taxableAmount: 0,
+      taxAmount: 0,
+      lineTotal: 0,
+      notes: item.notes || null,
+    })
+  );
+}
+
+export default function CreateInvoiceFromGRNModal({
+  grn,
+  onClose,
+  onCreated,
+  formatCurrency,
+}: CreateInvoiceFromGRNModalProps) {
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [source, setSource] = useState<GRNSource | null>(null);
+  const [lineDrafts, setLineDrafts] = useState<PurchaseInvoiceLineDraft[]>([]);
+  const [supplierInvoiceNo, setSupplierInvoiceNo] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dueDate, setDueDate] = useState(
+    () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  );
+  const [paymentTerms, setPaymentTerms] = useState('Net 30');
+  const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const results = await purchaseInvoiceService.searchAvailableSource(
+          'grn',
+          grn.grnNumber,
+          20
+        );
+        const match =
+          (results.find((r) => r.id === grn.id) as GRNSource | undefined) ||
+          (results.find((r) => (r as GRNSource).grnNumber === grn.grnNumber) as
+            | GRNSource
+            | undefined) ||
+          (results[0] as GRNSource | undefined) ||
+          null;
+        if (!match) {
+          if (!cancelled) {
+            setError(
+              'This GRN is not available for invoicing. Confirm it first, or it may already be fully invoiced.'
+            );
+            setSource(null);
+            setLineDrafts([]);
+          }
+          return;
+        }
+        if (!cancelled) {
+          setSource(match);
+          setLineDrafts(buildLines(match));
+        }
+      } catch (err: any) {
+        if (!cancelled) setError(err.message || 'Failed to load GRN for invoicing');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [grn.id, grn.grnNumber]);
+
+  const totals = useMemo(() => {
+    const subtotal = lineDrafts.reduce((s, l) => s + l.subtotal, 0);
+    const discount = lineDrafts.reduce((s, l) => s + l.discountAmount, 0);
+    const tax = lineDrafts.reduce((s, l) => s + l.taxAmount, 0);
+    return { subtotal, discount, tax, grand: subtotal - discount + tax };
+  }, [lineDrafts]);
+
+  const updateQty = (index: number, value: number) => {
+    setLineDrafts((prev) =>
+      prev.map((line, i) => {
+        if (i !== index) return line;
+        const max = line.maxQuantity ?? Number(line.quantity) ?? 0;
+        return recalc({ ...line, quantity: Math.max(0, Math.min(max, value || 0)) });
+      })
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (!source) return;
+    const items = lineDrafts
+      .filter((line) => Number(line.quantity) > 0)
+      .map((line) => ({
+        productId: line.productId,
+        productName: line.productName,
+        sku: line.sku,
+        purchaseOrderItemId: line.purchaseOrderItemId || undefined,
+        quantity: Number(line.quantity),
+        unitPrice: Number(line.unitPrice),
+        discount: Number(line.discount) || 0,
+        taxRate: Number(line.taxRate) || 0,
+        notes: line.notes || undefined,
+      }));
+    if (!items.length) {
+      setError('Enter quantity for at least one item');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const payload: CreateInvoiceRequest = {
+        goodsReceivingId: source.id,
+        goodsReceivingIds: [source.id],
+        invoiceDate,
+        dueDate,
+        paymentTerms: paymentTerms || 'Net 30',
+        notes: notes || undefined,
+        supplierInvoiceNo: supplierInvoiceNo || undefined,
+        currencyId: source.currencyId || source.currency?.id || undefined,
+        exchangeRate: Number(source.exchangeRate) || 1,
+        exchangeRateDate: invoiceDate,
+        items: items as PurchaseInvoiceLineDraft[],
+      };
+      await purchaseInvoiceService.createInvoice(payload);
+      onCreated();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to create purchase invoice');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 md:p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+        <div className="flex items-start justify-between px-4 md:px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-[#014582]" />
+              Create purchase invoice
+            </h2>
+            <p className="text-xs text-gray-500 mt-1">
+              From {grn.grnNumber} · {grn.supplierName}
+              {grn.purchaseOrderNumber ? ` · PO ${grn.purchaseOrderNumber}` : ''}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+          {loading ? (
+            <div className="py-12 text-center">
+              <Loader2 className="w-7 h-7 mx-auto animate-spin text-[#014582]" />
+              <p className="text-sm text-gray-500 mt-2">Loading invoiceable items…</p>
+            </div>
+          ) : error && !source ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {error}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="text-xs font-medium text-gray-600">
+                  Supplier invoice #
+                  <input
+                    type="text"
+                    value={supplierInvoiceNo}
+                    onChange={(e) => setSupplierInvoiceNo(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs font-medium text-gray-600">
+                  Payment terms
+                  <input
+                    type="text"
+                    value={paymentTerms}
+                    onChange={(e) => setPaymentTerms(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs font-medium text-gray-600">
+                  Invoice date
+                  <input
+                    type="date"
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-xs font-medium text-gray-600">
+                  Due date
+                  <input
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+
+              <h3 className="text-sm font-semibold text-gray-800">Line items</h3>
+              <div className="space-y-2 max-h-56 overflow-y-auto">
+                {lineDrafts.map((line, index) => (
+                  <div
+                    key={`${line.productId}-${index}`}
+                    className="rounded-xl border border-gray-100 p-3 flex flex-col sm:flex-row sm:items-center gap-2"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{line.productName}</p>
+                      <p className="text-[11px] text-gray-400">
+                        SKU {line.sku} · Max {line.maxQuantity ?? line.quantity} ·{' '}
+                        {formatCurrency(line.lineTotal)}
+                      </p>
+                    </div>
+                    <label className="text-[11px] text-gray-500 shrink-0">
+                      Qty
+                      <input
+                        type="number"
+                        min={0}
+                        max={line.maxQuantity}
+                        value={line.quantity === '' ? '' : line.quantity}
+                        onChange={(e) => updateQty(index, Number(e.target.value))}
+                        className="mt-1 w-24 rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              <label className="block text-xs font-medium text-gray-600">
+                Notes
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                />
+              </label>
+
+              <div className="rounded-xl bg-gray-50 border border-gray-100 px-3 py-2 text-sm space-y-1">
+                <div className="flex justify-between text-gray-600">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(totals.subtotal)}</span>
+                </div>
+                {totals.discount > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>Discount</span>
+                    <span>-{formatCurrency(totals.discount)}</span>
+                  </div>
+                )}
+                {totals.tax > 0 && (
+                  <div className="flex justify-between text-blue-600">
+                    <span>Tax</span>
+                    <span>{formatCurrency(totals.tax)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-gray-900 pt-1 border-t border-gray-200">
+                  <span>Grand total</span>
+                  <span className="text-[#014582]">{formatCurrency(totals.grand)}</span>
+                </div>
+              </div>
+
+              {error && source && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="border-t border-gray-100 px-4 md:px-6 py-3 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={loading || submitting || !source || totals.grand <= 0}
+            onClick={() => void handleSubmit()}
+            className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#014582] hover:bg-[#01366a] disabled:opacity-50 flex items-center gap-2"
+          >
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            Create invoice
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

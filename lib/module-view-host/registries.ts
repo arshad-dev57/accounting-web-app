@@ -8,9 +8,13 @@ function loader(
   exportName: string,
 ): Loader {
   return () =>
-    importFn().then((mod) => ({
-      default: mod[exportName] as ComponentType,
-    }));
+    importFn().then((mod) => {
+      const Comp = (mod[exportName] ?? mod.default) as ComponentType | undefined;
+      if (!Comp) {
+        console.error(`[ModuleViewHost] Missing export "${exportName}" (and no default)`);
+      }
+      return { default: Comp as ComponentType };
+    });
 }
 
 // ─── Sales ───────────────────────────────────────────────────────────
