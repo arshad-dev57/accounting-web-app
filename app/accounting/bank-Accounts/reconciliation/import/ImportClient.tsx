@@ -82,6 +82,7 @@ export default function BankStatementImportPage() {
   async function confirmImport() {
     if (!importId) return;
     setBusy(true);
+    setStep(5);
     try {
       const res = await bankReconciliationService.confirmImport({
         importId,
@@ -97,6 +98,7 @@ export default function BankStatementImportPage() {
       const reconId = search.get('reconciliationId');
       router.push(reconId ? `/accounting/bank-Accounts/reconciliation/${reconId}` : '/accounting/bank-Accounts/reconciliation');
     } catch (e) {
+      setStep(4);
       toast.error(e instanceof Error ? e.message : 'Import failed');
     } finally {
       setBusy(false);

@@ -67,13 +67,26 @@ export default function BankReconciliationPage() {
 
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<{
-    bankAccounts: Array<BankAccount & { openReconciliation?: BankReconciliationRow | null }>;
+    bankAccounts: Array<
+      BankAccount & {
+        bookBalance?: number;
+        openReconciliation?: BankReconciliationRow | null;
+        lastCompletedReconciliation?: BankReconciliationRow | null;
+        reconciliationStatus?: string;
+      }
+    >;
     recent: BankReconciliationRow[];
-    stats: { activeBanks: number; openReconciliations: number; completedThisMonth: number };
+    stats: {
+      activeBanks: number;
+      openReconciliations: number;
+      completedThisMonth: number;
+      unmatchedOpen?: number;
+    };
   } | null>(null);
   const [history, setHistory] = useState<BankReconciliationRow[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [bookBalancePreview, setBookBalancePreview] = useState<number | null>(null);
   const [form, setForm] = useState({
     bankAccountId: '',
     statementStartDate: '',
@@ -101,6 +114,25 @@ export default function BankReconciliationPage() {
   useEffect(() => {
     if (canAccess) load();
   }, [canAccess, load]);
+
+  useEffect(() => {
+    if (!form.bankAccountId || !form.statementEndDate) {
+      setBookBalancePreview(null);
+      return;
+    }
+    let cancelled = false;
+    bankReconciliationService
+      .bookBalance(form.bankAccountId, form.statementEndDate)
+      .then((res) => {
+        if (!cancelled) setBookBalancePreview(res.data.bookBalance);
+      })
+      .catch(() => {
+        if (!cancelled) setBookBalancePreview(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.bankAccountId, form.statementEndDate]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -185,7 +217,7 @@ export default function BankReconciliationPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
               <p className="text-sm text-gray-500">Active Bank Accounts</p>
               <p className="mt-2 text-2xl font-bold text-gray-900">
@@ -196,6 +228,12 @@ export default function BankReconciliationPage() {
               <p className="text-sm text-gray-500">Open Reconciliations</p>
               <p className="mt-2 text-2xl font-bold text-amber-600">
                 {dashboard?.stats.openReconciliations ?? 0}
+              </p>
+            </div>
+            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+              <p className="text-sm text-gray-500">Unmatched (open)</p>
+              <p className="mt-2 text-2xl font-bold text-indigo-600">
+                {dashboard?.stats.unmatchedOpen ?? 0}
               </p>
             </div>
             <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -221,7 +259,8 @@ export default function BankReconciliationPage() {
                 <thead>
                   <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500">
                     <th className="px-5 py-3 font-medium">Account</th>
-                    <th className="px-5 py-3 font-medium">Balance</th>
+                    <th className="px-5 py-3 font-medium">Ledger</th>
+                    <th className="px-5 py-3 font-medium">Book (COA)</th>
                     <th className="px-5 py-3 font-medium">Last Reconciled</th>
                     <th className="px-5 py-3 font-medium">Status</th>
                     <th className="px-5 py-3 text-right font-medium">Action</th>
@@ -230,7 +269,7 @@ export default function BankReconciliationPage() {
                 <tbody>
                   {(dashboard?.bankAccounts || []).length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-5 py-10 text-center text-gray-400">
+                      <td colSpan={6} className="px-5 py-10 text-center text-gray-400">
                         No active bank accounts. Create one under Bank Accounts first.
                       </td>
                     </tr>
@@ -248,7 +287,14 @@ export default function BankReconciliationPage() {
                         <td className="px-5 py-3 font-semibold text-gray-800">
                           {fmtMoney(b.currentBalance, symbol)}
                         </td>
-                        <td className="px-5 py-3 text-gray-500">{fmtDate(b.lastReconciled)}</td>
+                        <td className="px-5 py-3 font-semibold text-gray-800">
+                          {fmtMoney(Number(b.bookBalance ?? b.currentBalance), symbol)}
+                        </td>
+                        <td className="px-5 py-3 text-gray-500">
+                          {fmtDate(
+                            b.lastCompletedReconciliation?.completedAt || b.lastReconciled
+                          )}
+                        </td>
                         <td className="px-5 py-3">
                           {open ? (
                             <span
@@ -452,6 +498,12 @@ export default function BankReconciliationPage() {
                   />
                 </div>
               </div>
+              {bookBalancePreview != null && (
+                <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                  ERP book balance as of statement end:{' '}
+                  <span className="font-semibold">{fmtMoney(bookBalancePreview, symbol)}</span>
+                </div>
+              )}
               <p className="text-xs text-gray-500 flex items-start gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                 Import the bank statement next (or beforehand). Matching uses existing posted

@@ -79,11 +79,34 @@ export interface BookTxn {
   date: string;
   description: string;
   reference: string;
+  type?: string;
   debit: number;
   credit: number;
   amount: number;
   isReconciled: boolean;
   direction: string;
+}
+
+export interface MatchCandidate {
+  journalLineId: string;
+  journalEntryId: string;
+  entryNumber: string;
+  date: string;
+  description: string;
+  reference: string;
+  debit: number;
+  credit: number;
+  score: number;
+  reasons: string[];
+}
+
+export interface AmbiguousMatch {
+  statementTransactionId: string;
+  description: string;
+  amount: number;
+  date: string;
+  candidates: MatchCandidate[];
+  note?: string;
 }
 
 function qs(params?: Record<string, string | number | boolean | undefined | null>) {
@@ -191,19 +214,82 @@ export const bankReconciliationService = {
 
   async autoMatch(id: string) {
     const res = await apiClient.post(`${BASE}/${id}/auto-match`, {});
-    return unwrap(res);
+    return unwrap<{
+      matched: number;
+      ambiguousCount: number;
+      ambiguous: AmbiguousMatch[];
+      reconciliation?: BankReconciliationRow;
+    }>(res);
   },
 
-  async match(id: string, statementTransactionId: string, journalLineId: string) {
-    const res = await apiClient.post(`${BASE}/${id}/match`, {
+  async suggestMatches(id: string, statementTransactionId: string) {
+    const res = await apiClient.post(`${BASE}/${id}/suggest-matches`, {
       statementTransactionId,
-      journalLineId,
     });
+    return unwrap<{
+      statementTransactionId: string;
+      status: string;
+      candidates: MatchCandidate[];
+      message?: string;
+    }>(res);
+  },
+
+  async addManualLines(body: {
+    bankAccountId: string;
+    reconciliationId?: string;
+    transactions: Array<{
+      transactionDate: string;
+      description?: string;
+      reference?: string;
+      debit?: number;
+      credit?: number;
+      amount?: number;
+      runningBalance?: number;
+    }>;
+  }) {
+    const res = await apiClient.post(`${BASE}/statement-transactions/manual`, body);
     return unwrap(res);
   },
 
-  async unmatch(id: string, payload: { matchId?: string; statementTransactionId?: string }) {
+  async bookBalance(bankAccountId: string, asOfDate?: string) {
+    const res = await apiClient.get(
+      `${BASE}/book-balance${qs({ bankAccountId, asOfDate })}`
+    );
+    return unwrap<{ bookBalance: number; ledgerBalance: number }>(res);
+  },
+
+  async match(
+    id: string,
+    statementTransactionIdOrIds: string | string[],
+    journalLineIdOrIds: string | string[]
+  ) {
+    const body = Array.isArray(statementTransactionIdOrIds) || Array.isArray(journalLineIdOrIds)
+      ? {
+          statementTransactionIds: Array.isArray(statementTransactionIdOrIds)
+            ? statementTransactionIdOrIds
+            : [statementTransactionIdOrIds],
+          journalLineIds: Array.isArray(journalLineIdOrIds)
+            ? journalLineIdOrIds
+            : [journalLineIdOrIds],
+        }
+      : {
+          statementTransactionId: statementTransactionIdOrIds,
+          journalLineId: journalLineIdOrIds,
+        };
+    const res = await apiClient.post(`${BASE}/${id}/match`, body);
+    return unwrap(res);
+  },
+
+  async unmatch(
+    id: string,
+    payload: { matchId?: string; matchGroupId?: string; statementTransactionId?: string }
+  ) {
     const res = await apiClient.post(`${BASE}/${id}/unmatch`, payload);
+    return unwrap(res);
+  },
+
+  async audits(id: string, limit = 50) {
+    const res = await apiClient.get(`${BASE}/${id}/audits${qs({ limit })}`);
     return unwrap(res);
   },
 
