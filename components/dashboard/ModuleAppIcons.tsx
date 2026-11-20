@@ -337,6 +337,34 @@ export function UsersAppIcon({ className }: IconProps) {
   );
 }
 
+export function SettingsAppIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden>
+      <circle className="set-ring" cx="32" cy="32" r="18" fill="none" stroke="#714B67" strokeWidth="6" />
+      <circle className="set-core" cx="32" cy="32" r="8" fill="#00A09D" />
+      <g className="set-teeth" fill="#F06050">
+        <rect x="29" y="6" width="6" height="10" rx="2" />
+        <rect x="29" y="48" width="6" height="10" rx="2" />
+        <rect x="6" y="29" width="10" height="6" rx="2" />
+        <rect x="48" y="29" width="10" height="6" rx="2" />
+      </g>
+      <circle className="set-dot" cx="46" cy="18" r="3.5" fill="#F7CD1F" />
+      <style>{`
+        .set-ring, .set-teeth, .set-core { transform-box: fill-box; transform-origin: center; }
+        .set-ring { animation: setSpin 4s linear infinite; }
+        .set-teeth { animation: setSpin 4s linear infinite reverse; }
+        .set-core { animation: setPulse 1.2s ease-in-out infinite; }
+        .set-dot { animation: setPulse 1s ease-in-out infinite; }
+        @keyframes setSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes setPulse {
+          0%,100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.12); opacity: 0.8; }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
 export function ImportAppIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden>

@@ -24,6 +24,7 @@ export type GlobalSearchGroupKey =
   | 'trading'
   | 'hr'
   | 'tax'
+  | 'settings'
   | 'pos';
 
 export type GlobalSearchPage = {
@@ -61,6 +62,7 @@ export const SEARCH_GROUPS: Record<
   trading: { label: 'Trading Management', href: '/trading/dashboard' },
   hr: { label: 'HR', href: '/hr/hr-setup' },
   tax: { label: 'Tax', href: '/tax' },
+  settings: { label: 'Settings', href: '/settings/invoice-numbers' },
   pos: { label: 'Point of Sale', href: '/pos' },
 };
 
@@ -155,8 +157,8 @@ export const GLOBAL_SEARCH_PAGES: GlobalSearchPage[] = [
   { path: '/accounting/cash-flow', label: 'Cash Flow', group: 'accounting', module: 'accounting', permission: 'cash-flow', keywords: ['cash flow statement', 'liquidity'] },
   { path: '/accounting/aged-recievables', label: 'Aged Receivables', group: 'accounting', module: 'accounting', permission: 'aged-receivables', keywords: ['aging', 'overdue'] },
   { path: '/accounting/fiscal-years', label: 'Fiscal Years', group: 'accounting', module: 'accounting', permission: 'settings', keywords: ['period', 'year close'] },
-  { path: '/accounting/currency', label: 'Currency Settings', group: 'accounting', module: 'accounting', permission: 'currency', keywords: ['exchange rate', 'forex', 'display currency', 'conversion', 'currency master'] },
-  { path: '/accounting/pdf-reports', label: 'PDF Reports', group: 'accounting', module: 'accounting', permission: 'settings', keywords: ['download reports', 'print'] },
+  { path: '/settings/currency', label: 'Currency Settings', group: 'settings', module: 'settings', keywords: ['exchange rate', 'forex', 'display currency', 'conversion', 'currency master'] },
+  { path: '/settings/pdf-reports', label: 'PDF Reports', group: 'settings', module: 'settings', keywords: ['download reports', 'print', 'letterhead', 'pdf branding'] },
   // ============================== Sales ==============================
   { path: '/sales/dashboard', label: 'Sales Dashboard', group: 'sales', module: 'sales', permission: 'dashboard', keywords: ['overview'] },
   { path: '/crm/dashboard', label: 'CRM Dashboard', group: 'crm', module: 'crm', permission: 'dashboard', keywords: ['crm', 'leads', 'pipeline', 'opportunities'] },
@@ -212,6 +214,7 @@ export const GLOBAL_SEARCH_PAGES: GlobalSearchPage[] = [
   { path: '/warehouse/products', label: 'Inventory Products', group: 'warehouse', module: 'warehouse', permission: 'products', keywords: ['items', 'stock items'] },
   { path: '/warehouse/import', label: 'Import Inventory', group: 'warehouse', module: 'warehouse', permission: 'products', keywords: ['excel', 'csv', 'bulk import', 'opening stock'] },
   { path: '/warehouse/categories', label: 'Categories', group: 'warehouse', module: 'warehouse', permission: 'categories', keywords: ['product groups'] },
+  { path: '/warehouse/brands', label: 'Brands', group: 'warehouse', module: 'warehouse', permission: 'products', keywords: ['brand', 'manufacturer', 'label'] },
   { path: '/warehouse/suppliers', label: 'Inventory Suppliers', group: 'warehouse', module: 'warehouse', permission: 'suppliers', keywords: ['vendors'] },
   { path: '/warehouse/customers', label: 'Inventory Customers', group: 'warehouse', module: 'warehouse', permission: 'customers', keywords: ['clients'] },
   { path: '/warehouse/stock-movement', label: 'Stock Movement', group: 'warehouse', module: 'warehouse', permission: 'stock-movement', keywords: ['transfer', 'stock in out', 'adjustment'] },
@@ -225,7 +228,8 @@ export const GLOBAL_SEARCH_PAGES: GlobalSearchPage[] = [
   { path: '/warehouse/orders', label: 'Inventory Orders', group: 'warehouse', module: 'warehouse', keywords: ['pick', 'pack', 'fulfilment'] },
   { path: '/warehouse/returns', label: 'Inventory Returns', group: 'warehouse', module: 'warehouse', keywords: ['returned goods'] },
   { path: '/warehouse/refunds', label: 'Inventory Refunds', group: 'warehouse', module: 'warehouse', keywords: ['money back'] },
-  { path: '/warehouse/product-settings', label: 'Product Settings', group: 'warehouse', module: 'warehouse', permission: 'settings', keywords: ['units', 'uom', 'inventory settings'] },
+  { path: '/settings/units', label: 'Units of Measure', group: 'settings', module: 'settings', keywords: ['units', 'uom', 'stock unit', 'pcs', 'kg', 'measure'] },
+  { path: '/warehouse/product-settings', label: 'Product Settings', group: 'warehouse', module: 'warehouse', permission: 'settings', keywords: ['inventory settings', 'product types', 'racks'] },
 
   { path: '/manufacturing/manufacturing/manufacturing-settings', label: 'Manufacturing Settings', group: 'manufacturing', module: 'manufacturing', keywords: ['configuration', 'erpnext settings'] },
 
@@ -279,6 +283,11 @@ export const GLOBAL_SEARCH_PAGES: GlobalSearchPage[] = [
   { path: '/tax/rates', label: 'Tax Types, Rates & Rules', group: 'tax', module: 'tax', keywords: ['tax rate', 'vat rate', 'gst rate'] },
   { path: '/tax/exemptions', label: 'Tax Exemptions', group: 'tax', module: 'tax', keywords: ['exempt', 'zero rated'] },
   { path: '/tax/reports', label: 'Tax Liability & Audit', group: 'tax', module: 'tax', keywords: ['tax report', 'audit'] },
+  // ============================ Settings ============================
+  { path: '/settings/invoice-numbers', label: 'Document Numbering', group: 'settings', module: 'settings', keywords: ['invoice numbers', 'prefix', 'series', 'document numbering'] },
+  { path: '/settings/company-info', label: 'Company Info', group: 'settings', module: 'settings', keywords: ['company preferences', 'company profile'] },
+  { path: '/settings/stock', label: 'Stock Settings', group: 'settings', module: 'settings', keywords: ['inventory settings', 'negative stock'] },
+  { path: '/settings/backup-restore', label: 'Backup & Restore', group: 'settings', module: 'settings', keywords: ['backup', 'restore', 'export data', 'zip'] },
 ];
 
 // ---------------------------------------------------------------------------

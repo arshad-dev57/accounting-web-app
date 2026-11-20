@@ -287,6 +287,17 @@ export function usePermissions() {
         );
       }
 
+      if (key === 'settings') {
+        return (
+          hasModuleAccess('settings') ||
+          effectiveMap['settings.users.view']?.granted === true ||
+          effectiveMap['settings.roles.view']?.granted === true ||
+          Object.keys(effectiveMap).some(
+            (k) => k.startsWith('settings.') && effectiveMap[k].granted
+          )
+        );
+      }
+
       if (key === 'import') {
         return (
           hasModuleAccess('import') ||

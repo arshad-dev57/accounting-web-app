@@ -9,6 +9,7 @@ import React, {
   useState,
 } from 'react';
 import { API_BASE_URL } from '../app/lib/constants';
+import { extractTenantSlugFromHost, tenantAppUrl } from './tenant-host';
 
 export const ALL_COMPANIES_VALUE = '__all__';
 export const COMPANY_STORAGE_KEY = 'bisonstechs_active_company_id';
@@ -19,6 +20,8 @@ export type ManufacturingWorkflow = 'STANDARD' | 'TEXTILE_WEAVING';
 export type CompanySummary = {
   id: string;
   name: string;
+  /** Tenant subdomain slug — acme.bisonstechs.com */
+  slug?: string | null;
   email?: string | null;
   phone?: string | null;
   address?: string | null;
@@ -67,6 +70,18 @@ type CompanyContextValue = {
 
 const CompanyContext = createContext<CompanyContextValue | null>(null);
 
+function cookieDomainAttr(): string {
+  if (typeof window === 'undefined') return '';
+  const configured =
+    process.env.NEXT_PUBLIC_COOKIE_DOMAIN?.trim() ||
+    (process.env.NODE_ENV === 'production' ? '.bisonstechs.com' : '');
+  if (!configured) return '';
+  const host = window.location.hostname.toLowerCase();
+  const d = configured.replace(/^\./, '').toLowerCase();
+  if (host === d || host.endsWith(`.${d}`)) return `; Domain=${configured.startsWith('.') ? configured : `.${d}`}`;
+  return '';
+}
+
 function authHeaders(): HeadersInit {
   const token =
     typeof window !== 'undefined'
@@ -81,6 +96,10 @@ function authHeaders(): HeadersInit {
   };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (companyId) headers['X-Company-Id'] = companyId;
+  if (typeof window !== 'undefined') {
+    const slug = extractTenantSlugFromHost(window.location.host);
+    if (slug) headers['X-Company-Slug'] = slug;
+  }
   return headers;
 }
 
@@ -94,7 +113,8 @@ export function setStoredCompanyId(id: string | null) {
   if (!id) localStorage.removeItem(COMPANY_STORAGE_KEY);
   else localStorage.setItem(COMPANY_STORAGE_KEY, id);
   try {
-    document.cookie = `active_company_id=${encodeURIComponent(id || '')}; path=/; SameSite=Lax; max-age=31536000`;
+    const domain = cookieDomainAttr();
+    document.cookie = `active_company_id=${encodeURIComponent(id || '')}; path=/; SameSite=Lax; max-age=31536000${domain}`;
   } catch {
     /* ignore */
   }
@@ -183,6 +203,21 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const applySelection = useCallback((list: CompanySummary[], preferred: string | null) => {
+    // Prefer company matching current subdomain when present
+    if (typeof window !== 'undefined') {
+      const hostSlug = extractTenantSlugFromHost(window.location.host);
+      if (hostSlug) {
+        const match = list.find(
+          (c) => String(c.slug || '').toLowerCase() === hostSlug
+        );
+        if (match) {
+          setActiveId(match.id);
+          setStoredCompanyId(match.id);
+          writeCompaniesCache(list, match.id);
+          return;
+        }
+      }
+    }
     if (preferred === ALL_COMPANIES_VALUE) {
       setActiveId(ALL_COMPANIES_VALUE);
       setStoredCompanyId(ALL_COMPANIES_VALUE);
@@ -259,6 +294,21 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
             });
           } catch {
             /* local switch still works even if persist fails */
+          }
+        }
+
+        // Production: navigate to that company's subdomain when slug differs
+        if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
+          const target = companies.find((c) => c.id === id);
+          const slug = target?.slug;
+          if (slug) {
+            const current = extractTenantSlugFromHost(window.location.host);
+            if (current !== slug) {
+              window.location.assign(
+                tenantAppUrl(slug, window.location.pathname + window.location.search)
+              );
+              return;
+            }
           }
         }
       }

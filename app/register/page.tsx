@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AuthSplitLayout from '../../components/AuthSplitLayout';
 import {
@@ -11,6 +11,7 @@ import {
   Check,
   Eye,
   EyeOff,
+  Globe,
   ImagePlus,
   Lock,
   Mail,
@@ -33,6 +34,11 @@ import {
   findCountryByName,
   findCurrency,
 } from '../../lib/geo-data';
+import {
+  slugifyCompanyName,
+  tenantAppUrl,
+  tenantRootDomain,
+} from '../../lib/tenant-host';
 import {
   BUSINESS_TYPE_OPTIONS,
   FISCAL_YEAR_OPTIONS,
@@ -75,6 +81,7 @@ type FormState = {
   address: string;
   agreeToTerms: boolean;
   organizationName: string;
+  companySlug: string;
   industry: string;
   businessType: string;
   operationalBusinessType: string;
@@ -98,6 +105,7 @@ const initialForm: FormState = {
   address: '',
   agreeToTerms: false,
   organizationName: '',
+  companySlug: '',
   industry: '',
   businessType: '',
   operationalBusinessType: 'Other',
@@ -138,14 +146,73 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [slugManual, setSlugManual] = useState(false);
+  const [slugStatus, setSlugStatus] = useState<{
+    checking: boolean;
+    available: boolean | null;
+    message: string;
+    previewHost: string;
+  }>({ checking: false, available: null, message: '', previewHost: '' });
+  const [registeredSlug, setRegisteredSlug] = useState('');
 
   const strength = useMemo(() => passwordStrength(form.password), [form.password]);
   const selectedCurrency = findCurrency(form.currencyCode) || GEO_CURRENCIES[0];
+  const rootDomain = tenantRootDomain();
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === 'organizationName' && !slugManual) {
+        next.companySlug = slugifyCompanyName(String(value));
+      }
+      return next;
+    });
     setError('');
   };
+
+  useEffect(() => {
+    const slug = slugifyCompanyName(form.companySlug);
+    if (!slug || slug.length < 2) {
+      setSlugStatus({
+        checking: false,
+        available: null,
+        message: '',
+        previewHost: '',
+      });
+      return;
+    }
+    let cancelled = false;
+    setSlugStatus((s) => ({ ...s, checking: true }));
+    const t = window.setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/companies/check-slug?slug=${encodeURIComponent(slug)}`
+        );
+        const json = await res.json();
+        if (cancelled) return;
+        const data = json?.data || {};
+        setSlugStatus({
+          checking: false,
+          available: Boolean(data.available),
+          message: data.message || '',
+          previewHost: data.previewHost || `${slug}.${rootDomain}`,
+        });
+      } catch {
+        if (!cancelled) {
+          setSlugStatus({
+            checking: false,
+            available: null,
+            message: 'Could not verify availability',
+            previewHost: `${slug}.${rootDomain}`,
+          });
+        }
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [form.companySlug, rootDomain]);
 
   const onCountryChange = (countryName: string) => {
     const country = findCountryByName(countryName);
@@ -217,6 +284,15 @@ export default function RegisterPage() {
         setError('Please enter your organization / company name');
         return false;
       }
+      const slug = slugifyCompanyName(form.companySlug || form.organizationName);
+      if (!slug || slug.length < 2) {
+        setError('Please choose a company URL (subdomain)');
+        return false;
+      }
+      if (slugStatus.available === false) {
+        setError(slugStatus.message || 'That company URL is not available');
+        return false;
+      }
       if (!form.fiscalYear) {
         setError('Please select a fiscal year period');
         return false;
@@ -255,6 +331,10 @@ export default function RegisterPage() {
       fd.append('phone', phone);
       fd.append('address', form.address.trim());
       fd.append('organizationName', form.organizationName.trim());
+      fd.append(
+        'slug',
+        slugifyCompanyName(form.companySlug || form.organizationName)
+      );
       fd.append('fiscalYear', form.fiscalYear);
       if (form.fiscalYear) {
         const fy = calculateFiscalYearDates(form.fiscalYear);
@@ -332,6 +412,20 @@ export default function RegisterPage() {
         await fetchSubscriptionStatus(data.token);
       } catch {
         /* continue — gate on Continue button */
+      }
+
+      const newSlug =
+        data.user?.companySlug ||
+        data.user?.company?.slug ||
+        slugifyCompanyName(form.companySlug || form.organizationName);
+      setRegisteredSlug(newSlug);
+      if (newSlug && data.user?.companyId) {
+        try {
+          const { setStoredCompanyId } = await import('../../lib/company-context');
+          setStoredCompanyId(data.user.companyId);
+        } catch {
+          /* ignore */
+        }
       }
 
       setStep(4);
@@ -543,6 +637,33 @@ export default function RegisterPage() {
                   onChange={(e) => update('organizationName', e.target.value)}
                 />
               </div>
+              <label className={`${labelClass} mt-4`}>Your company URL</label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  className={`${inputClass} pl-10 pr-36`}
+                  placeholder="acme"
+                  value={form.companySlug}
+                  onChange={(e) => {
+                    setSlugManual(true);
+                    update('companySlug', slugifyCompanyName(e.target.value));
+                  }}
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                  .{rootDomain}
+                </span>
+              </div>
+              <p className="mt-1.5 text-xs text-gray-500">
+                {slugStatus.checking
+                  ? 'Checking availability…'
+                  : slugStatus.previewHost
+                    ? slugStatus.available === false
+                      ? slugStatus.message
+                      : slugStatus.available
+                        ? `Your app: https://${slugStatus.previewHost}`
+                        : `Preview: https://${slugStatus.previewHost}`
+                    : 'Letters, numbers, and hyphens only'}
+              </p>
               <label className={`${labelClass} mt-4`}>Industry</label>
               <SearchableSelect
                 options={[...INDUSTRY_OPTIONS]}
@@ -777,6 +898,14 @@ export default function RegisterPage() {
                   <span className="text-right font-medium">{form.organizationName}</span>
                 </div>
               )}
+              {(registeredSlug || form.companySlug) && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-400">App URL</span>
+                  <span className="break-all text-right font-medium text-blue-600">
+                    {(registeredSlug || form.companySlug)}.{rootDomain}
+                  </span>
+                </div>
+              )}
               {form.fiscalYear && (
                 <div className="flex justify-between gap-4">
                   <span className="text-gray-400">Fiscal Year</span>
@@ -810,6 +939,11 @@ export default function RegisterPage() {
             onClick={async () => {
               const { resolvePostAuthDestination } = await import('../../lib/subscription-service');
               const destination = await resolvePostAuthDestination();
+              const slug = registeredSlug || slugifyCompanyName(form.companySlug);
+              if (slug && process.env.NODE_ENV === 'production') {
+                window.location.replace(tenantAppUrl(slug, destination));
+                return;
+              }
               window.location.replace(destination);
             }}
             className={`${primaryBtn} mt-6`}

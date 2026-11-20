@@ -26,6 +26,7 @@ import {
   FileBarChart,
   Upload,
   Trash2,
+  Award,
 } from 'lucide-react';
 import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
@@ -59,6 +60,7 @@ function WarehouseSidebar() {
     { icon: <Package className="w-5 h-5" />, label: 'Products', path: '/warehouse/products', permission: 'products' },
     { icon: <Upload className="w-5 h-5" />, label: 'Import Inventory', path: '/warehouse/import', permission: 'products' },
     { icon: <FolderTree className="w-5 h-5" />, label: 'Categories', path: '/warehouse/categories', permission: 'categories' },
+    { icon: <Award className="w-5 h-5" />, label: 'Brands', path: '/warehouse/brands', permission: 'products' },
     { icon: <Users className="w-5 h-5" />, label: 'Suppliers', path: '/warehouse/suppliers', permission: 'suppliers' },
     { icon: <ArrowLeftRight className="w-5 h-5" />, label: 'Stock Movement', path: '/warehouse/stock-movement', permission: 'stock-movement' },
     { icon: <ArrowLeftRight className="w-5 h-5" />, label: 'Product Transfer', path: '/warehouse/transfers', permission: 'stock-movement' },

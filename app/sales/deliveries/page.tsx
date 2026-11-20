@@ -18,6 +18,9 @@ import {
 import { CustomerFilter, type CustomerFilterValue } from '@/components/common/CustomerFilter';
 import { SalesDocumentModal } from '@/components/sales-documents/SalesDocumentModal';
 import { mapDeliveryToDocument } from '@/lib/sales-document';
+import { useCurrency } from '@/lib/currency-context';
+import PortalActionsMenu from '../../components/purchases/PortalActionsMenu';
+import CreateInvoiceFromDeliveryModal from '../../components/sales/CreateInvoiceFromDeliveryModal';
 
 const STATUS_COLORS: Record<string, string> = {
   'Pending': 'bg-orange-100 text-orange-700',
@@ -39,11 +42,13 @@ const STATUS_OPTIONS = ['all', 'Pending', 'Partially Delivered', 'Delivered'];
 
 export function DeliveriesPage() {
   const router = useRouter();
+  const { formatAmount } = useCurrency();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [deliveryStartEditing, setDeliveryStartEditing] = useState(false);
+  const [createInvoiceDelivery, setCreateInvoiceDelivery] = useState<Delivery | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const pageLimit = 10;
@@ -137,6 +142,35 @@ export function DeliveriesPage() {
     setDeliveryStartEditing(startEditing);
     setSelectedDelivery(delivery);
     setShowDetailModal(true);
+  };
+
+  const canCreateInvoiceFromDelivery = (delivery: Delivery) =>
+    Boolean(delivery.confirmedAt) || delivery.deliveryStatus === 'Delivered';
+
+  const handleDeliveryAction = (action: string, delivery: Delivery) => {
+    switch (action) {
+      case 'view':
+        handleDeliveryClick(delivery);
+        break;
+      case 'report':
+        setReportDelivery(delivery);
+        break;
+      case 'edit':
+        handleDeliveryClick(delivery, true);
+        break;
+      case 'confirm':
+        void handleConfirmDelivery(delivery.id);
+        break;
+      case 'createInvoice':
+        setShowDetailModal(false);
+        setCreateInvoiceDelivery(delivery);
+        break;
+      case 'delete':
+        void handleDeleteDelivery(delivery.id);
+        break;
+      default:
+        break;
+    }
   };
 
   const handleCreateSuccess = () => {
@@ -461,56 +495,50 @@ export function DeliveriesPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setReportDelivery(delivery)}
-                          className="p-1.5 text-gray-600 hover:text-[#014582] hover:bg-blue-50 rounded transition-colors"
-                          title="Delivery Report"
-                        >
-                          <FileText size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeliveryClick(delivery)}
-                          className="p-1.5 text-gray-600 hover:text-[#014582] hover:bg-gray-100 rounded transition-colors"
-                          title="View Details"
-                        >
-                          <Eye size={16} />
-                        </button>
-                        {!delivery.confirmedAt && (
-                          <button
-                            onClick={() => handleDeliveryClick(delivery, true)}
-                            className="p-1.5 text-gray-600 hover:text-slate-700 hover:bg-gray-100 rounded transition-colors"
-                            title="Edit Delivery"
-                          >
-                            <Edit3 size={16} />
-                          </button>
-                        )}
-                        {!delivery.confirmedAt && delivery.deliveryStatus !== 'Delivered' && (
-                          <button
-                            onClick={() => handleConfirmDelivery(delivery.id)}
-                            disabled={actionLoading === `confirm-${delivery.id}`}
-                            className="p-1.5 text-gray-600 hover:text-green-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
-                            title="Confirm Delivery"
-                          >
-                            {actionLoading === `confirm-${delivery.id}` ? (
-                              <Loader2 size={16} className="animate-spin" />
-                            ) : (
-                              <CheckCircle size={16} />
-                            )}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteDelivery(delivery.id)}
-                          disabled={actionLoading === `delete-${delivery.id}`}
-                          className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
-                          title="Delete"
-                        >
-                          {actionLoading === `delete-${delivery.id}` ? (
-                            <Loader2 size={16} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={16} />
-                          )}
-                        </button>
+                      <div className="flex items-center justify-end">
+                        <PortalActionsMenu
+                          items={[
+                            {
+                              key: 'view',
+                              label: 'View details',
+                              icon: <Eye className="w-3.5 h-3.5" />,
+                              show: true,
+                            },
+                            {
+                              key: 'report',
+                              label: 'Delivery report',
+                              icon: <FileText className="w-3.5 h-3.5" />,
+                              show: true,
+                            },
+                            {
+                              key: 'edit',
+                              label: 'Edit delivery',
+                              icon: <Edit3 className="w-3.5 h-3.5" />,
+                              show: !delivery.confirmedAt,
+                            },
+                            {
+                              key: 'confirm',
+                              label: 'Confirm delivery',
+                              icon: <CheckCircle className="w-3.5 h-3.5" />,
+                              show:
+                                !delivery.confirmedAt && delivery.deliveryStatus !== 'Delivered',
+                            },
+                            {
+                              key: 'createInvoice',
+                              label: 'Create invoice',
+                              icon: <FileText className="w-3.5 h-3.5" />,
+                              show: canCreateInvoiceFromDelivery(delivery),
+                            },
+                            {
+                              key: 'delete',
+                              label: 'Delete',
+                              icon: <Trash2 className="w-3.5 h-3.5" />,
+                              show: true,
+                              danger: true,
+                            },
+                          ]}
+                          onSelect={(key) => handleDeliveryAction(key, delivery)}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -561,7 +589,24 @@ export function DeliveriesPage() {
           }}
           onSave={handleSaveDeliveryEdit}
           onConfirm={(id) => handleConfirmDelivery(id, true)}
+          onCreateInvoice={
+            canCreateInvoiceFromDelivery(selectedDelivery)
+              ? (delivery) => {
+                  setShowDetailModal(false);
+                  setCreateInvoiceDelivery(delivery);
+                }
+              : undefined
+          }
           actionLoading={actionLoading}
+        />
+      )}
+
+      {createInvoiceDelivery && (
+        <CreateInvoiceFromDeliveryModal
+          delivery={createInvoiceDelivery}
+          onClose={() => setCreateInvoiceDelivery(null)}
+          onCreated={() => fetchDeliveries()}
+          formatCurrency={formatAmount}
         />
       )}
 
@@ -582,6 +627,7 @@ function DeliveryDetailModal({
   onClose,
   onSave,
   onConfirm,
+  onCreateInvoice,
   actionLoading,
 }: {
   delivery: Delivery;
@@ -589,10 +635,13 @@ function DeliveryDetailModal({
   onClose: () => void;
   onSave: (id: string, data: any) => Promise<void>;
   onConfirm?: (id: string) => void;
+  onCreateInvoice?: (delivery: Delivery) => void;
   actionLoading: string | null;
 }) {
   const canEdit = !delivery.confirmedAt;
   const canConfirm = !delivery.confirmedAt && delivery.deliveryStatus !== 'Delivered';
+  const canCreateInvoice =
+    Boolean(delivery.confirmedAt) || delivery.deliveryStatus === 'Delivered';
   const [editing, setEditing] = useState(Boolean(initialEditing) && canEdit);
   const [form, setForm] = useState({
     deliveryDate: delivery.deliveryDate?.slice?.(0, 10) || delivery.deliveryDate,
@@ -752,8 +801,17 @@ function DeliveryDetailModal({
             </div>
           </div>
 
-          {(canEdit || canConfirm) && (
+          {(canEdit || canConfirm || (canCreateInvoice && onCreateInvoice)) && (
             <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-3 justify-end">
+              {canCreateInvoice && onCreateInvoice && !editing && (
+                <button
+                  onClick={() => onCreateInvoice(delivery)}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700"
+                >
+                  <FileText className="w-4 h-4" />
+                  Create Invoice
+                </button>
+              )}
               {canConfirm && onConfirm && (
                 <button
                   onClick={() => onConfirm(delivery.id)}

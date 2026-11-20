@@ -27,6 +27,7 @@ const productSettingCategories = [
   { id: 'size', label: 'Sizes', icon: Tag, description: 'Manage product sizes (S, M, L, XL)' },
   { id: 'shippingClass', label: 'Shipping Classes', icon: Truck, description: 'Manage shipping classes' },
   { id: 'stockUnit', label: 'Stock Units', icon: Box, description: 'Manage stock units (Pcs, KG, Meter)' },
+  { id: 'brand', label: 'Brands', icon: Tag, description: 'Manage product brands (optional on products)' },
 ];
 
 const orderSettingCategories = [

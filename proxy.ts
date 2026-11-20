@@ -2,11 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   LOGOUT_FLAG_COOKIE,
   applyClearedAuthCookies,
+  cookieDomain,
 } from '@/lib/auth-cookies';
+import {
+  extractTenantSlugFromHost,
+  tenantRootDomain,
+} from '@/lib/tenant-host';
 
 const MARKETING_URL =
   process.env.NEXT_PUBLIC_MARKETING_URL?.replace(/\/$/, '') ||
   'https://bisonstechs.com';
+
+function backendBase(): string {
+  return (
+    process.env.API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    'https://bisonstechserpbackend-production.up.railway.app'
+  )
+    .trim()
+    .replace(/\/+$/, '');
+}
 
 function redirectToAppLogin(request: NextRequest) {
   const url = request.nextUrl.clone();
@@ -46,9 +61,60 @@ function redirectToLoginAndStripCookies(request: NextRequest) {
   return response;
 }
 
+function withTenantCookies(
+  response: NextResponse,
+  requestHost: string,
+  company: { id: string; slug: string }
+) {
+  const domain = cookieDomain(requestHost);
+  const base = {
+    path: '/',
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 31536000,
+    ...(domain ? { domain } : {}),
+  };
+  response.cookies.set('active_company_id', company.id, base);
+  response.cookies.set('active_company_slug', company.slug, {
+    ...base,
+    httpOnly: false,
+  });
+  response.headers.set('x-tenant-slug', company.slug);
+  response.headers.set('x-tenant-company-id', company.id);
+  return response;
+}
+
+async function resolveTenantCompany(slug: string): Promise<{
+  id: string;
+  slug: string;
+  name?: string;
+} | null> {
+  try {
+    const res = await fetch(
+      `${backendBase()}/api/companies/resolve-slug/${encodeURIComponent(slug)}`,
+      {
+        headers: { Accept: 'application/json' },
+        next: { revalidate: 60 },
+      }
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (!json?.success || !json?.data?.id) return null;
+    return {
+      id: String(json.data.id),
+      slug: String(json.data.slug || slug),
+      name: json.data.name,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function proxy(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   const { pathname } = request.nextUrl;
+  const host = request.headers.get('host') || '';
+  const tenantSlug = extractTenantSlugFromHost(host);
 
   const publicRoutes = [
     '/login',
@@ -73,6 +139,19 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Unknown tenant subdomain → send to app login
+  let tenantCompany: { id: string; slug: string; name?: string } | null = null;
+  if (tenantSlug) {
+    tenantCompany = await resolveTenantCompany(tenantSlug);
+    if (!tenantCompany) {
+      const root = tenantRootDomain();
+      const appUrl = new URL(`https://app.${root}/login`);
+      appUrl.searchParams.set('error', 'unknown_company');
+      appUrl.searchParams.set('slug', tenantSlug);
+      return NextResponse.redirect(appUrl);
+    }
+  }
+
   // Logout in progress: never bounce /login → /dashboard, and expire leftover
   // httpOnly auth cookies on this response so the reload loop cannot continue.
   if (isLoggingOut(request)) {
@@ -89,12 +168,16 @@ export async function proxy(request: NextRequest) {
     }
     const access = request.cookies.get('subscription_access')?.value;
     if (access === '0') {
-      return NextResponse.redirect(new URL('/plans', request.url));
+      const res = NextResponse.redirect(new URL('/plans', request.url));
+      if (tenantCompany) withTenantCookies(res, host, tenantCompany);
+      return res;
     }
     const tier = request.cookies.get('product_tier')?.value;
-    return NextResponse.redirect(
+    const res = NextResponse.redirect(
       new URL(tier === 'pos' ? '/pos' : '/dashboard', request.url)
     );
+    if (tenantCompany) withTenantCookies(res, host, tenantCompany);
+    return res;
   }
 
   if (pathname === '/enter') {
@@ -103,12 +186,16 @@ export async function proxy(request: NextRequest) {
     }
     const access = request.cookies.get('subscription_access')?.value;
     if (access === '0') {
-      return NextResponse.redirect(new URL('/plans', request.url));
+      const res = NextResponse.redirect(new URL('/plans', request.url));
+      if (tenantCompany) withTenantCookies(res, host, tenantCompany);
+      return res;
     }
     const tier = request.cookies.get('product_tier')?.value;
-    return NextResponse.redirect(
+    const res = NextResponse.redirect(
       new URL(tier === 'pos' ? '/pos' : '/dashboard', request.url)
     );
+    if (tenantCompany) withTenantCookies(res, host, tenantCompany);
+    return res;
   }
 
   if (!token && !isPublicRoute) {
@@ -118,24 +205,31 @@ export async function proxy(request: NextRequest) {
   if (token && (pathname === '/login' || pathname === '/login-otp' || pathname === '/register')) {
     const access = request.cookies.get('subscription_access')?.value;
     if (access === '0') {
-      return NextResponse.redirect(new URL('/plans', request.url));
+      const res = NextResponse.redirect(new URL('/plans', request.url));
+      if (tenantCompany) withTenantCookies(res, host, tenantCompany);
+      return res;
     }
     const tier = request.cookies.get('product_tier')?.value;
-    return NextResponse.redirect(
+    const res = NextResponse.redirect(
       new URL(tier === 'pos' ? '/pos' : '/dashboard', request.url)
     );
+    if (tenantCompany) withTenantCookies(res, host, tenantCompany);
+    return res;
   }
 
   if (token && !isPublicRoute && !isSubscriptionRoute) {
     const access = request.cookies.get('subscription_access')?.value;
     if (access === '0') {
-      return NextResponse.redirect(new URL('/plans', request.url));
+      const res = NextResponse.redirect(new URL('/plans', request.url));
+      if (tenantCompany) withTenantCookies(res, host, tenantCompany);
+      return res;
     }
   }
 
   const response = NextResponse.next();
   response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   response.headers.set('Pragma', 'no-cache');
+  if (tenantCompany) withTenantCookies(response, host, tenantCompany);
   return response;
 }
 

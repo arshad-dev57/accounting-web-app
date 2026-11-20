@@ -19,6 +19,8 @@ import { productService, Product, getProductId } from '../api/product/route';
 import { categoryService, Category } from '../api/category/route';
 import { supplierService, Supplier } from '../api/supplier/route';
 import { settingService } from '../api/settings/route';
+import { unitsService } from '@/lib/units-service';
+import QuickAddSelect from '../../components/QuickAddSelect';
 import { ProductTaxFields } from '../../components/TaxRateSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
@@ -879,6 +881,7 @@ function ProductForm({
   const rackLocations = settingsData.rackLocation || [];
   const zones = settingsData.zone || [];
   const storageConditions = settingsData.storageCondition || [];
+  const brands = settingsData.brand || [];
 
   const tabs = [
     { id: 'basic', label: 'Basic Info', icon: Info },
@@ -1237,13 +1240,20 @@ const handleSubmit = async (e: React.FormEvent) => {
     </div>
     
     <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Brand</label>
-      <input 
-        type="text" 
-        placeholder="Brand name" 
-        value={formData.brand} 
-        onChange={(e) => handleInputChange('brand', e.target.value)} 
-        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#014582] focus:border-transparent outline-none bg-gray-50" 
+      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+        Brand <span className="text-gray-400 font-normal">(optional)</span>
+      </label>
+      <QuickAddSelect
+        kind="setting"
+        settingCategory="brand"
+        title="Add brand"
+        value={formData.brand}
+        onChange={(v) => handleInputChange('brand', v)}
+        placeholder="Select brand…"
+        options={brands.map((b) => ({
+          value: b.name,
+          label: b.name,
+        }))}
       />
     </div>
     
@@ -1736,8 +1746,14 @@ export default function ProductsPage() {
   const fetchSettings = useCallback(async () => {
     setLoadingSettings(true);
     try {
-      const cats = ['productType', 'rackLocation', 'zone', 'weightUnit', 'dimensionUnit', 'size', 'shippingClass', 'stockUnit', 'taxType', 'storageCondition'];
-      const results = await Promise.allSettled(cats.map(cat => settingService.getSettings(cat)));
+      const cats = ['productType', 'rackLocation', 'zone', 'weightUnit', 'dimensionUnit', 'size', 'shippingClass', 'stockUnit', 'taxType', 'storageCondition', 'brand'];
+      const [results, unitsResult] = await Promise.all([
+        Promise.allSettled(cats.map((cat) => settingService.getSettings(cat))),
+        unitsService.list().catch((err) => {
+          console.warn('Failed to load UOM catalog:', err);
+          return { uoms: [], conversions: [] };
+        }),
+      ]);
       const map: Record<string, any[]> = {};
       cats.forEach((cat, idx) => {
         if (results[idx].status === 'fulfilled') {
@@ -1747,6 +1763,28 @@ export default function ProductsPage() {
           map[cat] = [];
         }
       });
+
+      const fromUoms = (unitsResult.uoms || []).map((u) => ({
+        id: u.id,
+        _id: u.id,
+        name: String(u.symbol || u.name || u.code).trim(),
+        code: u.code,
+        category: 'stockUnit',
+        isDefault: u.code === 'PCS',
+      })).filter((u) => u.name);
+
+      if (fromUoms.length > 0) {
+        const seen = new Set<string>();
+        const merged: any[] = [];
+        for (const row of [...fromUoms, ...(map.stockUnit || [])]) {
+          const key = String(row.name || '').toLowerCase();
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          merged.push(row);
+        }
+        map.stockUnit = merged;
+      }
+
       setSettingsData(map);
     } catch (err) {
       console.error('Failed to fetch settings:', err);

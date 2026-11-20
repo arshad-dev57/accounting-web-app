@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import SubscriptionGuard from '../components/SubscriptionGuard';
 import AppToaster from '../components/AppToaster';
+// import GlobalAiAgent from '../components/GlobalAiAgent'; // temporarily hidden
 import HostingerNavFix from '../components/HostingerNavFix';
 import LogoutHistoryGuard from '../components/LogoutHistoryGuard';
 import AppProviders from '../components/AppProviders';
@@ -35,6 +36,7 @@ export default function RootLayout({
           </AppProviders>
         </CurrencyProvider>
         <AppToaster />
+        {/* <GlobalAiAgent /> — temporarily hidden */}
       </body>
     </html>
   );

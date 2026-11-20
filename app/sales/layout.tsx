@@ -116,8 +116,8 @@ function SalesSidebar() {
       ? [{ path: '/plans', label: 'Subscription Plans', permission: '*' as const }]
       : []),
     { path: '/tax', label: 'Tax Compliance', permission: 'settings' },
-    { path: '/sales/currency', label: 'Currency', permission: 'currency' },
-    { path: '/accounting/pdf-reports', label: 'PDF Reports', permission: 'settings' },
+    { path: '/settings/currency', label: 'Currency', permission: 'currency' },
+    { path: '/settings/pdf-reports', label: 'PDF Reports', permission: 'settings' },
     { path: '/sales/settings', label: 'Sales Settings', permission: 'settings' },
   ];
 

@@ -45,6 +45,7 @@ import {
   resolveProductUom,
   weightQuickAmounts,
 } from '../../../lib/product-uom';
+import SalesAgentFields from '@/components/sales/SalesAgentFields';
 
 function getAuthToken() {
   if (typeof window === 'undefined') return '';
@@ -441,6 +442,8 @@ export default function SellScreen({ shift }: { shift: any }) {
   const [chargeError, setChargeError] = useState('');
   const [lastSale, setLastSale] = useState<any>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [salesPersonId, setSalesPersonId] = useState('');
+  const [commissionPercent, setCommissionPercent] = useState('0');
 
   // Numpad (for quick quantity / price editing)
   const [editingItem, setEditingItem] = useState<string|null>(null);
@@ -1198,6 +1201,9 @@ export default function SellScreen({ shift }: { shift: any }) {
         discountTotal,
         taxTotal,
         notes: '',
+        salesPersonId: salesPersonId || null,
+        commissionPercent:
+          commissionPercent === '' ? undefined : Number(commissionPercent),
       };
 
       try {
@@ -1967,6 +1973,15 @@ export default function SellScreen({ shift }: { shift: any }) {
                 <div className="flex justify-between text-gray-900 text-xl font-bold">
                   <span>Total</span><span className="text-[#014582]">{money(grandTotal)}</span>
                 </div>
+              </div>
+
+              <div className="mb-4">
+                <SalesAgentFields
+                  salesPersonId={salesPersonId}
+                  commissionPercent={commissionPercent}
+                  onSalesPersonChange={(id) => setSalesPersonId(id)}
+                  onCommissionPercentChange={setCommissionPercent}
+                />
               </div>
 
               {/* Payment methods */}

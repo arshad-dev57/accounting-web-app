@@ -104,8 +104,8 @@ function PurchasesSidebar() {
       ? [{ path: '/plans', label: 'Subscription Plans', permission: '*' as const }]
       : []),
     { path: '/tax', label: 'Tax Compliance', permission: 'settings' },
-    { path: '/purchases/currency', label: 'Currency', permission: 'currency' },
-    { path: '/accounting/pdf-reports', label: 'PDF Reports', permission: 'settings' },
+    { path: '/settings/currency', label: 'Currency', permission: 'currency' },
+    { path: '/settings/pdf-reports', label: 'PDF Reports', permission: 'settings' },
     { path: '/purchases/settings', label: 'Purchases Settings', permission: 'settings' },
   ];
 

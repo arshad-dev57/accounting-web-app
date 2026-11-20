@@ -1,14 +1,11 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-
-import CurrencySettingsScreen from '../../../components/CurrencySettingsScreen';
-
-export function SalesCurrencyPage() {
-  return <CurrencySettingsScreen />;
+/** Currency settings live in main Settings. */
+export default function SalesCurrencyRedirect() {
+  redirect('/settings/currency');
 }
 
-/** Next.js route shell — real UI mounts via SalesViewHost. */
-export default function SalesRoutePlaceholder() {
+/** Keep registry import name working if referenced. */
+export function SalesCurrencyPage() {
   return null;
 }

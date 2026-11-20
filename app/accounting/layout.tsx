@@ -132,8 +132,6 @@ function AccountingSidebar() {
   const settingsPages = [
     { path: '/accounting/fiscal-years', label: 'Fiscal Years', permission: 'settings' },
     { path: '/tax', label: 'Tax Compliance', permission: 'settings' },
-    { path: '/accounting/currency', label: 'Currency', permission: 'currency' },
-    { path: '/accounting/pdf-reports', label: 'PDF Reports', permission: 'settings' },
   ];
 
   const filteredAccountingPages = accountingPages.filter(page =>

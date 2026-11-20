@@ -27,6 +27,7 @@ import {
   ProfileAppIcon,
   CompanyAppIcon,
   UsersAppIcon,
+  SettingsAppIcon,
   ImportAppIcon,
   ExportAppIcon,
   TradingAppIcon,
@@ -159,6 +160,13 @@ const modules: ModuleItem[] = [
     Icon: UsersAppIcon,
     detail: 'Invite team members, manage roles, and control access across your company.',
     permModule: 'users',
+  },
+  {
+    title: 'Settings',
+    href: '/settings/invoice-numbers',
+    Icon: SettingsAppIcon,
+    detail: 'Company preferences, document numbering, currencies, stock rules, and master data.',
+    permModule: 'settings',
   },
   {
     title: 'Point of Sale',

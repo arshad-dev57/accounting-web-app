@@ -4,9 +4,10 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, RefreshCw, Plus, Eye, X, Download, Edit3, Save, Loader2, Trash2, FileText } from 'lucide-react';
+import { Search, RefreshCw, Plus, Eye, X, Download, Edit3, Save, Loader2, Trash2, FileText, Banknote } from 'lucide-react';
 import { SalesInvoice, InvoiceStats } from '@/types/sales-invoice';
 import CreateInvoiceWizard from '@/components/sales-invoices/CreateInvoiceWizard';
+import CreatePaymentFromInvoiceModal from '@/components/sales/CreatePaymentFromInvoiceModal';
 import PDFService from '@/lib/pdf-service';
 import { ProductPicker, type PickedProduct } from '@/manufacturing/_components/ProductPicker';
 import { productService } from '../../api/product/route';
@@ -51,6 +52,7 @@ export function SalesInvoicesPage() {
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<SalesInvoice | null>(null);
   const [invoiceStartEditing, setInvoiceStartEditing] = useState(false);
+  const [createPaymentInvoice, setCreatePaymentInvoice] = useState<SalesInvoice | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -495,9 +497,25 @@ export function SalesInvoicesPage() {
           }}
           onSaveEdit={handleSaveInvoiceEdit}
           onDownloadPDF={handleDownloadInvoicePDF}
+          onCreatePayment={(inv) => {
+            setSelectedInvoice(null);
+            setInvoiceStartEditing(false);
+            setCreatePaymentInvoice(inv);
+          }}
           actionLoading={actionLoading}
           formatCurrency={formatCurrency}
           pill={pill}
+        />
+      )}
+
+      {createPaymentInvoice && (
+        <CreatePaymentFromInvoiceModal
+          invoice={createPaymentInvoice}
+          onClose={() => setCreatePaymentInvoice(null)}
+          onCreated={() => {
+            void fetchInvoices();
+          }}
+          formatCurrency={formatCurrency}
         />
       )}
 
@@ -517,6 +535,7 @@ function SalesInvoiceDetailModal({
   onClose,
   onSaveEdit,
   onDownloadPDF,
+  onCreatePayment,
   actionLoading,
   formatCurrency,
   pill,
@@ -526,11 +545,15 @@ function SalesInvoiceDetailModal({
   onClose: () => void;
   onSaveEdit: (id: string, data: Record<string, unknown>) => Promise<void>;
   onDownloadPDF: (invoice: SalesInvoice) => Promise<void>;
+  onCreatePayment?: (invoice: SalesInvoice) => void;
   actionLoading: string | null;
   formatCurrency: (value: number) => string;
   pill: (map: Record<string, string>, val: string) => string;
 }) {
   const canEdit = invoice.invoiceStatus === 'Draft';
+  const canCreatePayment =
+    Number(invoice.outstanding) > 0 &&
+    !['Draft', 'Cancelled', 'Paid'].includes(invoice.invoiceStatus);
   const [editing, setEditing] = useState(Boolean(initialEditing) && canEdit);
   const [form, setForm] = useState({
     invoiceDate: invoice.invoiceDate?.slice?.(0, 10) || invoice.invoiceDate,
@@ -793,6 +816,15 @@ function SalesInvoiceDetailModal({
             >
               {actionLoading === `save-${invoice.id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save
+            </button>
+          )}
+          {canCreatePayment && !editing && onCreatePayment && (
+            <button
+              type="button"
+              onClick={() => onCreatePayment(invoice)}
+              className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-semibold hover:bg-teal-700 flex items-center gap-2"
+            >
+              <Banknote className="w-4 h-4" /> Record Payment
             </button>
           )}
           <button onClick={onClose} className="px-5 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-200 rounded-lg transition-all">Close</button>

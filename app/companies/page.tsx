@@ -27,11 +27,13 @@ import {
   useCompanyOptional,
   type CompanySummary,
 } from '../../lib/company-context';
+import { slugifyCompanyName, tenantRootDomain } from '../../lib/tenant-host';
 
 const BRAND = '#014582';
 
 const EMPTY_FORM = {
   name: '',
+  slug: '',
   businessType: '',
   email: '',
   phone: '',
@@ -65,6 +67,7 @@ export default function CompaniesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [slugTouched, setSlugTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [actionMessage, setActionMessage] = useState('');
@@ -93,11 +96,21 @@ export default function CompaniesPage() {
     (filtered.length ? filtered[0] : null);
 
   const onChange = (key: keyof typeof EMPTY_FORM, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === 'name' && !slugTouched) {
+        next.slug = slugifyCompanyName(value);
+      }
+      if (key === 'slug') {
+        next.slug = slugifyCompanyName(value);
+      }
+      return next;
+    });
   };
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
+    setSlugTouched(false);
     setFormError('');
     setCreateOpen(true);
   };
@@ -373,6 +386,15 @@ export default function CompaniesPage() {
                   </div>
 
                   <div className="space-y-4 p-5 text-sm">
+                    <DetailRow
+                      icon={<Globe className="h-3.5 w-3.5" />}
+                      label="App URL"
+                      value={
+                        selected.slug
+                          ? `${selected.slug}.${tenantRootDomain()}`
+                          : null
+                      }
+                    />
                     <DetailRow icon={<Mail className="h-3.5 w-3.5" />} label="Email" value={selected.email} />
                     <DetailRow icon={<Phone className="h-3.5 w-3.5" />} label="Phone" value={selected.phone} />
                     <DetailRow icon={<Globe className="h-3.5 w-3.5" />} label="Website" value={selected.website} />
@@ -438,6 +460,15 @@ export default function CompaniesPage() {
                 value={form.name}
                 onChange={(v) => onChange('name', v)}
                 required
+              />
+              <Field
+                label={`Company URL (*.${tenantRootDomain()})`}
+                value={form.slug}
+                onChange={(v) => {
+                  setSlugTouched(true);
+                  onChange('slug', v);
+                }}
+                placeholder="acme"
               />
               <Field
                 label="Business type"

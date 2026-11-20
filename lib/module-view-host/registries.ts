@@ -34,7 +34,6 @@ export const SALES_KEEP_ALIVE_ROUTES = [
   '/sales/sales-payment/create',
   '/sales/returns',
   '/sales/refunds',
-  '/sales/currency',
 ] as const;
 
 export const salesViewHostConfig: ModuleViewHostConfig = {
@@ -55,7 +54,6 @@ export const salesViewHostConfig: ModuleViewHostConfig = {
     '/sales/sales-payment/create': loader(() => import('@/sales/sales-payment/create/page'), 'default'),
     '/sales/returns': loader(() => import('@/sales/returns/page'), 'SalesReturnsPage'),
     '/sales/refunds': loader(() => import('@/sales/refunds/page'), 'SalesRefundsPage'),
-    '/sales/currency': loader(() => import('@/sales/currency/page'), 'SalesCurrencyPage'),
   },
 };
 
@@ -85,10 +83,6 @@ export const ACCOUNTING_KEEP_ALIVE_ROUTES = [
   '/accounting/cash-flow',
   '/accounting/aged-recievables',
   '/accounting/fiscal-years',
-  '/accounting/currency',
-  '/accounting/settings/currencies',
-  '/accounting/settings/exchange-rates',
-  '/accounting/pdf-reports',
 ] as const;
 
 export const accountingViewHostConfig: ModuleViewHostConfig = {
@@ -121,16 +115,6 @@ export const accountingViewHostConfig: ModuleViewHostConfig = {
     '/accounting/cash-flow': loader(() => import('@/accounting/cash-flow/page'), 'CashFlowPage'),
     '/accounting/aged-recievables': loader(() => import('@/accounting/aged-recievables/page'), 'AgedReceivablesPage'),
     '/accounting/fiscal-years': loader(() => import('@/accounting/fiscal-years/page'), 'FiscalYearsPage'),
-    '/accounting/currency': loader(() => import('@/accounting/currency/page'), 'AccountingCurrencyPage'),
-    '/accounting/settings/currencies': loader(
-      () => import('@/accounting/settings/currencies/page'),
-      'CurrencyMasterPage'
-    ),
-    '/accounting/settings/exchange-rates': loader(
-      () => import('@/accounting/settings/exchange-rates/page'),
-      'ExchangeRatesPage'
-    ),
-    '/accounting/pdf-reports': loader(() => import('@/accounting/pdf-reports/page'), 'PdfReportSettingsPage'),
   },
 };
 
@@ -140,6 +124,7 @@ export const WAREHOUSE_KEEP_ALIVE_ROUTES = [
   '/warehouse/products',
   '/warehouse/import',
   '/warehouse/categories',
+  '/warehouse/brands',
   '/warehouse/suppliers',
   '/warehouse/stock-movement',
   '/warehouse/transfers',
@@ -160,6 +145,7 @@ export const warehouseViewHostConfig: ModuleViewHostConfig = {
     '/warehouse/products': loader(() => import('@/warehouse/products/page'), 'ProductsPage'),
     '/warehouse/import': loader(() => import('@/warehouse/import/page'), 'InventoryImportPage'),
     '/warehouse/categories': loader(() => import('@/warehouse/categories/page'), 'CategoriesPage'),
+    '/warehouse/brands': loader(() => import('@/warehouse/brands/page'), 'BrandsPage'),
     '/warehouse/suppliers': loader(() => import('@/warehouse/suppliers/page'), 'SuppliersPage'),
     '/warehouse/stock-movement': loader(() => import('@/warehouse/stock-movement/page'), 'StockMovementPage'),
     '/warehouse/transfers': loader(() => import('@/warehouse/transfers/page'), 'WarehouseTransfersPage'),
@@ -188,7 +174,6 @@ export const PURCHASES_KEEP_ALIVE_ROUTES = [
   '/purchases/payments',
   '/purchases/returns',
   '/purchases/refunds',
-  '/purchases/currency',
 ] as const;
 
 export const purchasesViewHostConfig: ModuleViewHostConfig = {
@@ -206,7 +191,6 @@ export const purchasesViewHostConfig: ModuleViewHostConfig = {
     '/purchases/payments': loader(() => import('@/purchases/payments/page'), 'PurchasePaymentsPage'),
     '/purchases/returns': loader(() => import('@/purchases/returns/page'), 'PurchaseReturnsPage'),
     '/purchases/refunds': loader(() => import('@/purchases/refunds/page'), 'PurchaseRefundsPage'),
-    '/purchases/currency': loader(() => import('@/purchases/currency/page'), 'PurchasesCurrencyPage'),
   },
 };
 

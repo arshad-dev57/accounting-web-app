@@ -1,10 +1,10 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-
-import CurrencySettingsScreen from '../../../components/CurrencySettingsScreen';
-
-export default function PurchasesCurrencyPage() {
-  return <CurrencySettingsScreen />;
+/** Currency settings live in main Settings. */
+export default function PurchasesCurrencyRedirect() {
+  redirect('/settings/currency');
 }
-export { PurchasesCurrencyPage };
+
+export function PurchasesCurrencyPage() {
+  return null;
+}

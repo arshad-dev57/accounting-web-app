@@ -6,6 +6,7 @@ import { OrderForInvoicing, InvoiceLineDraft } from '@/types/sales-invoice';
 import TaxRateSelect from '../../../components/TaxRateSelect';
 import { computeTaxLine, taxService, type TaxPricingModel } from '../../../lib/tax-service';
 import { useCurrency } from '@/lib/currency-context';
+import SalesAgentFields from '@/components/sales/SalesAgentFields';
 
 interface CreateInvoiceWizardProps {
   onClose: () => void;
@@ -26,6 +27,8 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
   const [dueDate, setDueDate] = useState(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
   const [paymentTerms, setPaymentTerms] = useState('Net 30');
   const [notes, setNotes] = useState('');
+  const [salesPersonId, setSalesPersonId] = useState('');
+  const [commissionPercent, setCommissionPercent] = useState('0');
   const [pricingModel, setPricingModel] = useState<TaxPricingModel>('exclusive');
 
   useEffect(() => {
@@ -153,6 +156,9 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
         dueDate: dueDate.toISOString().split('T')[0],
         paymentTerms: paymentTerms || 'Net 30',
         notes: notes || null,
+        salesPersonId: salesPersonId || null,
+        commissionPercent:
+          commissionPercent === '' ? undefined : Number(commissionPercent),
       };
 
       const response = await fetch('/api/sales-invoices/from-order', {
@@ -383,6 +389,12 @@ export default function CreateInvoiceWizard({ onClose, onSuccess }: CreateInvoic
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#014582]"
                 />
               </div>
+              <SalesAgentFields
+                salesPersonId={salesPersonId}
+                commissionPercent={commissionPercent}
+                onSalesPersonChange={(id) => setSalesPersonId(id)}
+                onCommissionPercentChange={setCommissionPercent}
+              />
               <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg space-y-2">
                 <div className="flex justify-between text-gray-700">
                   <span>Customer</span>

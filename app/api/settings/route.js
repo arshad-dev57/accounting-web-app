@@ -1,102 +1,113 @@
-// app/api/settings/route.js
 import { NextResponse } from 'next/server';
-import { apiClient } from '@/lib/api-client';
+import axios from 'axios';
+import { backendProxyHeaders, browserCompanyAuthHeaders } from '@/lib/company-api-headers';
+
+const BACKEND_URL = (process.env.API_URL || 'http://localhost:5000').replace(/\/+$/, '');
 
 export async function GET(request) {
   try {
+    const { token, headers } = backendProxyHeaders(request);
+    if (!token) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
-
     if (!category) {
       return NextResponse.json(
         { success: false, message: 'Category is required' },
         { status: 400 }
       );
     }
-
-    const response = await apiClient.get(`/api/settings?category=${category}`);
-    return NextResponse.json(response);
+    const response = await axios.get(`${BACKEND_URL}/api/settings`, {
+      headers,
+      params: { category },
+    });
+    return NextResponse.json(response.data);
   } catch (error) {
-    console.error('GET /settings error:', error);
+    const status = error.response?.status || 500;
     return NextResponse.json(
-      { success: false, message: 'Server error' },
-      { status: 500 }
+      {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to load settings',
+      },
+      { status }
     );
   }
 }
 
 export async function POST(request) {
   try {
+    const { token, headers } = backendProxyHeaders(request);
+    if (!token) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
     const body = await request.json();
-    const response = await apiClient.post('/api/settings', body);
-    return NextResponse.json(response);
+    const response = await axios.post(`${BACKEND_URL}/api/settings`, body, { headers });
+    return NextResponse.json(response.data, { status: response.status });
   } catch (error) {
-    console.error('POST /settings error:', error);
+    const status = error.response?.status || 500;
     return NextResponse.json(
-      { success: false, message: 'Server error' },
-      { status: 500 }
+      {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to create setting',
+      },
+      { status }
     );
   }
 }
 
-export async function PUT(request) {
-  try {
-    const { pathname } = new URL(request.url);
-    const id = pathname.split('/').pop();
-    const body = await request.json();
-    const response = await apiClient.put(`/api/settings/${id}`, body);
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error('PUT /settings error:', error);
-    return NextResponse.json(
-      { success: false, message: 'Server error' },
-      { status: 500 }
-    );
-  }
+function unwrapSettingsPayload(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  if (Array.isArray(payload?.data?.data?.data)) return payload.data.data.data;
+  return [];
 }
 
-export async function DELETE(request) {
-  try {
-    const { pathname } = new URL(request.url);
-    const id = pathname.split('/').pop();
-    const response = await apiClient.delete(`/api/settings/${id}`);
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error('DELETE /settings error:', error);
-    return NextResponse.json(
-      { success: false, message: 'Server error' },
-      { status: 500 }
-    );
+async function parseJson(response) {
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.success === false) {
+    throw new Error(result.message || `Request failed (${response.status})`);
   }
+  return result;
 }
 
+/** Browser client — uses same-origin proxy with auth headers. */
 export const settingService = {
   getSettings: async (category) => {
-    const response = await apiClient.get(`/api/settings?category=${category}`);
-    if (!response.success) {
-      throw new Error(response.message || 'Failed to fetch settings');
-    }
-    // ✅ Return the array from response.data
-    return response.data?.data || [];
+    const response = await fetch(
+      `/api/settings?category=${encodeURIComponent(category)}`,
+      {
+        headers: browserCompanyAuthHeaders(),
+        cache: 'no-store',
+      }
+    );
+    const result = await parseJson(response);
+    return unwrapSettingsPayload(result);
   },
   createSetting: async (data) => {
-    const response = await apiClient.post('/api/settings', data);
-    if (!response.success) {
-      throw new Error(response.message || 'Failed to create setting');
-    }
-    return response.data?.data;
+    const response = await fetch('/api/settings', {
+      method: 'POST',
+      headers: browserCompanyAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    const result = await parseJson(response);
+    return result.data ?? result;
   },
   updateSetting: async (id, data) => {
-    const response = await apiClient.put(`/api/settings/${id}`, data);
-    if (!response.success) {
-      throw new Error(response.message || 'Failed to update setting');
-    }
-    return response.data?.data;
+    const response = await fetch(`/api/settings/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: browserCompanyAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    const result = await parseJson(response);
+    return result.data ?? result;
   },
   deleteSetting: async (id) => {
-    const response = await apiClient.delete(`/api/settings/${id}`);
-    if (!response.success) {
-      throw new Error(response.message || 'Failed to delete setting');
-    }
+    const response = await fetch(`/api/settings/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: browserCompanyAuthHeaders(),
+    });
+    await parseJson(response);
   },
 };

@@ -42,6 +42,13 @@ import {
   type ResolvedSellPrice,
 } from '@/lib/trading-service';
 import toast from 'react-hot-toast';
+import CreateDeliveryFromSOModal from '../../components/sales/CreateDeliveryFromSOModal';
+import CreateInvoiceFromSOModal from '../../components/sales/CreateInvoiceFromSOModal';
+import SalesOrderActionsMenu, {
+  canCreateDelivery,
+  canCreateInvoice,
+  type SalesOrderAction,
+} from '../../components/sales/SalesOrderActionsMenu';
 
 type Order = SalesOrder & {
   totalAmount?: number;
@@ -427,12 +434,15 @@ function CustomerPickerModal({
 // ─────────────────────────────────────────────────────────────────────────────
 export function SalesOrdersPage() {
   const { symbol, formatAmount } = useCurrency();
+  const locationCtx = useLocationOptional();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [createDeliveryOrder, setCreateDeliveryOrder] = useState<Order | null>(null);
+  const [createInvoiceOrder, setCreateInvoiceOrder] = useState<Order | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const pageLimit = 10;
@@ -527,6 +537,38 @@ export function SalesOrdersPage() {
       alert('Failed to delete order');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleOrderAction = (action: SalesOrderAction, order: Order) => {
+    switch (action) {
+      case 'view':
+        setSelectedOrder(order);
+        setShowDetailModal(true);
+        break;
+      case 'report':
+        setReportOrder(order);
+        break;
+      case 'edit':
+        setEditingOrder(order);
+        setShowCreateForm(true);
+        break;
+      case 'createDelivery':
+        setShowDetailModal(false);
+        setCreateDeliveryOrder(order);
+        break;
+      case 'createInvoice':
+        setShowDetailModal(false);
+        setCreateInvoiceOrder(order);
+        break;
+      case 'cancel':
+        void handleCancelOrder(order._id || order.id || '');
+        break;
+      case 'delete':
+        void handleDeleteOrder(order._id || order.id || '');
+        break;
+      default:
+        break;
     }
   };
 
@@ -692,56 +734,7 @@ export function SalesOrdersPage() {
                     <td className="px-6 py-3 font-semibold text-gray-700">{formatAmount(Number(order.totalAmount ?? order.grandTotal))}</td>
                     <td className="px-6 py-3 text-gray-600">{new Date(order.orderDate).toLocaleDateString()}</td>
                     <td className="px-6 py-3">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => setReportOrder(order)}
-                          className="p-1.5 text-gray-400 hover:text-[#014582] hover:bg-blue-50 rounded-lg transition-all"
-                          title="Order Report"
-                        >
-                          <FileText className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => { setSelectedOrder(order); setShowDetailModal(true); }}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                          title="View"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        {['Draft', 'Pending', 'On Hold'].includes(order.orderStatus) && (
-                          <button
-                            onClick={() => {
-                              setEditingOrder(order);
-                              setShowCreateForm(true);
-                            }}
-                            className="p-1.5 text-gray-400 hover:text-slate-700 hover:bg-gray-100 rounded-lg transition-all"
-                            title="Edit Order"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                        )}
-                        {['Draft', 'Pending', 'Processing', 'On Hold', 'Packed', 'Shipped', 'In Transit'].includes(
-                          order.orderStatus
-                        ) && (
-                          <button
-                            onClick={() => handleCancelOrder(order._id || order.id || '')}
-                            disabled={actionLoading?.startsWith('cancel-')}
-                            className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all disabled:opacity-50"
-                            title="Cancel order"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
-                        {['Draft', 'Cancelled'].includes(order.orderStatus) && (
-                          <button
-                            onClick={() => handleDeleteOrder(order._id || order.id || '')}
-                            disabled={actionLoading?.startsWith('delete-')}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
+                      <SalesOrderActionsMenu order={order} onAction={handleOrderAction} />
                     </td>
                   </tr>
                 ))}
@@ -783,6 +776,44 @@ export function SalesOrdersPage() {
               }
               : undefined
           }
+          onCreateDelivery={
+            canCreateDelivery(selectedOrder)
+              ? (order) => {
+                  setShowDetailModal(false);
+                  setCreateDeliveryOrder(order);
+                }
+              : undefined
+          }
+          onCreateInvoice={
+            canCreateInvoice(selectedOrder)
+              ? (order) => {
+                  setShowDetailModal(false);
+                  setCreateInvoiceOrder(order);
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {createDeliveryOrder && (
+        <CreateDeliveryFromSOModal
+          order={createDeliveryOrder}
+          locationId={
+            createDeliveryOrder.locationId ||
+            (!locationCtx?.isAllLocations ? locationCtx?.locationIdForApi : null)
+          }
+          onClose={() => setCreateDeliveryOrder(null)}
+          onCreated={() => fetchOrders()}
+          formatCurrency={formatAmount}
+        />
+      )}
+
+      {createInvoiceOrder && (
+        <CreateInvoiceFromSOModal
+          order={createInvoiceOrder}
+          onClose={() => setCreateInvoiceOrder(null)}
+          onCreated={() => fetchOrders()}
+          formatCurrency={formatAmount}
         />
       )}
 
@@ -803,10 +834,14 @@ function OrderDetailModal({
   order,
   onClose,
   onEdit,
+  onCreateDelivery,
+  onCreateInvoice,
 }: {
   order: Order;
   onClose: () => void;
   onEdit?: () => void;
+  onCreateDelivery?: (order: Order) => void;
+  onCreateInvoice?: (order: Order) => void;
 }) {
   const { formatAmount } = useCurrency();
   return (
@@ -905,16 +940,38 @@ function OrderDetailModal({
             </div>
           )}
 
-          {onEdit && (
-            <div className="border-t border-gray-100 pt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={onEdit}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 transition-all"
-              >
-                <Edit3 className="w-4 h-4" />
-                Edit Order
-              </button>
+          {(onEdit || onCreateDelivery || onCreateInvoice) && (
+            <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2 justify-end">
+              {onCreateDelivery && (
+                <button
+                  type="button"
+                  onClick={() => onCreateDelivery(order)}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-semibold hover:bg-teal-700 transition-all"
+                >
+                  <Truck className="w-4 h-4" />
+                  Create Delivery
+                </button>
+              )}
+              {onCreateInvoice && (
+                <button
+                  type="button"
+                  onClick={() => onCreateInvoice(order)}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-all"
+                >
+                  <FileText className="w-4 h-4" />
+                  Create Invoice
+                </button>
+              )}
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 transition-all"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  Edit Order
+                </button>
+              )}
             </div>
           )}
         </div>

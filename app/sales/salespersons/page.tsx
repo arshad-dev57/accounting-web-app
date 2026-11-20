@@ -31,6 +31,7 @@ interface Salesperson {
   status: string;
   territory?: string;
   commissionRate: number;
+  commissionType?: 'flat' | 'slab';
   monthlyTarget: number;
   customerCount: number;
   totalSales: number;
@@ -52,6 +53,7 @@ const emptyForm = {
   territory: '',
   monthlyTarget: '0',
   commissionRate: '0',
+  commissionType: 'flat' as 'flat' | 'slab',
   status: 'Active',
   locationId: '',
 };
@@ -466,6 +468,27 @@ export default function SalespersonsPage() {
                     />
                   </div>
                   <div>
+                    <label className={labelClass}>Commission Type</label>
+                    <div className="relative">
+                      <select
+                        value={formData.commissionType}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            commissionType: e.target.value as 'flat' | 'slab',
+                          })
+                        }
+                        className={`${inputClass} appearance-none pr-9 bg-gray-50`}
+                      >
+                        <option value="flat">Flat %</option>
+                        <option value="slab">Slab rules</option>
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+                {formData.commissionType === 'flat' ? (
+                  <div>
                     <label className={labelClass}>Commission Rate (%)</label>
                     <input
                       type="number"
@@ -475,7 +498,15 @@ export default function SalespersonsPage() {
                       className={inputClass}
                     />
                   </div>
-                </div>
+                ) : (
+                  <p className="text-xs text-gray-500 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2">
+                    This agent uses company{' '}
+                    <Link href="/settings/sales-agents" className="font-semibold text-[#014582] hover:underline">
+                      Settings → Sales Agents
+                    </Link>{' '}
+                    slab rules for the calendar month.
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
