@@ -3,6 +3,10 @@
 import { apiClient } from '../app/lib/api-client';
 import { LOGGED_IN_COOKIE, LOGOUT_FLAG_COOKIE } from './auth-cookies';
 import { clearMarketingLoggedInFlag } from './marketing-session';
+import {
+  extractTenantSlugFromHost,
+  tenantRootDomain,
+} from './tenant-host';
 
 /** Known app keys — also wiped via localStorage.clear() as a safety net. */
 export const LOGOUT_STORAGE_KEYS = [
@@ -50,11 +54,23 @@ function expireCookie(name: string) {
 }
 
 function loginRedirectUrl(redirectTo: string) {
-  if (!redirectTo.startsWith('/login')) return redirectTo;
-  if (redirectTo.includes('logout=')) return redirectTo;
-  return redirectTo.includes('?')
-    ? `${redirectTo}&logout=1`
-    : `${redirectTo}?logout=1`;
+  let path = redirectTo.startsWith('/') ? redirectTo : '/login';
+  if (!path.startsWith('/login')) path = '/login';
+  if (!path.includes('logout=')) {
+    path = path.includes('?') ? `${path}&logout=1` : `${path}?logout=1`;
+  }
+
+  // Always leave tenant subdomain (acme.bisonstechs.com → app.bisonstechs.com)
+  if (typeof window !== 'undefined') {
+    const host = window.location.host;
+    const slug = extractTenantSlugFromHost(host);
+    if (slug) {
+      const root = tenantRootDomain();
+      const proto = window.location.protocol || 'https:';
+      return `${proto}//app.${root}${path}`;
+    }
+  }
+  return path;
 }
 
 /** Wipe all browser-stored app/auth data (local + session). */
@@ -81,6 +97,8 @@ export function clearLocalAuthData() {
   expireCookie('refresh_token');
   expireCookie('user_data');
   expireCookie('subscription_access');
+  expireCookie('active_company_id');
+  expireCookie('active_company_slug');
   expireCookie(LOGGED_IN_COOKIE);
   clearMarketingLoggedInFlag();
 

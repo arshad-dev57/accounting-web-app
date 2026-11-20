@@ -36,7 +36,6 @@ import {
 } from '../../lib/geo-data';
 import {
   slugifyCompanyName,
-  tenantAppUrl,
   tenantRootDomain,
 } from '../../lib/tenant-host';
 import {
@@ -940,11 +939,8 @@ export default function RegisterPage() {
               const { resolvePostAuthDestination } = await import('../../lib/subscription-service');
               const destination = await resolvePostAuthDestination();
               const slug = registeredSlug || slugifyCompanyName(form.companySlug);
-              if (slug && process.env.NODE_ENV === 'production') {
-                window.location.replace(tenantAppUrl(slug, destination));
-                return;
-              }
-              window.location.replace(destination);
+              const { postAuthNavigateUrl } = await import('../../lib/tenant-host');
+              window.location.replace(postAuthNavigateUrl(destination, slug));
             }}
             className={`${primaryBtn} mt-6`}
           >

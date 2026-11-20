@@ -391,7 +391,20 @@ function LoginForm() {
 
     const { resolvePostAuthDestination } = await import('../../lib/subscription-service');
     const destination = await resolvePostAuthDestination(data.token);
-    window.location.replace(destination);
+    const slug =
+      data.user?.companySlug ||
+      data.user?.company?.slug ||
+      null;
+    if (slug && data.user?.companyId) {
+      try {
+        const { setStoredCompanyId } = await import('../../lib/company-context');
+        setStoredCompanyId(data.user.companyId);
+      } catch {
+        /* ignore */
+      }
+    }
+    const { postAuthNavigateUrl } = await import('../../lib/tenant-host');
+    window.location.replace(postAuthNavigateUrl(destination, slug));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

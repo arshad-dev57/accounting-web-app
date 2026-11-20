@@ -90,12 +90,27 @@ export function extractTenantSlugFromHost(host: string | null | undefined): stri
   return prefix;
 }
 
+/** True when browser is on real tenant domain (not localhost). */
+export function isTenantHostEnvironment(): boolean {
+  if (typeof window === 'undefined') {
+    return process.env.NODE_ENV === 'production';
+  }
+  const host = window.location.hostname.toLowerCase();
+  const root = tenantRootDomain();
+  return (
+    host === root ||
+    host === `app.${root}` ||
+    host === `www.${root}` ||
+    host.endsWith(`.${root}`)
+  );
+}
+
 /** Build https://{slug}.bisonstechs.com{path} (or http for localhost). */
 export function tenantAppUrl(slug: string, path = '/dashboard'): string {
   const s = slugifyCompanyName(slug);
   const root = tenantRootDomain();
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  if (root === 'localhost' || process.env.NODE_ENV !== 'production') {
+  if (!isTenantHostEnvironment()) {
     // Local: keep same origin unless explicitly on a *.localhost host
     if (typeof window !== 'undefined') {
       const current = extractTenantSlugFromHost(window.location.host);
@@ -106,6 +121,24 @@ export function tenantAppUrl(slug: string, path = '/dashboard'): string {
     return cleanPath;
   }
   return `https://${s}.${root}${cleanPath}`;
+}
+
+/**
+ * After login/register: go to company subdomain when slug is known.
+ * Returns relative path if already on that tenant or local.
+ */
+export function postAuthNavigateUrl(
+  path: string,
+  slug?: string | null
+): string {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const s = slug ? slugifyCompanyName(slug) : '';
+  if (!s || !isTenantHostEnvironment()) return cleanPath;
+  if (typeof window !== 'undefined') {
+    const current = extractTenantSlugFromHost(window.location.host);
+    if (current === s) return cleanPath;
+  }
+  return tenantAppUrl(s, cleanPath);
 }
 
 export function apexAppHost(): string {
