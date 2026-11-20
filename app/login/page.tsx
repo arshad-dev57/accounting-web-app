@@ -391,11 +391,44 @@ function LoginForm() {
 
     const { resolvePostAuthDestination } = await import('../../lib/subscription-service');
     const destination = await resolvePostAuthDestination(data.token);
-    const slug =
+
+    let slug =
       data.user?.companySlug ||
       data.user?.company?.slug ||
       null;
-    if (slug && data.user?.companyId) {
+
+    // Fallback: login payload may not include slug until backend redeploy
+    if (!slug && data.token) {
+      try {
+        const mineRes = await fetch('/api/companies/mine', {
+          headers: {
+            Authorization: `Bearer ${data.token}`,
+            ...(data.user?.companyId
+              ? { 'X-Company-Id': String(data.user.companyId) }
+              : {}),
+          },
+        });
+        const mineJson = await mineRes.json();
+        const list = (mineJson?.data?.companies || []) as Array<{
+          id?: string;
+          slug?: string | null;
+          isPrimary?: boolean;
+        }>;
+        const preferredId =
+          data.user?.companyId ||
+          mineJson?.data?.preferredCompanyId ||
+          mineJson?.data?.activeCompanyId;
+        const match =
+          list.find((c) => c.id && c.id === preferredId) ||
+          list.find((c) => c.isPrimary) ||
+          list[0];
+        slug = match?.slug || null;
+      } catch {
+        /* stay on current host */
+      }
+    }
+
+    if (data.user?.companyId) {
       try {
         const { setStoredCompanyId } = await import('../../lib/company-context');
         setStoredCompanyId(data.user.companyId);
