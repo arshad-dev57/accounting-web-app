@@ -6,6 +6,7 @@ import AppToaster from '../components/AppToaster';
 // import GlobalAiAgent from '../components/GlobalAiAgent'; // temporarily hidden
 import HostingerNavFix from '../components/HostingerNavFix';
 import LogoutHistoryGuard from '../components/LogoutHistoryGuard';
+import AuthSessionHydrator from '../components/AuthSessionHydrator';
 import AppProviders from '../components/AppProviders';
 import { CurrencyProvider } from '../lib/currency-context';
 
@@ -30,6 +31,7 @@ export default function RootLayout({
       <body className={inter.className} suppressHydrationWarning>
         <HostingerNavFix />
         <LogoutHistoryGuard />
+        <AuthSessionHydrator />
         <CurrencyProvider>
           <AppProviders>
             <SubscriptionGuard>{children}</SubscriptionGuard>

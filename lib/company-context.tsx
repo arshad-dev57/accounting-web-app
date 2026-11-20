@@ -267,7 +267,17 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    void refresh();
+    void (async () => {
+      if (typeof window !== 'undefined' && !localStorage.getItem('auth_token')) {
+        try {
+          const { hydrateAuthFromSession } = await import('./auth-session-hydrate');
+          await hydrateAuthFromSession();
+        } catch {
+          /* ignore */
+        }
+      }
+      await refresh();
+    })();
   }, [hydrated, refresh]);
 
   const setActiveCompanyId = useCallback(

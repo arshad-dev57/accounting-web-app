@@ -105,7 +105,16 @@ export default function SubscriptionGuard({
 
     const runCheck = async () => {
       if (typeof window === 'undefined') return;
-      const token = localStorage.getItem('auth_token');
+      let token = localStorage.getItem('auth_token');
+      if (!token) {
+        try {
+          const { hydrateAuthFromSession } = await import('../lib/auth-session-hydrate');
+          await hydrateAuthFromSession();
+          token = localStorage.getItem('auth_token');
+        } catch {
+          /* ignore */
+        }
+      }
       if (!token) {
         setBlocking(false);
         return;

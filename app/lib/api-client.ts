@@ -216,6 +216,13 @@ class ApiClient {
         const data = await res.json();
         if (data?.success && data.token) {
           this.setTokens(data.token, data.refreshToken || '');
+          if (data.user && typeof data.user === 'object') {
+            try {
+              localStorage.setItem('user', JSON.stringify(data.user));
+            } catch {
+              /* ignore */
+            }
+          }
           return true;
         }
         return false;

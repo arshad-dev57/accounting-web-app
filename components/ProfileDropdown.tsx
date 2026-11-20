@@ -208,6 +208,16 @@ export default function ProfileDropdown({
     void loadProfile();
   }, [loadProfile]);
 
+  // After cross-subdomain cookie → localStorage hydrate, retry profile
+  useEffect(() => {
+    const onHydrated = () => {
+      invalidateProfileCache();
+      void loadProfile(true);
+    };
+    window.addEventListener('auth-session-hydrated', onHydrated);
+    return () => window.removeEventListener('auth-session-hydrated', onHydrated);
+  }, [loadProfile]);
+
   // Reload profile when active company changes so dropdown always shows selected company
   useEffect(() => {
     const onCompanyChanged = () => {

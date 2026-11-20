@@ -38,7 +38,15 @@ export function usePermissions() {
     try {
       setLoading(true);
       setReady(false);
-      const parsedUser = loadUserFromLocal();
+      if (typeof window !== 'undefined' && !localStorage.getItem('auth_token')) {
+        try {
+          const { hydrateAuthFromSession } = await import('./auth-session-hydrate');
+          await hydrateAuthFromSession();
+        } catch {
+          /* ignore */
+        }
+      }
+      let parsedUser = loadUserFromLocal();
       setUser(parsedUser);
 
       if (!parsedUser?.id) {
@@ -118,6 +126,14 @@ export function usePermissions() {
 
   useEffect(() => {
     loadUserData();
+  }, [loadUserData]);
+
+  useEffect(() => {
+    const onHydrated = () => {
+      void loadUserData();
+    };
+    window.addEventListener('auth-session-hydrated', onHydrated);
+    return () => window.removeEventListener('auth-session-hydrated', onHydrated);
   }, [loadUserData]);
 
   const admin = isAdminRole(user?.role);

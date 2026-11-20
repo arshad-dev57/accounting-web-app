@@ -69,8 +69,15 @@ export function profileToBranding(profile: Record<string, unknown> | null): Comp
 export async function fetchProfileCached(force = false): Promise<Record<string, unknown> | null> {
   if (typeof window === 'undefined') return null;
 
-  const token = authToken();
-  if (!token) return null;
+  // Tenant subdomain: localStorage empty after redirect from app.* — hydrate from cookies
+  if (!authToken()) {
+    try {
+      const { hydrateAuthFromSession } = await import('./auth-session-hydrate');
+      await hydrateAuthFromSession();
+    } catch {
+      /* continue — cookie-backed /api/profile may still work */
+    }
+  }
 
   if (!force) {
     const cached = readSessionProfile();
@@ -81,8 +88,11 @@ export async function fetchProfileCached(force = false): Promise<Record<string, 
 
   inflight = (async () => {
     try {
+      const token = authToken();
       const res = await fetch('/api/profile', {
-        headers: { Authorization: `Bearer ${authToken()}` },
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        cache: 'no-store',
       });
       const data = await res.json();
       if (!res.ok || !data.success || !data.data) return readSessionProfile();
