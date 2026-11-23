@@ -57,7 +57,9 @@ function githubReleaseAssetUrl(repo: string, tag: string, filename: string): str
 
 function artifactFilename(version: string, os: string, arch: string, ext: string): string {
   const v = version.replace(/^v/i, '');
-  return `${POS_PRODUCT_FILENAME}-${v}-${os}-${arch}.${ext}`;
+  // electron-builder / GitHub release assets replace spaces with dots
+  const product = POS_PRODUCT_FILENAME.replace(/\s+/g, '.');
+  return `${product}-${v}-${os}-${arch}.${ext}`;
 }
 
 function resolveGithubUrls(): {
