@@ -14,6 +14,9 @@ import {
   deleteProspect,
   addLeadToProspect,
   makeOpportunityFromProspect,
+  createTerritory,
+  createMarketSegment,
+  createCustomerGroup,
   getTerritories,
   getMarketSegments,
   getCustomerGroups,
@@ -30,10 +33,16 @@ import {
   deskInput,
   deskSelect,
 } from '../../components/ErpDeskForm';
+import {
+  QuickAddSelect,
+  getEmployeeSizeOptions,
+  addEmployeeSizeOption,
+  getIndustryOptions,
+  addIndustryOption,
+} from '../../components/QuickAddSelect';
 import NewProspectPage from '../new/page';
 
 const INDUSTRIES = [
-  '',
   'Advertising', 'Agriculture', 'Automotive', 'Banking', 'Chemical',
   'Commercial', 'Communications', 'Construction', 'Consumer Goods',
   'Education', 'Electronics', 'Energy', 'Entertainment', 'Finance',
@@ -53,7 +62,7 @@ export default function ProspectDetailPage({
   const resolvedParams = use(params);
   const prospectId = resolvedParams.id;
 
-  // Support ERPNext temporary docname pattern like 'new-prospect-xxxx'
+  // Support temporary new-record docname pattern like 'new-prospect-xxxx'
   if (prospectId.startsWith('new-prospect-')) {
     return <NewProspectPage />;
   }
@@ -69,6 +78,8 @@ export default function ProspectDetailPage({
   const [territories, setTerritories] = useState<string[]>([]);
   const [marketSegments, setMarketSegments] = useState<string[]>([]);
   const [customerGroups, setCustomerGroups] = useState<string[]>([]);
+  const [employeeSizes, setEmployeeSizes] = useState<string[]>(NO_OF_EMPLOYEES);
+  const [industries, setIndustries] = useState<string[]>(INDUSTRIES);
   const [allLeads, setAllLeads] = useState<CRMLead[]>([]);
   const [selectedLeadToAdd, setSelectedLeadToAdd] = useState('');
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
@@ -113,6 +124,8 @@ export default function ProspectDetailPage({
 
   useEffect(() => {
     load();
+    setEmployeeSizes(getEmployeeSizeOptions(NO_OF_EMPLOYEES));
+    setIndustries(getIndustryOptions(INDUSTRIES));
     Promise.all([
       getTerritories().catch(() => []),
       getMarketSegments().catch(() => []),
@@ -217,7 +230,7 @@ export default function ProspectDetailPage({
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title={companyName || 'Prospect'}
         dirty={dirty}
@@ -312,94 +325,108 @@ export default function ProspectDetailPage({
                   />
                 </DeskField>
 
-                <DeskField label="Customer Group">
-                  <select
-                    value={customerGroup}
-                    onChange={(e) => {
-                      setCustomerGroup(e.target.value);
-                      setDirty(true);
-                    }}
-                    className={deskSelect}
-                  >
-                    <option value="">Select Customer Group</option>
-                    {customerGroups.map((g) => (
-                      <option key={g} value={g}>
-                        {g}
-                      </option>
-                    ))}
-                  </select>
-                </DeskField>
+                <QuickAddSelect
+                  label="Customer Group"
+                  value={customerGroup}
+                  options={customerGroups}
+                  onChange={(v) => { setCustomerGroup(v); setDirty(true); }}
+                  placeholder="Select Customer Group"
+                  addTitle="Add Customer Group"
+                  extraFields={[
+                    {
+                      key: 'parentCustomerGroup',
+                      label: 'Parent Customer Group',
+                      type: 'select',
+                      options: customerGroups,
+                      placeholder: 'No Parent (Root)',
+                    },
+                  ]}
+                  onCreate={async ({ name, parentCustomerGroup }) => {
+                    const row = await createCustomerGroup({
+                      name,
+                      parentCustomerGroup: parentCustomerGroup || undefined,
+                    } as any);
+                    const created = row?.name || name;
+                    setCustomerGroups((prev) => Array.from(new Set([...prev, created])));
+                    return created;
+                  }}
+                />
 
-                <DeskField label="Industry">
-                  <select
-                    value={industry}
-                    onChange={(e) => {
-                      setIndustry(e.target.value);
-                      setDirty(true);
-                    }}
-                    className={deskSelect}
-                  >
-                    {INDUSTRIES.map((ind) => (
-                      <option key={ind} value={ind}>
-                        {ind || 'Select Industry'}
-                      </option>
-                    ))}
-                  </select>
-                </DeskField>
+                <QuickAddSelect
+                  label="Industry"
+                  value={industry}
+                  options={industries}
+                  onChange={(v) => { setIndustry(v); setDirty(true); }}
+                  placeholder="Select Industry"
+                  addTitle="Add Industry"
+                  onCreate={async ({ name }) => {
+                    const next = addIndustryOption(name, INDUSTRIES);
+                    setIndustries(next);
+                    return name;
+                  }}
+                />
 
-                <DeskField label="Market Segment">
-                  <select
-                    value={marketSegment}
-                    onChange={(e) => {
-                      setMarketSegment(e.target.value);
-                      setDirty(true);
-                    }}
-                    className={deskSelect}
-                  >
-                    <option value="">Select Market Segment</option>
-                    {marketSegments.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </DeskField>
+                <QuickAddSelect
+                  label="Market Segment"
+                  value={marketSegment}
+                  options={marketSegments}
+                  onChange={(v) => { setMarketSegment(v); setDirty(true); }}
+                  placeholder="Select Market Segment"
+                  addTitle="Add Market Segment"
+                  extraFields={[
+                    { key: 'description', label: 'Description', type: 'textarea', placeholder: 'Optional notes' },
+                  ]}
+                  onCreate={async ({ name, description }) => {
+                    const row = await createMarketSegment({
+                      name,
+                      description: description || undefined,
+                    } as any);
+                    const created = row?.name || name;
+                    setMarketSegments((prev) => Array.from(new Set([...prev, created])));
+                    return created;
+                  }}
+                />
 
-                <DeskField label="Territory">
-                  <select
-                    value={territory}
-                    onChange={(e) => {
-                      setTerritory(e.target.value);
-                      setDirty(true);
-                    }}
-                    className={deskSelect}
-                  >
-                    <option value="">Select Territory</option>
-                    {territories.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </DeskField>
+                <QuickAddSelect
+                  label="Territory"
+                  value={territory}
+                  options={territories}
+                  onChange={(v) => { setTerritory(v); setDirty(true); }}
+                  placeholder="Select Territory"
+                  addTitle="Add Territory"
+                  extraFields={[
+                    {
+                      key: 'parentTerritory',
+                      label: 'Parent Territory',
+                      type: 'select',
+                      options: territories,
+                      placeholder: 'No Parent (Root)',
+                    },
+                  ]}
+                  onCreate={async ({ name, parentTerritory }) => {
+                    const row = await createTerritory({
+                      name,
+                      parentTerritory: parentTerritory || undefined,
+                    } as any);
+                    const created = row?.name || name;
+                    setTerritories((prev) => Array.from(new Set([...prev, created])));
+                    return created;
+                  }}
+                />
 
-                <DeskField label="No. of Employees">
-                  <select
-                    value={noOfEmployees}
-                    onChange={(e) => {
-                      setNoOfEmployees(e.target.value);
-                      setDirty(true);
-                    }}
-                    className={deskSelect}
-                  >
-                    <option value="">Select Size</option>
-                    {NO_OF_EMPLOYEES.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </DeskField>
+                <QuickAddSelect
+                  label="No. of Employees"
+                  value={noOfEmployees}
+                  options={employeeSizes}
+                  onChange={(v) => { setNoOfEmployees(v); setDirty(true); }}
+                  placeholder="Select Size"
+                  addTitle="Add Employee Size"
+                  onCreate={async ({ name }) => {
+                    const next = addEmployeeSizeOption(name, NO_OF_EMPLOYEES);
+                    setEmployeeSizes(next);
+                    return name;
+                  }}
+                />
 
                 <DeskField label="Annual Revenue">
                   <input

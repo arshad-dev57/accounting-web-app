@@ -29,7 +29,7 @@ export default function MarketSegmentDetailPage({
   const resolvedParams = use(params);
   const segmentId = resolvedParams.id;
 
-  // Support ERPNext temporary docname pattern like 'new-market-segment-xxxx'
+  // Support temporary new-record docname pattern like 'new-market-segment-xxxx'
   if (segmentId.startsWith('new-market-segment-')) {
     return <NewMarketSegmentPage />;
   }
@@ -116,7 +116,7 @@ export default function MarketSegmentDetailPage({
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title={segmentName || 'Market Segment'}
         dirty={dirty}

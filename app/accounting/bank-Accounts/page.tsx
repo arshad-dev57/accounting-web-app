@@ -22,7 +22,7 @@ import {
   
   Edit, Archive, MoreVertical, Info, Layers,
   BookOpen, FileSpreadsheet, FileText as FileTextIcon,
-  PlusCircle, MinusCircle, List, Scale,
+  PlusCircle, MinusCircle, List,
   Filter as FilterIcon, Calendar as CalendarIcon,
   Download as DownloadIcon, Printer as PrinterIcon,
   Eye as EyeIcon, EyeOff, ChevronUp, ChevronDown as ChevronDownIcon,
@@ -254,13 +254,6 @@ export default function BankAccountsPage() {
                 disabled={loading}
               >
                 <RefreshCw className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
-              </button>
-              <button
-                onClick={() => router.push('/accounting/bank-Accounts/reconciliation')}
-                className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 border border-[#014582]/30 text-[#014582] rounded-lg text-xs md:text-sm font-semibold hover:bg-[#014582]/5 transition-all"
-              >
-                <Scale className="w-4 h-4" />
-                <span className="hidden sm:inline">Reconcile</span>
               </button>
               <button
                 onClick={() => router.push('/accounting/bank-Accounts/transfer')}

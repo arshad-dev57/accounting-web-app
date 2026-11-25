@@ -42,7 +42,7 @@ export default function LeadSourceDetailPage({
   const resolvedParams = use(params);
   const sourceId = resolvedParams.id;
 
-  // Support ERPNext temporary docname pattern like 'new-lead-source-xxxx'
+  // Support temporary new-record docname pattern like 'new-lead-source-xxxx'
   if (sourceId.startsWith('new-lead-source-')) {
     return <NewLeadSourcePage />;
   }
@@ -136,7 +136,7 @@ export default function LeadSourceDetailPage({
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title={sourceName || 'Lead Source'}
         dirty={dirty}

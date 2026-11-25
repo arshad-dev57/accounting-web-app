@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Bisonstechs OneSignal Bridge</title>
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  </head>
+  <body>
+    <p id="status">Starting OneSignal…</p>
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const appId = (params.get('appId') || '').trim();
+        const externalId = (params.get('externalId') || '').trim();
+        const statusEl = document.getElementById('status');
+        const setStatus = (msg) => {
+          if (statusEl) statusEl.textContent = msg;
+          console.log('[onesignal-bridge]', msg);
+        };
+
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+
+        function emitPush(payload) {
+          try {
+            if (window.bisonDesktop?.onesignal?.reportPush) {
+              window.bisonDesktop.onesignal.reportPush(payload);
+              return;
+            }
+          } catch (err) {
+            console.warn('[onesignal-bridge] reportPush failed', err);
+          }
+          // Fallback for debugging outside Electron
+          console.log('[onesignal-bridge] push', payload);
+        }
+
+        function mapNotification(notification) {
+          const data =
+            notification?.additionalData ||
+            notification?.data ||
+            {};
+          return {
+            id: notification?.notificationId || notification?.id || null,
+            notificationId: notification?.notificationId || notification?.id || null,
+            title: notification?.title || notification?.heading || '',
+            body: notification?.body || notification?.content || '',
+            message: notification?.body || notification?.content || '',
+            data,
+            category: data.category || 'Restaurant',
+          };
+        }
+
+        if (!appId || !externalId) {
+          setStatus('Missing appId or externalId');
+          return;
+        }
+
+        window.OneSignalDeferred.push(async function (OneSignal) {
+          try {
+            await OneSignal.init({
+              appId,
+              allowLocalhostAsSecureOrigin: true,
+              serviceWorkerPath: 'OneSignalSDKWorker.js',
+              serviceWorkerParam: { scope: '/' },
+              notificationClickHandlerMatch: 'exact',
+              notificationClickHandlerAction: 'focus',
+            });
+
+            await OneSignal.login(externalId);
+
+            try {
+              await OneSignal.Notifications.requestPermission();
+            } catch (permErr) {
+              console.warn('[onesignal-bridge] permission', permErr);
+            }
+
+            OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event) => {
+              const notification = event?.notification || event?.getNotification?.();
+              const payload = mapNotification(notification);
+              emitPush(payload);
+              // Keep OS toast via Electron main; suppress duplicate browser toast when possible
+              try {
+                event?.preventDefault?.();
+              } catch {
+                /* ignore */
+              }
+            });
+
+            OneSignal.Notifications.addEventListener('click', (event) => {
+              const notification = event?.notification || event;
+              emitPush({
+                ...mapNotification(notification),
+                clicked: true,
+              });
+            });
+
+            setStatus('OneSignal ready · ' + externalId);
+            try {
+              window.bisonDesktop?.onesignal?.reportStatus?.({
+                ok: true,
+                externalId,
+                permission: OneSignal.Notifications.permissionNative || OneSignal.Notifications.permission,
+              });
+            } catch {
+              /* ignore */
+            }
+          } catch (err) {
+            setStatus('OneSignal init failed: ' + (err?.message || err));
+            try {
+              window.bisonDesktop?.onesignal?.reportStatus?.({
+                ok: false,
+                error: err?.message || String(err),
+              });
+            } catch {
+              /* ignore */
+            }
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

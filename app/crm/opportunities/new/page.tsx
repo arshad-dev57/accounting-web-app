@@ -8,6 +8,15 @@ import {
   getContacts,
   getLeads,
   getLeadSources,
+  getOpportunityTypes,
+  getSalesStages,
+  getTerritories,
+  getMarketSegments,
+  createLeadSource,
+  createOpportunityType,
+  createSalesStage,
+  createTerritory,
+  createMarketSegment,
   OPPORTUNITY_STAGES,
   OPPORTUNITY_STATUSES,
   OPPORTUNITY_TYPES,
@@ -28,6 +37,11 @@ import {
   deskInput,
   deskSelect,
 } from '../../components/ErpDeskForm';
+import {
+  QuickAddSelect,
+  getEmployeeSizeOptions,
+  addEmployeeSizeOption,
+} from '../../components/QuickAddSelect';
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -40,6 +54,11 @@ export default function NewOpportunityPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [sourceOptions, setSourceOptions] = useState<string[]>(DEFAULT_LEAD_SOURCES);
+  const [opportunityTypes, setOpportunityTypes] = useState<string[]>([...OPPORTUNITY_TYPES]);
+  const [salesStages, setSalesStages] = useState<string[]>([...OPPORTUNITY_STAGES]);
+  const [territories, setTerritories] = useState<string[]>([]);
+  const [marketSegments, setMarketSegments] = useState<string[]>([]);
+  const [employeeSizes, setEmployeeSizes] = useState<string[]>(NO_OF_EMPLOYEES);
 
   const [form, setForm] = useState({
     name: '',
@@ -78,12 +97,17 @@ export default function NewOpportunityPage() {
   });
 
   useEffect(() => {
+    setEmployeeSizes(getEmployeeSizeOptions(NO_OF_EMPLOYEES));
     Promise.all([
       getAccounts({ limit: 200 }).catch(() => ({ accounts: [], total: 0, page: 1, limit: 200, pages: 1 })),
       getContacts({ limit: 200 }).catch(() => ({ contacts: [], total: 0, page: 1, limit: 200, pages: 1 })),
       getLeads({ limit: 200 }).catch(() => ({ leads: [], total: 0, page: 1, limit: 200, pages: 1 })),
       getLeadSources().catch(() => []),
-    ]).then(([accRes, ctxRes, leadRes, srcList]) => {
+      getOpportunityTypes().catch(() => []),
+      getSalesStages().catch(() => []),
+      getTerritories().catch(() => []),
+      getMarketSegments().catch(() => []),
+    ]).then(([accRes, ctxRes, leadRes, srcList, typeList, stageList, terrList, segList]) => {
       setAccounts(accRes.accounts ?? []);
       setContacts(ctxRes.contacts ?? []);
       setLeads(leadRes.leads ?? []);
@@ -91,8 +115,18 @@ export default function NewOpportunityPage() {
       const names = list.length > 0 ? list.map((s) => s.name) : [...DEFAULT_LEAD_SOURCES];
       setSourceOptions(names);
       setForm((p) => ({ ...p, source: p.source || names[0] || 'Walk In' }));
+      const typeNames = Array.isArray(typeList) ? typeList.map((x) => x.name) : [];
+      if (typeNames.length) setOpportunityTypes(typeNames);
+      const stageNames = Array.isArray(stageList) ? stageList.map((x) => x.name) : [];
+      if (stageNames.length) setSalesStages(stageNames);
+      setTerritories(Array.isArray(terrList) ? terrList.map((x) => x.name) : []);
+      setMarketSegments(Array.isArray(segList) ? segList.map((x) => x.name) : []);
     });
   }, []);
+
+  const setField = (name: keyof typeof form, value: string) => {
+    setForm((p) => ({ ...p, [name]: value }));
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
@@ -314,37 +348,55 @@ export default function NewOpportunityPage() {
               ))}
             </select>
           </DeskField>
-          <DeskField label="Opportunity Type">
-            <select name="type" value={form.type} onChange={handleChange} className={deskSelect}>
-              {OPPORTUNITY_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </DeskField>
-          <DeskField label="Source">
-            <select name="source" value={form.source} onChange={handleChange} className={deskSelect}>
-              {sourceOptions.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </DeskField>
+          <QuickAddSelect
+            label="Opportunity Type"
+            value={form.type}
+            options={opportunityTypes}
+            onChange={(v) => setField('type', v)}
+            placeholder="Select Opportunity Type"
+            addTitle="Add Opportunity Type"
+            extraFields={[
+              { key: 'description', label: 'Description', type: 'textarea', placeholder: 'Optional notes' },
+            ]}
+            onCreate={async ({ name, description }) => {
+              const row = await createOpportunityType({ name, description: description || undefined } as any);
+              const created = row?.name || name;
+              setOpportunityTypes((prev) => Array.from(new Set([...prev, created])));
+              return created;
+            }}
+          />
+          <QuickAddSelect
+            label="Source"
+            value={form.source}
+            options={sourceOptions}
+            onChange={(v) => setField('source', v)}
+            placeholder="Select Source"
+            addTitle="Add Lead Source"
+            onCreate={async ({ name }) => {
+              const row = await createLeadSource({ name });
+              const created = row?.name || name;
+              setSourceOptions((prev) => Array.from(new Set([...prev, created])));
+              return created;
+            }}
+          />
 
           <DeskField label="Opportunity Owner">
             <input className={deskInput} value="(Current User)" readOnly />
           </DeskField>
-          <DeskField label="Sales Stage">
-            <select name="stage" value={form.stage} onChange={handleChange} className={deskSelect}>
-              {OPPORTUNITY_STAGES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </DeskField>
+          <QuickAddSelect
+            label="Sales Stage"
+            value={form.stage}
+            options={salesStages}
+            onChange={(v) => setField('stage', v)}
+            placeholder="Select Sales Stage"
+            addTitle="Add Sales Stage"
+            onCreate={async ({ name }) => {
+              const row = await createSalesStage({ name });
+              const created = row?.name || name;
+              setSalesStages((prev) => Array.from(new Set([...prev, created])));
+              return created;
+            }}
+          />
           <DeskField label="Expected Closing Date">
             <input
               name="expectedClosingDate"
@@ -369,16 +421,18 @@ export default function NewOpportunityPage() {
         </div>
 
         <DeskSection title="Organization">
-          <DeskField label="No of Employees">
-            <select name="noOfEmployees" value={form.noOfEmployees} onChange={handleChange} className={deskSelect}>
-              <option value="">—</option>
-              {NO_OF_EMPLOYEES.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </DeskField>
+          <QuickAddSelect
+            label="No of Employees"
+            value={form.noOfEmployees}
+            options={employeeSizes}
+            onChange={(v) => setField('noOfEmployees', v)}
+            placeholder="Select Size"
+            addTitle="Add Employee Size"
+            onCreate={async ({ name }) => {
+              setEmployeeSizes(addEmployeeSizeOption(name, NO_OF_EMPLOYEES));
+              return name;
+            }}
+          />
           <DeskField label="Annual Revenue">
             <input
               name="annualRevenue"
@@ -392,9 +446,23 @@ export default function NewOpportunityPage() {
           <DeskField label="Industry">
             <input name="industry" value={form.industry} onChange={handleChange} className={deskInput} />
           </DeskField>
-          <DeskField label="Market Segment">
-            <input name="marketSegment" value={form.marketSegment} onChange={handleChange} className={deskInput} />
-          </DeskField>
+          <QuickAddSelect
+            label="Market Segment"
+            value={form.marketSegment}
+            options={marketSegments}
+            onChange={(v) => setField('marketSegment', v)}
+            placeholder="Select Market Segment"
+            addTitle="Add Market Segment"
+            extraFields={[
+              { key: 'description', label: 'Description', type: 'textarea', placeholder: 'Optional notes' },
+            ]}
+            onCreate={async ({ name, description }) => {
+              const row = await createMarketSegment({ name, description: description || undefined } as any);
+              const created = row?.name || name;
+              setMarketSegments((prev) => Array.from(new Set([...prev, created])));
+              return created;
+            }}
+          />
           <DeskField label="Website">
             <input name="website" type="url" value={form.website} onChange={handleChange} className={deskInput} />
           </DeskField>
@@ -407,9 +475,23 @@ export default function NewOpportunityPage() {
           <DeskField label="Country">
             <input name="country" value={form.country} onChange={handleChange} className={deskInput} />
           </DeskField>
-          <DeskField label="Territory">
-            <input name="territory" value={form.territory} onChange={handleChange} className={deskInput} />
-          </DeskField>
+          <QuickAddSelect
+            label="Territory"
+            value={form.territory}
+            options={territories}
+            onChange={(v) => setField('territory', v)}
+            placeholder="Select Territory"
+            addTitle="Add Territory"
+            extraFields={[
+              { key: 'parentTerritory', label: 'Parent Territory', type: 'select', options: territories, placeholder: 'No Parent (Root)' },
+            ]}
+            onCreate={async ({ name, parentTerritory }) => {
+              const row = await createTerritory({ name, parentTerritory: parentTerritory || undefined } as any);
+              const created = row?.name || name;
+              setTerritories((prev) => Array.from(new Set([...prev, created])));
+              return created;
+            }}
+          />
         </DeskSection>
 
         <DeskSection title="Opportunity Value">

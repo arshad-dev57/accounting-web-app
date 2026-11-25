@@ -234,6 +234,17 @@ export default function ProfileDropdown({
     return () => window.removeEventListener('open-profile-dropdown', onOpen);
   }, []);
 
+  // Full-page profile edit (avoids cramped dropdown modal)
+  useEffect(() => {
+    const onEditPage = () => {
+      setOpen(false);
+      setEditing(false);
+      router.push('/companies/profile?edit=1');
+    };
+    window.addEventListener('edit-company-profile', onEditPage);
+    return () => window.removeEventListener('edit-company-profile', onEditPage);
+  }, [router]);
+
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       if (signatureOpen) return;
@@ -479,24 +490,18 @@ export default function ProfileDropdown({
                   </button>
                 )}
                 {userIsAdmin && (
-                  !editing ? (
-                    <button
-                      type="button"
-                      onClick={() => setEditing(true)}
-                      className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
-                      title="Edit company profile"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      setEditing(false);
+                      router.push('/companies/profile?edit=1');
+                    }}
+                    className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
+                    title="Edit company profile"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
                 )}
               </div>
             </div>

@@ -29,7 +29,7 @@ export default function SalesStageDetailPage({
   const resolvedParams = use(params);
   const stageId = resolvedParams.id;
 
-  // Support ERPNext temporary docname pattern like 'new-sales-stage-xxxx'
+  // Support temporary new-record docname pattern like 'new-sales-stage-xxxx'
   if (stageId.startsWith('new-sales-stage-')) {
     return <NewSalesStagePage />;
   }
@@ -116,7 +116,7 @@ export default function SalesStageDetailPage({
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title={stageName || 'Sales Stage'}
         dirty={dirty}

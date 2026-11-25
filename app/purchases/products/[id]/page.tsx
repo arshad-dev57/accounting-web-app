@@ -66,8 +66,7 @@ function PurchasesProductDetailInner() {
       product={product}
       backHref="/purchases/products"
       onEdit={() => {
-        sessionStorage.setItem('products_edit_id', id);
-        router.push('/purchases/products');
+        router.push(`/purchases/products/${id}/edit`);
       }}
     />
   );

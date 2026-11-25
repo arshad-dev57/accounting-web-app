@@ -51,7 +51,7 @@ function NewCompetitorForm() {
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title="New Competitor"
         dirty={true}

@@ -6,16 +6,21 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import {
   getAccountById, updateAccount, getContacts, getOpportunities,
+  createCustomerGroup, createTerritory, createMarketSegment,
+  getCustomerGroups, getTerritories, getMarketSegments,
   type CRMAccount, type Contact, type Opportunity,
 } from '@/lib/crm-api';
 import {
   DeskField, DeskFormShell, DeskPageHeader, DeskSection, DeskSideCard,
   deskInput, deskSelect,
 } from '../../components/ErpDeskForm';
+import {
+  QuickAddSelect,
+  getIndustryOptions,
+  addIndustryOption,
+} from '../../components/QuickAddSelect';
 
 const CUSTOMER_TYPES = ['Individual', 'Company'];
-const CUSTOMER_GROUPS = ['All Customer Groups', 'Commercial', 'Government', 'Individual', 'Non Profit'];
-const TERRITORIES = ['All Territories', 'Pakistan', 'Rest Of The World'];
 const CURRENCIES = ['PKR', 'USD', 'EUR', 'GBP', 'AED', 'SAR'];
 const LANGUAGES = ['English', 'Arabic', 'French', 'German', 'Hindi', 'Urdu'];
 const INDUSTRIES = [
@@ -27,7 +32,6 @@ const INDUSTRIES = [
   'Oil & Gas', 'Other', 'Pharmaceuticals', 'Real Estate', 'Retail',
   'Services', 'Technology', 'Telecommunication', 'Transportation', 'Wholesale',
 ];
-const MARKET_SEGMENTS = ['Lower Income', 'Middle Income', 'Upper Income'];
 
 type AddrExtras = {
   customerGroup?: string;
@@ -54,6 +58,10 @@ export default function CustomerDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [customerGroups, setCustomerGroups] = useState<string[]>([]);
+  const [territories, setTerritories] = useState<string[]>([]);
+  const [marketSegments, setMarketSegments] = useState<string[]>([]);
+  const [industries, setIndustries] = useState<string[]>(INDUSTRIES);
 
   const [form, setForm] = useState({
     customerName: '',
@@ -120,6 +128,24 @@ export default function CustomerDetailPage() {
   }, [id, router]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    setIndustries(getIndustryOptions(INDUSTRIES));
+    Promise.all([
+      getCustomerGroups().catch(() => []),
+      getTerritories().catch(() => []),
+      getMarketSegments().catch(() => []),
+    ]).then(([g, t, m]) => {
+      setCustomerGroups(Array.isArray(g) ? g.map((x) => x.name) : []);
+      setTerritories(Array.isArray(t) ? t.map((x) => x.name) : []);
+      setMarketSegments(Array.isArray(m) ? m.map((x) => x.name) : []);
+    });
+  }, []);
+
+  const setField = (key: keyof typeof form, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setDirty(true);
+  };
 
   const set = (key: keyof typeof form) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
@@ -228,16 +254,40 @@ export default function CustomerDetailPage() {
             {CUSTOMER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </DeskField>
-        <DeskField label="Customer Group" required>
-          <select className={deskSelect} value={form.customerGroup} onChange={set('customerGroup')}>
-            {CUSTOMER_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
-          </select>
-        </DeskField>
-        <DeskField label="Territory" required>
-          <select className={deskSelect} value={form.territory} onChange={set('territory')}>
-            {TERRITORIES.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </DeskField>
+        <QuickAddSelect
+          label="Customer Group"
+          value={form.customerGroup}
+          options={customerGroups}
+          onChange={(v) => setField('customerGroup', v)}
+          placeholder="Select Customer Group"
+          addTitle="Add Customer Group"
+          extraFields={[
+            { key: 'parentCustomerGroup', label: 'Parent Customer Group', type: 'select', options: customerGroups, placeholder: 'No Parent (Root)' },
+          ]}
+          onCreate={async ({ name, parentCustomerGroup }) => {
+            const row = await createCustomerGroup({ name, parentCustomerGroup: parentCustomerGroup || undefined } as any);
+            const created = row?.name || name;
+            setCustomerGroups((prev) => Array.from(new Set([...prev, created])));
+            return created;
+          }}
+        />
+        <QuickAddSelect
+          label="Territory"
+          value={form.territory}
+          options={territories}
+          onChange={(v) => setField('territory', v)}
+          placeholder="Select Territory"
+          addTitle="Add Territory"
+          extraFields={[
+            { key: 'parentTerritory', label: 'Parent Territory', type: 'select', options: territories, placeholder: 'No Parent (Root)' },
+          ]}
+          onCreate={async ({ name, parentTerritory }) => {
+            const row = await createTerritory({ name, parentTerritory: parentTerritory || undefined } as any);
+            const created = row?.name || name;
+            setTerritories((prev) => Array.from(new Set([...prev, created])));
+            return created;
+          }}
+        />
 
         <DeskField label="From Lead">
           <input className={deskInput} value={form.fromLead} onChange={set('fromLead')} />
@@ -264,18 +314,36 @@ export default function CustomerDetailPage() {
       </DeskSection>
 
       <DeskSection title="More Information">
-        <DeskField label="Industry">
-          <select className={deskSelect} value={form.industry} onChange={set('industry')}>
-            <option value="">—</option>
-            {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
-          </select>
-        </DeskField>
-        <DeskField label="Market Segment">
-          <select className={deskSelect} value={form.marketSegment} onChange={set('marketSegment')}>
-            <option value="">—</option>
-            {MARKET_SEGMENTS.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-        </DeskField>
+        <QuickAddSelect
+          label="Industry"
+          value={form.industry}
+          options={industries}
+          onChange={(v) => setField('industry', v)}
+          placeholder="Select Industry"
+          addTitle="Add Industry"
+          onCreate={async ({ name }) => {
+            const next = addIndustryOption(name, INDUSTRIES);
+            setIndustries(next);
+            return name;
+          }}
+        />
+        <QuickAddSelect
+          label="Market Segment"
+          value={form.marketSegment}
+          options={marketSegments}
+          onChange={(v) => setField('marketSegment', v)}
+          placeholder="Select Market Segment"
+          addTitle="Add Market Segment"
+          extraFields={[
+            { key: 'description', label: 'Description', type: 'textarea', placeholder: 'Optional notes' },
+          ]}
+          onCreate={async ({ name, description }) => {
+            const row = await createMarketSegment({ name, description: description || undefined } as any);
+            const created = row?.name || name;
+            setMarketSegments((prev) => Array.from(new Set([...prev, created])));
+            return created;
+          }}
+        />
         <DeskField label="Default Currency">
           <select className={deskSelect} value={form.defaultCurrency} onChange={set('defaultCurrency')}>
             {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Database, Plus, Trash2, RefreshCw } from 'lucide-react';
+import { Database, Plus, Trash2 } from 'lucide-react';
 import {
   getSalesStages, createSalesStage, deleteSalesStage,
   getOpportunityTypes, createOpportunityType, deleteOpportunityType,
@@ -12,7 +12,6 @@ import {
   getLostReasons, createLostReason, deleteLostReason,
   getCompetitors, createCompetitor, deleteCompetitor,
   getLeadSources, createLeadSource, deleteLeadSource,
-  seedErpnextMasters,
   type CrmMasterRecord,
 } from '@/lib/crm-api';
 import toast from 'react-hot-toast';
@@ -65,7 +64,6 @@ function CrmMastersContent() {
   const [rows, setRows] = useState<CrmMasterRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
-  const [seeding, setSeeding] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -108,29 +106,14 @@ function CrmMastersContent() {
     load();
   };
 
-  const handleSeed = async () => {
-    setSeeding(true);
-    try {
-      await seedErpnextMasters();
-      toast.success('ERPNext masters seeded');
-      load();
-    } catch {
-      toast.error('Seed failed');
-    } finally {
-      setSeeding(false);
-    }
-  };
 
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><Database className="w-6 h-6 text-[#014582]" /> CRM Masters</h1>
-          <p className="text-gray-500 text-sm">ERPNext lookup tables for your company</p>
+          <p className="text-gray-500 text-sm">Master lookup tables for your company</p>
         </div>
-        <button type="button" disabled={seeding} onClick={handleSeed} className="flex items-center gap-2 px-4 py-2 border border-[#014582]/30 text-[#014582] rounded-xl text-sm font-medium hover:bg-[#014582]/5 disabled:opacity-50">
-          <RefreshCw className={`w-4 h-4 ${seeding ? 'animate-spin' : ''}`} /> Seed ERPNext Defaults
-        </button>
       </div>
 
       <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
@@ -149,7 +132,7 @@ function CrmMastersContent() {
       {tab === 'territory' && (
         <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs text-blue-900">
           <span>
-            Territory supports full ERPNext Tree/List view, parent-child hierarchies, managers, and targets.
+            Territory supports tree and list views, parent-child hierarchies, managers, and targets.
           </span>
           <a
             href="/crm/territory"
@@ -163,7 +146,7 @@ function CrmMastersContent() {
       {tab === 'customer-group' && (
         <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs text-blue-900">
           <span>
-            Customer Group supports full ERPNext Tree/List view, parent-child hierarchies, price lists, and credit limits.
+            Customer Group supports tree and list views, parent-child hierarchies, price lists, and credit limits.
           </span>
           <a
             href="/crm/customer-group"
@@ -272,7 +255,7 @@ function CrmMastersContent() {
         {loading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : rows.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">No records — use Seed or Add above</div>
+          <div className="p-8 text-center text-gray-400">No records — use Add above</div>
         ) : (
           <ul className="divide-y divide-gray-50">
             {rows.map((r) => (

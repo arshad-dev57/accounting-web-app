@@ -11,7 +11,6 @@ import toast from 'react-hot-toast';
 import {
   getMarketSegments,
   deleteMarketSegment,
-  seedErpnextMasters,
   type MarketSegmentRecord,
 } from '@/lib/crm-api';
 
@@ -20,7 +19,6 @@ export default function MarketSegmentListPage() {
   const [segments, setSegments] = useState<MarketSegmentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [seeding, setSeeding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchSegments = useCallback(async () => {
@@ -41,18 +39,6 @@ export default function MarketSegmentListPage() {
     fetchSegments();
   }, [fetchSegments]);
 
-  const handleSeed = async () => {
-    setSeeding(true);
-    try {
-      await seedErpnextMasters();
-      toast.success('Seeded ERPNext default market segments');
-      fetchSegments();
-    } catch {
-      toast.error('Failed to seed market segments');
-    } finally {
-      setSeeding(false);
-    }
-  };
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete market segment "${name}"?`)) return;
@@ -92,15 +78,6 @@ export default function MarketSegmentListPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={handleSeed}
-            disabled={seeding}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 bg-white rounded-md text-xs font-medium hover:bg-gray-50 shadow-sm disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${seeding ? 'animate-spin' : ''}`} />
-            Seed ERPNext Defaults
-          </button>
 
           <Link
             href="/crm/market-segment/new"
@@ -171,17 +148,9 @@ export default function MarketSegmentListPage() {
             </div>
             <h3 className="text-base font-semibold text-gray-900">No market segments configured</h3>
             <p className="text-xs text-gray-500 max-w-sm mx-auto">
-              Seed standard ERPNext segments (Corporate, Upper/Middle/Lower Income) or define custom demographic groups.
+              Add segments such as Corporate or income tiers, or define custom demographic groups.
             </p>
             <div className="flex justify-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleSeed}
-                disabled={seeding}
-                className="px-3.5 py-1.5 border border-gray-300 text-gray-700 bg-white rounded-md text-xs font-medium hover:bg-gray-50"
-              >
-                Seed ERPNext Defaults
-              </button>
               <Link
                 href="/crm/market-segment/new"
                 className="px-3.5 py-1.5 bg-[#014582] hover:bg-[#01366a] text-white rounded-md text-xs font-semibold"
@@ -263,13 +232,13 @@ export default function MarketSegmentListPage() {
         )}
       </div>
 
-      {/* ── ERPNext Information Banner ───────────────────────── */}
+      {/* ── CRM guidance ───────────────────────── */}
       <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/50 flex items-start gap-3 text-xs text-blue-900">
         <ShieldAlert className="w-5 h-5 text-[#014582] shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="font-semibold text-gray-900">ERPNext Market Segment Stratification</p>
+          <p className="font-semibold text-gray-900">Market segment stratification</p>
           <p className="text-gray-600 leading-relaxed">
-            In ERPNext CRM, Market Segment categorizes prospects and customer accounts by their target market profile (e.g., <em>Corporate</em>, <em>Government</em>, or income bracket). This enables sales teams to tailor marketing campaigns and track average order value by segment.
+            Market Segment categorizes prospects and customer accounts by their target market profile (e.g., <em>Corporate</em>, <em>Government</em>, or income bracket). This enables sales teams to tailor marketing campaigns and track average order value by segment.
           </p>
         </div>
       </div>

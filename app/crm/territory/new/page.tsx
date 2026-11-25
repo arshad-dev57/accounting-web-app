@@ -23,6 +23,7 @@ import {
   deskInput,
   deskSelect,
 } from '../../components/ErpDeskForm';
+import { QuickAddSelect } from '../../components/QuickAddSelect';
 
 const ITEM_GROUP_OPTIONS = [
   'All Item Groups',
@@ -151,7 +152,7 @@ function NewTerritoryForm() {
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title="New Territory"
         dirty={true}
@@ -244,20 +245,22 @@ function NewTerritoryForm() {
                     />
                   </DeskField>
 
-                  <DeskField label="Parent Territory">
-                    <select
-                      value={parentTerritory}
-                      onChange={(e) => setParentTerritory(e.target.value)}
-                      className={deskSelect}
-                    >
-                      <option value="">No Parent (Root Territory)</option>
-                      {existingTerritories.map((t) => (
-                        <option key={t.id} value={t.name}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </DeskField>
+                  <QuickAddSelect
+                    label="Parent Territory"
+                    value={parentTerritory}
+                    options={existingTerritories.map((x) => x.name)}
+                    onChange={setParentTerritory}
+                    placeholder="No Parent (Root Territory)"
+                    addTitle="Add Territory"
+                    onCreate={async ({ name }) => {
+                      const row = await createTerritory({ name });
+                      const created = row?.name || name;
+                      setExistingTerritories((prev) =>
+                        prev.some((x) => x.name === created) ? prev : [...prev, (row ?? { id: created, name: created }) as TerritoryRecord]
+                      );
+                      return created;
+                    }}
+                  />
 
                   <div className="pt-1">
                     <label className="flex items-start gap-2.5 cursor-pointer select-none">

@@ -54,7 +54,7 @@ export default function CustomerGroupDetailPage({
   const resolvedParams = use(params);
   const groupId = resolvedParams.id;
 
-  // Support ERPNext temporary docname pattern like 'new-customer-group-xxxx'
+  // Support temporary new-record docname pattern like 'new-customer-group-xxxx'
   if (groupId.startsWith('new-customer-group-')) {
     return <NewCustomerGroupPage />;
   }
@@ -196,7 +196,7 @@ export default function CustomerGroupDetailPage({
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title={customerGroupName || 'Customer Group'}
         dirty={false}

@@ -29,7 +29,7 @@ export default function CompetitorDetailPage({
   const resolvedParams = use(params);
   const competitorId = resolvedParams.id;
 
-  // Support ERPNext temporary docname pattern like 'new-competitor-xxxx'
+  // Support temporary new-record docname pattern like 'new-competitor-xxxx'
   if (competitorId.startsWith('new-competitor-')) {
     return <NewCompetitorPage />;
   }
@@ -119,7 +119,7 @@ export default function CompetitorDetailPage({
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title={competitorName || 'Competitor'}
         dirty={dirty}

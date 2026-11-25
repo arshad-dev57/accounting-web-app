@@ -9,6 +9,9 @@ import {
   getLeadSources,
   getTerritories,
   getMarketSegments,
+  createLeadSource,
+  createTerritory,
+  createMarketSegment,
   LEAD_STATUSES,
   LEAD_TYPES,
   REQUEST_TYPES,
@@ -28,6 +31,11 @@ import {
   deskInput,
   deskSelect,
 } from '../../components/ErpDeskForm';
+import {
+  QuickAddSelect,
+  getEmployeeSizeOptions,
+  addEmployeeSizeOption,
+} from '../../components/QuickAddSelect';
 
 function buildFullName(firstName: string, middleName: string, lastName: string) {
   return [firstName, middleName, lastName].map((s) => s.trim()).filter(Boolean).join(' ');
@@ -40,6 +48,7 @@ export default function NewLeadPage() {
   const [sourceOptions, setSourceOptions] = useState<string[]>(DEFAULT_LEAD_SOURCES);
   const [territories, setTerritories] = useState<string[]>([]);
   const [segments, setSegments] = useState<string[]>([]);
+  const [employeeSizes, setEmployeeSizes] = useState<string[]>(NO_OF_EMPLOYEES);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>({});
 
   const [formData, setFormData] = useState({
@@ -81,6 +90,7 @@ export default function NewLeadPage() {
   });
 
   useEffect(() => {
+    setEmployeeSizes(getEmployeeSizeOptions(NO_OF_EMPLOYEES));
     Promise.all([
       getCustomFields().catch(() => []),
       getLeadSources().catch(() => []),
@@ -97,6 +107,9 @@ export default function NewLeadPage() {
       setFormData((prev) => ({ ...prev, source: prev.source || names[0] || 'Walk In' }));
     });
   }, []);
+
+  const setField = (name: string, value: string) =>
+    setFormData((prev) => ({ ...prev, [name]: value }));
 
   const computedFullName = useMemo(
     () => buildFullName(formData.firstName, formData.middleName, formData.lastName),
@@ -194,7 +207,7 @@ export default function NewLeadPage() {
           handleSave();
         }}
       >
-        {/* Top identity — ERPNext 3-column layout */}
+        {/* Top identity — three-column layout */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3.5">
           <DeskField label="Series">
             <input className={deskInput} value="CRM-LEAD-.YYYY.-" readOnly />
@@ -233,13 +246,20 @@ export default function NewLeadPage() {
           <DeskField label="First Name" required>
             <input name="firstName" value={formData.firstName} onChange={handleChange} className={deskInput} />
           </DeskField>
-          <DeskField label="Source">
-            <select name="source" value={formData.source} onChange={handleChange} className={deskSelect}>
-              {sourceOptions.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </DeskField>
+          <QuickAddSelect
+            label="Source"
+            value={formData.source}
+            options={sourceOptions}
+            onChange={(v) => setField('source', v)}
+            placeholder="Select Source"
+            addTitle="Add Lead Source"
+            onCreate={async ({ name }) => {
+              const row = await createLeadSource({ name });
+              const created = row?.name || name;
+              setSourceOptions((prev) => Array.from(new Set([...prev, created])));
+              return created;
+            }}
+          />
           {formData.source === 'Existing Customer' ? (
             <DeskField label="From Customer">
               <input name="fromCustomerId" value={formData.fromCustomerId} onChange={handleChange} className={deskInput} placeholder="Customer id / name" />
@@ -325,25 +345,35 @@ export default function NewLeadPage() {
           <DeskField label="Annual Revenue">
             <input type="number" name="annualRevenue" value={formData.annualRevenue} onChange={handleChange} className={deskInput} />
           </DeskField>
-          <DeskField label="Territory">
-            {territories.length ? (
-              <select name="territory" value={formData.territory} onChange={handleChange} className={deskSelect}>
-                <option value="" />
-                {territories.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            ) : (
-              <input name="territory" value={formData.territory} onChange={handleChange} className={deskInput} />
-            )}
-          </DeskField>
-          <DeskField label="No of Employees">
-            <select name="noOfEmployees" value={formData.noOfEmployees} onChange={handleChange} className={deskSelect}>
-              {NO_OF_EMPLOYEES.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </DeskField>
+          <QuickAddSelect
+            label="Territory"
+            value={formData.territory}
+            options={territories}
+            onChange={(v) => setField('territory', v)}
+            placeholder="Select Territory"
+            addTitle="Add Territory"
+            extraFields={[
+              { key: 'parentTerritory', label: 'Parent Territory', type: 'select', options: territories, placeholder: 'No Parent (Root)' },
+            ]}
+            onCreate={async ({ name, parentTerritory }) => {
+              const row = await createTerritory({ name, parentTerritory: parentTerritory || undefined } as any);
+              const created = row?.name || name;
+              setTerritories((prev) => Array.from(new Set([...prev, created])));
+              return created;
+            }}
+          />
+          <QuickAddSelect
+            label="No of Employees"
+            value={formData.noOfEmployees}
+            options={employeeSizes}
+            onChange={(v) => setField('noOfEmployees', v)}
+            placeholder="Select Size"
+            addTitle="Add Employee Size"
+            onCreate={async ({ name }) => {
+              setEmployeeSizes(addEmployeeSizeOption(name, NO_OF_EMPLOYEES));
+              return name;
+            }}
+          />
           <DeskField label="Industry">
             <input name="industry" value={formData.industry} onChange={handleChange} className={deskInput} />
           </DeskField>
@@ -351,18 +381,23 @@ export default function NewLeadPage() {
             <input name="fax" value={formData.fax} onChange={handleChange} className={deskInput} />
           </DeskField>
           <div />
-          <DeskField label="Market Segment">
-            {segments.length ? (
-              <select name="marketSegment" value={formData.marketSegment} onChange={handleChange} className={deskSelect}>
-                <option value="" />
-                {segments.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            ) : (
-              <input name="marketSegment" value={formData.marketSegment} onChange={handleChange} className={deskInput} />
-            )}
-          </DeskField>
+          <QuickAddSelect
+            label="Market Segment"
+            value={formData.marketSegment}
+            options={segments}
+            onChange={(v) => setField('marketSegment', v)}
+            placeholder="Select Market Segment"
+            addTitle="Add Market Segment"
+            extraFields={[
+              { key: 'description', label: 'Description', type: 'textarea', placeholder: 'Optional notes' },
+            ]}
+            onCreate={async ({ name, description }) => {
+              const row = await createMarketSegment({ name, description: description || undefined } as any);
+              const created = row?.name || name;
+              setSegments((prev) => Array.from(new Set([...prev, created])));
+              return created;
+            }}
+          />
         </DeskSection>
 
         <DeskSection title="Address & Contacts">

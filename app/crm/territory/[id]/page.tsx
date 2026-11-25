@@ -59,7 +59,7 @@ export default function TerritoryDetailPage({
   const resolvedParams = use(params);
   const territoryId = resolvedParams.id;
 
-  // Support ERPNext temporary docname pattern like 'new-territory-yzjvqrxkiv'
+  // Support temporary new-record docname pattern like 'new-territory-yzjvqrxkiv'
   if (territoryId.startsWith('new-territory-')) {
     return <NewTerritoryPage />;
   }
@@ -210,7 +210,7 @@ export default function TerritoryDetailPage({
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title={territoryName || 'Territory'}
         dirty={false}

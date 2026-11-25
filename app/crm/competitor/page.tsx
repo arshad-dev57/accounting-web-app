@@ -249,13 +249,13 @@ export default function CompetitorListPage() {
         )}
       </div>
 
-      {/* ── ERPNext Information Banner ───────────────────────── */}
+      {/* ── CRM guidance ───────────────────────── */}
       <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/50 flex items-start gap-3 text-xs text-blue-900">
         <ShieldAlert className="w-5 h-5 text-[#014582] shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="font-semibold text-gray-900">ERPNext Competitor Intelligence Tracking</p>
+          <p className="font-semibold text-gray-900">Competitor intelligence</p>
           <p className="text-gray-600 leading-relaxed">
-            In ERPNext CRM, Competitor records are linked to Opportunities and Lost Reasons to build battlecards, track market share trends, and analyze pricing displacement across contested sales cycles.
+            Competitor records are linked to Opportunities and Lost Reasons to build battlecards, track market share trends, and analyze pricing displacement across contested sales cycles.
           </p>
         </div>
       </div>

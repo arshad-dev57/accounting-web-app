@@ -22,6 +22,7 @@ import {
   deskInput,
   deskSelect,
 } from '../../components/ErpDeskForm';
+import { QuickAddSelect } from '../../components/QuickAddSelect';
 
 const PRICE_LIST_OPTIONS = [
   '',
@@ -134,7 +135,7 @@ function NewCustomerGroupForm() {
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title="New Customer Group"
         dirty={true}
@@ -225,20 +226,22 @@ function NewCustomerGroupForm() {
                     />
                   </DeskField>
 
-                  <DeskField label="Parent Customer Group">
-                    <select
-                      value={parentCustomerGroup}
-                      onChange={(e) => setParentCustomerGroup(e.target.value)}
-                      className={deskSelect}
-                    >
-                      <option value="">No Parent (Root Customer Group)</option>
-                      {existingGroups.map((g) => (
-                        <option key={g.id} value={g.name}>
-                          {g.name}
-                        </option>
-                      ))}
-                    </select>
-                  </DeskField>
+                  <QuickAddSelect
+                    label="Parent Customer Group"
+                    value={parentCustomerGroup}
+                    options={existingGroups.map((x) => x.name)}
+                    onChange={setParentCustomerGroup}
+                    placeholder="No Parent (Root Customer Group)"
+                    addTitle="Add Customer Group"
+                    onCreate={async ({ name }) => {
+                      const row = await createCustomerGroup({ name });
+                      const created = row?.name || name;
+                      setExistingGroups((prev) =>
+                        prev.some((x) => x.name === created) ? prev : [...prev, (row ?? { id: created, name: created }) as CustomerGroupRecord]
+                      );
+                      return created;
+                    }}
+                  />
 
                   <div className="pt-1">
                     <label className="flex items-start gap-2.5 cursor-pointer select-none">

@@ -181,7 +181,7 @@ export function QueryReport({ reportType }: { reportType: ErpnextReportType }) {
 
   return (
     <div className="w-full space-y-4">
-      {/* ERPNext query-report header */}
+      {/* Report header */}
       <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:px-5">
         <h1 className="truncate text-[22px] font-semibold tracking-tight text-gray-900">
           {title}
@@ -262,7 +262,7 @@ export function QueryReport({ reportType }: { reportType: ErpnextReportType }) {
       </div>
 
       <div className="space-y-4">
-        {/* Filters — ERPNext desk field stack */}
+        {/* Filters */}
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-5">
           <div className="grid max-w-3xl grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
             <div>

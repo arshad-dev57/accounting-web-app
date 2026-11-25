@@ -12,7 +12,6 @@ import toast from 'react-hot-toast';
 import {
   getTerritories,
   deleteTerritory,
-  seedErpnextMasters,
   type TerritoryRecord,
 } from '@/lib/crm-api';
 
@@ -27,7 +26,6 @@ export default function TerritoryListPage() {
   const [viewMode, setViewMode] = useState<'tree' | 'list'>('tree');
   const [search, setSearch] = useState('');
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-  const [seeding, setSeeding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchTerritories = useCallback(async () => {
@@ -49,18 +47,6 @@ export default function TerritoryListPage() {
     fetchTerritories();
   }, [fetchTerritories]);
 
-  const handleSeed = async () => {
-    setSeeding(true);
-    try {
-      await seedErpnextMasters();
-      toast.success('Seeded default territories');
-      fetchTerritories();
-    } catch {
-      toast.error('Failed to seed territories');
-    } finally {
-      setSeeding(false);
-    }
-  };
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete territory "${name}"?`)) return;
@@ -262,15 +248,6 @@ export default function TerritoryListPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={handleSeed}
-            disabled={seeding}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 bg-white rounded-md text-xs font-medium hover:bg-gray-50 shadow-sm disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${seeding ? 'animate-spin' : ''}`} />
-            Seed ERPNext Defaults
-          </button>
 
           <Link
             href="/crm/territory/new"
@@ -363,14 +340,6 @@ export default function TerritoryListPage() {
               Create a territory hierarchy to classify customers by region and assign sales targets.
             </p>
             <div className="flex justify-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleSeed}
-                disabled={seeding}
-                className="px-3.5 py-1.5 border border-gray-300 text-gray-700 bg-white rounded-md text-xs font-medium hover:bg-gray-50"
-              >
-                Seed ERPNext Defaults
-              </button>
               <Link
                 href="/crm/territory/new"
                 className="px-3.5 py-1.5 bg-[#014582] hover:bg-[#01366a] text-white rounded-md text-xs font-semibold"
@@ -476,13 +445,13 @@ export default function TerritoryListPage() {
         )}
       </div>
 
-      {/* ── ERPNext Information Banner ───────────────────────── */}
+      {/* ── CRM guidance ───────────────────────── */}
       <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/50 flex items-start gap-3 text-xs text-blue-900">
         <ShieldAlert className="w-5 h-5 text-[#014582] shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="font-semibold text-gray-900">ERPNext Territory Structure Rules</p>
+          <p className="font-semibold text-gray-900">Territory structure</p>
           <p className="text-gray-600 leading-relaxed">
-            In ERPNext, territories form a nested hierarchical tree. <strong>Group</strong> territories act as categories that contain sub-territories. <strong>Leaf</strong> territories are the actual actionable territories selected in Leads, Customers, Quotations, and Sales Orders.
+            Territories form a nested hierarchical tree. <strong>Group</strong> territories act as categories that contain sub-territories. <strong>Leaf</strong> territories are the actual actionable territories selected in Leads, Customers, Quotations, and Sales Orders.
           </p>
         </div>
       </div>

@@ -11,7 +11,6 @@ import toast from 'react-hot-toast';
 import {
   getLeadSources,
   deleteLeadSource,
-  seedErpnextMasters,
   type LeadSource,
 } from '@/lib/crm-api';
 
@@ -20,7 +19,6 @@ export default function LeadSourceListPage() {
   const [sources, setSources] = useState<LeadSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [seeding, setSeeding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchSources = useCallback(async () => {
@@ -41,18 +39,6 @@ export default function LeadSourceListPage() {
     fetchSources();
   }, [fetchSources]);
 
-  const handleSeed = async () => {
-    setSeeding(true);
-    try {
-      await seedErpnextMasters();
-      toast.success('Seeded ERPNext default lead sources');
-      fetchSources();
-    } catch {
-      toast.error('Failed to seed lead sources');
-    } finally {
-      setSeeding(false);
-    }
-  };
 
   const handleDelete = async (id: string, name: string, isDefault?: boolean) => {
     if (isDefault) {
@@ -96,15 +82,6 @@ export default function LeadSourceListPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={handleSeed}
-            disabled={seeding}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 bg-white rounded-md text-xs font-medium hover:bg-gray-50 shadow-sm disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${seeding ? 'animate-spin' : ''}`} />
-            Seed ERPNext Defaults
-          </button>
 
           <Link
             href="/crm/lead-source/new"
@@ -178,17 +155,9 @@ export default function LeadSourceListPage() {
             </div>
             <h3 className="text-base font-semibold text-gray-900">No lead sources found</h3>
             <p className="text-xs text-gray-500 max-w-sm mx-auto">
-              Seed the standard ERPNext default sources or create custom channels to categorize lead origin.
+              Create custom channels to categorize where leads originate.
             </p>
             <div className="flex justify-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleSeed}
-                disabled={seeding}
-                className="px-3.5 py-1.5 border border-gray-300 text-gray-700 bg-white rounded-md text-xs font-medium hover:bg-gray-50"
-              >
-                Seed ERPNext Defaults
-              </button>
               <Link
                 href="/crm/lead-source/new"
                 className="px-3.5 py-1.5 bg-[#014582] hover:bg-[#01366a] text-white rounded-md text-xs font-semibold"
@@ -293,13 +262,13 @@ export default function LeadSourceListPage() {
         )}
       </div>
 
-      {/* ── ERPNext Information Banner ───────────────────────── */}
+      {/* ── CRM guidance ───────────────────────── */}
       <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/50 flex items-start gap-3 text-xs text-blue-900">
         <ShieldAlert className="w-5 h-5 text-[#014582] shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="font-semibold text-gray-900">ERPNext Lead Source Attribution</p>
+          <p className="font-semibold text-gray-900">Lead source attribution</p>
           <p className="text-gray-600 leading-relaxed">
-            In ERPNext CRM, Lead Source identifies where incoming prospects originated (e.g., <em>Advertisement</em>, <em>Cold Calling</em>, <em>Exhibition</em>, <em>Campaign</em>). Source tracking flows directly from Lead creation through Quotations and Sales Orders, enabling acquisition ROI and conversion rate reports.
+            Lead Source identifies where incoming prospects originated (e.g., <em>Advertisement</em>, <em>Cold Calling</em>, <em>Exhibition</em>, <em>Campaign</em>). Source tracking flows directly from Lead creation through Quotations and Sales Orders, enabling acquisition ROI and conversion rate reports.
           </p>
         </div>
       </div>

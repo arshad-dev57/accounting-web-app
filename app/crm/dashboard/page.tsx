@@ -292,7 +292,7 @@ export default function CRMDashboardPage() {
         </div>
       </div>
 
-      {/* ERPNext shortcut widgets */}
+      {/* Shortcut widgets */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {shortcuts.map((s) => {
           const Icon = s.icon;
@@ -413,7 +413,7 @@ export default function CRMDashboardPage() {
         </Panel>
       </div>
 
-      {/* ERPNext-style link widgets */}
+      {/* Link widgets */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <LinkGroup
           title="Sales Pipeline"

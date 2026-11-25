@@ -115,7 +115,7 @@ export default function LeadBoardsPage() {
               {leads.length} Active Leads
             </span>
           </div>
-          <p className="text-gray-500 text-sm">Interactive Monday.com-style visual workspace</p>
+          <p className="text-gray-500 text-sm">Interactive visual pipeline workspace</p>
         </div>
 
         <div className="flex items-center gap-2">

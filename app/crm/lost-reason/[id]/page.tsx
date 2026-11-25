@@ -29,7 +29,7 @@ export default function LostReasonDetailPage({
   const resolvedParams = use(params);
   const reasonId = resolvedParams.id;
 
-  // Support ERPNext temporary docname pattern like 'new-lost-reason-xxxx'
+  // Support temporary new-record docname pattern like 'new-lost-reason-xxxx'
   if (reasonId.startsWith('new-lost-reason-')) {
     return <NewLostReasonPage />;
   }
@@ -116,7 +116,7 @@ export default function LostReasonDetailPage({
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title={reasonName || 'Lost Reason'}
         dirty={dirty}

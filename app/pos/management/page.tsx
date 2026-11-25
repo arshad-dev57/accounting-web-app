@@ -9,7 +9,6 @@ import { posTerminalService, posShiftService, posSaleService, asPosArray, asPosT
 import { loadPosSettings, loadReceiptTemplate } from '../../../lib/pos-settings';
 import { usePermissions } from '../../../lib/usePermissions';
 import { useLocation } from '../../../lib/location-context';
-import { locationService, type Location } from '../../../lib/location-service';
 import LocationSelect from '../../../components/LocationSelect';
 import AppBreadcrumbs from '../../../components/AppBreadcrumbs';
 import {
@@ -136,11 +135,10 @@ function TerminalsTab({
   locationIdForApi: string;
 }) {
   const [terminals, setTerminals]         = useState<any[]>([]);
-  const [locations, setLocations]         = useState<Location[]>([]);
   const [companyUsers, setCompanyUsers]   = useState<User[]>([]);
   const [loading, setLoading]             = useState(true);
   const [showCreate, setShowCreate]       = useState(false);
-  const [form, setForm]                   = useState({ name:'', code:'', locationId:'', userId:'' });
+  const [form, setForm]                   = useState({ name:'', code:'', userId:'' });
   const [saving, setSaving]               = useState(false);
   const [error, setError]                 = useState('');
   const [confirm, setConfirm]             = useState<string|null>(null);
@@ -164,21 +162,15 @@ function TerminalsTab({
 
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    locationService.listCached().then(setLocations).catch(() => setLocations([]));
-  }, []);
-
   const create = async () => {
     if (!isAdmin) { setError('Only admin can create terminals'); return; }
     if (!form.name || !form.code) { setError('Name and Code are required'); return; }
     setSaving(true); setError('');
     try {
-      const payload: { name: string; code: string; locationId?: string } = {
+      const payload = {
         name: form.name,
         code: form.code,
       };
-      // Warehouse is optional — omit for company-wide inventory on this terminal
-      if (form.locationId) payload.locationId = form.locationId;
       const created: any = await posTerminalService.create(payload);
       const terminalId = created?.data?.id ?? created?.id;
       if (form.userId && terminalId) {
@@ -187,13 +179,13 @@ function TerminalsTab({
         } catch (assignErr: any) {
           setError(`Terminal created but user assignment failed: ${assignErr.message || 'Unknown error'}`);
           setShowCreate(false);
-          setForm({ name: '', code: '', locationId: '', userId: '' });
+          setForm({ name: '', code: '', userId: '' });
           await load();
           return;
         }
       }
       setShowCreate(false);
-      setForm({ name: '', code: '', locationId: '', userId: '' });
+      setForm({ name: '', code: '', userId: '' });
       await load();
     }
     catch(e:any){ setError(e.message); }
@@ -227,23 +219,11 @@ function TerminalsTab({
         <div style={{ ...card, marginBottom:'20px', border:'1px solid rgba(1,69,130,0.25)' }}>
           <h3 style={{ color:'#0f172a', marginTop:0, marginBottom:'8px', fontSize:'15px' }}>Create Terminal</h3>
           <p style={{ color:'#64748b', fontSize:'13px', marginTop:0, marginBottom:'16px' }}>
-            Warehouse is optional. Leave it blank for company-wide inventory. Assign a user so they only see this terminal on desktop POS.
+            Assign a user so they only see this terminal on desktop POS.
           </p>
           <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' as const }}>
             <input style={{ ...input, flex:1, minWidth:'150px' }} placeholder="Terminal Name (e.g. Main Counter)" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} />
             <input style={{ ...input, flex:1, minWidth:'120px' }} placeholder="Code (e.g. TERM-01)" value={form.code} onChange={e=>setForm(p=>({...p,code:e.target.value.toUpperCase()}))} />
-            <select
-              style={{ ...input, flex:1, minWidth:'180px' }}
-              value={form.locationId}
-              onChange={(e) => setForm((p) => ({ ...p, locationId: e.target.value }))}
-            >
-              <option value="">— No warehouse (all inventory) —</option>
-              {locations.map((l) => (
-                <option key={l.id} value={l.id} style={{ color: '#111' }}>
-                  {l.name} ({l.code}) · {l.type}
-                </option>
-              ))}
-            </select>
             <select
               style={{ ...input, flex:1, minWidth:'200px' }}
               value={form.userId}
@@ -271,7 +251,7 @@ function TerminalsTab({
         <div style={{ overflowX:'auto' as const }}>
           <table style={{ width:'100%', borderCollapse:'collapse' as const }}>
             <thead style={tHead}>
-              <tr>{['Name','Code','Location','Assigned user','Status','Shifts','Last Sync','Actions'].map(h=><th key={h} style={{ ...tCell, color:'#64748b', fontSize:'11px', fontWeight:700, textTransform:'uppercase' as const, textAlign:'left' as const }}>{h}</th>)}</tr>
+              <tr>{['Name','Code','Assigned user','Status','Shifts','Last Sync','Actions'].map(h=><th key={h} style={{ ...tCell, color:'#64748b', fontSize:'11px', fontWeight:700, textTransform:'uppercase' as const, textAlign:'left' as const }}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {terminals.map((t:any) => {
@@ -280,18 +260,6 @@ function TerminalsTab({
                 <tr key={t.id} style={{ transition:'background 0.15s' }} onMouseEnter={e=>(e.currentTarget.style.background='#f8fafc')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                   <td style={tCell}><span style={{ color:'#0f172a', fontWeight:600 }}>{t.name}</span></td>
                   <td style={tCell}><code style={{ background:'rgba(1,69,130,0.08)', color:'#014582', padding:'2px 8px', borderRadius:'6px', fontSize:'12px' }}>{t.code}</code></td>
-                  <td style={tCell}>
-                    {t.location?.name ? (
-                      <>
-                        {t.location.name}
-                        {t.location?.code ? (
-                          <span style={{ color:'#64748b', marginLeft:6, fontSize:11 }}>({t.location.code})</span>
-                        ) : null}
-                      </>
-                    ) : (
-                      <span style={{ color:'#64748b' }}>All inventory</span>
-                    )}
-                  </td>
                   <td style={tCell}>
                     {assigned ? (
                       <>
@@ -313,7 +281,7 @@ function TerminalsTab({
                   </td>
                 </tr>
               );})}
-              {terminals.length === 0 && <tr><td colSpan={8} style={{ ...tCell, textAlign:'center', color:'#64748b', padding:'40px' }}>{emptyHint('terminals', locationIdForApi)}</td></tr>}
+              {terminals.length === 0 && <tr><td colSpan={7} style={{ ...tCell, textAlign:'center', color:'#64748b', padding:'40px' }}>{emptyHint('terminals', locationIdForApi)}</td></tr>}
             </tbody>
           </table>
         </div>

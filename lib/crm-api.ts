@@ -194,8 +194,7 @@ const EMPTY_CRM_DASHBOARD: CRMDashboard = {
 };
 
 export async function getCRMDashboard(params?: { dateFrom?: string; dateTo?: string }): Promise<CRMDashboard> {
-  const q = params ? `?${new URLSearchParams(params as any).toString()}` : '';
-  const res = await apiClient.get(`/api/crm/dashboard${q}`);
+  const res = await apiClient.get(`/api/crm/dashboard${toQuery(params)}`);
   const body = res.data;
   if (body && body.success === false) {
     throw new Error(body.message || 'Failed to load CRM dashboard');
@@ -227,6 +226,20 @@ function unwrapCrmPayload(res: { success?: boolean; data?: any; message?: string
     throw new Error(body?.message || res?.message || 'CRM request failed');
   }
   return body?.data ?? body;
+}
+
+/** Build query string without serializing undefined/null/'' as literal "undefined". */
+function toQuery(params?: Record<string, unknown> | object | null): string {
+  if (!params) return '';
+  const sp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+    if (value === undefined || value === null || value === '') continue;
+    const str = String(value);
+    if (str === 'undefined' || str === 'null') continue;
+    sp.set(key, str);
+  }
+  const q = sp.toString();
+  return q ? `?${q}` : '';
 }
 
 function unwrapPaginatedList<K extends string>(
@@ -267,14 +280,35 @@ function unwrapCrmArray(res: { success?: boolean; data?: any; message?: string }
 
 export interface LeadListParams {
   page?: number; limit?: number; status?: string; source?: string; assignedToId?: string;
-  search?: string; boardId?: string; priority?: string; sortBy?: string; sortDir?: string;
-  isDeleted?: string; dateFrom?: string; dateTo?: string;
+  createdBy?: string; tags?: string; search?: string; boardId?: string; priority?: string;
+  sortBy?: string; sortDir?: string; isDeleted?: string; dateFrom?: string; dateTo?: string;
+}
+
+export interface LeadFilterOptions {
+  assignees: { id: string; label: string }[];
+  creators: { id: string; label: string }[];
+  tags: string[];
+  unassignedCount: number;
 }
 
 export async function getLeads(params: LeadListParams = {}): Promise<{ leads: Lead[]; total: number; page: number; limit: number; pages: number }> {
-  const q = new URLSearchParams(params as any).toString();
-  const res = await apiClient.get(`/api/crm/leads?${q}`);
+  const res = await apiClient.get(`/api/crm/leads${toQuery(params)}`);
   return unwrapPaginatedList(res, 'leads', params.limit ?? 50);
+}
+
+export async function getLeadFilterOptions(): Promise<LeadFilterOptions> {
+  try {
+    const res = await apiClient.get('/api/crm/leads/filter-options');
+    const raw = unwrapCrmPayload(res) || {};
+    return {
+      assignees: Array.isArray(raw.assignees) ? raw.assignees : [],
+      creators: Array.isArray(raw.creators) ? raw.creators : [],
+      tags: Array.isArray(raw.tags) ? raw.tags : [],
+      unassignedCount: Number(raw.unassignedCount) || 0,
+    };
+  } catch {
+    return { assignees: [], creators: [], tags: [], unassignedCount: 0 };
+  }
 }
 
 export async function getLeadById(id: string): Promise<Lead> {
@@ -296,7 +330,12 @@ export async function deleteLead(id: string): Promise<void> {
   await apiClient.delete(`/api/crm/leads/${id}`);
 }
 
-export async function bulkUpdateLeads(ids: string[], updates: { status?: string; assignedToId?: string; priority?: string }): Promise<void> {
+export async function bulkUpdateLeads(ids: string[], updates: {
+  status?: string;
+  assignedToId?: string | null;
+  priority?: string;
+  tags?: string[];
+}): Promise<void> {
   await apiClient.post('/api/crm/leads/bulk/update', { ids, ...updates });
 }
 
@@ -401,8 +440,7 @@ export async function initDefaultSources(): Promise<void> {
 // ── Follow-ups ─────────────────────────────────────────────────────────────────
 
 export async function getFollowUps(params?: { status?: string; assignedToId?: string; leadId?: string; upcoming?: string }): Promise<LeadFollowUp[]> {
-  const q = params ? `?${new URLSearchParams(params as any).toString()}` : '';
-  const res = await apiClient.get(`/api/crm/follow-ups${q}`);
+  const res = await apiClient.get(`/api/crm/follow-ups${toQuery(params)}`);
   return unwrapCrmArray(res);
 }
 
@@ -606,8 +644,7 @@ export interface CRMAccount {
 }
 
 export async function getAccounts(params: { page?: number; limit?: number; search?: string } = {}): Promise<{ accounts: CRMAccount[]; total: number; page: number; limit: number; pages: number }> {
-  const q = new URLSearchParams(params as any).toString();
-  const res = await apiClient.get(`/api/crm/accounts?${q}`);
+  const res = await apiClient.get(`/api/crm/accounts${toQuery(params)}`);
   return unwrapPaginatedList(res, 'accounts', params.limit ?? 50);
 }
 
@@ -970,8 +1007,7 @@ export interface TaskListParams {
 }
 
 export async function getTasks(params: TaskListParams = {}): Promise<{ tasks: CRMTask[]; total: number; page: number; limit: number; pages: number }> {
-  const q = new URLSearchParams(params as any).toString();
-  const res = await apiClient.get(`/api/crm/tasks?${q}`);
+  const res = await apiClient.get(`/api/crm/tasks${toQuery(params)}`);
   return unwrapPaginatedList(res, 'tasks', params.limit ?? 50);
 }
 
@@ -1004,8 +1040,7 @@ export interface CalendarEvent {
 }
 
 export async function getCalendarEvents(params: { from: string; to: string; assignedToId?: string }): Promise<CalendarEvent[]> {
-  const q = new URLSearchParams(params as any).toString();
-  const res = await apiClient.get(`/api/crm/calendar?${q}`);
+  const res = await apiClient.get(`/api/crm/calendar${toQuery(params)}`);
   const raw = unwrapCrmPayload(res);
   if (Array.isArray(raw)) return raw;
   if (Array.isArray(raw?.events)) return raw.events;
@@ -1041,8 +1076,7 @@ export interface CampaignListParams {
 }
 
 export async function getCampaigns(params: CampaignListParams = {}): Promise<{ campaigns: Campaign[]; total: number; page: number; limit: number; pages: number }> {
-  const q = new URLSearchParams(params as any).toString();
-  const res = await apiClient.get(`/api/crm/campaigns?${q}`);
+  const res = await apiClient.get(`/api/crm/campaigns${toQuery(params)}`);
   return unwrapPaginatedList(res, 'campaigns', params.limit ?? 50);
 }
 
@@ -1526,8 +1560,7 @@ export const CONTRACT_STATUSES = ['Unsigned', 'Active', 'Inactive'] as const;
 
 
 export async function getReport(type: string, params?: Record<string, string>): Promise<any> {
-  const q = params ? `?${new URLSearchParams(params).toString()}` : '';
-  const res = await apiClient.get(`/api/crm/reports/${type}${q}`);
+  const res = await apiClient.get(`/api/crm/reports/${type}${toQuery(params)}`);
   return res.data?.data ?? res.data;
 }
 
@@ -1545,9 +1578,8 @@ export interface EnterpriseDashboard extends CRMDashboard {
 }
 
 export async function getEnterpriseDashboard(params?: { dateFrom?: string; dateTo?: string; assignedToId?: string }): Promise<EnterpriseDashboard> {
-  const q = params ? `?${new URLSearchParams(params as any).toString()}` : '';
   try {
-    const res = await apiClient.get(`/api/crm/dashboard/enterprise${q}`);
+    const res = await apiClient.get(`/api/crm/dashboard/enterprise${toQuery(params)}`);
     const raw = res.data?.data ?? res.data;
     return { ...EMPTY_CRM_DASHBOARD, ...(typeof raw === 'object' ? raw : {}) };
   } catch {

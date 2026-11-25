@@ -55,7 +55,7 @@ export default function ContactDetailPage({
   const resolvedParams = use(params);
   const contactId = resolvedParams.id;
 
-  // Support ERPNext temporary docname pattern like 'new-contact-xxxx'
+  // Support temporary new-record docname pattern like 'new-contact-xxxx'
   if (contactId.startsWith('new-contact-')) {
     return <NewContactPage />;
   }
@@ -239,7 +239,7 @@ export default function ContactDetailPage({
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title={fullName}
         dirty={dirty}

@@ -89,7 +89,7 @@ function AccountingSidebar() {
     { path: '/accounting/dashboard', label: 'Dashboard', permission: 'dashboard' },
     { path: '/accounting/accounts', label: 'Chart of Accounts', permission: 'chart-of-accounts' },
     { path: '/accounting/bank-Accounts', label: 'Bank Accounts', permission: 'bank-accounts' },
-    { path: '/accounting/bank-Accounts/reconciliation', label: 'Bank Reconciliation', permission: 'bank-accounts' },
+    // { path: '/accounting/bank-Accounts/reconciliation', label: 'Bank Reconciliation', permission: 'bank-accounts' },
     { path: '/sales/invoices', label: 'Sales Invoices', permission: 'invoices', iconKey: 'sales-invoices' },
     { path: '/purchases/invoices', label: 'Purchase Invoices', permission: 'invoices', iconKey: 'purchase-invoices' },
     // { path: '/accounting/payments-received', label: 'Payments Received', permission: 'payments-received' },

@@ -9,7 +9,7 @@ import {
 import {
   getCustomFields, createCustomField, updateCustomField, deleteCustomField,
   reorderCustomFields, getLeadSources, createLeadSource, initDefaultSources,
-  getCrmSettings, updateCrmSettings,
+  getCrmSettings, updateCrmSettings, seedErpnextMasters,
   FIELD_TYPES, type LeadCustomField, type LeadSource, type CrmErpSettings,
 } from '@/lib/crm-api';
 import toast from 'react-hot-toast';
@@ -79,7 +79,7 @@ function CRMSettingsPage() {
       const s = await getCrmSettings();
       setErpSettings(s && typeof s === 'object' ? s : null);
     } catch {
-      toast.error('Failed to load ERPNext CRM settings');
+      toast.error('Failed to load CRM preferences');
     }
   }, []);
 
@@ -104,7 +104,7 @@ function CRMSettingsPage() {
         carryForwardCommunication: erpSettings.carryForwardCommunication,
       });
       setErpSettings(updated);
-      toast.success('ERPNext settings saved');
+      toast.success('CRM preferences saved');
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Save failed');
     } finally {
@@ -230,6 +230,20 @@ function CRMSettingsPage() {
     }
   };
 
+  const [seedingMasters, setSeedingMasters] = useState(false);
+  const handleSeedMasters = async () => {
+    setSeedingMasters(true);
+    try {
+      const res = await seedErpnextMasters();
+      toast.success(res?.message || 'CRM masters seeded (territories, groups, stages, sources, competitors…)');
+      loadData();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to seed masters');
+    } finally {
+      setSeedingMasters(false);
+    }
+  };
+
   return (
     <div className="w-full space-y-6">
       {/* Header */}
@@ -270,64 +284,87 @@ function CRMSettingsPage() {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          <Sliders className="w-4 h-4" /> ERPNext CRM Settings
+          <Sliders className="w-4 h-4" /> CRM Preferences
         </button>
       </div>
 
       {activeTab === 'erpnext' && (
-        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm space-y-5">
-          <h2 className="text-base font-bold text-gray-800">ERPNext CRM Settings</h2>
-          {!erpSettings ? (
-            <p className="text-sm text-gray-400">Loading…</p>
-          ) : (
-            <>
-              {[
-                { key: 'allowLeadDuplicationBasedOnEmail' as const, label: 'Allow Lead Duplication Based on Email' },
-                { key: 'autoCreationOfContact' as const, label: 'Auto Creation of Contact' },
-                { key: 'carryForwardCommunication' as const, label: 'Carry Forward Communication' },
-              ].map(({ key, label }) => (
-                <label key={key} className="flex items-center justify-between gap-4 py-2 border-b border-gray-50">
-                  <span className="text-sm text-gray-700">{label}</span>
-                  <input
-                    type="checkbox"
-                    checked={!!erpSettings[key]}
-                    onChange={(e) => setErpSettings((s) => (s ? { ...s, [key]: e.target.checked } : s))}
-                    className="w-4 h-4 accent-[#014582]"
-                  />
-                </label>
-              ))}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Close Opportunity After (days)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm"
-                    value={erpSettings.closeOpportunityAfterDays ?? ''}
-                    onChange={(e) => setErpSettings((s) => s ? { ...s, closeOpportunityAfterDays: e.target.value ? parseInt(e.target.value, 10) : null } : s)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600">Default Quotation Valid Till (days)</label>
-                  <input
-                    type="number"
-                    min={1}
-                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm"
-                    value={erpSettings.defaultQuotationValidTillDays ?? ''}
-                    onChange={(e) => setErpSettings((s) => s ? { ...s, defaultQuotationValidTillDays: e.target.value ? parseInt(e.target.value, 10) : null } : s)}
-                  />
-                </div>
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-gray-800">Seed CRM Masters</h2>
+                <p className="text-xs text-gray-400 mt-0.5 max-w-xl">
+                  Load default territories, customer groups, market segments, sales stages, opportunity types,
+                  lost reasons, lead sources, and competitors. Safe to re-run — existing names are upserted.
+                </p>
               </div>
               <button
                 type="button"
-                disabled={erpSaving}
-                onClick={handleSaveErpSettings}
-                className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-xl text-sm font-medium disabled:opacity-50"
+                disabled={seedingMasters}
+                onClick={handleSeedMasters}
+                className="flex items-center gap-2 px-4 py-2 border border-[#014582]/30 text-[#014582] bg-[#014582]/5 hover:bg-[#014582]/10 rounded-xl text-xs font-bold disabled:opacity-50"
               >
-                <Save className="w-4 h-4" /> {erpSaving ? 'Saving…' : 'Save Settings'}
+                <RefreshCw className={`w-3.5 h-3.5 ${seedingMasters ? 'animate-spin' : ''}`} />
+                {seedingMasters ? 'Seeding…' : 'Seed Masters'}
               </button>
-            </>
-          )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm space-y-5">
+            <h2 className="text-base font-bold text-gray-800">CRM Preferences</h2>
+            {!erpSettings ? (
+              <p className="text-sm text-gray-400">Loading…</p>
+            ) : (
+              <>
+                {[
+                  { key: 'allowLeadDuplicationBasedOnEmail' as const, label: 'Allow Lead Duplication Based on Email' },
+                  { key: 'autoCreationOfContact' as const, label: 'Auto Creation of Contact' },
+                  { key: 'carryForwardCommunication' as const, label: 'Carry Forward Communication' },
+                ].map(({ key, label }) => (
+                  <label key={key} className="flex items-center justify-between gap-4 py-2 border-b border-gray-50">
+                    <span className="text-sm text-gray-700">{label}</span>
+                    <input
+                      type="checkbox"
+                      checked={!!erpSettings[key]}
+                      onChange={(e) => setErpSettings((s) => (s ? { ...s, [key]: e.target.checked } : s))}
+                      className="w-4 h-4 accent-[#014582]"
+                    />
+                  </label>
+                ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600">Close Opportunity After (days)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm"
+                      value={erpSettings.closeOpportunityAfterDays ?? ''}
+                      onChange={(e) => setErpSettings((s) => s ? { ...s, closeOpportunityAfterDays: e.target.value ? parseInt(e.target.value, 10) : null } : s)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600">Default Quotation Valid Till (days)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm"
+                      value={erpSettings.defaultQuotationValidTillDays ?? ''}
+                      onChange={(e) => setErpSettings((s) => s ? { ...s, defaultQuotationValidTillDays: e.target.value ? parseInt(e.target.value, 10) : null } : s)}
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={erpSaving}
+                  onClick={handleSaveErpSettings}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-xl text-sm font-medium disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" /> {erpSaving ? 'Saving…' : 'Save Settings'}
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -338,7 +375,7 @@ function CRMSettingsPage() {
             <div>
               <h2 className="text-base font-bold text-gray-800">Dynamic Columns & Metadata</h2>
               <p className="text-xs text-gray-400">
-                These fields appear on the Monday.com board, lead forms, and import mapping.
+                These fields appear on CRM boards, lead forms, and import mapping.
               </p>
             </div>
             <button

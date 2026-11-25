@@ -29,7 +29,7 @@ export default function OpportunityTypeDetailPage({
   const resolvedParams = use(params);
   const typeId = resolvedParams.id;
 
-  // Support ERPNext temporary docname pattern like 'new-opportunity-type-xxxx'
+  // Support temporary new-record docname pattern like 'new-opportunity-type-xxxx'
   if (typeId.startsWith('new-opportunity-type-')) {
     return <NewOpportunityTypePage />;
   }
@@ -116,7 +116,7 @@ export default function OpportunityTypeDetailPage({
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title={typeName || 'Opportunity Type'}
         dirty={dirty}

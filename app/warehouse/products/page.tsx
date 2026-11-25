@@ -18,9 +18,7 @@ import {
 } from 'lucide-react';
 import { productService, Product, getProductId } from '../../api/product/route';
 import { categoryService, Category } from '../../api/category/route';
-import { supplierService, Supplier } from '../../api/supplier/route';
-import { settingService } from '../../api/settings/route';
-import { unitsService } from '@/lib/units-service';
+import { type Supplier } from '../../api/supplier/route';
 import { ProductTaxFields } from '../../../components/TaxRateSelect';
 import QuickAddSelect from '../../../components/QuickAddSelect';
 import { useLocation } from '@/lib/location-context';
@@ -1091,7 +1089,7 @@ function ProductList({
 // ============================================================
 // CREATE/EDIT PRODUCT FORM (TAB-BASED)
 // ============================================================
-function ProductForm({
+export function ProductForm({
   editingProduct, onCancel, onSuccess, categories, suppliers, settingsData, loadingSettings,
   locationId,
   onCategoryCreated,
@@ -2549,73 +2547,17 @@ export default function ProductsPage({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all'); // full catalog; stock qty is per location
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [settingsData, setSettingsData] = useState<Record<string, any[]>>({});
-  const [loadingSettings, setLoadingSettings] = useState(false);
-
-  const fetchSettings = useCallback(async () => {
-    setLoadingSettings(true);
-    try {
-      const cats = ['productType', 'rackLocation', 'zone', 'weightUnit', 'dimensionUnit', 'size', 'shippingClass', 'stockUnit', 'taxType', 'storageCondition', 'brand'];
-      const [settingsResults, unitsResult] = await Promise.all([
-        Promise.allSettled(cats.map((cat) => settingService.getSettings(cat))),
-        unitsService.list().catch((err) => {
-          console.warn('Failed to load UOM catalog:', err);
-          return { uoms: [], conversions: [] };
-        }),
-      ]);
-      const map: Record<string, any[]> = {};
-      cats.forEach((cat, idx) => {
-        const result = settingsResults[idx];
-        map[cat] = result.status === 'fulfilled' ? result.value || [] : [];
-      });
-
-      // Prefer Settings → Units catalog for product stock/purchase/sales pickers
-      const fromUoms = (unitsResult.uoms || []).map((u) => ({
-        id: u.id,
-        _id: u.id,
-        name: String(u.symbol || u.name || u.code).trim(),
-        code: u.code,
-        category: 'stockUnit',
-        isDefault: u.code === 'PCS',
-      })).filter((u) => u.name);
-
-      if (fromUoms.length > 0) {
-        const seen = new Set<string>();
-        const merged: any[] = [];
-        for (const row of [...fromUoms, ...(map.stockUnit || [])]) {
-          const key = String(row.name || '').toLowerCase();
-          if (!key || seen.has(key)) continue;
-          seen.add(key);
-          merged.push(row);
-        }
-        map.stockUnit = merged;
-      }
-
-      setSettingsData(map);
-    } catch (err) {
-      console.error('Failed to fetch settings:', err);
-    } finally {
-      setLoadingSettings(false);
-    }
-  }, []);
 
   useEffect(() => {
     const fetchDropdowns = async () => {
       try {
-        const [cats, supps] = await Promise.all([
-          // Flat list: parents + children with parentId (needed for subcategory filter)
-          categoryService.getCategories({
-            tree: false,
-            // Company-wide catalog — do not scope categories by warehouse
-            locationId: companyWide ? undefined : selectedLocationId || undefined,
-          }),
-          supplierService.getSuppliers({ limit: 100 }),
-        ]);
+        const cats = await categoryService.getCategories({
+          tree: false,
+          // Company-wide catalog — do not scope categories by warehouse
+          locationId: companyWide ? undefined : selectedLocationId || undefined,
+        });
 
         const flat = (Array.isArray(cats) ? cats : [])
           .map((c) => ({
@@ -2626,14 +2568,12 @@ export default function ProductsPage({
           .filter((c) => !!c.id);
 
         setCategories(flat);
-        setSuppliers(supps?.data || []);
       } catch (err) {
-        console.error('Failed to fetch dropdowns:', err);
+        console.error('Failed to fetch categories:', err);
       }
     };
     fetchDropdowns();
-    fetchSettings();
-  }, [fetchSettings, companyWide, selectedLocationId]);
+  }, [companyWide, selectedLocationId]);
 
   const fetchProducts = useCallback(async () => {
     if (!companyWide && !selectedLocationId) return;
@@ -2706,9 +2646,8 @@ export default function ProductsPage({
   }, [effectiveLocationIdForApi, productsBasePath, router]);
 
   useHardwareBarcodeScanner((code) => {
-    if (showCreateForm) return;
     void handleBarcodeScan(code);
-  }, !showCreateForm);
+  }, true);
 
   const handlePageChange = (page: number) =>
     setPagination((prev) => ({ ...prev, page }));
@@ -2727,12 +2666,8 @@ export default function ProductsPage({
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
-  const handleAddClick = async () => {
-    setEditingProduct(null);
-    // Refresh latest settings before opening create form so newly added
-    // dropdown values are always visible on the next product.
-    await fetchSettings();
-    setShowCreateForm(true);
+  const handleAddClick = () => {
+    router.push(`${productsBasePath}/new`);
   };
 
   const handleViewClick = (product: Product) => {
@@ -2744,42 +2679,15 @@ export default function ProductsPage({
     router.push(`${productsBasePath}/${id}`);
   };
 
-  const handleEditClick = async (product: Product) => {
+  const handleEditClick = (product: Product) => {
     const id = getProductId(product);
     if (!id) {
-      setEditingProduct(product);
-      setShowCreateForm(true);
+      alert('Product id is missing');
       return;
     }
-    try {
-      setEditingProduct(await productService.getProductById(id));
-    } catch {
-      setEditingProduct(product);
-    }
-    setShowCreateForm(true);
+    router.push(`${productsBasePath}/${id}/edit`);
   };
 
-  // Open edit form when arriving from detail page
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const editId = sessionStorage.getItem('products_edit_id');
-    if (!editId) return;
-    sessionStorage.removeItem('products_edit_id');
-    let cancelled = false;
-    (async () => {
-      try {
-        const product = await productService.getProductById(editId);
-        if (cancelled) return;
-        setEditingProduct(product);
-        setShowCreateForm(true);
-      } catch {
-        if (!cancelled) alert('Could not load product for editing');
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
   const handleDeleteClick = async (id: string) => {
     console.log('🔵 [handleDeleteClick] Starting delete for product ID:', id);
     if (!confirm('Delete this product?')) {
@@ -2796,13 +2704,6 @@ export default function ProductsPage({
       console.error('❌ [handleDeleteClick] Delete failed:', error);
       alert(error.message || 'Failed to delete product');
     }
-  };
-  const handleFormSuccess = () => {
-    setShowCreateForm(false);
-    setEditingProduct(null);
-    setSelectedStatus('all'); // new product has 0 stock — must show in catalog
-    setPagination((prev) => ({ ...prev, page: 1 }));
-    fetchProducts();
   };
 
   return (
@@ -2841,67 +2742,27 @@ export default function ProductsPage({
         />
       )}
 
-      {showCreateForm ? (
-        <ProductForm
-          editingProduct={editingProduct}
-          onCancel={() => { setShowCreateForm(false); setEditingProduct(null); }}
-          onSuccess={handleFormSuccess}
-          categories={categories}
-          suppliers={suppliers}
-          settingsData={settingsData}
-          loadingSettings={loadingSettings}
-          locationId={effectiveLocationIdForApi || undefined}
-          onCategoryCreated={(cat) => {
-            setCategories((prev) => {
-              if (prev.some((c) => String(c.id) === String(cat.id))) return prev;
-              return [...prev, cat];
-            });
-          }}
-          onSupplierCreated={(sup) => {
-            setSuppliers((prev) => {
-              const id = String((sup as any).id || (sup as any)._id || '');
-              if (prev.some((s) => String((s as any).id || (s as any)._id) === id)) {
-                return prev;
-              }
-              return [...prev, sup];
-            });
-          }}
-          onSettingCreated={(cat, item) => {
-            setSettingsData((prev) => {
-              const list = prev[cat] || [];
-              const name = String(item?.name || '').trim().toLowerCase();
-              if (name && list.some((x) => String(x?.name || '').trim().toLowerCase() === name)) {
-                return prev;
-              }
-              return { ...prev, [cat]: [...list, item] };
-            });
-            // Also refetch from server to keep list in sync across re-opens.
-            void fetchSettings();
-          }}
-        />
-      ) : (
-        <ProductList
-          products={products}
-          loading={loading}
-          pagination={pagination}
-          searchTerm={searchTerm}
-          setSearchTerm={handleSearch}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={handleCategoryChange}
-          selectedStatus={selectedStatus}
-          setSelectedStatus={handleStatusChange}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
-          onAddClick={handleAddClick}
-          onEditClick={handleEditClick}
-          onDeleteClick={handleDeleteClick}
-          onViewClick={handleViewClick}
-          onScanClick={() => setShowScanner(true)}
-          categories={categories}
-          locationName={companyWide || effectiveIsAllLocations ? 'All warehouses' : selectedLocation?.name}
-        />
-      )}
+      <ProductList
+        products={products}
+        loading={loading}
+        pagination={pagination}
+        searchTerm={searchTerm}
+        setSearchTerm={handleSearch}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={handleCategoryChange}
+        selectedStatus={selectedStatus}
+        setSelectedStatus={handleStatusChange}
+        onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
+        onAddClick={handleAddClick}
+        onEditClick={handleEditClick}
+        onDeleteClick={handleDeleteClick}
+        onViewClick={handleViewClick}
+        onScanClick={() => setShowScanner(true)}
+        categories={categories}
+        locationName={companyWide || effectiveIsAllLocations ? 'All warehouses' : selectedLocation?.name}
+      />
     </div>
   );
 }
-export { ProductsPage, ProductDetail };
+export { ProductsPage, ProductDetail, ProductForm };

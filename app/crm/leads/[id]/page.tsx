@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import {
   getLeadById, updateLead, addLeadNote, createFollowUp, convertLead,
   createOpportunity, getLeadSources, getTerritories, getMarketSegments,
+  createLeadSource, createTerritory, createMarketSegment,
   makeQuotationFromLead,
   LEAD_STATUSES, LEAD_TYPES, REQUEST_TYPES, QUALIFICATION_STATUSES,
   NO_OF_EMPLOYEES, SALUTATIONS, GENDERS, DEFAULT_LEAD_SOURCES,
@@ -16,6 +17,11 @@ import {
   DeskField, DeskFormShell, DeskPageHeader, DeskSection, DeskSideCard,
   deskInput, deskSelect,
 } from '../../components/ErpDeskForm';
+import {
+  QuickAddSelect,
+  getEmployeeSizeOptions,
+  addEmployeeSizeOption,
+} from '../../components/QuickAddSelect';
 
 function buildFullName(firstName?: string, middleName?: string, lastName?: string) {
   return [firstName, middleName, lastName].map((s) => (s || '').trim()).filter(Boolean).join(' ');
@@ -118,6 +124,7 @@ export default function LeadDetailPage() {
   const [sourceOptions, setSourceOptions] = useState<string[]>(DEFAULT_LEAD_SOURCES);
   const [territories, setTerritories] = useState<string[]>([]);
   const [segments, setSegments] = useState<string[]>([]);
+  const [employeeSizes, setEmployeeSizes] = useState<string[]>(NO_OF_EMPLOYEES);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [createActionLoading, setCreateActionLoading] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -141,6 +148,7 @@ export default function LeadDetailPage() {
   useEffect(() => { fetchLead(); }, [fetchLead]);
 
   useEffect(() => {
+    setEmployeeSizes(getEmployeeSizeOptions(NO_OF_EMPLOYEES));
     Promise.all([
       getLeadSources().catch(() => []),
       getTerritories().catch(() => []),
@@ -173,6 +181,11 @@ export default function LeadDetailPage() {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
     setForm((prev) => (prev ? { ...prev, [name]: type === 'checkbox' ? checked : value } : prev));
+    setDirty(true);
+  };
+
+  const setField = (name: keyof FormState, value: string) => {
+    setForm((prev) => (prev ? { ...prev, [name]: value } : prev));
     setDirty(true);
   };
 
@@ -472,11 +485,20 @@ export default function LeadDetailPage() {
           <DeskField label="First Name" required>
             <input name="firstName" value={form.firstName} onChange={handleChange} className={deskInput} />
           </DeskField>
-          <DeskField label="Source">
-            <select name="source" value={form.source} onChange={handleChange} className={deskSelect}>
-              {sourceOptions.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </DeskField>
+          <QuickAddSelect
+            label="Source"
+            value={form.source}
+            options={sourceOptions}
+            onChange={(v) => setField('source', v)}
+            placeholder="Select Source"
+            addTitle="Add Lead Source"
+            onCreate={async ({ name }) => {
+              const row = await createLeadSource({ name });
+              const created = row?.name || name;
+              setSourceOptions((prev) => Array.from(new Set([...prev, created])));
+              return created;
+            }}
+          />
           <DeskField label="Lead Type">
             <select name="leadType" value={form.leadType} onChange={handleChange} className={deskSelect}>
               {LEAD_TYPES.map((t) => <option key={t || 'empty'} value={t}>{t}</option>)}
@@ -534,21 +556,35 @@ export default function LeadDetailPage() {
           <DeskField label="Annual Revenue">
             <input type="number" name="annualRevenue" value={form.annualRevenue} onChange={handleChange} className={deskInput} />
           </DeskField>
-          <DeskField label="Territory">
-            {territories.length ? (
-              <select name="territory" value={form.territory} onChange={handleChange} className={deskSelect}>
-                <option value="" />
-                {territories.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            ) : (
-              <input name="territory" value={form.territory} onChange={handleChange} className={deskInput} />
-            )}
-          </DeskField>
-          <DeskField label="No of Employees">
-            <select name="noOfEmployees" value={form.noOfEmployees} onChange={handleChange} className={deskSelect}>
-              {NO_OF_EMPLOYEES.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </DeskField>
+          <QuickAddSelect
+            label="Territory"
+            value={form.territory}
+            options={territories}
+            onChange={(v) => setField('territory', v)}
+            placeholder="Select Territory"
+            addTitle="Add Territory"
+            extraFields={[
+              { key: 'parentTerritory', label: 'Parent Territory', type: 'select', options: territories, placeholder: 'No Parent (Root)' },
+            ]}
+            onCreate={async ({ name, parentTerritory }) => {
+              const row = await createTerritory({ name, parentTerritory: parentTerritory || undefined } as any);
+              const created = row?.name || name;
+              setTerritories((prev) => Array.from(new Set([...prev, created])));
+              return created;
+            }}
+          />
+          <QuickAddSelect
+            label="No of Employees"
+            value={form.noOfEmployees}
+            options={employeeSizes}
+            onChange={(v) => setField('noOfEmployees', v)}
+            placeholder="Select Size"
+            addTitle="Add Employee Size"
+            onCreate={async ({ name }) => {
+              setEmployeeSizes(addEmployeeSizeOption(name, NO_OF_EMPLOYEES));
+              return name;
+            }}
+          />
           <DeskField label="Industry">
             <input name="industry" value={form.industry} onChange={handleChange} className={deskInput} />
           </DeskField>
@@ -556,16 +592,23 @@ export default function LeadDetailPage() {
             <input name="fax" value={form.fax} onChange={handleChange} className={deskInput} />
           </DeskField>
           <div />
-          <DeskField label="Market Segment">
-            {segments.length ? (
-              <select name="marketSegment" value={form.marketSegment} onChange={handleChange} className={deskSelect}>
-                <option value="" />
-                {segments.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            ) : (
-              <input name="marketSegment" value={form.marketSegment} onChange={handleChange} className={deskInput} />
-            )}
-          </DeskField>
+          <QuickAddSelect
+            label="Market Segment"
+            value={form.marketSegment}
+            options={segments}
+            onChange={(v) => setField('marketSegment', v)}
+            placeholder="Select Market Segment"
+            addTitle="Add Market Segment"
+            extraFields={[
+              { key: 'description', label: 'Description', type: 'textarea', placeholder: 'Optional notes' },
+            ]}
+            onCreate={async ({ name, description }) => {
+              const row = await createMarketSegment({ name, description: description || undefined } as any);
+              const created = row?.name || name;
+              setSegments((prev) => Array.from(new Set([...prev, created])));
+              return created;
+            }}
+          />
         </DeskSection>
 
         <DeskSection title="Address & Contacts">

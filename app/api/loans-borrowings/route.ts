@@ -287,7 +287,7 @@ export const loansService = {
         reference: data.reference || ''
       };
       
-      const response = await apiClient.post('/api/loans/prepayment', payload);
+      const response = await apiClient.post('/api/loans/prepay', payload);
       if (!response.success) {
         throw new Error(response.message || 'Failed to process prepayment');
       }

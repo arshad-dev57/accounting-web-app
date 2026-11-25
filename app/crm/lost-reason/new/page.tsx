@@ -49,7 +49,7 @@ function NewLostReasonForm() {
 
   return (
     <div className="space-y-4 pb-16">
-      {/* ── ERPNext Desk Header ───────────────────────── */}
+      {/* ── Form header ───────────────────────── */}
       <DeskPageHeader
         title="New Lost Reason"
         dirty={true}
