@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Search } from 'lucide-react';
@@ -12,6 +12,7 @@ import {
   BizPageHeader,
   BizStatusBadge,
 } from '../../../components/business-apps/BusinessAppShell';
+import { BizLoading } from '../../../components/business-apps/bizUi';
 import {
   asList,
   displayName,
@@ -34,7 +35,7 @@ function statusTone(s: string) {
   return 'neutral';
 }
 
-export default function ProjectsListPage() {
+function ProjectsListInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [items, setItems] = useState<PmProject[]>([]);
@@ -341,5 +342,13 @@ export default function ProjectsListPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ProjectsListPage() {
+  return (
+    <Suspense fallback={<BizLoading />}>
+      <ProjectsListInner />
+    </Suspense>
   );
 }
