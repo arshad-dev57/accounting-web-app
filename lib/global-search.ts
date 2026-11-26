@@ -25,7 +25,11 @@ export type GlobalSearchGroupKey =
   | 'hr'
   | 'tax'
   | 'settings'
-  | 'pos';
+  | 'pos'
+  | 'projects'
+  | 'meetings'
+  | 'notices'
+  | 'appointments';
 
 export type GlobalSearchPage = {
   /** Route of the page (must exist under app/) */
@@ -64,6 +68,10 @@ export const SEARCH_GROUPS: Record<
   tax: { label: 'Tax', href: '/tax' },
   settings: { label: 'Settings', href: '/settings/invoice-numbers' },
   pos: { label: 'Point of Sale', href: '/pos' },
+  projects: { label: 'Project Management', href: '/projects/dashboard' },
+  meetings: { label: 'Meeting Management', href: '/meetings/dashboard' },
+  notices: { label: 'Notice Board', href: '/notices/dashboard' },
+  appointments: { label: 'Appointment Booking', href: '/appointments/dashboard' },
 };
 
 /** Pages shown when the search box is empty (quick access) */
@@ -161,6 +169,19 @@ export const GLOBAL_SEARCH_PAGES: GlobalSearchPage[] = [
   { path: '/settings/pdf-reports', label: 'PDF Reports', group: 'settings', module: 'settings', keywords: ['download reports', 'print', 'letterhead', 'pdf branding'] },
   // ============================== Sales ==============================
   { path: '/sales/dashboard', label: 'Sales Dashboard', group: 'sales', module: 'sales', permission: 'dashboard', keywords: ['overview'] },
+  { path: '/notes', label: 'Local Notes', group: 'home', keywords: ['notes', 'todo', 'checklist', 'sticky', 'local'] },
+  { path: '/projects/dashboard', label: 'Project Dashboard', group: 'projects', module: 'projects', permission: 'dashboard', keywords: ['projects', 'tasks', 'kanban', 'gantt', 'milestones'] },
+  { path: '/projects/list', label: 'Projects', group: 'projects', module: 'projects', permission: 'projects', keywords: ['project list'] },
+  { path: '/projects/board', label: 'Project Kanban', group: 'projects', module: 'projects', permission: 'tasks', keywords: ['board', 'kanban'] },
+  { path: '/projects/time', label: 'Project Time Tracking', group: 'projects', module: 'projects', permission: 'time', keywords: ['timesheet', 'timer'] },
+  { path: '/meetings/dashboard', label: 'Meeting Dashboard', group: 'meetings', module: 'meetings', permission: 'dashboard', keywords: ['meetings', 'agenda', 'minutes'] },
+  { path: '/meetings/list', label: 'Meetings', group: 'meetings', module: 'meetings', permission: 'meetings', keywords: ['schedule meeting'] },
+  { path: '/meetings/action-items', label: 'Meeting Action Items', group: 'meetings', module: 'meetings', permission: 'action_items', keywords: ['follow up', 'actions'] },
+  { path: '/notices/dashboard', label: 'Notice Board Dashboard', group: 'notices', module: 'notices', permission: 'dashboard', keywords: ['announcements', 'notice board'] },
+  { path: '/notices/list', label: 'Notices', group: 'notices', module: 'notices', permission: 'notices', keywords: ['publish notice', 'hr notice'] },
+  { path: '/appointments/dashboard', label: 'Appointment Dashboard', group: 'appointments', module: 'appointments', permission: 'dashboard', keywords: ['booking', 'scheduling'] },
+  { path: '/appointments/bookings', label: 'Appointment Bookings', group: 'appointments', module: 'appointments', permission: 'bookings', keywords: ['reservations'] },
+  { path: '/appointments/public', label: 'Public Booking Settings', group: 'appointments', module: 'appointments', permission: 'public_page', keywords: ['booking link', 'public page'] },
   { path: '/crm/dashboard', label: 'CRM Dashboard', group: 'crm', module: 'crm', permission: 'dashboard', keywords: ['crm', 'leads', 'pipeline', 'opportunities'] },
   { path: '/crm/leads', label: 'Leads', group: 'crm', module: 'crm', permission: 'leads', keywords: ['lead', 'prospect'] },
   { path: '/crm/opportunities', label: 'Opportunities', group: 'crm', module: 'crm', permission: 'opportunities', keywords: ['deal', 'pipeline'] },

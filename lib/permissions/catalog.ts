@@ -516,6 +516,68 @@ export const PERMISSION_MODULES: ModuleDef[] = [
     ]
   },
   {
+    key: 'projects',
+    name: 'Project Management',
+    description: 'Projects, tasks, milestones, teams, time tracking, and project reports',
+    resources: [
+      { key: 'dashboard', name: 'Projects Dashboard', description: 'Project KPIs, workload, and activity overview', actions: ['view'], scopes: ['ALL'] },
+      { key: 'projects', name: 'Projects', description: 'Create and manage projects', actions: ['view', 'create', 'edit', 'delete', 'export'], scopes: ['ALL', 'OWN', 'TEAM'] },
+      { key: 'tasks', name: 'Project Tasks', description: 'Tasks, subtasks, checklists, and dependencies', actions: ['view', 'create', 'edit', 'delete'], scopes: ['ALL', 'OWN', 'TEAM'] },
+      { key: 'milestones', name: 'Project Milestones', description: 'Project milestones and deadlines', actions: ['view', 'create', 'edit', 'delete'], scopes: ['ALL', 'TEAM'] },
+      { key: 'teams', name: 'Project Teams', description: 'Project members and roles', actions: ['view', 'create', 'edit', 'delete'], scopes: ['ALL', 'TEAM'] },
+      { key: 'time', name: 'Time Tracking', description: 'Timers and timesheet entries', actions: ['view', 'create', 'edit', 'delete', 'approve', 'export'], scopes: ['ALL', 'OWN', 'TEAM'] },
+      { key: 'communication', name: 'Project Communication', description: 'Task comments, attachments, and activity feed', actions: ['view', 'create', 'delete'], scopes: ['ALL', 'OWN', 'TEAM'] },
+      { key: 'reports', name: 'Project Reports', description: 'Progress, workload, and time reports', actions: ['view', 'print', 'export'], scopes: ['ALL', 'OWN', 'TEAM'] },
+      { key: 'settings', name: 'Project Settings', description: 'Default statuses, priorities, and custom fields', actions: ['view', 'edit'], scopes: ['ALL'] }
+    ]
+  },
+  {
+    key: 'meetings',
+    name: 'Meeting Management',
+    description: 'Scheduling, agendas, minutes, and action items',
+    resources: [
+      { key: 'dashboard', name: 'Meetings Dashboard', description: 'Upcoming meetings and action item overview', actions: ['view'], scopes: ['ALL'] },
+      { key: 'meetings', name: 'Meetings', description: 'Schedule and manage meetings', actions: ['view', 'create', 'edit', 'delete', 'cancel', 'export'], scopes: ['ALL', 'OWN', 'TEAM'] },
+      { key: 'calendar', name: 'Meetings Calendar', description: 'Calendar view of meetings', actions: ['view'], scopes: ['ALL', 'OWN'] },
+      { key: 'participants', name: 'Meeting Participants', description: 'Invite and manage attendees and responses', actions: ['view', 'create', 'edit', 'delete'], scopes: ['ALL', 'OWN'] },
+      { key: 'agenda', name: 'Meeting Agenda', description: 'Agenda items and presenters', actions: ['view', 'create', 'edit', 'delete'], scopes: ['ALL', 'OWN'] },
+      { key: 'minutes', name: 'Meeting Minutes', description: 'Minutes and decisions', actions: ['view', 'create', 'edit', 'delete', 'print', 'export'], scopes: ['ALL', 'OWN'] },
+      { key: 'action_items', name: 'Action Items', description: 'Follow-up actions from meetings', actions: ['view', 'create', 'edit', 'delete'], scopes: ['ALL', 'OWN', 'TEAM'] },
+      { key: 'reports', name: 'Meeting Reports', description: 'Meeting attendance and action item reports', actions: ['view', 'print', 'export'], scopes: ['ALL'] },
+      { key: 'settings', name: 'Meeting Settings', description: 'Meeting module preferences', actions: ['view', 'edit'], scopes: ['ALL'] }
+    ]
+  },
+  {
+    key: 'notices',
+    name: 'Notice Board',
+    description: 'Company announcements, audiences, approvals, and read tracking',
+    resources: [
+      { key: 'dashboard', name: 'Notice Board Dashboard', description: 'Notice board home and read stats', actions: ['view'], scopes: ['ALL'] },
+      { key: 'notices', name: 'Notices', description: 'Create, publish, and manage notices', actions: ['view', 'create', 'edit', 'delete', 'approve', 'export'], scopes: ['ALL', 'OWN'] },
+      { key: 'categories', name: 'Notice Categories', description: 'Notice category master', actions: ['view', 'create', 'edit', 'delete'], scopes: ['ALL'] },
+      { key: 'audience', name: 'Notice Audience', description: 'Target departments, roles, branches, and employees', actions: ['view', 'create', 'edit', 'delete'], scopes: ['ALL'] },
+      { key: 'comments', name: 'Notice Comments', description: 'Comment on and moderate notices', actions: ['view', 'create', 'delete'], scopes: ['ALL', 'OWN'] },
+      { key: 'reports', name: 'Notice Reports', description: 'Read receipts and engagement reports', actions: ['view', 'print', 'export'], scopes: ['ALL'] },
+      { key: 'settings', name: 'Notice Board Settings', description: 'Approval workflow and notification preferences', actions: ['view', 'edit'], scopes: ['ALL'] }
+    ]
+  },
+  {
+    key: 'appointments',
+    name: 'Appointment Booking',
+    description: 'Services, availability, bookings, and public booking page',
+    resources: [
+      { key: 'dashboard', name: 'Appointments Dashboard', description: "Booking KPIs and today's schedule", actions: ['view'], scopes: ['ALL'] },
+      { key: 'types', name: 'Appointment Types', description: 'Appointment type master', actions: ['view', 'create', 'edit', 'delete'], scopes: ['ALL'] },
+      { key: 'services', name: 'Appointment Services', description: 'Bookable services, pricing, and staff assignment', actions: ['view', 'create', 'edit', 'delete'], scopes: ['ALL'] },
+      { key: 'calendar', name: 'Appointments Calendar', description: 'Calendar view of bookings', actions: ['view'], scopes: ['ALL', 'OWN'] },
+      { key: 'availability', name: 'Availability & Holidays', description: 'Working hours, breaks, and holidays', actions: ['view', 'create', 'edit', 'delete'], scopes: ['ALL', 'OWN'] },
+      { key: 'bookings', name: 'Bookings', description: 'Create and manage appointment bookings', actions: ['view', 'create', 'edit', 'delete', 'approve', 'cancel', 'export'], scopes: ['ALL', 'OWN'] },
+      { key: 'public_page', name: 'Public Booking Page', description: 'Configure the public booking page', actions: ['view', 'edit'], scopes: ['ALL'] },
+      { key: 'reports', name: 'Appointment Reports', description: 'Booking and utilisation reports', actions: ['view', 'print', 'export'], scopes: ['ALL', 'OWN'] },
+      { key: 'settings', name: 'Appointment Settings', description: 'Buffers, slot interval, approval, and reminders', actions: ['view', 'edit'], scopes: ['ALL'] }
+    ]
+  },
+  {
     key: 'settings',
     name: 'Settings & Administration',
     description: 'Company settings, users, roles, permissions, and audit logs',

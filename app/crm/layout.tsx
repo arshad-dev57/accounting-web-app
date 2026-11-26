@@ -40,6 +40,7 @@ import {
   MapPinned,
   Tags,
   Layers,
+  StickyNote,
 } from 'lucide-react';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
 import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
@@ -159,6 +160,7 @@ const SHORTCUTS: NavLink[] = [
   { href: '/crm/tasks', label: 'Tasks', icon: CheckSquare },
   { href: '/crm/follow-ups', label: 'Follow-ups', icon: Phone },
   { href: '/crm/calendar', label: 'Calendar', icon: CalendarDays },
+  { href: '/notes', label: 'Local Notes', icon: StickyNote },
   { href: '/crm/contacts/new', label: 'New Contact', icon: UserCircle2 },
 ];
 

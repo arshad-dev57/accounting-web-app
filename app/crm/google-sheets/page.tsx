@@ -3,14 +3,15 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  RefreshCw, CheckCircle2, AlertCircle, ExternalLink, Link2, Unlink,
-  FileSpreadsheet, ArrowRight, Settings, Clock, Play, HelpCircle,
-  Check, AlertTriangle, Layers,
+  RefreshCw, AlertCircle, Link2, Unlink,
+  FileSpreadsheet, Settings, Play, X, Shield,
 } from 'lucide-react';
 import {
   getGoogleAuthUrl, getGoogleConnections, disconnectGoogleConnection,
   listSpreadsheets, getSheetNames, previewGoogleSheet,
   updateConnectionConfig, syncGoogleSheet,
+  getGoogleOAuthSettings, updateGoogleOAuthSettings,
+  type GoogleOAuthSettings,
 } from '@/lib/crm-api';
 import toast from 'react-hot-toast';
 
@@ -35,6 +36,34 @@ function GoogleSheetsContent() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
+  // Google OAuth app credentials (company-level)
+  const [oauthStatus, setOauthStatus] = useState<GoogleOAuthSettings | null>(null);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [savingOauth, setSavingOauth] = useState(false);
+  const [oauthForm, setOauthForm] = useState({
+    clientId: '',
+    clientSecret: '',
+    redirectUri: '',
+  });
+  const [secretDirty, setSecretDirty] = useState(false);
+
+  const loadOauthSettings = useCallback(async () => {
+    try {
+      const data = await getGoogleOAuthSettings();
+      setOauthStatus(data);
+      setOauthForm({
+        clientId: data.clientId || '',
+        clientSecret: data.clientSecretMasked || '',
+        redirectUri: data.redirectUri || '',
+      });
+      setSecretDirty(false);
+      return data;
+    } catch {
+      setOauthStatus({ configured: false, clientId: '', hasClientSecret: false, clientSecretMasked: null, redirectUri: '' });
+      return null;
+    }
+  }, []);
+
   const loadConnections = useCallback(async () => {
     setLoading(true);
     try {
@@ -53,7 +82,18 @@ function GoogleSheetsContent() {
 
   useEffect(() => {
     loadConnections();
-  }, [loadConnections]);
+    loadOauthSettings();
+  }, [loadConnections, loadOauthSettings]);
+
+  useEffect(() => {
+    const connected = searchParams.get('connected');
+    const error = searchParams.get('error');
+    if (connected) {
+      toast.success('Google account connected');
+      loadConnections();
+    }
+    if (error) toast.error(error);
+  }, [searchParams, loadConnections]);
 
   // When active connection changes, load its spreadsheets
   useEffect(() => {
@@ -91,14 +131,64 @@ function GoogleSheetsContent() {
     }
   }, [activeConnection, selectedSpreadsheetId, selectedSheetName]);
 
+  const openSettingsModal = async () => {
+    await loadOauthSettings();
+    setShowSettingsModal(true);
+  };
+
   const handleConnectGoogle = async () => {
+    const status = oauthStatus || (await loadOauthSettings());
+    if (!status?.configured) {
+      toast.error('Add your Google Client ID and Client Secret first');
+      setShowSettingsModal(true);
+      return;
+    }
     try {
       const authUrl = await getGoogleAuthUrl();
       if (authUrl) {
         window.location.href = authUrl;
+      } else {
+        toast.error('Could not get Google auth URL');
       }
     } catch (err: any) {
-      toast.error(err.message || 'Google OAuth is not configured on server');
+      toast.error(err.message || 'Google OAuth is not configured');
+      setShowSettingsModal(true);
+    }
+  };
+
+  const handleSaveOauthSettings = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!oauthForm.clientId.trim()) {
+      toast.error('Client ID is required');
+      return;
+    }
+    if (!oauthStatus?.hasClientSecret && !secretDirty) {
+      toast.error('Client Secret is required');
+      return;
+    }
+    setSavingOauth(true);
+    try {
+      const payload: { clientId: string; clientSecret?: string; redirectUri?: string } = {
+        clientId: oauthForm.clientId.trim(),
+        redirectUri: oauthForm.redirectUri.trim() || undefined,
+      };
+      if (secretDirty && oauthForm.clientSecret.trim() && !oauthForm.clientSecret.includes('•')) {
+        payload.clientSecret = oauthForm.clientSecret.trim();
+      }
+      const saved = await updateGoogleOAuthSettings(payload);
+      setOauthStatus(saved);
+      setOauthForm({
+        clientId: saved.clientId || '',
+        clientSecret: saved.clientSecretMasked || '',
+        redirectUri: saved.redirectUri || '',
+      });
+      setSecretDirty(false);
+      toast.success('Credentials saved securely');
+      setShowSettingsModal(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save credentials');
+    } finally {
+      setSavingOauth(false);
     }
   };
 
@@ -176,13 +266,55 @@ function GoogleSheetsContent() {
           </p>
         </div>
 
-        <button
-          onClick={handleConnectGoogle}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#014582] text-white rounded-xl text-sm font-semibold hover:bg-[#01366a] transition-colors shadow-sm"
-        >
-          <Link2 className="w-4 h-4" /> Connect Google Account
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={openSettingsModal}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            <Settings className="w-4 h-4" /> Google Sheets Settings
+          </button>
+          <button
+            type="button"
+            onClick={handleConnectGoogle}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#014582] text-white rounded-xl text-sm font-semibold hover:bg-[#01366a] transition-colors shadow-sm"
+          >
+            <Link2 className="w-4 h-4" /> Connect Google Account
+          </button>
+        </div>
       </div>
+
+      {oauthStatus && !oauthStatus.configured && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold">Google credentials not configured</p>
+            <p className="text-xs text-amber-800 mt-0.5">
+              Add your Google Cloud OAuth Client ID and Client Secret to connect sheets.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={openSettingsModal}
+            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-100 border border-amber-300 hover:bg-amber-200"
+          >
+            Add Credentials
+          </button>
+        </div>
+      )}
+
+      {oauthStatus?.configured && (
+        <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+          <Shield className="w-3.5 h-3.5" />
+          OAuth credentials configured
+          {oauthStatus.clientId ? (
+            <span className="text-emerald-600/80 font-mono truncate max-w-[240px]">
+              ({oauthStatus.clientId.slice(0, 18)}…)
+            </span>
+          ) : null}
+          {oauthStatus.usingEnvFallback ? <span className="text-emerald-600/70">(env fallback)</span> : null}
+        </div>
+      )}
 
       {/* Connected Accounts */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-xs space-y-4">
@@ -405,26 +537,127 @@ function GoogleSheetsContent() {
         </div>
       )}
 
-      {/* Setup Guide for Google Cloud Console */}
-      <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-6 text-xs text-amber-900 space-y-2">
-        <p className="font-bold text-sm text-amber-950 flex items-center gap-1.5">
-          <HelpCircle className="w-4 h-4" /> Google Cloud Console Setup Instructions
-        </p>
-        <p>To enable real Google Sheets sync in production, add these variables to your <code>.env</code> file:</p>
-        <pre className="bg-amber-100/70 p-3 rounded-xl font-mono text-[11px] text-amber-950 overflow-x-auto">
-{`GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET="your-client-secret"
-GOOGLE_REDIRECT_URI="http://localhost:5000/api/crm/google-sheets/callback"
-GOOGLE_SHEETS_SCOPES="https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/drive.metadata.readonly"`}
-        </pre>
-        <ol className="list-decimal pl-4 space-y-1 text-amber-900">
-          <li>Create a project in <strong>Google Cloud Console</strong>.</li>
-          <li>Enable <strong>Google Sheets API</strong> and <strong>Google Drive API</strong>.</li>
-          <li>Configure <strong>OAuth Consent Screen</strong> (External or Internal).</li>
-          <li>Create Credentials &gt; <strong>OAuth Client ID (Web Application)</strong>.</li>
-          <li>Add Authorized redirect URI: <code>http://localhost:5000/api/crm/google-sheets/callback</code> (or your production URL).</li>
-        </ol>
-      </div>
+      {/* Google OAuth Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Close"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => !savingOauth && setShowSettingsModal(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-xl"
+          >
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Google Sheets Settings</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Enter your Google Cloud OAuth credentials. Client Secret is stored encrypted and never shown in full.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={savingOauth}
+                onClick={() => setShowSettingsModal(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveOauthSettings} className="px-5 py-4 space-y-3.5">
+              <div>
+                <label className="block text-[12px] font-medium text-gray-600 mb-1">
+                  Client ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  autoFocus
+                  className="w-full px-3 py-2 bg-[#f4f5f6] border border-transparent rounded-md text-sm text-gray-900 focus:outline-none focus:bg-white focus:border-[#014582]/40 focus:ring-2 focus:ring-[#014582]/15"
+                  value={oauthForm.clientId}
+                  onChange={(e) => setOauthForm((p) => ({ ...p, clientId: e.target.value }))}
+                  placeholder="xxxx.apps.googleusercontent.com"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-medium text-gray-600 mb-1">
+                  Client Secret <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  className="w-full px-3 py-2 bg-[#f4f5f6] border border-transparent rounded-md text-sm text-gray-900 focus:outline-none focus:bg-white focus:border-[#014582]/40 focus:ring-2 focus:ring-[#014582]/15 font-mono"
+                  value={oauthForm.clientSecret}
+                  onChange={(e) => {
+                    setOauthForm((p) => ({ ...p, clientSecret: e.target.value }));
+                    setSecretDirty(true);
+                  }}
+                  onFocus={() => {
+                    if (!secretDirty && oauthForm.clientSecret.includes('•')) {
+                      setOauthForm((p) => ({ ...p, clientSecret: '' }));
+                      setSecretDirty(true);
+                    }
+                  }}
+                  placeholder={oauthStatus?.hasClientSecret ? 'Leave blank to keep existing secret' : 'Enter client secret'}
+                  autoComplete="new-password"
+                />
+                {oauthStatus?.hasClientSecret && !secretDirty && (
+                  <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
+                    <Shield className="w-3 h-3" />
+                    Saved secret: {oauthStatus.clientSecretMasked} (encrypted)
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-medium text-gray-600 mb-1">
+                  Redirect URI
+                </label>
+                <input
+                  className="w-full px-3 py-2 bg-[#f4f5f6] border border-transparent rounded-md text-sm text-gray-900 focus:outline-none focus:bg-white focus:border-[#014582]/40 focus:ring-2 focus:ring-[#014582]/15"
+                  value={oauthForm.redirectUri}
+                  onChange={(e) => setOauthForm((p) => ({ ...p, redirectUri: e.target.value }))}
+                  placeholder="http://localhost:5000/api/crm/google-sheets/callback"
+                  autoComplete="off"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Must match the Authorized redirect URI in Google Cloud Console.
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 text-[11px] text-gray-500 space-y-1">
+                <p className="font-semibold text-gray-600">Quick setup</p>
+                <ol className="list-decimal pl-4 space-y-0.5">
+                  <li>Google Cloud Console → create OAuth Client (Web)</li>
+                  <li>Enable Google Sheets API + Drive API</li>
+                  <li>Paste Client ID / Secret here, then Connect Google Account</li>
+                </ol>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={savingOauth}
+                  onClick={() => setShowSettingsModal(false)}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingOauth}
+                  className="px-3.5 py-1.5 rounded-md text-xs font-semibold text-white bg-[#014582] hover:bg-[#01366a] disabled:opacity-50"
+                >
+                  {savingOauth ? 'Saving…' : 'Save Credentials'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

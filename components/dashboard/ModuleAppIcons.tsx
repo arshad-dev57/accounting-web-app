@@ -452,6 +452,41 @@ export function CrmAppIcon({ className }: IconProps) {
   );
 }
 
+export function NotesAppIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden>
+      <g className="notes-pad">
+        <rect x="14" y="10" width="36" height="44" rx="4" fill="#FEF3C7" stroke="#F59E0B" strokeWidth="2" />
+        <rect x="14" y="10" width="36" height="10" rx="4" fill="#FBBF24" />
+        <line className="notes-line notes-l1" x1="22" y1="30" x2="42" y2="30" stroke="#014582" strokeWidth="2.5" strokeLinecap="round" />
+        <line className="notes-line notes-l2" x1="22" y1="38" x2="40" y2="38" stroke="#00A09D" strokeWidth="2.5" strokeLinecap="round" />
+        <line className="notes-line notes-l3" x1="22" y1="46" x2="36" y2="46" stroke="#F06050" strokeWidth="2.5" strokeLinecap="round" />
+        <circle className="notes-check" cx="46" cy="48" r="7" fill="#10B981" />
+        <path d="M43 48 L45.2 50.2 L49.5 45.5" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <style>{`
+        .notes-pad { transform-box: fill-box; transform-origin: center; animation: notesBob 1.4s ease-in-out infinite alternate; }
+        .notes-line { animation: notesDraw 1.2s ease-in-out infinite alternate; }
+        .notes-l2 { animation-delay: 0.1s; }
+        .notes-l3 { animation-delay: 0.2s; }
+        .notes-check { animation: notesPulse 1s ease-in-out infinite; }
+        @keyframes notesBob {
+          from { transform: rotate(-1deg) translateY(0); }
+          to { transform: rotate(1deg) translateY(-2px); }
+        }
+        @keyframes notesDraw {
+          from { opacity: 0.55; stroke-dashoffset: 4; }
+          to { opacity: 1; stroke-dashoffset: 0; }
+        }
+        @keyframes notesPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.12); }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
 export function TradingAppIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden>
@@ -474,6 +509,88 @@ export function TradingAppIcon({ className }: IconProps) {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.25); opacity: 0.7; }
         }
+      `}</style>
+    </svg>
+  );
+}
+
+export function ProjectsAppIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden>
+      <rect className="pm-board" x="8" y="10" width="48" height="44" rx="6" fill="#714B67" />
+      <rect className="pm-c1" x="14" y="18" width="12" height="8" rx="2" fill="#F7CD1F" />
+      <rect className="pm-c2" x="14" y="30" width="12" height="8" rx="2" fill="#00A09D" />
+      <rect className="pm-c3" x="14" y="42" width="12" height="6" rx="2" fill="#F06050" />
+      <rect className="pm-c1" x="30" y="18" width="12" height="10" rx="2" fill="#00C2FF" />
+      <rect className="pm-c2" x="30" y="32" width="12" height="8" rx="2" fill="#F7CD1F" />
+      <rect className="pm-c3" x="46" y="18" width="4" height="28" rx="2" fill="#FFFFFF" opacity="0.85" />
+      <style>{`
+        .pm-board { transform-box: fill-box; transform-origin: center; animation: pmFloat 1.5s ease-in-out infinite alternate; }
+        .pm-c1 { animation: pmSlide 1.1s ease-in-out infinite alternate; }
+        .pm-c2 { animation: pmSlide 1.1s ease-in-out 0.15s infinite alternate-reverse; }
+        .pm-c3 { animation: pmSlide 1.1s ease-in-out 0.3s infinite alternate; }
+        @keyframes pmFloat { from { transform: translateY(0); } to { transform: translateY(-2px); } }
+        @keyframes pmSlide { from { transform: translateY(0); } to { transform: translateY(2px); } }
+      `}</style>
+    </svg>
+  );
+}
+
+export function MeetingsAppIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden>
+      <rect x="10" y="14" width="44" height="36" rx="6" fill="#00A09D" />
+      <rect className="mtg-screen" x="16" y="20" width="32" height="18" rx="3" fill="#0A2540" />
+      <circle className="mtg-p1" cx="22" cy="44" r="4" fill="#F7CD1F" />
+      <circle className="mtg-p2" cx="32" cy="44" r="4" fill="#F06050" />
+      <circle className="mtg-p3" cx="42" cy="44" r="4" fill="#714B67" />
+      <style>{`
+        .mtg-screen { animation: mtgGlow 1.4s ease-in-out infinite; }
+        .mtg-p1, .mtg-p2, .mtg-p3 { transform-box: fill-box; transform-origin: center; }
+        .mtg-p1 { animation: mtgBob 1s ease-in-out infinite; }
+        .mtg-p2 { animation: mtgBob 1s ease-in-out 0.15s infinite; }
+        .mtg-p3 { animation: mtgBob 1s ease-in-out 0.3s infinite; }
+        @keyframes mtgGlow { 0%,100% { opacity: 1; } 50% { opacity: 0.75; } }
+        @keyframes mtgBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+      `}</style>
+    </svg>
+  );
+}
+
+export function NoticesAppIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden>
+      <path className="ntc-pin" d="M32 8 L38 20 L50 22 L40 30 L42 42 L32 36 L22 42 L24 30 L14 22 L26 20 Z" fill="#F06050" />
+      <rect className="ntc-card" x="14" y="28" width="36" height="26" rx="4" fill="#714B67" />
+      <rect x="20" y="34" width="24" height="3" rx="1.5" fill="#FFFFFF" opacity="0.9" />
+      <rect x="20" y="40" width="18" height="3" rx="1.5" fill="#F7CD1F" />
+      <rect x="20" y="46" width="14" height="3" rx="1.5" fill="#00A09D" />
+      <style>{`
+        .ntc-pin { transform-box: fill-box; transform-origin: top; animation: ntcSwing 1.6s ease-in-out infinite alternate; }
+        .ntc-card { animation: ntcPulse 1.4s ease-in-out infinite; }
+        @keyframes ntcSwing { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }
+        @keyframes ntcPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.92; } }
+      `}</style>
+    </svg>
+  );
+}
+
+export function AppointmentsAppIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden>
+      <rect x="10" y="12" width="44" height="42" rx="6" fill="#875A7B" />
+      <rect x="10" y="12" width="44" height="12" rx="6" fill="#00A09D" />
+      <circle className="apt-d1" cx="22" cy="18" r="2.5" fill="#F7CD1F" />
+      <circle className="apt-d2" cx="42" cy="18" r="2.5" fill="#F06050" />
+      <rect className="apt-slot" x="18" y="32" width="12" height="10" rx="2" fill="#FFFFFF" />
+      <rect className="apt-slot2" x="34" y="32" width="12" height="10" rx="2" fill="#F7CD1F" />
+      <rect x="18" y="46" width="28" height="4" rx="2" fill="#00C2FF" opacity="0.9" />
+      <style>{`
+        .apt-d1, .apt-d2 { animation: aptBlink 1.2s ease-in-out infinite; }
+        .apt-slot { animation: aptPop 1.3s ease-in-out infinite alternate; }
+        .apt-slot2 { animation: aptPop 1.3s ease-in-out 0.2s infinite alternate-reverse; }
+        @keyframes aptBlink { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+        @keyframes aptPop { from { transform: translateY(0); } to { transform: translateY(-2px); } }
       `}</style>
     </svg>
   );

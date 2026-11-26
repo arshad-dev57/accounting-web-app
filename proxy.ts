@@ -119,6 +119,7 @@ export async function proxy(request: NextRequest) {
   const publicRoutes = [
     '/login',
     '/login-otp',
+    '/book',
     '/register',
     '/enter',
     '/forgot-password',

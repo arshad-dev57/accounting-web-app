@@ -32,6 +32,11 @@ import {
   ExportAppIcon,
   TradingAppIcon,
   CrmAppIcon,
+  NotesAppIcon,
+  ProjectsAppIcon,
+  MeetingsAppIcon,
+  NoticesAppIcon,
+  AppointmentsAppIcon,
 } from '../../components/dashboard/ModuleAppIcons';
 
 const banners = [
@@ -97,6 +102,12 @@ const modules: ModuleItem[] = [
     Icon: CrmAppIcon,
     detail: 'Manage leads, pipeline stages, Kanban boards, follow-ups and Google Sheets sync.',
     permModule: 'crm',
+  },
+  {
+    title: 'Notes',
+    href: '/notes',
+    Icon: NotesAppIcon,
+    detail: 'Local notes & todos on this device — quick checklist pad that stays on your machine.',
   },
   {
     title: 'Purchases',
@@ -200,6 +211,46 @@ const modules: ModuleItem[] = [
     detail: 'Create a new company or manage your workspace companies from one place.',
     // Only admins / company managers — not regular role users
     adminOnly: true,
+  },
+];
+
+type BusinessAppItem = {
+  title: string;
+  detail: string;
+  href: string;
+  permModule: 'projects' | 'meetings' | 'notices' | 'appointments';
+  Icon: ComponentType<{ className?: string }>;
+};
+
+/** Business Applications Suite — kept separate from ERP `modules`. */
+const businessApps: BusinessAppItem[] = [
+  {
+    title: 'Project Management',
+    href: '/projects/dashboard',
+    permModule: 'projects',
+    Icon: ProjectsAppIcon,
+    detail: 'Projects, tasks, milestones, teams and time tracking.',
+  },
+  {
+    title: 'Meeting Management',
+    href: '/meetings/dashboard',
+    permModule: 'meetings',
+    Icon: MeetingsAppIcon,
+    detail: 'Schedule meetings, agendas, minutes and follow-up action items.',
+  },
+  {
+    title: 'Notice Board',
+    href: '/notices/dashboard',
+    permModule: 'notices',
+    Icon: NoticesAppIcon,
+    detail: 'Company announcements, audiences and read tracking.',
+  },
+  {
+    title: 'Appointment Booking',
+    href: '/appointments/dashboard',
+    permModule: 'appointments',
+    Icon: AppointmentsAppIcon,
+    detail: 'Services, availability, bookings and a public booking page.',
   },
 ];
 
@@ -355,6 +406,12 @@ export default function DashboardPage() {
     });
   }, [isAdmin, permsReady, canAccessDashboardModule, textileWeaving]);
 
+  const visibleBusinessApps = useMemo(() => {
+    if (isAdmin) return businessApps;
+    if (!permsReady) return [];
+    return businessApps.filter((app) => canAccessDashboardModule(app.permModule));
+  }, [isAdmin, permsReady, canAccessDashboardModule]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % banners.length);
@@ -444,6 +501,51 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
+
+            {visibleBusinessApps.length > 0 && (
+              <section aria-labelledby="business-apps-heading" className="space-y-4">
+                <h2 id="business-apps-heading" className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                  Business Applications
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8 lg:gap-10">
+                  {visibleBusinessApps.map((app) => {
+                    const AppIcon = app.Icon;
+                    return (
+                      <button
+                        key={app.href}
+                        type="button"
+                        onClick={() => {
+                          window.location.href = app.href;
+                        }}
+                        className="group relative z-0 hover:z-40 focus-within:z-40 flex flex-col items-center justify-center gap-3 sm:gap-4 md:gap-5 py-8 sm:py-10 md:py-12 px-3 sm:px-4 md:px-5 rounded-2xl sm:rounded-3xl bg-white hover:bg-[#f3f4f6] transition-colors duration-200 shadow-sm border border-[#e5e7eb]"
+                      >
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-[96px] md:h-[96px] rounded-xl sm:rounded-2xl md:rounded-[22px] bg-[#f3f4f6] border border-gray-200 flex items-center justify-center shadow-[0_2px_12px_rgba(0,0,0,0.06)] group-hover:shadow-[0_4px_20px_rgba(0,0,0,0.10)] transition-shadow duration-300">
+                          <AppIcon className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16" />
+                        </div>
+                        <span className="text-xs sm:text-sm md:text-base font-medium text-gray-800 text-center leading-snug px-1">
+                          {app.title}
+                        </span>
+
+                        <div
+                          className="pointer-events-none absolute left-1/2 top-[calc(100%-0.35rem)] w-[min(440px,calc(100vw-1.5rem))] max-w-[440px] -translate-x-1/2 opacity-0 translate-y-1 scale-95 group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:scale-100 transition-all duration-200 ease-out"
+                          role="tooltip"
+                        >
+                          <div className="mx-auto h-0 w-0 border-l-[12px] border-r-[12px] border-b-[13px] border-l-transparent border-r-transparent border-b-[#1e293b]" />
+                          <div className="rounded-2xl bg-[#1e293b] px-5 sm:px-6 py-5 sm:py-6 text-left shadow-xl shadow-black/20">
+                            <p className="text-sm sm:text-base md:text-[17px] leading-relaxed text-white/90">
+                              {app.detail}
+                            </p>
+                            <p className="mt-4 sm:mt-5 text-right text-sm sm:text-base md:text-[16px] font-medium text-[#00C2FF]">
+                              Open →
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
             {Object.keys(offsets).length > 0 && (
               <div className="flex justify-end -mb-4">

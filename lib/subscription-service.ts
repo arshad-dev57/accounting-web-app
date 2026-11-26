@@ -426,7 +426,8 @@ export async function resolvePostAuthDestination(
 }
 
 export function isSubscriptionExemptPath(pathname: string): boolean {
-  const exempt = ['/login', '/login-otp', '/register', '/plans'];
+  // `/book` is the public appointment booking page (works logged-out)
+  const exempt = ['/login', '/login-otp', '/register', '/plans', '/book'];
   return exempt.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 

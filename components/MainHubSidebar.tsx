@@ -22,6 +22,7 @@ import {
   Ship,
   Send,
   UserCheck,
+  StickyNote,
 } from 'lucide-react';
 import { usePermissions } from '../lib/usePermissions';
 import { BrandHeader } from './BrandHeader';
@@ -124,6 +125,12 @@ export function MainHubSidebar({ activePath = '/dashboard' }: { activePath?: str
           icon: <UserCheck className="w-5 h-5 text-emerald-400" />,
           label: 'CRM & Leads',
           path: '/crm/dashboard',
+          show: true,
+        },
+        {
+          icon: <StickyNote className="w-5 h-5 text-amber-400" />,
+          label: 'Local Notes',
+          path: '/notes',
           show: true,
         },
         {

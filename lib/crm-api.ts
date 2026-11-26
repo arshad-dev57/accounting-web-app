@@ -455,8 +455,50 @@ export async function completeFollowUp(id: string, notes?: string): Promise<void
 
 // ── Google Sheets ──────────────────────────────────────────────────────────────
 
+export interface GoogleOAuthSettings {
+  configured: boolean;
+  clientId: string;
+  hasClientSecret: boolean;
+  clientSecretMasked: string | null;
+  redirectUri: string;
+  usingEnvFallback?: boolean;
+}
+
+export async function getGoogleOAuthSettings(): Promise<GoogleOAuthSettings> {
+  const res = await apiClient.get('/api/crm/google-sheets/oauth-settings');
+  const raw = unwrapCrmPayload(res) || {};
+  return {
+    configured: !!raw.configured,
+    clientId: raw.clientId || '',
+    hasClientSecret: !!raw.hasClientSecret,
+    clientSecretMasked: raw.clientSecretMasked || null,
+    redirectUri: raw.redirectUri || '',
+    usingEnvFallback: !!raw.usingEnvFallback,
+  };
+}
+
+export async function updateGoogleOAuthSettings(data: {
+  clientId: string;
+  clientSecret?: string;
+  redirectUri?: string;
+}): Promise<GoogleOAuthSettings> {
+  const res = await apiClient.put('/api/crm/google-sheets/oauth-settings', data);
+  const raw = unwrapCrmPayload(res) || {};
+  return {
+    configured: !!raw.configured,
+    clientId: raw.clientId || '',
+    hasClientSecret: !!raw.hasClientSecret,
+    clientSecretMasked: raw.clientSecretMasked || null,
+    redirectUri: raw.redirectUri || '',
+    usingEnvFallback: !!raw.usingEnvFallback,
+  };
+}
+
 export async function getGoogleAuthUrl(): Promise<string> {
   const res = await apiClient.get('/api/crm/google-sheets/auth-url');
+  if (res.success === false) {
+    throw new Error((res as any).message || 'Google OAuth is not configured');
+  }
   return (res.data?.data ?? res.data)?.authUrl;
 }
 
