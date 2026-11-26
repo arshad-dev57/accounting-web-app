@@ -16,6 +16,7 @@ interface StatCardProps {
   accent?: string;
 }
 
+/** SAP / Odoo style KPI tile — accent bar, large value, compact meta */
 export function StatCard({
   label,
   value,
@@ -30,28 +31,29 @@ export function StatCard({
     format === 'currency'
       ? `${currency} ${Number(value).toLocaleString()}`
       : format === 'percent'
-        ? `${value}%`
+        ? `${Number(value).toFixed(Number(value) % 1 === 0 ? 0 : 1)}%`
         : typeof value === 'number'
           ? value.toLocaleString()
           : String(value);
 
   const content = (
-    <div className="group h-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-[#014582]/25 hover:shadow-sm transition-all">
-      <div className="flex items-start justify-between gap-3">
+    <div className="group relative h-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:border-gray-300 hover:shadow-[0_4px_12px_rgba(15,23,42,0.06)]">
+      <div className="absolute inset-x-0 top-0 h-[3px]" style={{ backgroundColor: accent }} />
+      <div className="flex items-start justify-between gap-3 px-4 pb-3.5 pt-4">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500 truncate">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-500">
             {label}
           </p>
-          <p className="mt-1.5 text-2xl font-semibold tracking-tight text-gray-900 tabular-nums">
+          <p className="mt-2 text-[28px] font-semibold leading-none tracking-tight text-gray-900 tabular-nums">
             {formatted}
           </p>
-          {sub ? <p className="mt-1 text-xs text-gray-400">{sub}</p> : null}
+          {sub ? <p className="mt-2 text-xs text-gray-500">{sub}</p> : null}
         </div>
         <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-          style={{ backgroundColor: `${accent}14`, color: accent }}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md"
+          style={{ backgroundColor: `${accent}12`, color: accent }}
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
         </div>
       </div>
     </div>

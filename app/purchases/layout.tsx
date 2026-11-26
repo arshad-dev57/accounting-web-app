@@ -33,7 +33,9 @@ import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
-import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
+import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
+import { ModuleChrome } from '../../components/ModuleChrome';
+import type { ModuleTopNavGroup } from '../../components/ModuleTopNav';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
 import NotificationDropdown from '../../components/NotificationDropdown';
@@ -50,6 +52,49 @@ import { useCompanyBusinessConfig } from '../../lib/company-business-config';
 // ============================================================
 // PURCHASES SIDEBAR
 // ============================================================
+
+function usePurchasesTopGroups(): ModuleTopNavGroup[] {
+  const { hasSubPageAccess, isAdmin } = usePermissions();
+  const { showInstallmentPurchaseUi } = useCompanyBusinessConfig();
+  const purchasesPages = [
+    { path: '/purchases/dashboard', label: 'Dashboard', permission: 'dashboard' },
+    { path: '/purchases/reports', label: 'Purchase Reports', permission: 'dashboard' },
+    { path: '/purchases/products', label: 'Products', permission: 'products' },
+    { path: '/purchases/requisitions', label: 'Requisitions', permission: 'requisitions' },
+    { path: '/purchases/purchaseorder', label: 'Purchase Orders', permission: 'purchase-orders' },
+    { path: '/purchases/suppliers', label: 'Suppliers', permission: 'suppliers' },
+    { path: '/purchases/goodsRecieving', label: 'Goods Receiving', permission: 'goods-receiving' },
+    { path: '/purchases/invoices', label: 'Purchase Invoices', permission: 'purchase-invoices' },
+    ...(showInstallmentPurchaseUi
+      ? [{ path: '/purchases/installments', label: 'Installments', permission: 'purchase-invoices' as const }]
+      : []),
+    { path: '/purchases/payments', label: 'Purchase Payments', permission: 'purchase-payments' },
+  ];
+  const returnsRefundsPages = [
+    { path: '/purchases/returns', label: 'Purchase Returns', permission: 'purchase-returns' },
+    { path: '/purchases/refunds', label: 'Refunds', permission: 'refunds' },
+  ];
+  const settingsPages = [
+    ...(SUBSCRIPTION_PURCHASE_UI_ENABLED
+      ? [{ path: '/plans', label: 'Subscription Plans', permission: '*' as const }]
+      : []),
+    { path: '/tax', label: 'Tax Compliance', permission: 'settings' },
+    { path: '/settings/currency', label: 'Currency', permission: 'currency' },
+    { path: '/settings/pdf-reports', label: 'PDF Reports', permission: 'settings' },
+    { path: '/purchases/settings', label: 'Purchases Settings', permission: 'settings' },
+  ];
+  const allow = (permission: string) => isAdmin || hasSubPageAccess('purchases', permission);
+  const allowSettings = (page: { path: string; permission: string }) => {
+    if (page.path === '/plans') return isAdmin;
+    return page.permission === '*' || isAdmin || hasSubPageAccess('purchases', page.permission);
+  };
+  return [
+    { label: 'Purchases', items: purchasesPages.filter((p) => allow(p.permission)).map((p) => ({ label: p.label, href: p.path })) },
+    { label: 'Returns', items: returnsRefundsPages.filter((p) => allow(p.permission)).map((p) => ({ label: p.label, href: p.path })) },
+    { label: 'Settings', items: settingsPages.filter(allowSettings).map((p) => ({ label: p.label, href: p.path })) },
+  ];
+}
+
 function PurchasesSidebar() {
   const pathname = usePathname();
   const { collapsed } = useSidebarCollapsed();
@@ -393,6 +438,23 @@ function PurchasesSidebar() {
 // ============================================================
 // PURCHASES LAYOUT
 // ============================================================
+function PurchasesLayoutInner({ children }: { children: React.ReactNode }) {
+  const topGroups = usePurchasesTopGroups();
+  return (
+    <ModuleChrome
+      title="Purchases Management"
+      icon={<ShoppingCart className="w-5 h-5 text-[#00E676]" />}
+      sidebar={<PurchasesSidebar />}
+      topGroups={topGroups}
+      contentClassName="flex-1 p-6"
+    >
+      <ModuleViewHost config={purchasesViewHostConfig}>
+        {children}
+      </ModuleViewHost>
+    </ModuleChrome>
+  );
+}
+
 export default function PurchasesLayout({
   children,
 }: {
@@ -400,35 +462,7 @@ export default function PurchasesLayout({
 }) {
   return (
     <FiscalYearProvider>
-      <PurchasesSidebar />
-
-      <SidebarMain className="bg-gray-50">
-        {/* Top Bar */}
-        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
-          <TopBarBrand
-            title="Purchases Management"
-            icon={<ShoppingCart className="w-5 h-5 text-[#00E676]" />}
-          />
-
-          <div className="flex items-center gap-4">
-            <GlobalSearch />
-            <NotificationDropdown />
-
-            <div className="w-px h-6 bg-gray-200" />
-
-            <ProfileDropdown accentClassName="bg-[#00E676]" />
-          </div>
-        </header>
-
-        <AppBreadcrumbs />
-
-        {/* Page Content */}
-        <div className="flex-1 p-6">
-          <ModuleViewHost config={purchasesViewHostConfig}>
-            {children}
-          </ModuleViewHost>
-        </div>
-      </SidebarMain>
+      <PurchasesLayoutInner>{children}</PurchasesLayoutInner>
     </FiscalYearProvider>
   );
 }

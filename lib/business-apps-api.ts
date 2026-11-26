@@ -288,7 +288,9 @@ export const meetingsApi = {
   deleteAgendaItem: (itemId: string) =>
     unwrap<{ id: string }>(apiClient.delete(`/api/meetings/agenda/${itemId}`)),
   minutes: (id: string) =>
-    unwrap<{ latest?: MtgMinute | null; history?: MtgMinute[] }>(apiClient.get(`/api/meetings/${id}/minutes`)),
+    unwrap<{ minute?: MtgMinute | null; latest?: MtgMinute | null; history?: MtgMinute[]; minutesSummary?: string | null }>(
+      apiClient.get(`/api/meetings/${id}/minutes`)
+    ),
   saveMinutes: (id: string, body: Record<string, unknown>) =>
     unwrap<MtgMinute>(apiClient.put(`/api/meetings/${id}/minutes`, body)),
   actionItems: (id: string) => unwrap<MtgActionItem[]>(apiClient.get(`/api/meetings/${id}/action-items`)),

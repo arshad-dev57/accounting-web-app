@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   BizEmptyState,
@@ -15,9 +16,9 @@ import {
   BizField,
   BizLoading,
   bizBtnPrimary,
-  bizInput,
   bizSelect,
 } from '../../../components/business-apps/bizUi';
+import CompanyUserSelect from '../../../components/business-apps/CompanyUserSelect';
 import {
   asList,
   displayName,
@@ -77,15 +78,20 @@ export default function ProjectsTeamsPage() {
   }, [projectId, loadMembers]);
 
   const project = projects.find((p) => p.id === projectId) || null;
+  const excludeIds = members.map((m) => m.userId);
 
   const onAdd = async (e: FormEvent) => {
     e.preventDefault();
-    if (!projectId || !userId.trim()) return;
+    if (!projectId || !userId) {
+      toast.error('Select an employee first');
+      return;
+    }
     setSaving(true);
     try {
-      await projectsApi.addMember(projectId, { userId: userId.trim(), role });
-      toast.success('Member saved');
+      await projectsApi.addMember(projectId, { userId, role });
+      toast.success('Member added');
       setUserId('');
+      setRole('member');
       await loadMembers(projectId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add member');
@@ -109,7 +115,7 @@ export default function ProjectsTeamsPage() {
     <div>
       <BizPageHeader
         title="Teams & Resources"
-        description="Project members and their roles."
+        description="Add employees to a project with a role — select then Add."
         actions={
           projects.length > 0 ? (
             <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className={bizSelect}>
@@ -139,20 +145,19 @@ export default function ProjectsTeamsPage() {
         />
       ) : (
         <div className="space-y-4">
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
             <p className="text-xs text-gray-500">Project manager</p>
             <p className="mt-1 text-sm font-semibold text-gray-900">{displayName(project?.manager)}</p>
           </div>
 
-          <BizCard title="Add or update member">
+          <BizCard title="Add team member">
             <form onSubmit={onAdd} className="grid gap-3 sm:grid-cols-[1fr_160px_auto] sm:items-end">
-              <BizField label="User ID">
-                <input
+              <BizField label="Employee">
+                <CompanyUserSelect
                   value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  placeholder="Company user ID"
-                  className={bizInput}
-                  required
+                  onChange={setUserId}
+                  excludeIds={excludeIds}
+                  emptyLabel="Select employee…"
                 />
               </BizField>
               <BizField label="Role">
@@ -165,12 +170,10 @@ export default function ProjectsTeamsPage() {
                 </select>
               </BizField>
               <button type="submit" disabled={saving} className={bizBtnPrimary}>
-                {saving ? 'Saving…' : 'Save member'}
+                <UserPlus className="h-4 w-4" />
+                {saving ? 'Adding…' : 'Add'}
               </button>
             </form>
-            <p className="mt-2 text-xs text-gray-500">
-              Adding an existing member again updates their role.
-            </p>
           </BizCard>
 
           {loadingMembers ? (
@@ -178,12 +181,12 @@ export default function ProjectsTeamsPage() {
           ) : members.length === 0 ? (
             <BizEmptyState
               title="No team members assigned"
-              description="Members added to this project will be listed here."
+              description="Select an employee and click Add."
             />
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
               <table className="min-w-full divide-y divide-gray-100 text-sm">
-                <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <thead className="bg-[#fafbfc] text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                   <tr>
                     <th className="px-4 py-3">Member</th>
                     <th className="px-4 py-3">Email</th>

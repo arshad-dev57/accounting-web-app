@@ -14,13 +14,10 @@ import {
   Plus,
   ChevronRight,
 } from 'lucide-react';
-import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
-import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
+import { BrandHeader } from '../../components/BrandHeader';
+import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
+import { ModuleChrome } from '../../components/ModuleChrome';
 import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
-import ProfileDropdown from '../../components/ProfileDropdown';
-import NotificationDropdown from '../../components/NotificationDropdown';
-import AppBreadcrumbs from '../../components/AppBreadcrumbs';
-import GlobalSearch from '../../components/GlobalSearch';
 
 type NavItemDef = {
   href: string;
@@ -137,36 +134,29 @@ function NotesSidebar() {
 
 function NotesLayoutInner({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#f4f5f6] flex">
-      <NotesSidebar />
-      <SidebarMain className="flex-1 min-w-0 flex flex-col min-h-screen">
-        <header className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-gray-200">
-          <div className="flex items-center justify-between gap-3 px-4 md:px-6 py-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <TopBarBrand />
-              <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
-                <StickyNote className="w-4 h-4 text-[#014582]" />
-                <span className="font-semibold text-gray-800">Local Notes</span>
-                <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                  This device only
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="hidden md:block w-56 lg:w-72">
-                <GlobalSearch />
-              </div>
-              <NotificationDropdown />
-              <ProfileDropdown />
-            </div>
-          </div>
-          <div className="px-4 md:px-6 pb-2">
-            <AppBreadcrumbs />
-          </div>
-        </header>
-        <main className="flex-1 p-4 md:p-6">{children}</main>
-      </SidebarMain>
-    </div>
+    <ModuleChrome
+      title="Local Notes"
+      icon={<StickyNote className="w-5 h-5 text-[#014582]" />}
+      sidebar={<NotesSidebar />}
+      topGroups={[
+        {
+          label: 'Notes',
+          items: [
+            ...NOTES_NAV.map((item) => ({ label: item.label, href: item.href })),
+            { label: 'New Note', href: '/notes?new=1' }
+          ]
+        }
+      ]}
+      headerLeftExtra={
+        <span className="hidden sm:inline text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+          This device only
+        </span>
+      }
+      mainClassName="bg-[#f4f5f6]"
+      contentClassName="flex-1 p-4 md:p-6"
+    >
+      {children}
+    </ModuleChrome>
   );
 }
 

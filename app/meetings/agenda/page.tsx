@@ -12,6 +12,7 @@ import {
   bizBtnPrimary,
   bizInput,
 } from '../../../components/business-apps/bizUi';
+import CompanyUserSelect from '../../../components/business-apps/CompanyUserSelect';
 import MeetingPicker from '../../../components/business-apps/MeetingPicker';
 import {
   displayName,
@@ -24,7 +25,8 @@ function AgendaPanel({ meeting }: { meeting: MtgMeeting }) {
   const [items, setItems] = useState<MtgAgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
-  const [minutes, setMinutes] = useState('');
+  const [minutes, setMinutes] = useState('10');
+  const [presenterId, setPresenterId] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -53,11 +55,13 @@ function AgendaPanel({ meeting }: { meeting: MtgMeeting }) {
       await meetingsApi.createAgendaItem(meeting.id, {
         title: title.trim(),
         allocatedMinutes: minutes ? Number(minutes) : undefined,
+        presenterId: presenterId || undefined,
         notes: notes.trim() || undefined,
       });
       toast.success('Agenda item added');
       setTitle('');
-      setMinutes('');
+      setMinutes('10');
+      setPresenterId('');
       setNotes('');
       await load();
     } catch (err) {
@@ -83,8 +87,8 @@ function AgendaPanel({ meeting }: { meeting: MtgMeeting }) {
   return (
     <div className="space-y-4">
       <BizCard title="Add agenda item">
-        <form onSubmit={onCreate} className="grid gap-3 sm:grid-cols-[1fr_120px]">
-          <BizField label="Title">
+        <form onSubmit={onCreate} className="grid gap-3 sm:grid-cols-[1fr_120px_1fr_auto] sm:items-end">
+          <BizField label="Topic">
             <input value={title} onChange={(e) => setTitle(e.target.value)} className={bizInput} required />
           </BizField>
           <BizField label="Minutes">
@@ -96,14 +100,19 @@ function AgendaPanel({ meeting }: { meeting: MtgMeeting }) {
               className={bizInput}
             />
           </BizField>
-          <BizField label="Notes" className="sm:col-span-2">
+          <BizField label="Presenter">
+            <CompanyUserSelect
+              value={presenterId}
+              onChange={setPresenterId}
+              emptyLabel="Optional presenter…"
+            />
+          </BizField>
+          <button type="submit" disabled={saving} className={bizBtnPrimary}>
+            {saving ? 'Saving…' : 'Add'}
+          </button>
+          <BizField label="Notes" className="sm:col-span-4">
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={bizInput} />
           </BizField>
-          <div className="sm:col-span-2">
-            <button type="submit" disabled={saving} className={bizBtnPrimary}>
-              {saving ? 'Saving…' : 'Add item'}
-            </button>
-          </div>
         </form>
       </BizCard>
 

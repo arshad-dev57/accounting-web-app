@@ -43,7 +43,12 @@ const pill = (map: Record<string, string>, val: string) =>
 
 const STATUS_OPTIONS = ['all', 'Draft', 'Posted', 'Partially Paid', 'Paid', 'Cancelled'];
 
-export function SalesInvoicesPage() {
+export function SalesInvoicesPage({
+  preferWizardCreate = false,
+}: {
+  /** When true (e.g. Accounting embed), open create wizard in-place instead of leaving the module. */
+  preferWizardCreate?: boolean;
+} = {}) {
   const router = useRouter();
   const { formatAmount } = useCurrency();
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
@@ -339,7 +344,11 @@ export function SalesInvoicesPage() {
             <RefreshCw size={18} className="text-gray-600" />
           </button>
           <button
-            onClick={() => router.push('/sales/invoices/create')}
+            onClick={() =>
+              preferWizardCreate
+                ? setShowCreateWizard(true)
+                : router.push('/sales/invoices/create')
+            }
             className="flex items-center gap-2 px-4 py-2 bg-[#014582] text-white rounded-lg hover:bg-[#01366a] transition-colors font-medium text-sm shadow-sm"
           >
             <Plus size={18} />

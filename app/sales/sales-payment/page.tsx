@@ -19,7 +19,12 @@ import { salesPaymentService, SalesPayment, InvoiceForPayment, PaymentStats, Cus
 import { SalesNumberInput } from '@/components/sales/sales-number-input';
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────
-export function SalesPaymentsPage() {
+export function SalesPaymentsPage({
+  basePath = '/sales/sales-payment',
+}: {
+  /** List/create path prefix so embeds (Accounting/Trading) stay in-module. */
+  basePath?: string;
+} = {}) {
   const router = useRouter();
   const [payments, setPayments] = useState<SalesPayment[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<SalesPayment[]>([]);
@@ -186,7 +191,7 @@ export function SalesPaymentsPage() {
 
   // ─── Create Form ────────────────────────────────────────────
   const openCreateForm = () => {
-    router.push('/sales/sales-payment/create');
+    router.push(`${basePath}/create`);
   };
 
   // ─── Search Customers ──────────────────────────────────────

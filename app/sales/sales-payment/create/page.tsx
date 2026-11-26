@@ -24,7 +24,11 @@ const fmt = (n: number) =>
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
 
-export default function CreatePaymentPage() {
+export function CreateSalesPaymentPage({
+  returnPath = '/sales/sales-payment',
+}: {
+  returnPath?: string;
+} = {}) {
   const router = useRouter();
 
   const [browseTab, setBrowseTab] = useState<'customer' | 'list'>('list');
@@ -220,7 +224,7 @@ export default function CreatePaymentPage() {
           amountPaid: s.amountToPay,
         })),
       });
-      router.push('/sales/sales-payment');
+      router.push(returnPath);
     } catch (err: any) {
       setFormError(err.message || 'Failed to receive payment.');
     } finally {
@@ -239,7 +243,7 @@ export default function CreatePaymentPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <button
-            onClick={() => router.push('/sales/sales-payment')}
+            onClick={() => router.push(returnPath)}
             className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-[#014582] transition-colors mb-1"
           >
             <ArrowLeft className="w-4 h-4" /> Back to Payments
@@ -627,7 +631,7 @@ export default function CreatePaymentPage() {
             <button type="button" onClick={handleSubmit} disabled={isSubmitting || selected.length === 0} className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#014582] text-white rounded-lg text-sm font-semibold hover:bg-[#01366a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md">
               {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</> : <><CreditCard className="w-4 h-4" /> Receive Payment</>}
             </button>
-            <button type="button" onClick={() => router.push('/sales/sales-payment')} className="w-full px-6 py-2.5 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+            <button type="button" onClick={() => router.push(returnPath)} className="w-full px-6 py-2.5 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
               Cancel
             </button>
           </div>
@@ -635,4 +639,8 @@ export default function CreatePaymentPage() {
       </div>
     </div>
   );
+}
+
+export default function CreatePaymentPage() {
+  return <CreateSalesPaymentPage />;
 }

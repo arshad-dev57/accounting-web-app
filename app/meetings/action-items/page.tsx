@@ -14,6 +14,7 @@ import {
   bizSelect,
   fmtDate,
 } from '../../../components/business-apps/bizUi';
+import CompanyUserSelect from '../../../components/business-apps/CompanyUserSelect';
 import MeetingPicker from '../../../components/business-apps/MeetingPicker';
 import {
   displayName,
@@ -91,8 +92,12 @@ function ActionItemsPanel({ meeting }: { meeting: MtgMeeting }) {
           <BizField label="Due date">
             <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={bizInput} />
           </BizField>
-          <BizField label="Assignee user ID (optional)">
-            <input value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} className={bizInput} />
+          <BizField label="Assign to">
+            <CompanyUserSelect
+              value={assigneeId}
+              onChange={setAssigneeId}
+              emptyLabel="Select assignee…"
+            />
           </BizField>
           <button type="submit" disabled={saving} className={bizBtnPrimary}>
             {saving ? 'Saving…' : 'Add'}
@@ -156,3 +161,4 @@ export default function MeetingsActionItemsPage() {
     </MeetingPicker>
   );
 }
+

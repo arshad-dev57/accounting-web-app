@@ -17,8 +17,10 @@ import ProfileDropdown from '../ProfileDropdown';
 import AppBreadcrumbs from '../AppBreadcrumbs';
 import GlobalSearch from '../GlobalSearch';
 import NotificationDropdown from '../NotificationDropdown';
+import { ModuleTopNav } from '../ModuleTopNav';
 import { performLogout } from '../../lib/auth-logout';
 import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
+import { useNavLayout } from '../../lib/nav-layout-preference';
 
 export type BizNavLink = {
   href: string;
@@ -215,6 +217,49 @@ export function BusinessAppShell({
   navGroups: BizNavGroup[];
   children: React.ReactNode;
 }) {
+  const { isTopbar } = useNavLayout();
+
+  useEffect(() => {
+    if (isTopbar) {
+      document.documentElement.style.setProperty('--app-sidebar-width', '0px');
+      document.documentElement.dataset.navLayout = 'topbar';
+    } else {
+      document.documentElement.dataset.navLayout = 'sidebar';
+    }
+  }, [isTopbar]);
+
+  const headerActions = (
+    <div className="flex items-center gap-2 sm:gap-3">
+      <GlobalSearch />
+      <NotificationDropdown />
+      <div className="hidden h-6 w-px bg-gray-200 sm:block" />
+      <ProfileDropdown />
+    </div>
+  );
+
+  if (isTopbar) {
+    return (
+      <div className="flex min-h-screen flex-col overflow-hidden bg-gray-50">
+        <header className="sticky top-0 z-30 shrink-0 border-b border-gray-200 bg-white">
+          <div className="flex h-14 items-center justify-between gap-3 px-4 md:px-6">
+            <TopBarBrand title={appTitle} />
+            {headerActions}
+          </div>
+          <ModuleTopNav
+            groups={navGroups.map((g) => ({
+              label: g.label,
+              items: g.items.map((item) => ({ label: item.label, href: item.href }))
+            }))}
+          />
+        </header>
+        <AppBreadcrumbs />
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-4 md:p-6">{children}</div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen overflow-hidden bg-gray-50">
       <BusinessAppSidebar
@@ -232,12 +277,7 @@ export function BusinessAppShell({
               <AppBreadcrumbs />
             </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <GlobalSearch />
-            <NotificationDropdown />
-            <div className="hidden h-6 w-px bg-gray-200 sm:block" />
-            <ProfileDropdown />
-          </div>
+          {headerActions}
         </header>
         <main className="flex-1 overflow-y-auto">
           <div className="p-4 md:p-6">{children}</div>

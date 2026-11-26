@@ -703,7 +703,7 @@ export default function AccountingDashboard() {
                   icon={Clock}
                   color={TRADE_COLORS.warning}
                   hint={receivableCount > 0 ? `${receivableCount} open` : 'Clear'}
-                  href="/sales/invoices"
+                  href="/accounting/sales-invoices"
                 />
               )}
               {showAp && (
@@ -713,7 +713,7 @@ export default function AccountingDashboard() {
                   icon={CreditCard}
                   color="#f97316"
                   hint={payableCount > 0 ? `${payableCount} open` : 'Clear'}
-                  href="/purchases/invoices"
+                  href="/accounting/purchase-invoices"
                 />
               )}
             </div>
@@ -1117,13 +1117,13 @@ export default function AccountingDashboard() {
                     },
                     {
                       label: 'Sales Invoices',
-                      href: '/sales/invoices',
+                      href: '/accounting/sales-invoices',
                       icon: Receipt,
                       color: TRADE_COLORS.accent,
                     },
                     {
                       label: 'Purchase Invoices',
-                      href: '/purchases/invoices',
+                      href: '/accounting/purchase-invoices',
                       icon: FileText,
                       color: TRADE_COLORS.primary,
                     },

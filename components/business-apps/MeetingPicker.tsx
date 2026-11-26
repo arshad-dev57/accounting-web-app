@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BizEmptyState, BizPageHeader } from './BusinessAppShell';
 import { BizLoading, bizSelect, fmtDateTime } from './bizUi';
 import { asList, meetingsApi, type MtgMeeting } from '../../lib/business-apps-api';
+
+export type MeetingPickerHelpers = {
+  reload: () => Promise<void>;
+};
 
 /**
  * Page scaffold for meeting sub-pages (participants, agenda, minutes, action items):
@@ -17,7 +21,7 @@ export default function MeetingPicker({
 }: {
   title: string;
   description: string;
-  children: (meeting: MtgMeeting) => React.ReactNode;
+  children: (meeting: MtgMeeting, helpers: MeetingPickerHelpers) => React.ReactNode;
 }) {
   const [meetings, setMeetings] = useState<MtgMeeting[]>([]);
   const [meetingId, setMeetingId] = useState('');
@@ -45,26 +49,28 @@ export default function MeetingPicker({
     };
   }, []);
 
-  useEffect(() => {
-    if (!meetingId) return;
-    let cancelled = false;
+  const loadDetail = useCallback(async (id: string) => {
+    if (!id) return;
     setLoadingDetail(true);
     setError(null);
-    meetingsApi
-      .get(meetingId)
-      .then((m) => {
-        if (!cancelled) setDetail(m);
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load meeting');
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingDetail(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [meetingId]);
+    try {
+      const m = await meetingsApi.get(id);
+      setDetail(m);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load meeting');
+    } finally {
+      setLoadingDetail(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!meetingId) return;
+    void loadDetail(meetingId);
+  }, [meetingId, loadDetail]);
+
+  const reload = useCallback(async () => {
+    if (meetingId) await loadDetail(meetingId);
+  }, [meetingId, loadDetail]);
 
   return (
     <div>
@@ -99,7 +105,7 @@ export default function MeetingPicker({
           }
         />
       ) : detail ? (
-        children(detail)
+        children(detail, { reload })
       ) : null}
     </div>
   );

@@ -1617,13 +1617,131 @@ export interface EnterpriseDashboard extends CRMDashboard {
   opportunitiesByStage?: { stage: string; count: number; value: number }[];
   topContacts?: { id: string; fullName?: string; firstName: string; lastName: string; email?: string; opportunityCount: number }[];
   recentOpportunities?: Opportunity[];
+  accountTotal?: number;
+  contactTotal?: number;
+}
+
+/**
+ * Backend `/api/crm/dashboard/enterprise` returns a nested payload:
+ * `{ leads, customers, contacts, opportunities, activities, tasks, upcomingFollowUps, ... }`
+ * while the CRM UI expects the flat CRMDashboard + enterprise extras.
+ */
+function normalizeEnterpriseDashboard(raw: any): EnterpriseDashboard {
+  if (!raw || typeof raw !== 'object') {
+    return { ...EMPTY_CRM_DASHBOARD };
+  }
+
+  // Already in flat UI shape (or base /dashboard)
+  if (raw.totals && (Array.isArray(raw.statusBreakdown) || raw.opportunityTotals)) {
+    return {
+      ...EMPTY_CRM_DASHBOARD,
+      ...raw,
+      totals: { ...EMPTY_CRM_DASHBOARD.totals, ...(raw.totals || {}) },
+      statusBreakdown: Array.isArray(raw.statusBreakdown) ? raw.statusBreakdown : [],
+      sourceBreakdown: Array.isArray(raw.sourceBreakdown) ? raw.sourceBreakdown : [],
+      recentActivity: Array.isArray(raw.recentActivity) ? raw.recentActivity : [],
+      upcomingFollowUps: Array.isArray(raw.upcomingFollowUps) ? raw.upcomingFollowUps : [],
+      addedOverTime: Array.isArray(raw.addedOverTime) ? raw.addedOverTime : [],
+      opportunityTotals: raw.opportunityTotals,
+      taskSummary: raw.taskSummary,
+      activitySummary: raw.activitySummary,
+      opportunitiesByStage: Array.isArray(raw.opportunitiesByStage) ? raw.opportunitiesByStage : [],
+      accountTotal: Number(raw.accountTotal ?? raw.customers?.total ?? 0) || 0,
+      contactTotal: Number(raw.contactTotal ?? raw.contacts?.total ?? 0) || 0,
+      recentOpportunities: Array.isArray(raw.recentOpportunities) ? raw.recentOpportunities : [],
+    };
+  }
+
+  const leads = raw.leads || {};
+  const opps = raw.opportunities || {};
+  const tasks = raw.tasks || {};
+  const activities = raw.activities || {};
+
+  const openOpps = Number(opps.open || 0) || 0;
+  const wonOpps = Number(opps.won || 0) || 0;
+  const lostOpps = Number(opps.lost || 0) || 0;
+  const pipelineValue = Number(opps.pipelineValue || opps.totalValue || 0) || 0;
+
+  const recentActivity = Array.isArray(raw.recentActivity)
+    ? raw.recentActivity
+    : Array.isArray(activities.recent)
+      ? activities.recent.map((a: any) => ({
+          id: a.id,
+          type: a.type || 'activity',
+          title: a.title || a.subject || a.type || 'Activity',
+          description: a.description || a.notes || (a.creator
+            ? [a.creator.firstName, a.creator.lastName].filter(Boolean).join(' ')
+            : undefined),
+          createdAt: a.createdAt,
+        }))
+      : [];
+
+  const statusBreakdown = Array.isArray(leads.statusBreakdown)
+    ? leads.statusBreakdown
+    : Array.isArray(raw.statusBreakdown)
+      ? raw.statusBreakdown
+      : [];
+
+  const sourceBreakdown = Array.isArray(leads.sourceBreakdown)
+    ? leads.sourceBreakdown
+    : Array.isArray(raw.sourceBreakdown)
+      ? raw.sourceBreakdown
+      : [];
+
+  return {
+    ...EMPTY_CRM_DASHBOARD,
+    totals: {
+      ...EMPTY_CRM_DASHBOARD.totals,
+      total: Number(leads.total || 0) || 0,
+      new: Number(leads.new || 0) || 0,
+      contacted: Number(leads.contacted || 0) || 0,
+      interested: Number(leads.interested || 0) || 0,
+      followUp: Number(leads.followUp || 0) || 0,
+      negotiation: Number(leads.negotiation || 0) || 0,
+      converted: Number(leads.converted || 0) || 0,
+      lost: Number(leads.lost || 0) || 0,
+      qualified: Number(leads.qualified || 0) || 0,
+      unqualified: Number(leads.unqualified || 0) || 0,
+      nurturing: Number(leads.nurturing || 0) || 0,
+    },
+    conversionRate: Number(leads.conversionRate ?? raw.conversionRate ?? 0) || 0,
+    statusBreakdown,
+    sourceBreakdown,
+    recentActivity,
+    upcomingFollowUps: Array.isArray(raw.upcomingFollowUps) ? raw.upcomingFollowUps : [],
+    addedOverTime: Array.isArray(raw.addedOverTime) ? raw.addedOverTime : [],
+    opportunityTotals: {
+      total: openOpps + wonOpps + lostOpps,
+      totalValue: pipelineValue,
+      won: wonOpps,
+      wonValue: Number(opps.wonValue || 0) || 0,
+      lost: lostOpps,
+      pipeline: openOpps,
+    },
+    taskSummary: {
+      total: Number(tasks.total || (tasks.overdue || 0) + (tasks.today || 0) + (tasks.pending || 0) + (tasks.completed || 0)) || 0,
+      pending: Number(tasks.pending || tasks.today || 0) || 0,
+      overdue: Number(tasks.overdue || 0) || 0,
+      completed: Number(tasks.completed || 0) || 0,
+    },
+    activitySummary: {
+      total: Number(activities.total || recentActivity.length || 0) || 0,
+      calls: Number(activities.calls || 0) || 0,
+      meetings: Number(activities.meetings || 0) || 0,
+      emails: Number(activities.emails || 0) || 0,
+    },
+    opportunitiesByStage: Array.isArray(raw.opportunitiesByStage) ? raw.opportunitiesByStage : [],
+    accountTotal: Number(raw.customers?.total ?? raw.accountTotal ?? 0) || 0,
+    contactTotal: Number(raw.contacts?.total ?? raw.contactTotal ?? 0) || 0,
+    recentOpportunities: Array.isArray(raw.recentOpportunities) ? raw.recentOpportunities : [],
+  };
 }
 
 export async function getEnterpriseDashboard(params?: { dateFrom?: string; dateTo?: string; assignedToId?: string }): Promise<EnterpriseDashboard> {
   try {
     const res = await apiClient.get(`/api/crm/dashboard/enterprise${toQuery(params)}`);
-    const raw = res.data?.data ?? res.data;
-    return { ...EMPTY_CRM_DASHBOARD, ...(typeof raw === 'object' ? raw : {}) };
+    const raw = unwrapCrmPayload(res);
+    return normalizeEnterpriseDashboard(raw);
   } catch {
     // Fall back to base dashboard
     const base = await getCRMDashboard(params);

@@ -147,8 +147,11 @@ export default function ModuleViewHost({
           <div
             key={path}
             className={
+              // Avoid z-index on the active pane — it creates a stacking context that
+              // traps fixed modals under sticky module headers (z-10). Inactive panes
+              // stay visually buried with -z-10 + visibility/height collapse.
               active
-                ? 'relative z-[1] w-full'
+                ? 'relative w-full'
                 : 'pointer-events-none absolute inset-x-0 top-0 -z-10 h-0 max-h-0 overflow-hidden opacity-0 invisible'
             }
             aria-hidden={!active}
@@ -161,7 +164,7 @@ export default function ModuleViewHost({
       })}
       {/* Dynamic / unregistered routes (e.g. /customers/[id]) render via App Router children */}
       {!hasActiveKeepAliveView && (
-        <div className="relative z-[1] w-full">{children}</div>
+        <div className="relative w-full">{children}</div>
       )}
     </div>
   );

@@ -269,7 +269,7 @@ export default function AccountsPayablePage() {
             </div>
             <div className="flex items-center gap-2 md:gap-3">
               <Link
-                href="/purchases/invoices"
+                href="/accounting/purchase-invoices"
                 className="px-3 py-1.5 text-xs md:text-sm font-semibold text-[#014582] border border-[#014582]/30 rounded-lg hover:bg-[#014582]/5"
               >
                 Purchase Invoices

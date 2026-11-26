@@ -4,43 +4,34 @@ export const dynamic = 'force-dynamic';
 
 import React from 'react';
 import { ArrowLeftRight } from 'lucide-react';
-import { TopBarBrand } from '../../components/BrandHeader';
-import { SidebarMain } from '../../components/CollapsibleSidebar';
-import ProfileDropdown from '../../components/ProfileDropdown';
-import AppBreadcrumbs from '../../components/AppBreadcrumbs';
-import GlobalSearch from '../../components/GlobalSearch';
-import NotificationDropdown from '../../components/NotificationDropdown';
+import { ModuleChrome } from '../../components/ModuleChrome';
 import LocationSelect from '../../components/LocationSelect';
 import { LocationProvider } from '../../lib/location-context';
 import { FiscalYearProvider } from '../../lib/fiscal-year-context';
 import { CurrencyProvider } from '../../lib/currency-context';
-import { TradingSidebar } from './nav';
+import { TradingSidebar, TRADING_SECTIONS } from './nav';
 
 export default function TradingLayout({ children }: { children: React.ReactNode }) {
+  const topGroups = TRADING_SECTIONS.map((section) => ({
+    label: section.label.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+    items: section.items.map((item) => ({ label: item.label, href: item.href }))
+  }));
+
   return (
     <FiscalYearProvider>
       <LocationProvider allowAll allowAllUsers>
         <CurrencyProvider>
-          <TradingSidebar />
-          <SidebarMain className="bg-[#f8fafc]">
-            <header className="bg-white border-b border-[#e5e7eb] px-4 sm:px-6 py-2.5 flex items-center justify-between flex-shrink-0 sticky top-0 z-20 shadow-xs">
-              <TopBarBrand
-                title="Trading Management"
-                icon={<ArrowLeftRight className="w-5 h-5 text-[#014582]" />}
-                href="/dashboard"
-              />
-              <div className="flex items-center gap-2 sm:gap-4">
-                <LocationSelect entityLabel="Warehouse" />
-                <div className="w-px h-6 bg-gray-200 hidden sm:block" />
-                <GlobalSearch />
-                <NotificationDropdown />
-                <div className="w-px h-6 bg-gray-200" />
-                <ProfileDropdown accentClassName="bg-[#014582]" />
-              </div>
-            </header>
-            <AppBreadcrumbs />
-            <main className="flex-1 p-4 sm:p-6 overflow-y-auto">{children}</main>
-          </SidebarMain>
+          <ModuleChrome
+            title="Trading Management"
+            icon={<ArrowLeftRight className="w-5 h-5 text-[#014582]" />}
+            sidebar={<TradingSidebar />}
+            topGroups={topGroups}
+            headerRightExtra={<LocationSelect entityLabel="Warehouse" />}
+            mainClassName="bg-[#f8fafc]"
+            contentClassName="flex-1 p-4 sm:p-6 overflow-y-auto"
+          >
+            {children}
+          </ModuleChrome>
         </CurrencyProvider>
       </LocationProvider>
     </FiscalYearProvider>

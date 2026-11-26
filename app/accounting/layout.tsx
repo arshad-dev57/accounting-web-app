@@ -43,7 +43,9 @@ import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import FiscalYearSelect from '../../components/FiscalYearSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
-import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
+import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
+import { ModuleChrome } from '../../components/ModuleChrome';
+import type { ModuleTopNavGroup } from '../../components/ModuleTopNav';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
 import NotificationDropdown from '../../components/NotificationDropdown';
@@ -54,6 +56,57 @@ import { accountingViewHostConfig } from '../../lib/module-view-host/registries'
 import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
 import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
 import { useCompanyBusinessConfig } from '../../lib/company-business-config';
+
+
+function useAccountingTopGroups(): ModuleTopNavGroup[] {
+  const { hasSubPageAccess, isAdmin } = usePermissions();
+  const { showInstallmentSalesUi, showInstallmentPurchaseUi } =
+    useCompanyBusinessConfig();
+  const showInstallments = showInstallmentSalesUi || showInstallmentPurchaseUi;
+
+  const accountingPages = [
+    { path: '/accounting/dashboard', label: 'Dashboard', permission: 'dashboard' },
+    { path: '/accounting/accounts', label: 'Chart of Accounts', permission: 'chart-of-accounts' },
+    { path: '/accounting/bank-Accounts', label: 'Bank Accounts', permission: 'bank-accounts' },
+    { path: '/accounting/sales-invoices', label: 'Sales Invoices', permission: 'invoices' },
+    { path: '/accounting/purchase-invoices', label: 'Purchase Invoices', permission: 'invoices' },
+    { path: '/accounting/sales-payments', label: 'Sales Payments', permission: 'invoices' },
+    { path: '/accounting/purchase-payments', label: 'Purchase Payments', permission: 'invoices' },
+    { path: '/accounting/accounts-receivable', label: 'Accounts Receivable', permission: 'accounts-receivable' },
+    ...(showInstallments
+      ? [{ path: '/accounting/installments', label: 'Installments', permission: 'accounts-receivable' as const }]
+      : []),
+    { path: '/accounting/expenses', label: 'Expenses', permission: 'expenses' },
+    { path: '/accounting/budgets', label: 'Budgets', permission: 'expenses' },
+    { path: '/accounting/budgets/vs-actual', label: 'Budget vs Actual', permission: 'expenses' },
+    { path: '/accounting/accounts-payable', label: 'Accounts Payable', permission: 'accounts-payable' },
+    { path: '/accounting/income', label: 'Income', permission: 'income' },
+    { path: '/accounting/journal-entries', label: 'Journal Entries', permission: 'journal-entries' },
+    { path: '/accounting/general-ledger', label: 'General Ledger', permission: 'general-ledger' },
+    { path: '/accounting/trial-balance', label: 'Trial Balance', permission: 'trial-balance' },
+    { path: '/accounting/fixed-assets', label: 'Fixed Assets', permission: 'fixed-assets' },
+    { path: '/accounting/loans-borrowings', label: 'Loans & Borrowings', permission: 'loans-borrowings' },
+    { path: '/accounting/capital-equity', label: 'Capital & Equity', permission: 'capital-equity' },
+    { path: '/accounting/cost-centers', label: 'Cost Centers', permission: 'expenses' },
+  ];
+  const reportPages = [
+    { path: '/accounting/reports', label: 'Accounting Reports', permission: 'journal-entries' },
+    { path: '/accounting/profit-loss', label: 'Profit & Loss', permission: 'profit-loss' },
+    { path: '/accounting/balance-sheet', label: 'Balance Sheet', permission: 'balance-sheet' },
+    { path: '/accounting/cash-flow', label: 'Cash Flow', permission: 'cash-flow' },
+    { path: '/accounting/aged-recievables', label: 'Aged Receivables', permission: 'aged-receivables' },
+  ];
+  const settingsPages = [
+    { path: '/accounting/fiscal-years', label: 'Fiscal Years', permission: 'settings' },
+    { path: '/tax', label: 'Tax Compliance', permission: 'settings' },
+  ];
+  const allow = (permission: string) => isAdmin || hasSubPageAccess('accounting', permission);
+  return [
+    { label: 'Accounting', items: accountingPages.filter((p) => allow(p.permission)).map((p) => ({ label: p.label, href: p.path, keepAliveProps: keepAliveNavProps(accountingViewHostConfig, p.path) })) },
+    { label: 'Reports', items: reportPages.filter((p) => allow(p.permission)).map((p) => ({ label: p.label, href: p.path, keepAliveProps: keepAliveNavProps(accountingViewHostConfig, p.path) })) },
+    { label: 'Settings', items: settingsPages.filter((p) => allow(p.permission)).map((p) => ({ label: p.label, href: p.path, keepAliveProps: keepAliveNavProps(accountingViewHostConfig, p.path) })) },
+  ];
+}
 
 function AccountingSidebar() {
   const pathname = usePathname();
@@ -90,13 +143,13 @@ function AccountingSidebar() {
     { path: '/accounting/accounts', label: 'Chart of Accounts', permission: 'chart-of-accounts' },
     { path: '/accounting/bank-Accounts', label: 'Bank Accounts', permission: 'bank-accounts' },
     // { path: '/accounting/bank-Accounts/reconciliation', label: 'Bank Reconciliation', permission: 'bank-accounts' },
-    { path: '/sales/invoices', label: 'Sales Invoices', permission: 'invoices', iconKey: 'sales-invoices' },
-    { path: '/purchases/invoices', label: 'Purchase Invoices', permission: 'invoices', iconKey: 'purchase-invoices' },
-    // { path: '/accounting/payments-received', label: 'Payments Received', permission: 'payments-received' },
+    { path: '/accounting/sales-invoices', label: 'Sales Invoices', permission: 'invoices', iconKey: 'sales-invoices' },
+    { path: '/accounting/purchase-invoices', label: 'Purchase Invoices', permission: 'invoices', iconKey: 'purchase-invoices' },
+    { path: '/accounting/sales-payments', label: 'Sales Payments', permission: 'invoices', iconKey: 'payments-received' },
+    { path: '/accounting/purchase-payments', label: 'Purchase Payments', permission: 'invoices', iconKey: 'payments-made' },
     // { path: '/accounting/credit-notes', label: 'Credit Notes', permission: 'credit-notes' },
     { path: '/accounting/accounts-receivable', label: 'Accounts Receivable', permission: 'accounts-receivable' },
     // { path: '/accounting/bills', label: 'Bills', permission: 'bills' },
-    // { path: '/accounting/payments-made', label: 'Payments Made', permission: 'payments-made' },
     ...(showInstallments
       ? [
           {
@@ -427,6 +480,24 @@ function AccountingSidebar() {
   );
 }
 
+function AccountingLayoutInner({ children }: { children: React.ReactNode }) {
+  const topGroups = useAccountingTopGroups();
+  return (
+    <ModuleChrome
+      title="Accounting Management"
+      icon={<Calculator className="w-5 h-5 text-[#014582]" />}
+      sidebar={<AccountingSidebar />}
+      topGroups={topGroups}
+      headerRightExtra={<FiscalYearSelect />}
+      contentClassName="flex-1 p-6"
+    >
+      <ModuleViewHost config={accountingViewHostConfig}>
+        {children}
+      </ModuleViewHost>
+    </ModuleChrome>
+  );
+}
+
 export default function AccountingLayout({
   children,
 }: {
@@ -434,39 +505,7 @@ export default function AccountingLayout({
 }) {
   return (
     <FiscalYearProvider>
-      <AccountingSidebar />
-
-      <SidebarMain className="bg-gray-50">
-        {/* Top Bar */}
-        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
-          <TopBarBrand
-            title="Accounting Management"
-            icon={<Calculator className="w-5 h-5 text-[#014582]" />}
-          />
-
-          <div className="flex items-center gap-4">
-            <FiscalYearSelect />
-
-            <div className="w-px h-6 bg-gray-200" />
-
-            <GlobalSearch />
-            <NotificationDropdown />
-
-            <div className="w-px h-6 bg-gray-200" />
-
-            <ProfileDropdown accentClassName="bg-[#091746]" />
-          </div>
-        </header>
-
-        <AppBreadcrumbs />
-
-        {/* Page Content */}
-        <div className="flex-1 p-6">
-          <ModuleViewHost config={accountingViewHostConfig}>
-            {children}
-          </ModuleViewHost>
-        </div>
-      </SidebarMain>
+      <AccountingLayoutInner>{children}</AccountingLayoutInner>
     </FiscalYearProvider>
   );
 }

@@ -143,23 +143,32 @@ export default function ProjectsMilestonesPage() {
             />
           ) : (
             <>
-              <form onSubmit={onCreate} className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
-                  <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Milestone title"
-                    className={bizInput}
-                    required
-                  />
-                  <input
-                    type="date"
-                    value={targetDate}
-                    onChange={(e) => setTargetDate(e.target.value)}
-                    className={bizInput}
-                  />
+              <form
+                onSubmit={onCreate}
+                className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+              >
+                <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-end">
+                  <label className="block text-sm">
+                    <span className="mb-1 block text-gray-600">Milestone</span>
+                    <input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Delivery checkpoint"
+                      className={bizInput}
+                      required
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="mb-1 block text-gray-600">Target date</span>
+                    <input
+                      type="date"
+                      value={targetDate}
+                      onChange={(e) => setTargetDate(e.target.value)}
+                      className={bizInput}
+                    />
+                  </label>
                   <button type="submit" disabled={saving} className={bizBtnPrimary}>
-                    {saving ? 'Saving…' : 'Add milestone'}
+                    {saving ? 'Saving…' : 'Add'}
                   </button>
                 </div>
               </form>

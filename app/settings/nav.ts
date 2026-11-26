@@ -16,11 +16,13 @@ export type SettingsNavItem = {
     | 'brands'
     | 'fields'
     | 'backup'
-    | 'pdf';
+    | 'pdf'
+    | 'themes';
 };
 
 export const SETTINGS_NAV: SettingsNavItem[] = [
   { href: '/settings/company-info', label: 'Company Info', iconKey: 'company' },
+  { href: '/settings/themes', label: 'Themes', iconKey: 'themes' },
   { href: '/settings/invoice-numbers', label: 'Invoice Numbers', iconKey: 'invoice' },
   { href: '/settings/currency', label: 'Currency', iconKey: 'currency' },
   { href: '/settings/pdf-reports', label: 'PDF Reports', iconKey: 'pdf' },

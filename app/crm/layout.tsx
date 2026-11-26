@@ -43,7 +43,8 @@ import {
   StickyNote,
 } from 'lucide-react';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
-import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
+import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
+import { ModuleChrome } from '../../components/ModuleChrome';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
@@ -351,30 +352,22 @@ function CRMSidebar() {
 }
 
 export default function CRMLayout({ children }: { children: React.ReactNode }) {
+  const topGroups = CRM_NAV_GROUPS.map((g) => ({
+    label: g.label,
+    items: g.items.map((item) => ({ label: item.label, href: item.href })),
+  }));
   return (
     <CurrencyProvider>
-      <div className="flex min-h-screen overflow-hidden bg-gray-50">
-        <CRMSidebar />
-        <SidebarMain className="flex min-w-0 flex-1 flex-col bg-gray-50">
-          <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 md:px-6">
-            <div className="flex min-w-0 items-center gap-3">
-              <TopBarBrand title="CRM" />
-              <div className="hidden min-w-0 md:block">
-                <AppBreadcrumbs />
-              </div>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <GlobalSearch />
-              <NotificationDropdown />
-              <div className="hidden h-6 w-px bg-gray-200 sm:block" />
-              <ProfileDropdown />
-            </div>
-          </header>
-          <main className="flex-1 overflow-y-auto">
-            <div className="p-4 md:p-6">{children}</div>
-          </main>
-        </SidebarMain>
-      </div>
+      <ModuleChrome
+        title="CRM"
+        icon={<Users className="w-5 h-5 text-[#014582]" />}
+        sidebar={<CRMSidebar />}
+        topGroups={topGroups}
+        showBreadcrumbs
+        contentClassName="flex-1 overflow-y-auto p-4 md:p-6"
+      >
+        {children}
+      </ModuleChrome>
     </CurrencyProvider>
   );
 }

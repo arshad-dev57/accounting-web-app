@@ -38,7 +38,9 @@ import { usePermissions } from '../../lib/usePermissions';
 import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
-import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
+import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
+import { ModuleChrome } from '../../components/ModuleChrome';
+import type { ModuleTopNavGroup } from '../../components/ModuleTopNav';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
 import NotificationDropdown from '../../components/NotificationDropdown';
@@ -54,6 +56,64 @@ import { useCompanyBusinessConfig } from '../../lib/company-business-config';
 // ============================================================
 // SALES SIDEBAR
 // ============================================================
+
+function useSalesTopGroups(): ModuleTopNavGroup[] {
+  const { hasSubPageAccess, hasModuleAccess, hasPermission, isAdmin } = usePermissions();
+  const { showInstallmentSalesUi } = useCompanyBusinessConfig();
+  const salesPages = [
+    { path: '/sales/dashboard', label: 'Sales Dashboard', permission: 'dashboard' },
+    { path: '/crm/dashboard', label: 'CRM & Leads', permission: 'dashboard' },
+    { path: '/sales/reports', label: 'Sales Reports', permission: 'dashboard' },
+    { path: '/sales/products', label: 'Products', permission: 'products' },
+    { path: '/sales/salespersons', label: 'Salespersons', permission: 'customers' },
+    { path: '/sales/quotations', label: 'Quotations', permission: 'orders' },
+    { path: '/sales/orders', label: 'Sales Orders', permission: 'orders' },
+    { path: '/sales/customers', label: 'Customers', permission: 'customers' },
+    { path: '/sales/deliveries', label: 'Sales Deliveries', permission: 'deliveries' },
+    { path: '/sales/invoices', label: 'Sales Invoices', permission: 'invoices' },
+    ...(showInstallmentSalesUi
+      ? [{ path: '/sales/installments', label: 'Installments', permission: 'invoices' as const }]
+      : []),
+    { path: '/sales/sales-payment', label: 'Sales Payments', permission: 'sales-payments' },
+  ];
+  const returnsRefundsPages = [
+    { path: '/sales/returns', label: 'Sales Returns', permission: 'sales-returns' },
+    { path: '/sales/refunds', label: 'Sales Refunds', permission: 'refunds' },
+  ];
+  const settingsPages = [
+    ...(SUBSCRIPTION_PURCHASE_UI_ENABLED
+      ? [{ path: '/plans', label: 'Subscription Plans', permission: '*' as const }]
+      : []),
+    { path: '/tax', label: 'Tax Compliance', permission: 'settings' },
+    { path: '/settings/currency', label: 'Currency', permission: 'currency' },
+    { path: '/settings/pdf-reports', label: 'PDF Reports', permission: 'settings' },
+    { path: '/sales/settings', label: 'Sales Settings', permission: 'settings' },
+  ];
+  const allowSales = (page: { permission: string }) => {
+    if (isAdmin) return true;
+    if (page.permission === 'customers') {
+      return (
+        hasSubPageAccess('sales', 'customers') ||
+        hasSubPageAccess('sales', 'orders') ||
+        hasPermission('sales-customers') ||
+        hasPermission('customers') ||
+        hasPermission('warehouse-customers') ||
+        hasModuleAccess('sales')
+      );
+    }
+    return hasSubPageAccess('sales', page.permission);
+  };
+  const allowSettings = (page: { path: string; permission: string }) => {
+    if (page.path === '/plans') return isAdmin;
+    return page.permission === '*' || isAdmin || hasSubPageAccess('sales', page.permission);
+  };
+  return [
+    { label: 'Sales', items: salesPages.filter(allowSales).map((p) => ({ label: p.label, href: p.path })) },
+    { label: 'Returns', items: returnsRefundsPages.filter((p) => isAdmin || hasSubPageAccess('sales', p.permission)).map((p) => ({ label: p.label, href: p.path })) },
+    { label: 'Settings', items: settingsPages.filter(allowSettings).map((p) => ({ label: p.label, href: p.path })) },
+  ];
+}
+
 function SalesSidebar() {
   const pathname = usePathname();
   const { collapsed } = useSidebarCollapsed();
@@ -423,6 +483,21 @@ function SalesSidebar() {
 // ============================================================
 // SALES LAYOUT
 // ============================================================
+function SalesLayoutInner({ children }: { children: React.ReactNode }) {
+  const topGroups = useSalesTopGroups();
+  return (
+    <ModuleChrome
+      title="Sales Management"
+      icon={<ShoppingCart className="w-5 h-5 text-[#014582]" />}
+      sidebar={<SalesSidebar />}
+      topGroups={topGroups}
+      contentClassName="flex-1 p-6"
+    >
+      <SalesViewHost>{children}</SalesViewHost>
+    </ModuleChrome>
+  );
+}
+
 export default function SalesLayout({
   children,
 }: {
@@ -431,33 +506,7 @@ export default function SalesLayout({
   return (
     <FiscalYearProvider>
       <LocationProvider allowAll allowAllUsers>
-        <SalesSidebar />
-
-        <SidebarMain className="bg-gray-50">
-          {/* Top Bar */}
-          <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
-            <TopBarBrand
-              title="Sales Management"
-              icon={<ShoppingCart className="w-5 h-5 text-[#014582]" />}
-            />
-
-            <div className="flex items-center gap-4">
-              <GlobalSearch />
-              <NotificationDropdown />
-
-              <div className="w-px h-6 bg-gray-200" />
-
-              <ProfileDropdown accentClassName="bg-[#014582]" />
-            </div>
-          </header>
-
-          <AppBreadcrumbs />
-
-          {/* Page Content — keep-alive for sales sidebar routes */}
-          <div className="flex-1 p-6">
-            <SalesViewHost>{children}</SalesViewHost>
-          </div>
-        </SidebarMain>
+        <SalesLayoutInner>{children}</SalesLayoutInner>
       </LocationProvider>
     </FiscalYearProvider>
   );

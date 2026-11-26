@@ -33,7 +33,9 @@ import { SUBSCRIPTION_PURCHASE_UI_ENABLED } from '../../lib/subscription-ui';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import LocationSelect from '../../components/LocationSelect';
 import { BrandHeader, TopBarBrand } from '../../components/BrandHeader';
-import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
+import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
+import { ModuleChrome } from '../../components/ModuleChrome';
+import type { ModuleTopNavGroup } from '../../components/ModuleTopNav';
 import AppBreadcrumbs from '../../components/AppBreadcrumbs';
 import GlobalSearch from '../../components/GlobalSearch';
 import NotificationDropdown from '../../components/NotificationDropdown';
@@ -50,6 +52,33 @@ import { keepAliveNavProps } from '../../lib/module-view-host/nav-props';
 // ============================================================
 // WAREHOUSE SIDEBAR
 // ============================================================
+
+function useWarehouseTopGroups(): ModuleTopNavGroup[] {
+  const { hasSubPageAccess, isAdmin } = usePermissions();
+  const menuItems = [
+    { label: 'Dashboard', path: '/warehouse/dashboard', permission: 'dashboard' },
+    { label: 'Products', path: '/warehouse/products', permission: 'products' },
+    { label: 'Import Inventory', path: '/warehouse/import', permission: 'products' },
+    { label: 'Categories', path: '/warehouse/categories', permission: 'categories' },
+    { label: 'Brands', path: '/warehouse/brands', permission: 'products' },
+    { label: 'Suppliers', path: '/warehouse/suppliers', permission: 'suppliers' },
+    { label: 'Stock Movement', path: '/warehouse/stock-movement', permission: 'stock-movement' },
+    { label: 'Product Transfer', path: '/warehouse/transfers', permission: 'stock-movement' },
+    { label: 'Stock Write-Offs', path: '/warehouse/write-offs', permission: 'stock-movement' },
+    { label: 'Warehouses', path: '/warehouse/locations', permission: 'products' },
+    { label: 'Customers', path: '/warehouse/customers', permission: 'customers' },
+    { label: 'Inventory Valuation', path: '/warehouse/inventory-valuation', permission: 'inventory-valuation' },
+    { label: 'Stock Summary', path: '/warehouse/reports/stock-summary', permission: 'stock-summary' },
+    { label: 'Low Stock Report', path: '/warehouse/reports/low-stock', permission: 'low-stock' },
+    { label: 'Expiry Report', path: '/warehouse/reports/expiry', permission: 'expiry' },
+    { label: 'All Reports', path: '/warehouse/reports', permission: 'reports' },
+    { label: 'Tax Compliance', path: '/tax', permission: 'settings' },
+    { label: 'Settings', path: '/warehouse/product-settings', permission: 'settings' },
+  ];
+  const items = menuItems.filter((p) => isAdmin || hasSubPageAccess('warehouse', p.permission) || p.permission === '*');
+  return [{ label: 'Inventory', items: items.map((p) => ({ label: p.label, href: p.path, keepAliveProps: keepAliveNavProps(warehouseViewHostConfig, p.path) })) }];
+}
+
 function WarehouseSidebar() {
   const pathname = usePathname();
   const { collapsed } = useSidebarCollapsed();
@@ -201,6 +230,24 @@ function WarehouseSidebar() {
   );
 }
 
+function WarehouseLayoutInner({ children }: { children: React.ReactNode }) {
+  const topGroups = useWarehouseTopGroups();
+  return (
+    <ModuleChrome
+      title="Inventory Management"
+      icon={<Warehouse className="w-5 h-5 text-[#014582]" />}
+      sidebar={<WarehouseSidebar />}
+      topGroups={topGroups}
+      headerRightExtra={<LocationSelect entityLabel="Warehouse" />}
+      contentClassName="flex-1 p-6"
+    >
+      <ModuleViewHost config={warehouseViewHostConfig}>
+        {children}
+      </ModuleViewHost>
+    </ModuleChrome>
+  );
+}
+
 export default function WarehouseLayout({
   children,
 }: {
@@ -209,39 +256,7 @@ export default function WarehouseLayout({
   return (
     <FiscalYearProvider>
       <LocationProvider allowAll allowAllUsers>
-      <WarehouseSidebar />
-
-      <SidebarMain className="bg-gray-50">
-        {/* Top Bar */}
-        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
-          <TopBarBrand
-            title="Inventory Management"
-            icon={<Warehouse className="w-5 h-5 text-[#014582]" />}
-          />
-
-          <div className="flex items-center gap-4">
-            <LocationSelect entityLabel="Warehouse" />
-
-            <div className="w-px h-6 bg-gray-200" />
-
-            <GlobalSearch />
-            <NotificationDropdown />
-
-            <div className="w-px h-6 bg-gray-200" />
-
-            <ProfileDropdown accentClassName="bg-[#014582]" />
-          </div>
-        </header>
-
-        <AppBreadcrumbs />
-
-        {/* Page Content */}
-        <div className="flex-1 p-6">
-          <ModuleViewHost config={warehouseViewHostConfig}>
-            {children}
-          </ModuleViewHost>
-        </div>
-      </SidebarMain>
+        <WarehouseLayoutInner>{children}</WarehouseLayoutInner>
       </LocationProvider>
     </FiscalYearProvider>
   );

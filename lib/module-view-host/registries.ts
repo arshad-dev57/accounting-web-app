@@ -63,6 +63,11 @@ export const ACCOUNTING_KEEP_ALIVE_ROUTES = [
   '/accounting/accounts',
   '/accounting/bank-Accounts',
   '/accounting/invoices',
+  '/accounting/sales-invoices',
+  '/accounting/purchase-invoices',
+  '/accounting/sales-payments',
+  '/accounting/sales-payments/create',
+  '/accounting/purchase-payments',
   '/accounting/accounts-receivable',
   '/accounting/installments',
   '/accounting/expenses',
@@ -92,6 +97,26 @@ export const accountingViewHostConfig: ModuleViewHostConfig = {
     '/accounting/accounts': loader(() => import('@/accounting/accounts/page'), 'ChartOfAccountsPage'),
     '/accounting/bank-Accounts': loader(() => import('@/accounting/bank-Accounts/page'), 'BankAccountsPage'),
     '/accounting/invoices': loader(() => import('@/accounting/invoices/page'), 'InvoicesPage'),
+    '/accounting/sales-invoices': loader(
+      () => import('@/accounting/sales-invoices/page'),
+      'AccountingSalesInvoicesView'
+    ),
+    '/accounting/purchase-invoices': loader(
+      () => import('@/accounting/purchase-invoices/page'),
+      'AccountingPurchaseInvoicesView'
+    ),
+    '/accounting/sales-payments': loader(
+      () => import('@/accounting/sales-payments/page'),
+      'AccountingSalesPaymentsView'
+    ),
+    '/accounting/sales-payments/create': loader(
+      () => import('@/accounting/sales-payments/create/page'),
+      'AccountingCreateSalesPaymentView'
+    ),
+    '/accounting/purchase-payments': loader(
+      () => import('@/accounting/purchase-payments/page'),
+      'AccountingPurchasePaymentsView'
+    ),
     '/accounting/accounts-receivable': loader(() => import('@/accounting/accounts-receivable/page'), 'AccountsReceivablePage'),
     '/accounting/installments': loader(() => import('@/accounting/installments/page'), 'default'),
     '/accounting/expenses': loader(() => import('@/accounting/expenses/page'), 'ExpensesPage'),

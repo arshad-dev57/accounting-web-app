@@ -2,13 +2,22 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { ListPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   BizEmptyState,
   BizPageHeader,
 } from '../../../components/business-apps/BusinessAppShell';
+import {
+  BizField,
+  BizLoading,
+  bizBtnPrimary,
+  bizInput,
+  bizSelect,
+} from '../../../components/business-apps/bizUi';
+import CompanyUserSelect from '../../../components/business-apps/CompanyUserSelect';
 import {
   asList,
   projectsApi,
@@ -24,12 +33,18 @@ const COLUMNS = [
   { key: 'blocked', label: 'Blocked' },
 ] as const;
 
+const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+
 export default function ProjectsBoardPage() {
   const [projects, setProjects] = useState<PmProject[]>([]);
   const [projectId, setProjectId] = useState('');
   const [tasks, setTasks] = useState<PmTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [title, setTitle] = useState('');
+  const [priority, setPriority] = useState('medium');
+  const [assigneeId, setAssigneeId] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -52,20 +67,18 @@ export default function ProjectsBoardPage() {
     };
   }, []);
 
+  const loadTasks = async (pid: string) => {
+    if (!pid) return;
+    try {
+      setTasks(asList(await projectsApi.listTasks(pid)));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load tasks');
+    }
+  };
+
   useEffect(() => {
     if (!projectId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await projectsApi.listTasks(projectId);
-        if (!cancelled) setTasks(asList(data));
-      } catch (e) {
-        if (!cancelled) toast.error(e instanceof Error ? e.message : 'Failed to load tasks');
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    void loadTasks(projectId);
   }, [projectId]);
 
   const grouped = useMemo(() => {
@@ -90,19 +103,46 @@ export default function ProjectsBoardPage() {
     }
   };
 
-  if (loading) return <div className="h-64 animate-pulse rounded-2xl border border-gray-200 bg-white" />;
+  const addTask = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!projectId) return;
+    if (!title.trim()) {
+      toast.error('Task title is required');
+      return;
+    }
+    setSaving(true);
+    try {
+      await projectsApi.createTask(projectId, {
+        title: title.trim(),
+        priority,
+        status: 'todo',
+        assigneeId: assigneeId || undefined,
+      });
+      toast.success('Task added');
+      setTitle('');
+      setPriority('medium');
+      setAssigneeId('');
+      await loadTasks(projectId);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add task');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <BizLoading height="h-64" />;
   if (error) return <BizEmptyState title="Unable to load board" description={error} />;
 
   return (
     <div>
       <BizPageHeader
         title="Kanban Board"
-        description="Drag-style status transitions for project tasks."
+        description="Add tasks on the board, then move them across columns."
         actions={
           <select
             value={projectId}
             onChange={(e) => setProjectId(e.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+            className={bizSelect}
           >
             {projects.length === 0 ? <option value="">No projects</option> : null}
             {projects.map((p) => (
@@ -125,45 +165,86 @@ export default function ProjectsBoardPage() {
           }
         />
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {COLUMNS.map((col) => (
-            <div
-              key={col.key}
-              className="w-72 shrink-0 rounded-2xl border border-gray-200 bg-gray-50/80 p-3"
-            >
-              <div className="mb-3 flex items-center justify-between px-1">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
-                  {col.label}
-                </h3>
-                <span className="rounded-md bg-white px-2 py-0.5 text-xs tabular-nums text-gray-500">
-                  {grouped[col.key]?.length || 0}
-                </span>
-              </div>
-              <div className="space-y-2">
-                {(grouped[col.key] || []).map((task) => (
-                  <div
-                    key={task.id}
-                    className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
-                  >
-                    <p className="text-sm font-medium text-gray-900">{task.title}</p>
-                    <p className="mt-1 text-xs capitalize text-gray-500">{task.priority} priority</p>
-                    <select
-                      value={task.status}
-                      onChange={(e) => void moveTask(task.id, e.target.value)}
-                      className="mt-3 w-full rounded-md border border-gray-200 px-2 py-1 text-xs"
-                    >
-                      {COLUMNS.map((c) => (
-                        <option key={c.key} value={c.key}>
-                          Move to {c.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+        <>
+          <form
+            onSubmit={addTask}
+            className="mb-5 grid gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] lg:grid-cols-[1fr_120px_1fr_auto] lg:items-end"
+          >
+            <BizField label="New task">
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className={bizInput}
+                placeholder="What needs doing?"
+                required
+              />
+            </BizField>
+            <BizField label="Priority">
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+                className={`${bizSelect} w-full`}
+              >
+                {PRIORITIES.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
                 ))}
+              </select>
+            </BizField>
+            <BizField label="Assignee">
+              <CompanyUserSelect
+                value={assigneeId}
+                onChange={setAssigneeId}
+                emptyLabel="Optional…"
+              />
+            </BizField>
+            <button type="submit" disabled={saving} className={bizBtnPrimary}>
+              <ListPlus className="h-4 w-4" />
+              Add
+            </button>
+          </form>
+
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {COLUMNS.map((col) => (
+              <div
+                key={col.key}
+                className="w-72 shrink-0 rounded-lg border border-gray-200 bg-[#fafbfc] p-3"
+              >
+                <div className="mb-3 flex items-center justify-between px-1">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                    {col.label}
+                  </h3>
+                  <span className="rounded-md bg-white px-2 py-0.5 text-xs tabular-nums text-gray-500">
+                    {grouped[col.key]?.length || 0}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {(grouped[col.key] || []).map((task) => (
+                    <div
+                      key={task.id}
+                      className="rounded-lg border border-gray-200 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+                    >
+                      <p className="text-sm font-medium text-gray-900">{task.title}</p>
+                      <p className="mt-1 text-xs capitalize text-gray-500">{task.priority} priority</p>
+                      <select
+                        value={task.status}
+                        onChange={(e) => void moveTask(task.id, e.target.value)}
+                        className="mt-3 w-full rounded-md border border-gray-200 px-2 py-1 text-xs"
+                      >
+                        {COLUMNS.map((c) => (
+                          <option key={c.key} value={c.key}>
+                            Move to {c.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

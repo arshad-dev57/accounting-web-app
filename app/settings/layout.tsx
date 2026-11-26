@@ -23,18 +23,16 @@ import {
   Save,
   HardDrive,
   FileText,
+  Palette,
 } from 'lucide-react';
-import ProfileDropdown from '../../components/ProfileDropdown';
-import { TopBarBrand } from '../../components/BrandHeader';
-import { CollapsibleSidebar, SidebarMain } from '../../components/CollapsibleSidebar';
-import AppBreadcrumbs from '../../components/AppBreadcrumbs';
-import GlobalSearch from '../../components/GlobalSearch';
-import NotificationDropdown from '../../components/NotificationDropdown';
+import { CollapsibleSidebar } from '../../components/CollapsibleSidebar';
+import { ModuleChrome } from '../../components/ModuleChrome';
 import { useSidebarCollapsed } from '../../lib/sidebar-collapse';
 import { SETTINGS_NAV, requestSettingsSave, type SettingsNavItem } from './nav';
 
 const ICON_MAP: Record<SettingsNavItem['iconKey'], React.ReactNode> = {
   company: <Building2 className="w-4 h-4" />,
+  themes: <Palette className="w-4 h-4" />,
   invoice: <Hash className="w-4 h-4" />,
   currency: <Coins className="w-4 h-4" />,
   stock: <Package className="w-4 h-4" />,
@@ -50,6 +48,13 @@ const ICON_MAP: Record<SettingsNavItem['iconKey'], React.ReactNode> = {
   backup: <HardDrive className="w-4 h-4" />,
   pdf: <FileText className="w-4 h-4" />,
 };
+
+const NO_SAVE_PATHS = new Set([
+  '/settings/backup-restore',
+  '/settings/pdf-reports',
+  '/settings/currency',
+  '/settings/themes',
+]);
 
 function SettingsSidebar() {
   const pathname = usePathname();
@@ -103,9 +108,7 @@ function SettingsSidebar() {
         })}
       </div>
 
-      {pathname !== '/settings/backup-restore' &&
-        pathname !== '/settings/pdf-reports' &&
-        pathname !== '/settings/currency' && (
+      {!NO_SAVE_PATHS.has(pathname) && (
         <div className="px-3 pb-5 pt-2 flex-shrink-0 border-t border-white/10">
           <button
             type="button"
@@ -125,25 +128,35 @@ function SettingsSidebar() {
 }
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
   return (
-    <>
-      <SettingsSidebar />
-      <SidebarMain className="bg-[#f3f4f6]">
-        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
-          <TopBarBrand
-            title="Settings"
-            icon={<SlidersHorizontal className="w-5 h-5 text-[#014582]" />}
-          />
-          <div className="flex items-center gap-4">
-            <GlobalSearch />
-            <NotificationDropdown />
-            <div className="w-px h-6 bg-gray-200" />
-            <ProfileDropdown accentClassName="bg-[#091746]" />
-          </div>
-        </header>
-        <AppBreadcrumbs />
-        <div className="flex-1 p-6">{children}</div>
-      </SidebarMain>
-    </>
+    <ModuleChrome
+      title="Settings"
+      icon={<SlidersHorizontal className="w-5 h-5 text-[#014582]" />}
+      sidebar={<SettingsSidebar />}
+      topGroups={[
+        {
+          label: 'Settings',
+          items: SETTINGS_NAV.map((item) => ({ label: item.label, href: item.href }))
+        }
+      ]}
+      headerRightExtra={
+        !NO_SAVE_PATHS.has(pathname) ? (
+          <button
+            type="button"
+            onClick={() => requestSettingsSave()}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#014582] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#01366a]"
+          >
+            <Save className="h-4 w-4" />
+            Save
+          </button>
+        ) : null
+      }
+      mainClassName="bg-[#f3f4f6]"
+      contentClassName="flex-1 p-6"
+    >
+      {children}
+    </ModuleChrome>
   );
 }

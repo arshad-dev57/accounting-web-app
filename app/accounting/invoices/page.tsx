@@ -4,25 +4,16 @@ export const dynamic = 'force-dynamic';
 
 import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   Receipt,
   FileText,
   ArrowRight,
-  TrendingUp,
-  Package,
   Users,
   Building2,
   CheckCircle2,
-  DollarSign,
-  CreditCard,
-  ShoppingCart,
-  ClipboardList
 } from 'lucide-react';
 
 export default function InvoicesNavigationPage() {
-  const router = useRouter();
-
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header Banner */}
@@ -80,18 +71,18 @@ export default function InvoicesNavigationPage() {
 
           <div className="space-y-2 pt-4 border-t border-gray-100">
             <Link
-              href="/sales/invoices"
+              href="/accounting/sales-invoices"
               className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors shadow-md shadow-blue-600/20"
             >
               <span>Open Sales Invoices</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/sales/dashboard"
+              href="/accounting/accounts-receivable"
               className="w-full py-2.5 px-4 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium text-xs flex items-center justify-center gap-2 transition-colors border border-gray-200"
             >
-              <ShoppingCart className="w-3.5 h-3.5" />
-              <span>Go to Sales Dashboard</span>
+              <Users className="w-3.5 h-3.5" />
+              <span>Accounts Receivable</span>
             </Link>
           </div>
         </div>
@@ -133,18 +124,18 @@ export default function InvoicesNavigationPage() {
 
           <div className="space-y-2 pt-4 border-t border-gray-100">
             <Link
-              href="/purchases/invoices"
+              href="/accounting/purchase-invoices"
               className="w-full py-3 px-4 rounded-xl bg-[#014582] hover:bg-[#013566] text-white font-semibold text-sm flex items-center justify-center gap-2 transition-colors shadow-md shadow-[#014582]/20"
             >
               <span>Open Purchase Invoices</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/purchases/dashboard"
+              href="/accounting/accounts-payable"
               className="w-full py-2.5 px-4 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium text-xs flex items-center justify-center gap-2 transition-colors border border-gray-200"
             >
-              <Package className="w-3.5 h-3.5" />
-              <span>Go to Purchases Dashboard</span>
+              <Building2 className="w-3.5 h-3.5" />
+              <span>Accounts Payable</span>
             </Link>
           </div>
         </div>

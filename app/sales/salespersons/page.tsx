@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -368,10 +369,12 @@ export default function SalespersonsPage() {
         </div>
       )}
 
-      {/* Add Salesperson Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-lg my-4 shadow-2xl overflow-hidden">
+      {/* Add Salesperson Modal — portal so sticky sales header cannot cover it */}
+      {showModal &&
+        typeof document !== 'undefined' &&
+        createPortal(
+        <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-lg my-8 shadow-2xl overflow-hidden">
             {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#014582]/5 to-transparent">
               <div className="flex items-center gap-3">
@@ -528,7 +531,8 @@ export default function SalespersonsPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

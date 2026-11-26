@@ -145,6 +145,8 @@ export const GLOBAL_SEARCH_PAGES: GlobalSearchPage[] = [
   { path: '/accounting/bank-Accounts/transfer', label: 'Bank Transfer', group: 'accounting', module: 'accounting', permission: 'bank-accounts', keywords: ['fund transfer', 'bank to bank'] },
   { path: '/sales/invoices', label: 'Sales Invoices', group: 'sales', module: 'sales', permission: 'invoices', keywords: ['billing', 'sales invoice', 'customer invoice'] },
   { path: '/purchases/invoices', label: 'Purchase Invoices', group: 'purchases', module: 'purchases', permission: 'invoices', keywords: ['billing', 'purchase invoice', 'vendor invoice', 'grn invoice'] },
+  { path: '/accounting/sales-payments', label: 'Sales Payments', group: 'accounting', module: 'accounting', permission: 'invoices', keywords: ['receipts', 'customer payments', 'payments received'] },
+  { path: '/accounting/purchase-payments', label: 'Purchase Payments', group: 'accounting', module: 'accounting', permission: 'invoices', keywords: ['vendor payments', 'supplier payments', 'payments made'] },
   { path: '/accounting/payments-received', label: 'Payments Received', group: 'accounting', module: 'accounting', permission: 'payments-received', keywords: ['receipts', 'customer payments'] },
   { path: '/accounting/credit-notes', label: 'Credit Notes', group: 'accounting', module: 'accounting', permission: 'credit-notes', keywords: ['credit memo', 'adjustment'] },
   { path: '/accounting/accounts-receivable', label: 'Accounts Receivable', group: 'accounting', module: 'accounting', permission: 'accounts-receivable', keywords: ['ar', 'debtors', 'receivables'] },

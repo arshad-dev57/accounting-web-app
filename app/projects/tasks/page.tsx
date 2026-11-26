@@ -2,15 +2,24 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { ListPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   BizEmptyState,
   BizPageHeader,
   BizStatusBadge,
 } from '../../../components/business-apps/BusinessAppShell';
-import { BizLoading, bizSelect, bizInput, fmtDate } from '../../../components/business-apps/bizUi';
+import {
+  BizField,
+  BizLoading,
+  bizBtnPrimary,
+  bizInput,
+  bizSelect,
+  fmtDate,
+} from '../../../components/business-apps/bizUi';
+import CompanyUserSelect from '../../../components/business-apps/CompanyUserSelect';
 import {
   asList,
   displayName,
@@ -27,6 +36,7 @@ const STATUSES = [
   { key: 'blocked', label: 'Blocked' },
   { key: 'cancelled', label: 'Cancelled' },
 ];
+const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
 function priorityTone(p: string) {
   if (p === 'urgent') return 'danger' as const;
@@ -43,6 +53,13 @@ export default function ProjectsTasksPage() {
   const [projectId, setProjectId] = useState('');
   const [status, setStatus] = useState('');
   const [q, setQ] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const [title, setTitle] = useState('');
+  const [priority, setPriority] = useState('medium');
+  const [assigneeId, setAssigneeId] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [createFor, setCreateFor] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -50,6 +67,7 @@ export default function ProjectsTasksPage() {
     try {
       const list = asList(await projectsApi.list({ limit: 100 }));
       setProjects(list);
+      if (!createFor && list[0]) setCreateFor(list[0].id);
       const results = await Promise.allSettled(list.map((p) => projectsApi.listTasks(p.id)));
       const all: PmTask[] = [];
       results.forEach((r) => {
@@ -65,6 +83,7 @@ export default function ProjectsTasksPage() {
 
   useEffect(() => {
     void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const projectName = useMemo(() => {
@@ -82,6 +101,39 @@ export default function ProjectsTasksPage() {
       return true;
     });
   }, [tasks, projectId, status, q]);
+
+  const onAdd = async (e: FormEvent) => {
+    e.preventDefault();
+    const pid = createFor || projectId;
+    if (!pid) {
+      toast.error('Select a project first');
+      return;
+    }
+    if (!title.trim()) {
+      toast.error('Task title is required');
+      return;
+    }
+    setSaving(true);
+    try {
+      await projectsApi.createTask(pid, {
+        title: title.trim(),
+        priority,
+        status: 'todo',
+        assigneeId: assigneeId || undefined,
+        dueDate: dueDate || undefined,
+      });
+      toast.success('Task added');
+      setTitle('');
+      setPriority('medium');
+      setAssigneeId('');
+      setDueDate('');
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add task');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const changeStatus = async (task: PmTask, next: string) => {
     const prev = task.status;
@@ -102,7 +154,7 @@ export default function ProjectsTasksPage() {
     <div>
       <BizPageHeader
         title="Tasks"
-        description="All tasks across your projects. Update status inline."
+        description="Add tasks directly here — select project, assignee, then Add."
         actions={
           <button
             type="button"
@@ -113,6 +165,71 @@ export default function ProjectsTasksPage() {
           </button>
         }
       />
+
+      {projects.length > 0 ? (
+        <form
+          onSubmit={onAdd}
+          className="mb-5 overflow-hidden rounded-lg border border-gray-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+        >
+          <div className="grid gap-2 lg:grid-cols-[1fr_1fr_120px_1fr_140px_auto] lg:items-end">
+            <BizField label="Project">
+              <select
+                value={createFor}
+                onChange={(e) => setCreateFor(e.target.value)}
+                className={`${bizSelect} w-full`}
+                required
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </BizField>
+            <BizField label="Task">
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className={bizInput}
+                placeholder="What needs doing?"
+                required
+              />
+            </BizField>
+            <BizField label="Priority">
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+                className={`${bizSelect} w-full`}
+              >
+                {PRIORITIES.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </BizField>
+            <BizField label="Assignee">
+              <CompanyUserSelect
+                value={assigneeId}
+                onChange={setAssigneeId}
+                emptyLabel="Select assignee…"
+              />
+            </BizField>
+            <BizField label="Due">
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className={bizInput}
+              />
+            </BizField>
+            <button type="submit" disabled={saving} className={bizBtnPrimary}>
+              <ListPlus className="h-4 w-4" />
+              Add
+            </button>
+          </div>
+        </form>
+      ) : null}
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <input
@@ -148,12 +265,12 @@ export default function ProjectsTasksPage() {
           title="No tasks found"
           description={
             projects.length === 0
-              ? 'Create a project first, then add tasks from the project page.'
-              : 'No tasks match the current filters. Add tasks from a project page.'
+              ? 'Create a project first, then add tasks above.'
+              : 'No tasks match the current filters. Use Add above.'
           }
           action={
             <Link
-              href="/projects/list"
+              href="/projects/list?new=1"
               className="rounded-lg bg-[#014582] px-4 py-2 text-sm font-semibold text-white"
             >
               Go to projects
@@ -161,9 +278,9 @@ export default function ProjectsTasksPage() {
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <table className="min-w-full divide-y divide-gray-100 text-sm">
-            <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <thead className="bg-[#fafbfc] text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
               <tr>
                 <th className="px-4 py-3">Task</th>
                 <th className="px-4 py-3">Project</th>

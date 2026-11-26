@@ -4,25 +4,44 @@ export const dynamic = 'force-dynamic';
 
 import React, { useEffect, useMemo } from 'react';
 import { Factory } from 'lucide-react';
-import { TopBarBrand } from '../../components/BrandHeader';
-import { SidebarMain } from '../../components/CollapsibleSidebar';
-import ProfileDropdown from '../../components/ProfileDropdown';
-import AppBreadcrumbs from '../../components/AppBreadcrumbs';
-import GlobalSearch from '../../components/GlobalSearch';
-import NotificationDropdown from '../../components/NotificationDropdown';
+import { ModuleChrome } from '../../components/ModuleChrome';
+import type { ModuleTopNavGroup } from '../../components/ModuleTopNav';
 import LocationSelect from '../../components/LocationSelect';
 import { LocationProvider } from '@/lib/location-context';
 import { FiscalYearProvider } from '@/lib/fiscal-year-context';
 import { usePermissions } from '@/lib/usePermissions';
 import { usePathname } from 'next/navigation';
 import { MfgNavProvider, useMfgNav } from '@/lib/mfg-nav-context';
+import { isTextileWeavingCompany, useCompanyOptional } from '@/lib/company-context';
 import { MfgSidebar } from './nav';
 
 const LAST_WORKSPACE_KEY = 'bisonstechs_mfg_last_workspace';
 
+const WEAVING_TOP_ITEMS = [
+  { href: '/manufacturing/weaving', label: 'Overview' },
+  { href: '/manufacturing/weaving/godown', label: 'Godown Register' },
+  { href: '/manufacturing/weaving/twisting', label: 'Twisting / Coning' },
+  { href: '/manufacturing/weaving/warping', label: 'Warping (Beams)' },
+  { href: '/manufacturing/weaving/looms', label: 'Looms & Wages' }
+];
+
+function flattenMfgItems(
+  items: Array<{ label: string; href?: string | null; items?: unknown[] }> | undefined,
+  out: { label: string; href: string }[] = []
+) {
+  for (const item of items || []) {
+    if (item.href) out.push({ label: item.label, href: item.href });
+    if (Array.isArray(item.items)) {
+      flattenMfgItems(item.items as typeof items, out);
+    }
+  }
+  return out;
+}
+
 function ManufacturingShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { nav } = useMfgNav();
+  const companyCtx = useCompanyOptional();
 
   const workspaceSlug = useMemo(() => {
     const segment = pathname.split('/')[2] || '';
@@ -39,25 +58,39 @@ function ManufacturingShell({ children }: { children: React.ReactNode }) {
     if (workspaceSlug) window.localStorage.setItem(LAST_WORKSPACE_KEY, workspaceSlug);
   }, [workspaceSlug]);
 
+  const weavingMode =
+    pathname.startsWith('/manufacturing/weaving') ||
+    isTextileWeavingCompany(companyCtx?.activeCompany);
+
+  const topGroups: ModuleTopNavGroup[] = useMemo(() => {
+    if (weavingMode) {
+      return [{ label: 'Weaving', items: WEAVING_TOP_ITEMS }];
+    }
+    const active = (nav?.workspaces || []).find((ws) => ws.slug === workspaceSlug) || nav?.workspaces?.[0];
+    const items = flattenMfgItems(active?.items as Array<{ label: string; href?: string | null; items?: unknown[] }>);
+    const workspaceSwitcher = (nav?.workspaces || []).map((ws) => ({
+      label: ws.label,
+      href: `/manufacturing/${ws.slug}`
+    }));
+    return [
+      ...(workspaceSwitcher.length
+        ? [{ label: 'Workspaces', items: workspaceSwitcher }]
+        : []),
+      { label: active?.label || 'Manufacturing', items }
+    ];
+  }, [weavingMode, nav, workspaceSlug]);
+
   return (
-    <>
-      <MfgSidebar workspaceSlug={workspaceSlug} />
-      <SidebarMain className="bg-gray-50">
-        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
-          <TopBarBrand title="Manufacturing" icon={<Factory className="w-5 h-5 text-[#014582]" />} />
-          <div className="flex items-center gap-4">
-            <LocationSelect entityLabel="Warehouse" />
-            <div className="w-px h-6 bg-gray-200" />
-            <GlobalSearch />
-            <NotificationDropdown />
-            <div className="w-px h-6 bg-gray-200" />
-            <ProfileDropdown accentClassName="bg-[#014582]" />
-          </div>
-        </header>
-        <AppBreadcrumbs />
-        <div className="flex-1 p-6">{children}</div>
-      </SidebarMain>
-    </>
+    <ModuleChrome
+      title="Manufacturing"
+      icon={<Factory className="w-5 h-5 text-[#014582]" />}
+      sidebar={<MfgSidebar workspaceSlug={workspaceSlug} />}
+      topGroups={topGroups}
+      headerRightExtra={<LocationSelect entityLabel="Warehouse" />}
+      contentClassName="flex-1 p-6"
+    >
+      {children}
+    </ModuleChrome>
   );
 }
 
